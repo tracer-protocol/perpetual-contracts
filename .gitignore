@@ -1,0 +1,14 @@
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.DS_Store
+.env
+build/
+migrations/
+types/truffle-contracts/
+types/web3-v1-contracts/
+contract-addresses.json
+.vscode/
+test/**/*.js
+

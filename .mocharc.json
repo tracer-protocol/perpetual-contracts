@@ -1,0 +1,7 @@
+{
+  "parallel": true,
+  "jobs": 8,
+  "timeout": 600000,
+  "colors": true,
+  "recursive": true
+}
