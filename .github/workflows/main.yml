@@ -1,0 +1,25 @@
+name: Actions
+
+on:
+  push:
+    branches:
+      - master
+  pull_request: ~
+
+jobs:
+  run-tests:
+    name: Run Tracer Tests (with migrations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: "12.16"
+      - run: npm install
+      - run: npm run test:compile
+      - run: npm run test:unit
+        env:
+          MAINNET_RPC: https://mainnet.infura.io/v3/0baed183ec2b45e3a5b6c1536a4a5bf0
+      - run: npm run test:functional
+        env:
+          MAINNET_RPC: https://mainnet.infura.io/v3/0baed183ec2b45e3a5b6c1536a4a5bf0
