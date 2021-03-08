@@ -14,7 +14,10 @@ describe("Receipt: unit tests", async () => {
 
     beforeEach(async () => {
         //Deploy receipt contract and let account 4 be the accounts contract
-        mockTracer = await MockTracer.new(5, 3, ether("1"), true, accounts[4], 1, new BN("100000000"));
+        let block = new BN(await web3.eth.getBlockNumber())
+        mockTracer = await MockTracer.new(
+                5, 3, ether("1"), true, accounts[4], 1, new BN("100000000")
+        );
         receipt = await Receipt.new(accounts[4])
         //Set up a receipt where accounts 1 is the liquidator
         //and accounts2 is the liquidatee
@@ -53,7 +56,9 @@ describe("Receipt: unit tests", async () => {
         context("When the refund is already claimed", () => {
             it("fails", async () => {
                 //Deploy a new mock tracer with 0 units so that a unit mismatch doesnt throw.
-                let mockTracerWithCorrectUnits = await MockTracer.new(0, 0, ether("1"), true, accounts[1], 0, new BN("100000000"));
+                let mockTracerWithCorrectUnits = await MockTracer.new(
+                        0, 0, ether("1"), true, accounts[1], 0, new BN("100000000")
+                );
                 let receipt2 = await Receipt.new(accounts[4])
                 await receipt2.submitLiquidation(
                     mockTracer.address,

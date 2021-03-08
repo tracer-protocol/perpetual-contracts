@@ -350,8 +350,8 @@ describe("Insurance", async () => {
             await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[3] })
             await account.liquidate(web3.utils.toWei("500"), accounts[1], tracer.address, { from: accounts[2] })
 
-            //Before liquidator sells, price drops
-            const newPrice = new BN("99900")
+            //Before liquidator sells, price jumps, causing slippage on a short position
+            const newPrice = new BN("295000000")
             await oracle.setPrice(newPrice)
 
             //Liquidator sells his positions across multiple orders, and as maker and taker
