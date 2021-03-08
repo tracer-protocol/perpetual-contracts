@@ -23,7 +23,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     using LibMath for int256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant override FUNDING_RATE_SENSITIVITY = 1;
+    uint256 public override FUNDING_RATE_SENSITIVITY;
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     uint256 public immutable override priceMultiplier;
     address public immutable override tracerBaseToken;
@@ -75,7 +75,8 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         address _gasPriceOracle,
         address _accountContract,
         address _pricingContract,
-        int256 _maxLeverage
+        int256 _maxLeverage,
+        uint256 fundingRateSensitivity
     ) public Ownable() {
         accountContract = IAccount(_accountContract);
         pricingContract = IPricing(_pricingContract);
@@ -88,6 +89,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         priceMultiplier = 10**uint256(ioracle.decimals());
         feeRate = 0;
         maxLeverage = _maxLeverage;
+        FUNDING_RATE_SENSITIVITY = fundingRateSensitivity;
 
         // Start average prices from deployment
         startLastHour = block.timestamp;
@@ -448,6 +450,10 @@ contract Tracer is ITracer, SimpleDex, Ownable {
 
     function setMaxLeverage(int256 _maxLeverage) public override onlyOwner {
         maxLeverage = _maxLeverage;
+    }
+
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) public override onlyOwner {
+        FUNDING_RATE_SENSITIVITY = _fundingRateSensitivity;
     }
 
     function transferOwnership(address newOwner) public override(Ownable, ITracer) onlyOwner {

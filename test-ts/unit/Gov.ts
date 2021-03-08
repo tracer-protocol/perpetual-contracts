@@ -712,6 +712,7 @@ describe("Gov: unit tests", async () => {
                     account.address,
                     pricing.address,
                     oneDollar,
+                    1 //funding rate sensitivity
                 ]
             )
             const proposeTracerData = web3.eth.abi.encodeFunctionCall(

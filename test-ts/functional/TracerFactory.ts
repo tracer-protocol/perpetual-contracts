@@ -58,7 +58,8 @@ describe("TracerFactory", async () => {
                     accounts[0],
                     accounts[0],
                     //pricing,
-                    125000 //12.5 max leverage
+                    125000, //12.5 max leverage,
+                    1 //funding rate sensitivity
                 ]
             )
 

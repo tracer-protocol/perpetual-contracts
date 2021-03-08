@@ -77,6 +77,8 @@ interface ITracer {
 
     function setMaxLeverage(int256 _maxLeverage) external;
 
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
+
     function transferOwnership(address newOwner) external;
 
     function initializePricing() external;

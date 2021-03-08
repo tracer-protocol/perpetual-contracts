@@ -20,7 +20,8 @@ contract DeployerV1 is IDeployer {
             address _gasPriceOracle,
             address _accountContract,
             address _pricingContract,
-            int256 _maxLeverage
+            int256 _maxLeverage,
+            uint256 _fundingRateSensitivity
         ) = abi.decode(_data, (
             bytes32,
             uint256,
@@ -29,7 +30,8 @@ contract DeployerV1 is IDeployer {
             address,
             address,
             address,
-            int256
+            int256,
+            uint256
         ));
         Tracer tracer = new Tracer(
             _tracerId,
@@ -39,8 +41,9 @@ contract DeployerV1 is IDeployer {
             _gasPriceOracle,
             _accountContract,
             _pricingContract,
-            _maxLeverage
-            );
+            _maxLeverage,
+            _fundingRateSensitivity
+        );
         tracer.transferOwnership(msg.sender);
         return address(tracer);
     }
