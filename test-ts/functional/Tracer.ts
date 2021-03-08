@@ -501,8 +501,8 @@ describe("Tracer", async () => {
             await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[3] })
             await account.liquidate(web3.utils.toWei("500"), accounts[1], tracer.address, { from: accounts[2] })
             //amount to escrow = max(0, 200 - (216.4384 - 200)) = 183.5616
-            const lowerPrice = new BN("159000000")
-            //Before liquidator sells, price drops small amount
+            const lowerPrice = new BN("161000000")
+            //Before liquidator sells, price rises small amount (causing slippage since he is a short agent)
             await oracle.setPrice(lowerPrice)
 
             //Liquidator sells his positions across multiple orders, and as maker and taker
@@ -517,8 +517,8 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
             await tracer.takeOrder(3, web3.utils.toWei("200"), { from: accounts[3] })
 
-            // Liquidated at $1.6, sold at $1.59.
-            // 1.6*500 - 1.59 * 500 = $5
+            // Liquidated at $1.6, sold at $1.61.
+            // 1.61*500 - 1.6 * 500 = $5
 
             let balanceBefore = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceBefore = await account.getBalance(accounts[1], tracer.address)
@@ -531,6 +531,53 @@ describe("Tracer", async () => {
             assert.equal(balanceAfter[0].sub(balanceBefore[0]).toString(), web3.utils.toWei("5"))
             //escrowedAmount - amountRefunded = 183.5616 - 5 = $178.5616 returned to trader
             assert.equal(traderBalanceAfter[0].sub(traderBalanceBefore[0]).toString(), web3.utils.toWei("178.5616"))
+        })
+
+        it("Liquidator can not claim escrowed funds with orders that are too old", async () => {
+            await account.deposit(web3.utils.toWei("500"), tracer.address)
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+            let currentOrderId = 0;
+            const oneSixtyOne = new BN("161000000")
+            const oneSixty = new BN("160000000")
+
+            await account.deposit(web3.utils.toWei("1000"), tracer.address, { from: accounts[2] })
+            await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[3] })
+            // Price rises before any liquidation happens, which could allow short 
+            // liquidator to trick contracts in the future
+            await oracle.setPrice(oneSixtyOne)
+
+            await tracer.makeOrder(web3.utils.toWei("500"), oneSixtyOne, true, sevenDays, { from: accounts[2] })
+            await tracer.takeOrder(currentOrderId, web3.utils.toWei("500"), { from: accounts[3] })
+
+
+            await oracle.setPrice(oneDollar)
+
+            currentOrderId++
+            //Long order for 5 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
+
+            //Short order for 5 TEST/USD against placed order
+            await tracer.takeOrder(currentOrderId, web3.utils.toWei("500"), { from: accounts[1] })
+
+            //Price increases 60%, short order now is under margin requirements
+            //$1 + 60% = 1.60
+            //margin = 1000 + -500 * 1.6 = $200
+            //minMargin = 6*25.4064 + 800/12.5 = 216.44
+            await oracle.setPrice(oneSixty)
+
+            //accounts[2] liquidates and takes on the short position
+            await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[2] })
+            await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[3] })
+            await account.liquidate(web3.utils.toWei("500"), accounts[1], tracer.address, { from: accounts[2] })
+            //amount to escrow = max(0, 200 - (216.4384 - 200)) = 183.5616
+            //Before liquidator sells, price rises small amount (causing slippage since he is a short agent)
+            await oracle.setPrice(oneSixtyOne)
+
+            currentOrderId++
+            await expectRevert(
+                account.claimReceipts(0, [0], tracer.address, { from: accounts[2] }),
+                "REC: Order creation before liquidation"
+            );
         })
     })
 
