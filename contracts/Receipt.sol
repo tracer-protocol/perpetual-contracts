@@ -38,6 +38,13 @@ contract Receipt is IReceipt, Ownable {
     }
 
     /**
+     * @param newReleaseTime new release time
+     */
+    function setReleaseTime(uint256 newReleaseTime) external onlyOwner {
+        releaseTime = newReleaseTime;
+    }
+
+    /**
      * @notice Creates a liquidation receipt for a given trader
      * @param market the Tracer that this receipt belongs too
      * @param liquidator the account executing the liquidation
