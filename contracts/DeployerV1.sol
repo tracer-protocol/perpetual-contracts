@@ -14,7 +14,6 @@ contract DeployerV1 is IDeployer {
     ) external override returns(address) {
         (
             bytes32 _tracerId,
-            uint256 _minMargin,
             address _tracerBaseToken,
             address _oracle,
             address _gasPriceOracle,
@@ -24,7 +23,6 @@ contract DeployerV1 is IDeployer {
             uint256 _fundingRateSensitivity
         ) = abi.decode(_data, (
             bytes32,
-            uint256,
             address,
             address,
             address,
@@ -35,7 +33,6 @@ contract DeployerV1 is IDeployer {
         ));
         Tracer tracer = new Tracer(
             _tracerId,
-            _minMargin,
             _tracerBaseToken,
             _oracle,
             _gasPriceOracle,

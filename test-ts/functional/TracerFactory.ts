@@ -45,10 +45,9 @@ describe("TracerFactory", async () => {
     context("Deploy and Approve", async () => {
         it.skip("approves the deployed market", async () => {
             let deployData = web3.eth.abi.encodeParameters(
-                ["bytes32", "uint256", "address", "address", "address", "address", "address", "int256"],
+                ["bytes32", "address", "address", "address", "address", "address", "int256"],
                 [
                     web3.utils.fromAscii(`LINK/USD`),
-                    750, //0.075 * 10000 (eg 7.5% scaled)
                     // govToken.address,
                     // oracle,
                     // gasPriceOracle,

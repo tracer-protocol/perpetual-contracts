@@ -36,8 +36,6 @@ interface ITracer {
 
     function priceMultiplier() external view returns(uint256);
 
-    function minMargin() external view returns(uint256);
-
     function feeRate() external view returns(uint256);
 
     function maxLeverage() external view returns(int256);
