@@ -42,4 +42,8 @@ interface IReceipt {
         );
 
     function currentLiquidationId() external view returns(uint256);
+
+    function maxSlippage() external view returns(int256);
+
+    function setMaxSlippage(int256 _maxSlippage) external;
 }
