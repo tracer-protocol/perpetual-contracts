@@ -9,49 +9,9 @@ describe("Trader Shim unit tests", async () => {
     let deployed;
     let trader: TraderInstance;
     let tracer: TracerInstance;
-
-    let sampleMakers: any = [
-        {
-            amount: "5000000000000000000",
-            price: "100000000",
-            side: true,
-            user: "0x392D3d2313E71aF6B5E7DA923aB01919F7393997",
-            expiration: 1598590237,
-            targetTracer: "0xC921f73263d751774603e7a2bB5f9c989eb349dE",
-            nonce: 18,
-        },
-        {
-            amount: "5000002200000000000",
-            price: "100000088",
-            side: false,
-            user: "0x392D3d2313E71aF6B5E7DA923aB01919F7393997",
-            expiration: 1598590909,
-            targetTracer: "0xC921f73263d751774603e7a2bB5f9c989eb349dE",
-            nonce: 33,
-        }
-    ];
-
-    let sampleTakers: any = [
-        {
-            amount: "5000000000000000000",
-            price: "100000000",
-            side: true,
-            user: "0x392D3d2313E71aF6B5E7DA923aB01919F7393997",
-            expiration: 1598590237,
-            targetTracer: "0xC921f73263d751774603e7a2bB5f9c989eb349dE",
-            nonce: 18,
-        },
-        {
-            amount: "5000002200000000000",
-            price: "100000088",
-            side: false,
-            user: "0x392D3d2313E71aF6B5E7DA923aB01919F7393997",
-            expiration: 1598590909,
-            targetTracer: "0xC921f73263d751774603e7a2bB5f9c989eb349dE",
-            nonce: 33,
-        }
-    ];
-
+    
+    let sampleMakers: any;
+    let sampleTakers: any;
 
     before(async () => {
         await configure()
@@ -61,6 +21,50 @@ describe("Trader Shim unit tests", async () => {
         deployed = await setupContractsAndTracer(accounts);
         tracer = await deployed.tracer;
         trader = await deployed.trader;
+    
+    sampleMakers = [
+        {
+            amount: "5000000000000000000",
+            price: "100000000",
+            side: true,
+            user: accounts[1],
+            expiration: 1598590237,
+            targetTracer: tracer.address,
+            nonce: 18,
+        },
+        {
+            amount: "5000002200000000000",
+            price: "100000088",
+            side: false,
+            user: accounts[0],
+            expiration: 1598590909,
+            targetTracer: tracer.address,
+            nonce: 33,
+        }
+    ];
+
+    sampleTakers = [
+        {
+            amount: "5000000000000000000",
+            price: "100000000",
+            side: true,
+            user: accounts[2],
+            expiration: 1598590237,
+            targetTracer: tracer.address,
+            nonce: 18,
+        },
+        {
+            amount: "5000002200000000000",
+            price: "100000088",
+            side: false,
+            user: accounts[2],
+            expiration: 1598590909,
+            targetTracer: tracer.address,
+            nonce: 33,
+        }
+    ];
+
+
     })
 
     describe("executeTrade", () => {
