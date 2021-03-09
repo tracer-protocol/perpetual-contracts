@@ -4,66 +4,10 @@ import { assert } from "chai"
 import { AccountInstance, DeployerV1Instance, GasOracleInstance, GovInstance, InsuranceInstance, OracleInstance, PricingInstance, ReceiptInstance, TestTokenInstance, TracerFactoryInstance, TracerInstance, TraderInstance } from "../../types/truffle-contracts"
 import { Trader } from "../artifacts"
 import { setupContractsAndTracer } from "../lib/Setup"
+import { signOrder, signOrders, domain, domainData, limitOrder } from "../lib/Signing"
 import { accounts, web3, configure } from "../configure"
 
-
 require("dotenv").config()
-
-//Signing Helper Function
-//@ts-ignore
-const signOrder = async (web3, signingAccount, data, callback) => {
-    const signer = web3.utils.toChecksumAddress(signingAccount)
-    return new Promise((resolve, reject) => {
-        web3.currentProvider.send(
-            {
-                method: "eth_signTypedData",
-                params: [signer, data],
-                from: signer,
-            },
-            //@ts-ignore
-            async (err, result) => {
-                if (err) {
-                    reject(err)
-                }
-                let parsedSig = result.result.substring(2)
-                const r = "0x" + parsedSig.substring(0, 64)
-                const s = "0x" + parsedSig.substring(64, 128)
-                const v = parseInt(parsedSig.substring(128, 130), 16) //130 hex = 65bytes
-                return resolve([r, s, v])
-            }
-        )
-    })
-}
-
-
-//Process and sign orders
-//@ts-ignore
-const signOrders = async (orders, domain, domainData, limitOrder) => {
-    //@ts-ignore
-    return orders.map(async (order) => {
-        let type = {
-            EIP712Domain: domain,
-            LimitOrder: limitOrder,
-        }
-
-        let dataToSign = {
-            domain: domainData,
-            primaryType: "LimitOrder",
-            message: order,
-            types: type,
-        }
-
-        //@ts-ignore
-        let signedData: [string, string, string] = await signOrder(web3, order.user, dataToSign)
-
-        return {
-            order: order,
-            sigR: signedData[0],
-            sigS: signedData[1],
-            sigV: signedData[2],
-        }
-    })
-}
 
 const threeDays = 259200
 const twoDays = 172800
@@ -125,40 +69,6 @@ describe("Trader", async () => {
         }
 
         //Signed Order Helpers
-        domain = [
-            { name: "name", type: "string" },
-            { name: "version", type: "string" },
-            { name: "chainId", type: "uint256" },
-            { name: "verifyingContract", type: "address" },
-            // { name: "salt", type: "bytes32" },
-        ]
-
-        limitOrder = [
-            { name: "amount", type: "uint256" },
-            { name: "price", type: "int256" },
-            { name: "side", type: "bool" },
-            { name: "user", type: "address" },
-            { name: "expiration", type: "uint256" },
-            { name: "targetTracer", type: "address" },
-            { name: "nonce", type: "uint256" },
-        ]
-
-        domainData = {
-            name: "Tracer Protocol",
-            version: "1.0",
-            chainId: 1337,
-            verifyingContract: trader.address,
-            //salt: web3.utils.keccak256("Go Long Yourself"),
-        }
-        let sampleOrder = {
-            amount: "5000000000000000000",
-            price: "100000000",
-            side: true,
-            user: "0x392D3d2313E71aF6B5E7DA923aB01919F7393997",
-            expiration: 1598590237,
-            targetTracer: "0xC921f73263d751774603e7a2bB5f9c989eb349dE",
-            nonce: 18,
-        }
 
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
@@ -190,8 +100,8 @@ describe("Trader", async () => {
                 }
             ]
 
-            let signedTakes: any = await Promise.all(await signOrders(takes, domain, domainData, limitOrder))
-            let signedMakes: any = await Promise.all(await signOrders(makes, domain, domainData, limitOrder))
+            let signedTakes: any = await Promise.all(await signOrders(web3, takes, domain, domainData(trader.address), limitOrder))
+            let signedMakes: any = await Promise.all(await signOrders(web3, makes, domain, domainData(trader.address), limitOrder))
 
             await account.deposit(web3.utils.toWei("500"), tracer.address)
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
@@ -299,8 +209,8 @@ describe("Trader", async () => {
                 },
             ]
 
-            let signedTakes: any = await Promise.all(await signOrders(takes, domain, domainData, limitOrder))
-            let signedMakes: any = await Promise.all(await signOrders(makes, domain, domainData, limitOrder))
+            let signedTakes: any = await Promise.all(await signOrders(web3, takes, domain, domainData, limitOrder))
+            let signedMakes: any = await Promise.all(await signOrders(web3, makes, domain, domainData, limitOrder))
 
             await account.deposit(web3.utils.toWei("500"), tracer.address)
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
@@ -422,9 +332,9 @@ describe("Trader", async () => {
             },
         ]
 
-        let signedTakesNormal: any = await Promise.all(await signOrders(takes, domain, domainData, limitOrder))
-        let signedTakesReplay: any = await Promise.all(await signOrders(takesReplay, domain, domainData, limitOrder))
-        let signedMakes: any = await Promise.all(await signOrders(makes, domain, domainData, limitOrder))
+        let signedTakesNormal: any = await Promise.all(await signOrders(web3, takes, domain, domainData, limitOrder))
+        let signedTakesReplay: any = await Promise.all(await signOrders(web3, takesReplay, domain, domainData, limitOrder))
+        let signedMakes: any = await Promise.all(await signOrders(web3, makes, domain, domainData, limitOrder))
         let signedTakes: any = signedTakesNormal.concat(signedTakesReplay)
 
         await account.deposit(web3.utils.toWei("500"), tracer.address)
@@ -484,10 +394,10 @@ describe("Trader", async () => {
             },
         ]
 
-        let signedTakesNormal: any = await Promise.all(await signOrders(takes, domain, domainData, limitOrder))
-        let signedTakesReplay: any = await Promise.all(await signOrders(takesReplay, domain, domainData, limitOrder))
-        let signedMakes: any = await Promise.all(await signOrders(makes, domain, domainData, limitOrder))
-        let signedMakes2: any = await Promise.all(await signOrders(makes2, domain, domainData, limitOrder))
+        let signedTakesNormal: any = await Promise.all(await signOrders(web3, takes, domain, domainData, limitOrder))
+        let signedTakesReplay: any = await Promise.all(await signOrders(web3, takesReplay, domain, domainData, limitOrder))
+        let signedMakes: any = await Promise.all(await signOrders(web3, makes, domain, domainData, limitOrder))
+        let signedMakes2: any = await Promise.all(await signOrders(web3, makes2, domain, domainData, limitOrder))
         await account.deposit(web3.utils.toWei("500"), tracer.address)
         await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
 
@@ -525,8 +435,8 @@ describe("Trader", async () => {
     //             })
     //         }
 
-    //         let signedTakes = await Promise.all(await signOrders(takes, domain, domainData, limitOrder))
-    //         let signedMakes = await Promise.all(await signOrders(makes, domain, domainData, limitOrder))
+    //         let signedTakes = await Promise.all(await signOrders(web3, takes, domain, domainData, limitOrder))
+    //         let signedMakes = await Promise.all(await signOrders(web3, makes, domain, domainData, limitOrder))
 
     //         let batchTxn = await trader.executeTrade(signedMakes, signedTakes, tracer.address)
     //         console.log(`Makes and Takes ${i + i}. Gas Used ${batchTxn.receipt.gasUsed}`)

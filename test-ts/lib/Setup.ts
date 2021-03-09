@@ -16,7 +16,8 @@ import {
     AccountInstance,
     PricingInstance,
     GasOracleInstance,
-    TracerInstance
+    TracerInstance,
+    TraderInstance
 } from "../../types/truffle-contracts"
 import {
     Tracer,
@@ -29,7 +30,8 @@ import {
     Pricing,
     DeployerV1,
     Receipt,
-    Gov
+    Gov,
+    Trader
 } from "../artifacts"
 
 //All prices in price ($) * 1000000
@@ -177,6 +179,10 @@ export async function setupReceipt(account: AccountInstance): Promise<any> {
     return receipt
 }
 
+export async function setupTrader(account: AccountInstance): Promise<any> {
+    return await Trader.new();
+}
+
 export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     let receipt: ReceiptInstance
     let deployer: DeployerV1Instance
@@ -189,6 +195,7 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     let account: AccountInstance
     let pricing: PricingInstance
     let gasPriceOracle: GasOracleInstance
+    let trader: TraderInstance
 
     const oracles = await setupOracles()
     const tokens = await setupTokens(accounts)
@@ -222,6 +229,9 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     //Link insurance contract
     await insurance.setAccountContract(account.address)
 
+    /* Deploy Trader shim */
+    trader = await setupTrader(account);
+
     return {
         gov,
         govToken,
@@ -234,6 +244,7 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
         oracle,
         gasPriceOracle,
         deployer,
+        trader,
     }
 }
 
@@ -251,6 +262,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     let pricing: PricingInstance
     let gasPriceOracle: GasOracleInstance
     let now: any
+    let trader: TraderInstance
 
     const contracts = await setupContracts(accounts)
     gov = contracts.gov
@@ -264,6 +276,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     oracle = contracts.oracle
     gasPriceOracle = contracts.gasPriceOracle
     deployer = contracts.deployer
+    trader = contracts.trader
 
     // maxLeveraged = 12.5 * 10,000. notional_value/margin is at most 12.5
     const maxLeverage = 125000
@@ -373,6 +386,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
         oracle,
         gasPriceOracle,
         deployer,
+        trader,
     }
 }
 
