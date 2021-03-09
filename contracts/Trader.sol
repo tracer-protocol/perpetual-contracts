@@ -169,8 +169,10 @@ contract Trader {
         bytes32 sigS,
         uint8 sigV
     ) public returns (bool) {
-        return verifySignature(signer, order, sigR, sigS, sigV) && 
-            verifyNonce(order);
+        require(verifySignature(signer, order, sigR, sigS, sigV),
+            "TDR: Signature verification failed");
+        require(verifyNonce(order), "TDR: Incorrect nonce");
+        return true;
     }
 
     /**
