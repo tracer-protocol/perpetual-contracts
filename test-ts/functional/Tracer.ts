@@ -17,7 +17,6 @@ import {
 import { setupContractsAndTracer } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
 const truffleAssert = require('truffle-assertions');
-const sha3 = require('js-sha3').keccak_256
 
 
 /**
