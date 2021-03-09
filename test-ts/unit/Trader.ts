@@ -84,6 +84,16 @@ describe("Trader Shim unit tests", async () => {
                 )
             })
         })
+
+        context("When input arrays are both empty", () => {
+            it("reverts", async () => {
+                let makers: any = [];
+                let takers: any = [];
+                let market: string = tracer.address;
+
+                await expectRevert(trader.executeTrade(makers, takers, market), "TDR: Received empty arrays")
+            })
+        })
     })
 })
 
