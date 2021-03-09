@@ -702,16 +702,16 @@ describe("Gov: unit tests", async () => {
         /*
         it("executes external function calls", async () => {
             var deployTracerData = web3.eth.abi.encodeParameters(
-                ["bytes32", "uint256", "address", "address", "address", "address", "address", "uint256"],
+                ["bytes32", "address", "address", "address", "address", "address", "uint256"],
                 [
                     web3.utils.fromAscii(`TEST/USD`),
-                    750, //0.075 * 10000 (eg 7.5% scaled)
                     testToken.address,
                     oracle.address,
                     gasPriceOracle.address,
                     account.address,
                     pricing.address,
                     oneDollar,
+                    1 //funding rate sensitivity
                 ]
             )
             const proposeTracerData = web3.eth.abi.encodeFunctionCall(

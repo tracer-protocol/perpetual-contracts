@@ -23,12 +23,11 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     using LibMath for int256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant override FUNDING_RATE_SENSITIVITY = 1;
+    uint256 public override FUNDING_RATE_SENSITIVITY;
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     uint256 public immutable override priceMultiplier;
     address public immutable override tracerBaseToken;
     bytes32 public immutable override marketId;
-    uint256 public immutable override minMargin;
     IAccount public accountContract;
     IPricing public pricingContract;
     uint256 public override feeRate;
@@ -60,7 +59,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
      *         will be able to purchase and trade tracers after this deployment.
      * @param _marketId the id of the market, given as BASE/QUOTE
-     * @param _minMargin the minimum margin requirement for each account
      * @param _tracerBaseToken the address of the token used for margin accounts (i.e. The margin token)
      * @param _oracle the address of the contract implementing the tracer oracle interface
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
@@ -69,18 +67,17 @@ contract Tracer is ITracer, SimpleDex, Ownable {
      */
     constructor(
         bytes32 _marketId,
-        uint256 _minMargin,
         address _tracerBaseToken,
         address _oracle,
         address _gasPriceOracle,
         address _accountContract,
         address _pricingContract,
-        int256 _maxLeverage
+        int256 _maxLeverage,
+        uint256 fundingRateSensitivity
     ) public Ownable() {
         accountContract = IAccount(_accountContract);
         pricingContract = IPricing(_pricingContract);
         tracerBaseToken = _tracerBaseToken;
-        minMargin = _minMargin;
         oracle = _oracle;
         gasPriceOracle = _gasPriceOracle;
         marketId = _marketId;
@@ -88,6 +85,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         priceMultiplier = 10**uint256(ioracle.decimals());
         feeRate = 0;
         maxLeverage = _maxLeverage;
+        FUNDING_RATE_SENSITIVITY = fundingRateSensitivity;
 
         // Start average prices from deployment
         startLastHour = block.timestamp;
@@ -448,6 +446,10 @@ contract Tracer is ITracer, SimpleDex, Ownable {
 
     function setMaxLeverage(int256 _maxLeverage) public override onlyOwner {
         maxLeverage = _maxLeverage;
+    }
+
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) public override onlyOwner {
+        FUNDING_RATE_SENSITIVITY = _fundingRateSensitivity;
     }
 
     function transferOwnership(address newOwner) public override(Ownable, ITracer) onlyOwner {

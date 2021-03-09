@@ -36,8 +36,6 @@ interface ITracer {
 
     function priceMultiplier() external view returns(uint256);
 
-    function minMargin() external view returns(uint256);
-
     function feeRate() external view returns(uint256);
 
     function maxLeverage() external view returns(int256);
@@ -76,6 +74,8 @@ interface ITracer {
     function setFeeRate(uint256 _feeRate) external;
 
     function setMaxLeverage(int256 _maxLeverage) external;
+
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
 
     function transferOwnership(address newOwner) external;
 
