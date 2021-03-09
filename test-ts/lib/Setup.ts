@@ -155,9 +155,10 @@ export async function setupAccount(
     insuranceAddr: string,
     gasPriceAddr: string,
     factoryAddr: string,
-    pricingAddr: string
+    pricingAddr: string,
+    govAddr: string
 ): Promise<any> {
-    return (await Account.new(insuranceAddr, gasPriceAddr, factoryAddr, pricingAddr))
+    return (await Account.new(insuranceAddr, gasPriceAddr, factoryAddr, pricingAddr, govAddr))
 }
 
 export async function setupAccountFull(accounts: Truffle.Accounts): Promise<any> {
@@ -168,11 +169,11 @@ export async function setupAccountFull(accounts: Truffle.Accounts): Promise<any>
     const deployer = await setupDeployer();
     const factory = await setupFactory(insurance, deployer, gov);
     const pricing = await setupPricing(factory.address);
-    return await setupAccount(insurance.address, gasPriceOracle.address, factory.address, pricing.address);
+    return await setupAccount(insurance.address, gasPriceOracle.address, factory.address, pricing.address, gov.address);
 }
 
-export async function setupReceipt(account: AccountInstance): Promise<any> {
-    let receipt = await Receipt.new(account.address)
+export async function setupReceipt(account: AccountInstance, govAddr: string): Promise<any> {
+    let receipt = await Receipt.new(account.address, new BN("1000000"), govAddr) // Just set unlimited max slippage for flexibility in tests
     await account.setReceiptContract(receipt.address)
     return receipt
 }
@@ -213,11 +214,11 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     pricing = await setupPricing(tracerFactory.address)
 
     //Deploy account state contract
-    account = await setupAccount(insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address)
+    account = await setupAccount(insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, accounts[0])
     // TODO: This was using gasOracle instead of gasPriceOracle. How did it pass?
 
     //Deploy and link receipt contract
-    receipt = await setupReceipt(account)
+    receipt = await setupReceipt(account, gov.address)
 
     //Link insurance contract
     await insurance.setAccountContract(account.address)

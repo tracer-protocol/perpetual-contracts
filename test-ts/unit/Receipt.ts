@@ -1,12 +1,16 @@
 //@ts-ignore
 import { BN, ether, expectRevert, time } from "@openzeppelin/test-helpers"
-import { ReceiptInstance, MockTracerInstance } from "../../types/truffle-contracts"
+import { ReceiptInstance, MockTracerInstance, GovInstance } from "../../types/truffle-contracts"
 import { MockTracer, Receipt } from "../artifacts"
 import { accounts, web3, configure } from "../configure"
+import { setupGovAndToken } from "../lib/Setup"
 
 describe("Receipt: unit tests", async () => {
     let receipt: ReceiptInstance
     let mockTracer: MockTracerInstance
+    let gov: GovInstance
+
+    const maxSlippage = new BN("1000") // 10%*10000
 
     before(async () => {
         await configure()
@@ -14,11 +18,12 @@ describe("Receipt: unit tests", async () => {
 
     beforeEach(async () => {
         //Deploy receipt contract and let account 4 be the accounts contract
-        let block = new BN(await web3.eth.getBlockNumber())
         mockTracer = await MockTracer.new(
                 5, 3, ether("1"), true, accounts[4], 1, new BN("100000000")
         );
-        receipt = await Receipt.new(accounts[4])
+        const govAndToken = await setupGovAndToken(accounts)
+        gov = govAndToken.gov
+        receipt = await Receipt.new(accounts[4], maxSlippage, gov.address)
         //Set up a receipt where accounts 1 is the liquidator
         //and accounts2 is the liquidatee
         await receipt.submitLiquidation(
@@ -59,7 +64,7 @@ describe("Receipt: unit tests", async () => {
                 let mockTracerWithCorrectUnits = await MockTracer.new(
                         0, 0, ether("1"), true, accounts[1], 0, new BN("100000000")
                 );
-                let receipt2 = await Receipt.new(accounts[4])
+                let receipt2 = await Receipt.new(accounts[4], maxSlippage, gov.address)
                 await receipt2.submitLiquidation(
                     mockTracer.address,
                     accounts[1],

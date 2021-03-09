@@ -12,6 +12,7 @@ import {
     PricingInstance,
     TracerInstance,
     GasOracleInstance,
+    GovInstance,
 } from "../../types/truffle-contracts"
 import { setupContractsAndTracer } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
@@ -27,6 +28,7 @@ describe("Tracer", async () => {
     const oneDollar = new BN("100000000")
     const oneHour = 3600
     const twentyFourHours = 24 * oneHour
+    const twoDays = twentyFourHours * 2
 
     let receipt: ReceiptInstance
     let deployer: DeployerV1Instance
@@ -38,6 +40,7 @@ describe("Tracer", async () => {
     let account: AccountInstance
     let pricing: PricingInstance
     let gasPriceOracle: GasOracleInstance
+    let gov: GovInstance
 
     let now: any
     let sevenDays: any
@@ -59,6 +62,7 @@ describe("Tracer", async () => {
         account = deployed.account
         pricing = deployed.pricing
         gasPriceOracle = deployed.gasPriceOracle
+        gov = deployed.gov
 
         //Set end of test setup times for use throughout tests
         now = await time.latest()
@@ -531,6 +535,104 @@ describe("Tracer", async () => {
             assert.equal(balanceAfter[0].sub(balanceBefore[0]).toString(), web3.utils.toWei("5"))
             //escrowedAmount - amountRefunded = 183.5616 - 5 = $178.5616 returned to trader
             assert.equal(traderBalanceAfter[0].sub(traderBalanceBefore[0]).toString(), web3.utils.toWei("178.5616"))
+        })
+
+        it("Appropriately caps the slippage", async () => {
+
+            // Set the max slippage to 1%
+            const setMaxSlippage = web3.eth.abi.encodeFunctionCall(
+                {
+                    name: "setMaxSlippage",
+                    type: "function",
+                    inputs: [
+                        {
+                            type: "int256",
+                            name: "_maxSlippage",
+                        },
+                    ],
+                },
+                ["100"] // 1% * 10000
+            )
+            await gov.propose([receipt.address], [setMaxSlippage])
+            const proposalId = (await gov.proposalCounter()).sub(new BN("1"))
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalId, web3.utils.toWei("10"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(proposalId)
+
+            await account.deposit(web3.utils.toWei("500"), tracer.address)
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+            //Long order for 5 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
+
+            //Short order for 5 TEST/USD against placed order
+            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+
+            //Price increases 60%, short order now is under margin requirements
+            //$1 + 60% = 1.60
+            //margin = 1000 + -500 * 1.6 = $200
+            //minMargin = 6*25.4064 + 800/12.5 = 216.44
+            await oracle.setPrice(new BN("160000000"))
+
+            //accounts[2] liquidates and takes on the short position
+            await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[2] })
+            await account.deposit(web3.utils.toWei("750"), tracer.address, { from: accounts[3] })
+            await account.liquidate(web3.utils.toWei("500"), accounts[1], tracer.address, { from: accounts[2] })
+            //amount to escrow = max(0, 200 - (216.4384 - 200)) = 183.5616
+
+            //Before liquidator sells, price rises small amount (causing slippage since he is a short agent)
+            //But it is 1.25%, which is greater than the max slippage of 1%.
+            const lowerPrice = new BN("162000000")
+            await oracle.setPrice(lowerPrice)
+
+            //Liquidator sells his positions across multiple orders, and as maker and taker
+            await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
+            await tracer.takeOrder(1, web3.utils.toWei("200"), { from: accounts[3] })
+
+            await tracer.makeOrder(web3.utils.toWei("100"), lowerPrice, false, sevenDays, {
+                from: accounts[3],
+            })
+            await tracer.takeOrder(2, web3.utils.toWei("100"), { from: accounts[2] })
+
+            await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
+            await tracer.takeOrder(3, web3.utils.toWei("200"), { from: accounts[3] })
+
+            // Liquidated at $1.6, sold at $1.62.
+            // 1.62*500 - 1.6 * 500 = $10
+            // However, that is over the 1%. A 1% slippage would be $8 loss
+
+            let balanceBefore = await account.getBalance(accounts[2], tracer.address)
+            let traderBalanceBefore = await account.getBalance(accounts[1], tracer.address)
+
+            await account.claimReceipts(0, [1, 2, 3], tracer.address, { from: accounts[2] })
+
+            let balanceAfter = await account.getBalance(accounts[2], tracer.address)
+            let traderBalanceAfter = await account.getBalance(accounts[1], tracer.address)
+            //Refunded $5 of the escrowed amount, because that's how much was lost due to slippage
+            assert.equal(balanceAfter[0].sub(balanceBefore[0]).toString(), web3.utils.toWei("8"))
+            //escrowedAmount - amountRefunded = 183.5616 - 8 = $175.5616 returned to trader
+            assert.equal(traderBalanceAfter[0].sub(traderBalanceBefore[0]).toString(), web3.utils.toWei("175.5616"))
+
+            // Set the max slippage back to a high number to ensure flexibility in all remaining tests
+            const setMaxSlippageBack = web3.eth.abi.encodeFunctionCall(
+                {
+                    name: "setMaxSlippage",
+                    type: "function",
+                    inputs: [
+                        {
+                            type: "int256",
+                            name: "_maxSlippage",
+                        },
+                    ],
+                },
+                ["100000"] // 1000% * 10000
+            )
+            await gov.propose([receipt.address], [setMaxSlippage])
+            const nextProposalId = (await gov.proposalCounter()).sub(new BN("1"))
+            await time.increase(twoDays + 1)
+            await gov.voteFor(nextProposalId, web3.utils.toWei("10"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(nextProposalId)
         })
 
         it("Liquidator can not claim escrowed funds with orders that are too old", async () => {

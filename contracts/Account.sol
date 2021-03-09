@@ -55,12 +55,14 @@ contract Account is IAccount, Ownable {
         address _insuranceContract,
         address _gasPriceOracle,
         address _factory,
-        address _pricing
+        address _pricing,
+        address governance
     ) public {
         insuranceContract = _insuranceContract;
         gasPriceOracle = _gasPriceOracle;
         factory = ITracerFactory(_factory);
         pricing = IPricing(_pricing);
+        transferOwnership(governance);
     }
 
     /**

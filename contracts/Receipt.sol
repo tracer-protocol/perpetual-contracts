@@ -3,6 +3,7 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./Interfaces/IReceipt.sol";
@@ -13,13 +14,14 @@ import "./Interfaces/ITracer.sol";
 * Each call enforces that the contract calling the account is only updating the balance
 * of the account for that contract.
 */
-contract Receipt is IReceipt {
+contract Receipt is IReceipt, Ownable {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
 
     uint256 public override currentLiquidationId;
+    int256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
     IAccount public accounts;
 
@@ -29,8 +31,10 @@ contract Receipt is IReceipt {
     int256 private constant PERCENT_PRECISION = 10000;
 
     // On contract deployment set the account contract. 
-    constructor(address accountContract) public {
+    constructor(address accountContract, int256 _maxSlippage, address gov) public {
         accounts = IAccount(accountContract);
+        maxSlippage = _maxSlippage;
+        transferOwnership(gov);
     }
 
     /**
@@ -114,10 +118,22 @@ contract Receipt is IReceipt {
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
             uint256 amountToReturn = 0;
+            int256 percentSlippage = 0;
             if (avgPrice < receipt.price && receipt.liquidationSide) {
                 amountToReturn = uint256(amountExpectedFor.sub(amountSoldFor));
+                if (amountToReturn <= 0) {
+                    return 0;
+                }
+                percentSlippage = amountToReturn.toInt256().mul(PERCENT_PRECISION).div(amountExpectedFor);
             } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
                 amountToReturn = uint256(amountSoldFor.sub(amountExpectedFor));
+                if (amountToReturn <= 0) {
+                    return 0;
+                }
+                percentSlippage = amountToReturn.toInt256().mul(PERCENT_PRECISION).div(amountExpectedFor);
+            }
+            if (percentSlippage > maxSlippage) {
+                amountToReturn = uint256(maxSlippage.mul(amountExpectedFor).div(PERCENT_PRECISION));
             }
             if (amountToReturn > receipt.escrowedAmount) {
                 liquidationReceipts[escrowId].escrowedAmount = 0;
@@ -228,6 +244,10 @@ contract Receipt is IReceipt {
             _receipt.liquidationSide,
             _receipt.liquidatorRefundClaimed
         );
+    }
+
+    function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
+        maxSlippage = _maxSlippage;
     }
 
     modifier onlyAccount() {
