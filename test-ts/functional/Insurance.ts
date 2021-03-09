@@ -367,7 +367,6 @@ describe("Insurance", async () => {
             await tracer.takeOrder(3, web3.utils.toWei("200"), { from: accounts[3] })
             
             await account.claimReceipts(0, [1, 2, 3], tracer.address, { from: accounts[2] })
-
             let insuranceBalance = await insurance.getPoolHoldings(tracer.address);
             assert.equal(insuranceBalance.toString(), web3.utils.toWei("1"))
         })
