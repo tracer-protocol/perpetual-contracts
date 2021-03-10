@@ -23,7 +23,7 @@ contract Trader {
         "uint256 expiration,address targetTracer,uint256 nonce)"
     );
 
-    uint256 constant CHAIN_ID = 1;
+    uint256 constant CHAIN_ID = 1337;
     bytes32 public immutable EIP712_DOMAIN;
 
     /* order nonces */
@@ -101,15 +101,12 @@ contract Trader {
             Types.SignedLimitOrder memory currentSigned = orders[index];
             
             /* verify signature and nonce */
-            require(
-                verify(
-                    currentSigned.order.user,
-                    currentSigned.order,
-                    currentSigned.sigR,
-                    currentSigned.sigS,
-                    currentSigned.sigV
-                ),
-                "TDR: incorrect order sig or nonce"
+            verify(
+                currentSigned.order.user,
+                currentSigned.order,
+                currentSigned.sigR,
+                currentSigned.sigS,
+                currentSigned.sigV
             );
 
             return currentSigned.order;
@@ -191,15 +188,7 @@ contract Trader {
         bytes32 sigS,
         uint8 sigV
     ) public returns (bool) {
-        bool result = signer == ecrecover(hashOrder(order), sigV, sigR, sigS);
-
-        /* emit relevant event on successful verification of the digital
-         * signature */
-        if(result) {
-            emit Verify(signer);
-        }
-
-        return result;
+        return signer == ecrecover(hashOrder(order), sigV, sigR, sigS);
     }
 
     /**

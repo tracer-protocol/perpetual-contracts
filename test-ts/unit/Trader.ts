@@ -96,8 +96,8 @@ describe("Trader Shim unit tests", async () => {
                 let market: string = tracer.address;
 
                 /* sign orders for submission */
-                let signedMakers: any = await Promise.all(await signOrders(web3, makers, domain, await domainData(trader.address), limitOrder));
-                let signedTakers: any = await Promise.all(await signOrders(web3, takers, domain, await domainData(trader.address), limitOrder));
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, domain, domainData(trader.address), limitOrder));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, domain, domainData(trader.address), limitOrder));
 
                 await expectRevert(
                     trader.executeTrade(signedMakers, signedTakers, market),
@@ -125,8 +125,8 @@ describe("Trader Shim unit tests", async () => {
                 let market: string = tracer.address;
 
                 /* sign orders for submission */
-                let signedMakers: any = await Promise.all(await signOrders(web3, makers, domain, await domainData(trader.address), limitOrder));
-                let signedTakers: any = await Promise.all(await signOrders(web3, takers, domain, await domainData(trader.address), limitOrder));
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, domain, domainData(trader.address), limitOrder));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, domain, domainData(trader.address), limitOrder));
 
                 await expectRevert(
                     trader.executeTrade(signedMakers, signedTakers, market),
@@ -142,8 +142,8 @@ describe("Trader Shim unit tests", async () => {
                 let market: string = tracer.address;
 
                 /* sign orders for submission */
-                let signedMakers: any = await Promise.all(await signOrders(web3, makers, domain, await domainData(trader.address), limitOrder));
-                let signedTakers: any = await Promise.all(await signOrders(web3, takers, domain, await domainData(trader.address), limitOrder));
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, domain, domainData(trader.address), limitOrder));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, domain, domainData(trader.address), limitOrder));
 
                 assert(trader.executeTrade(signedMakers, signedTakers, market));
             })

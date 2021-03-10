@@ -1,11 +1,3 @@
-//@ts-ignore
-import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
-import { assert } from "chai"
-import { AccountInstance, DeployerV1Instance, GasOracleInstance, GovInstance, InsuranceInstance, OracleInstance, PricingInstance, ReceiptInstance, TestTokenInstance, TracerFactoryInstance, TracerInstance, TraderInstance } from "../../types/truffle-contracts"
-import { Trader } from "../artifacts"
-import { setupContractsAndTracer } from "../lib/Setup"
-import { accounts, web3, configure } from "../configure"
-
 /* Support types for signing */
 export let domain = [
     { name: "name", type: "string" },
@@ -24,7 +16,7 @@ export let limitOrder = [
     { name: "nonce", type: "uint256" },
 ]
 
-export async function domainData(trader_address: string) {
+export function domainData(trader_address: string) {
     return {
         name: "Tracer Protocol",
         version: "1.0",
