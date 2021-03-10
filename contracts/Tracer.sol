@@ -30,6 +30,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     bytes32 public immutable override marketId;
     IAccount public accountContract;
     IPricing public pricingContract;
+    IInsurance public insuranceContract;
     uint256 public override feeRate;
 
     // Config variables
@@ -42,7 +43,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     uint256 internal startLastHour;
     uint256 internal startLast24Hours;
     uint8 public override currentHour;
-    address public insuranceContract;
 
     // Account1 => account2 => whether account2 can trade on behalf of account1
     mapping(address => mapping(address => bool)) public tradePermissions;
@@ -286,9 +286,10 @@ contract Tracer is ITracer, SimpleDex, Ownable {
                 accountLastUpdatedIndex
             );
 
+            insuranceContract.INSURANCE_MUL_FACTOR();
             accountContract.settle(
                 account,
-                IInsurance(insuranceContract).INSURANCE_MUL_FACTOR(),
+                insuranceContract.INSURANCE_MUL_FACTOR(),
                 currentGlobalRate,
                 currentUserRate,
                 currentInsuranceGlobalRate,
@@ -322,7 +323,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
             }
             // Update pricing and funding rate states
             pricingContract.updatePrice(price, ioracle.latestAnswer(), true, address(this));
-            int256 poolFundingRate = (IInsurance(insuranceContract).getPoolFundingRate(address(this))).toInt256();
+            int256 poolFundingRate = insuranceContract.getPoolFundingRate(address(this)).toInt256();
 
             pricingContract.updateFundingRate(address(this), ioracle.latestAnswer(), poolFundingRate); 
 
@@ -421,7 +422,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     // --------------------- //
 
     function setInsuranceContract(address insurance) public override onlyOwner {
-        insuranceContract = insurance;
+        insuranceContract = IInsurance(insurance);
     }
 
     function setAccountContract(address account) public override onlyOwner {

@@ -93,7 +93,7 @@ contract Receipt is IReceipt, Ownable {
         require(block.timestamp < receipt.releaseTime, "REC: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "REC: Already claimed");
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market, receipt.time);
+        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "REC: Unit mismatch"
@@ -170,8 +170,7 @@ contract Receipt is IReceipt, Ownable {
     function calcUnitsSold(
         uint256[] memory orderIds,
         uint256 receiptId,
-        address market,
-        uint256 receiptStartTime
+        address market
     ) public view returns (uint256, int256) {
         Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;

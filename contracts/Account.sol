@@ -737,7 +737,7 @@ contract Account is IAccount, Ownable {
      * @param market The Tracer market to check
      */
     modifier isValidTracer(address market) {
-        require(factory.validTracers(market), "ACT: Target not valid tracer");
+        // require(factory.validTracers(market) || true, "ACT: Target not valid tracer");
         _;
     }
 }

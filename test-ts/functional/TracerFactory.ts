@@ -1,9 +1,8 @@
 //@ts-ignore
 import { assert } from "chai"
-import { GovInstance, TracerFactoryInstance, AccountInstance, PricingInstance, InsuranceInstance, TestTokenInstance, OracleInstance, GasOracleInstance } from "../../types/truffle-contracts"
+import { GovInstance, TracerFactoryInstance, AccountInstance, InsuranceInstance } from "../../types/truffle-contracts"
 import { setupFactoryFull, setupInsuranceFull, setupDeployer, setupGov, setupOracles, setupAccount } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
-import { TracerFactory } from "../artifacts"
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
@@ -12,8 +11,8 @@ import { TracerFactory } from "../artifacts"
 describe("TracerFactory", async () => {
 
     let factory: TracerFactoryInstance
-    let account: AccountInstance
     let gov: GovInstance
+    let insurance: InsuranceInstance
     // let pricing: PricingInstance
     // let insurance: InsuranceInstance
     // let govToken: TestTokenInstance
@@ -27,8 +26,10 @@ describe("TracerFactory", async () => {
     beforeEach(async () => {
         //insurance, account, govToken
         let setupFactory = await setupFactoryFull(accounts)
+        let insuranceDeploy = await setupInsuranceFull(accounts)
         factory = setupFactory.factory
         gov = setupFactory.gov
+        insurance = insuranceDeploy.insurance
 
 
         //oracles
@@ -45,7 +46,7 @@ describe("TracerFactory", async () => {
     context("Deploy and Approve", async () => {
         it.skip("approves the deployed market", async () => {
             let deployData = web3.eth.abi.encodeParameters(
-                ["bytes32", "address", "address", "address", "address", "address", "int256"],
+                ["bytes32", "address", "address", "address", "address", "address", "address", "int256"],
                 [
                     web3.utils.fromAscii(`LINK/USD`),
                     // govToken.address,
@@ -56,6 +57,7 @@ describe("TracerFactory", async () => {
                     accounts[0],
                     accounts[0],
                     accounts[0],
+                    insurance.address,
                     //pricing,
                     125000, //12.5 max leverage,
                     1 //funding rate sensitivity
