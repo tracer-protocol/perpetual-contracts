@@ -267,10 +267,11 @@ contract Pricing is IPricing {
         uint256 underlyingInstances = 0;
         for (uint8 i = 0; i < 8; i++) {
             int256 timeWeight = 8 - i;
-            uint256 j = currentHour - i; // keep moving towards 0
+            int256 j = int256(currentHour) - int256(i); // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
-                j = 24 + (currentHour - i);
+                /* allowed to case due to bounds on values of i */
+                j = 24 + (int256(currentHour) - int256(i));
             }
             int256 derivativePrice = getHourlyAvgTracerPrice(j, market);
             int256 underlyingPrice = getHourlyAvgOraclePrice(j, market);
@@ -324,15 +325,18 @@ contract Pricing is IPricing {
      * @param market The address of the Tracer whose price data is wanted
      * @return the average price of the tracer for a particular hour
      */
-    function getHourlyAvgTracerPrice(uint256 hour, address market) public override view returns (int256) {
+    function getHourlyAvgTracerPrice(int256 hour, address market) public override view returns (int256) {
         Types.PricingMetrics memory pricing = prices[market];
         Types.HourlyPrices memory hourly;
 
-        // Check if hour out of bounds
-        if (hour >= pricing.hourlyTracerPrices.length) {
+        /* bounds check the provided hour (note that the cast is safe due to
+         * short-circuit evaluation of this conditional) */
+        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
             return 0;
         }
-        hourly = pricing.hourlyTracerPrices[hour];
+
+        /* note that this cast is safe due to our above bounds check */
+        hourly = pricing.hourlyTracerPrices[uint256(hour)];
 
         if (hourly.numTrades == 0) {
             return 0;
@@ -346,16 +350,19 @@ contract Pricing is IPricing {
      * @param hour The hour of which you want the hourly average Price
      * @param market Which tracer market's data to query
      */
-    function getHourlyAvgOraclePrice(uint256 hour, address market) public override view returns (int256) {
+    function getHourlyAvgOraclePrice(int256 hour, address market) public override view returns (int256) {
         Types.PricingMetrics memory pricing = prices[market];
         Types.HourlyPrices memory hourly;
 
-        // Check hour out of bounds
-        if (hour >= pricing.hourlyOraclePrices.length) {
+        /* bounds check the provided hour (note that the cast is safe due to
+         * short-circuit evaluation of this conditional) */
+        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
             return 0;
         }
 
-        hourly = pricing.hourlyOraclePrices[hour];
+        /* note that this cast is safe due to our above bounds check */
+        hourly = pricing.hourlyOraclePrices[uint256(hour)];
+
         if (hourly.numTrades == 0) {
             return 0;
         } else {

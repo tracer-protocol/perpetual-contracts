@@ -39,9 +39,9 @@ interface IPricing {
 
     function getOnlyInsuranceFundingRateValue(address marketAddress, uint index) external view returns(int256);
 
-    function getHourlyAvgTracerPrice(uint256 hour, address marketAddress) external view returns (int256);
+    function getHourlyAvgTracerPrice(int256 hour, address marketAddress) external view returns (int256);
 
-    function getHourlyAvgOraclePrice(uint256 hour, address marketAddress) external view returns (int256);
+    function getHourlyAvgOraclePrice(int256 hour, address marketAddress) external view returns (int256);
     
     // function getHourlyAvgPrice(
     //     uint256 index,
