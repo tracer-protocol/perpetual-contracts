@@ -272,8 +272,8 @@ contract Pricing is IPricing {
             if (j < 0) {
                 j = 23;
             }
-            int256 derivativePrice = getHourlyAvgTracerPrice(j, market);
-            int256 underlyingPrice = getHourlyAvgOraclePrice(j, market);
+            int256 derivativePrice = getHourlyAvgTracerPrice(uint256(j), market);
+            int256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j), market);
             if (derivativePrice != 0) {
                 derivativeInstances = derivativeInstances.add(uint256(timeWeight));
                 derivativeSum = derivativeSum.add((timeWeight).mul(derivativePrice));
@@ -324,7 +324,7 @@ contract Pricing is IPricing {
      * @param market The address of the Tracer whose price data is wanted
      * @return the average price of the tracer for a particular hour
      */
-    function getHourlyAvgTracerPrice(int256 hour, address market) public override view returns (int256) {
+    function getHourlyAvgTracerPrice(uint256 hour, address market) public override view returns (int256) {
         Types.PricingMetrics memory pricing = prices[market];
         Types.HourlyPrices memory hourly;
 
@@ -349,7 +349,7 @@ contract Pricing is IPricing {
      * @param hour The hour of which you want the hourly average Price
      * @param market Which tracer market's data to query
      */
-    function getHourlyAvgOraclePrice(int256 hour, address market) public override view returns (int256) {
+    function getHourlyAvgOraclePrice(uint256 hour, address market) public override view returns (int256) {
         Types.PricingMetrics memory pricing = prices[market];
         Types.HourlyPrices memory hourly;
 
