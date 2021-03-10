@@ -1,7 +1,7 @@
 //@ts-ignore
 import { assert } from "chai"
-import { GovInstance, TracerFactoryInstance, AccountInstance, InsuranceInstance } from "../../types/truffle-contracts"
-import { setupFactoryFull, setupInsuranceFull, setupDeployer, setupGov, setupOracles, setupAccount } from "../lib/Setup"
+import { GovInstance, TracerFactoryInstance } from "../../types/truffle-contracts"
+import { setupFactoryFull } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
 
 /**
@@ -12,7 +12,6 @@ describe("TracerFactory", async () => {
 
     let factory: TracerFactoryInstance
     let gov: GovInstance
-    let insurance: InsuranceInstance
     // let pricing: PricingInstance
     // let insurance: InsuranceInstance
     // let govToken: TestTokenInstance
@@ -26,15 +25,8 @@ describe("TracerFactory", async () => {
     beforeEach(async () => {
         //insurance, account, govToken
         let setupFactory = await setupFactoryFull(accounts)
-        let insuranceDeploy = await setupInsuranceFull(accounts)
         factory = setupFactory.factory
         gov = setupFactory.gov
-        insurance = insuranceDeploy.insurance
-
-
-        //oracles
-        let oracles = await setupOracles()
-
     })
 
     context("Initilization", async () => {
@@ -46,7 +38,7 @@ describe("TracerFactory", async () => {
     context("Deploy and Approve", async () => {
         it.skip("approves the deployed market", async () => {
             let deployData = web3.eth.abi.encodeParameters(
-                ["bytes32", "address", "address", "address", "address", "address", "address", "int256"],
+                ["bytes32", "address", "address", "address", "address", "address", "int256"],
                 [
                     web3.utils.fromAscii(`LINK/USD`),
                     // govToken.address,
@@ -57,7 +49,6 @@ describe("TracerFactory", async () => {
                     accounts[0],
                     accounts[0],
                     accounts[0],
-                    insurance.address,
                     //pricing,
                     125000, //12.5 max leverage,
                     1 //funding rate sensitivity

@@ -128,7 +128,7 @@ module.exports = async function (deployer, network, accounts) {
 
         //Deploy a new Tracer contract per test
         var deployTracerData = web3.eth.abi.encodeParameters(
-            ['bytes32', 'address', 'address', 'address', 'address', 'address', 'address', 'int256', 'uint256'],
+            ['bytes32', 'address', 'address', 'address', 'address', 'address', 'int256', 'uint256'],
             [
                 web3.utils.fromAscii(`TEST${i}/USD`),
                 token.address,
@@ -136,7 +136,6 @@ module.exports = async function (deployer, network, accounts) {
                 gasPriceOracle.address,
                 account.address,
                 pricing.address,
-                insurance.address,
                 maxLeverage,
                 1 //funding rate sensitivity
             ]

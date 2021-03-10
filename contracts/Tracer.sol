@@ -286,7 +286,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
                 accountLastUpdatedIndex
             );
 
-            insuranceContract.INSURANCE_MUL_FACTOR();
             accountContract.settle(
                 account,
                 insuranceContract.INSURANCE_MUL_FACTOR(),
