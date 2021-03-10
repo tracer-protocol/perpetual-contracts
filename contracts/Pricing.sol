@@ -270,8 +270,7 @@ contract Pricing is IPricing {
             int256 j = int256(currentHour) - int256(i); // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
-                /* allowed to case due to bounds on values of i */
-                j = 24 + (int256(currentHour) - int256(i));
+                j = 23;
             }
             int256 derivativePrice = getHourlyAvgTracerPrice(j, market);
             int256 underlyingPrice = getHourlyAvgOraclePrice(j, market);
