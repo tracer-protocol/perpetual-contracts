@@ -159,35 +159,10 @@ module.exports = async function (deployer, network, accounts) {
         await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
         await time.increase(twoDays + 1)
         await gov.execute(proposalNum)
+        proposalNum++
         let tracerAddr = await tracerFactory.tracersByIndex(i)
         var tracer = await Tracer.at(tracerAddr)
         tracers.push(tracer)
-        //create insurance pools
-        await insurance.deployInsurancePool(tracer.address)
-        
-        //Pass proposal to set the insurance for this tracer to the insurance pool
-        const setInsuranceProposal = web3.eth.abi.encodeFunctionCall(
-            {
-                name: 'setInsuranceContract',
-                type: 'function',
-                inputs: [
-                    {
-                        type: 'address',
-                        name: 'insurance',
-                    },
-                ],
-            },
-            [insurance.address]
-        )
-
-        proposalNum++
-        await gov.propose([tracerFactory.address], [setInsuranceProposal])
-        //4th proposal
-        await time.increase(twoDays + 1)
-        await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
-        await time.increase(twoDays + 1)
-        await gov.execute(proposalNum)
-        proposalNum++
 
         //Send out 100 test tokens to each address
         for (var i = 1; i < 3; i++) {

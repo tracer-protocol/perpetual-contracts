@@ -1,9 +1,8 @@
 //@ts-ignore
 import { assert } from "chai"
-import { GovInstance, TracerFactoryInstance, AccountInstance, PricingInstance, InsuranceInstance, TestTokenInstance, OracleInstance, GasOracleInstance } from "../../types/truffle-contracts"
-import { setupFactoryFull, setupInsuranceFull, setupDeployer, setupGov, setupOracles, setupAccount } from "../lib/Setup"
+import { GovInstance, TracerFactoryInstance } from "../../types/truffle-contracts"
+import { setupFactoryFull } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
-import { TracerFactory } from "../artifacts"
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
@@ -12,7 +11,6 @@ import { TracerFactory } from "../artifacts"
 describe("TracerFactory", async () => {
 
     let factory: TracerFactoryInstance
-    let account: AccountInstance
     let gov: GovInstance
     // let pricing: PricingInstance
     // let insurance: InsuranceInstance
@@ -29,11 +27,6 @@ describe("TracerFactory", async () => {
         let setupFactory = await setupFactoryFull(accounts)
         factory = setupFactory.factory
         gov = setupFactory.gov
-
-
-        //oracles
-        let oracles = await setupOracles()
-
     })
 
     context("Initilization", async () => {

@@ -31,6 +31,10 @@ interface IInsurance {
 
     function isInsured(address market) external view returns (bool);
 
+    function setFactory(address tracerFactory) external;
+
+    function setAccountContract(address accountContract) external;
+
     function INSURANCE_MUL_FACTOR() external view returns (int256);
     
 }

@@ -13,7 +13,7 @@ import { accounts, web3, configure } from "../configure"
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
  * simply by the owning account. For governance tests, see test/Gov.js
  */
-describe("Insurance", async () => {
+describe("Unit tests: Insurance", async () => {
     let insurance: InsuranceInstance
     let tracer: TracerInstance
     let testToken: TestTokenInstance

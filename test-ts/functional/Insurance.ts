@@ -166,15 +166,6 @@ describe("Insurance", async () => {
 
     })
 
-    context("Add Pool", async () => {
-        it("Only the owner can deploy a pool", async () => {
-            await expectRevert(
-                insurance.deployInsurancePool(tracers[0].address, { from: accounts[1] }),
-                "Ownable: caller is not the owner"
-            )
-        })
-    })
-
     context("Rewards", async () => {
         it("Allows rewards to be deposited to a pool and be claimed", async () => {
             //Stake

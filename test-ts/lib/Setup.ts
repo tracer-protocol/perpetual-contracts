@@ -136,7 +136,9 @@ export async function setupFactory(
     deployer: DeployerV1Instance,
     gov: GovInstance
 ): Promise<any> {
-    return (await TracerFactory.new(insurance.address, deployer.address, gov.address))
+    let factory = await TracerFactory.new(insurance.address, deployer.address, gov.address)
+    await insurance.setFactory(factory.address)
+    return factory
 }
 
 export async function setupFactoryFull(accounts: Truffle.Accounts): Promise<any> {
@@ -144,7 +146,8 @@ export async function setupFactoryFull(accounts: Truffle.Accounts): Promise<any>
     const deployer = await setupDeployer();
     const gov = await setupGov(govToken);
     const factory = await setupFactory(insurance, deployer, gov)
-    return { factory, gov, deployer, account }
+    await insurance.setFactory(factory.address)
+    return { factory, gov, deployer, account, insurance, govToken }
 }
 
 export async function setupPricing(tracerFacAddress: string): Promise<any> {
@@ -283,6 +286,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
             1 //funding rate sensitivity
         ]
     )
+
     const proposeTracerData = web3.eth.abi.encodeFunctionCall(
         {
             name: "deployTracer",
@@ -315,29 +319,6 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
         await testToken.approve(account.address, web3.utils.toWei("10000"), { from: accounts[i] })
     }
 
-    //Add to insurance
-    await insurance.deployInsurancePool(tracer.address)
-    //Pass proposal to set the insurance for this tracer to the insurance pool
-    const setInsuranceProposal = web3.eth.abi.encodeFunctionCall(
-        {
-            name: "setInsuranceContract",
-            type: "function",
-            inputs: [
-                {
-                    type: "address",
-                    name: "insurance",
-                },
-            ],
-        },
-        [insurance.address]
-    )
-    await gov.propose([tracerFactory.address], [setInsuranceProposal])
-    //4th proposal
-    await time.increase(twoDays + 1)
-    await gov.voteFor(1, web3.utils.toWei("10"), { from: accounts[1] })
-    await time.increase(twoDays + 1)
-    await gov.execute(1)
-
     //Transfer ownership to account 0 to make testing of the tracer easier
     const transferOwnershipProposal = web3.eth.abi.encodeFunctionCall(
         {
@@ -355,9 +336,9 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     await gov.propose([tracer.address], [transferOwnershipProposal])
     //4th proposal
     await time.increase(twoDays + 1)
-    await gov.voteFor(2, web3.utils.toWei("10"), { from: accounts[1] })
+    await gov.voteFor(1, web3.utils.toWei("10"), { from: accounts[1] })
     await time.increase(twoDays + 1)
-    await gov.execute(2)
+    await gov.execute(1)
 
     //Set time as of end of setup
     now = await time.latest()
@@ -440,7 +421,6 @@ export async function deployMultiTracers(
         var tracer = await Tracer.at(tracerAddr)
         tracers.push(tracer)
         //create insurance pools
-        await insurance.deployInsurancePool(tracer.address)
         proposalNum++
     }
 
