@@ -107,7 +107,7 @@ describe("Trader", async () => {
 
             //Check post trade positions
             //assert amount, filled
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("500").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("500").toString())
 
@@ -179,7 +179,7 @@ describe("Trader", async () => {
 
             await expectRevert(
                 trader.executeTrade(signedMakes, signedTakes, tracer.address),
-                "TDR: incorrect order sig or nonce"
+                "TDR: Incorrect nonce"
             )
         })
 
@@ -242,7 +242,7 @@ describe("Trader", async () => {
 
                 await expectRevert(
                     trader.executeTrade(signedMakes2, signedTakesReplay, tracer.address),
-                    "TDR: incorrect order sig or nonce"
+                    "TDR: Incorrect nonce"
                 )
         })
     })

@@ -131,6 +131,7 @@ describe("Trader Shim unit tests", async () => {
             })
         })
 
+        //TODO: Do we still want this test. Actually is testing logic in SimpleDex now
         context("When there is a price mismatch", () => {
             it("reverts", async () => {
                 let makers: any = badMakers;
@@ -143,7 +144,7 @@ describe("Trader Shim unit tests", async () => {
 
                 await expectRevert(
                     trader.executeTrade(signedMakers, signedTakers, market),
-                    "TDR: Price mismatch"
+                    "SDX: Price mismatch"
                 )
             })
         })

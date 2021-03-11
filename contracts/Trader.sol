@@ -3,6 +3,7 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
 import './Interfaces/ITracer.sol';
+import './Interfaces/IDex.sol';
 import './Interfaces/Types.sol';
 
 /**
@@ -57,20 +58,20 @@ contract Trader {
     ) external {
         require(makers.length == takers.length, 'TDR: Lengths differ');
 
-        /* safe as we've already bounds checked the array lengths */
+        // safe as we've already bounds checked the array lengths
         uint256 n = makers.length;
 
         require(n > 0, 'TDR: Received empty arrays');
 
         for (uint256 i = 0; i < n; i++) {
-            /* retrieve orders and verify their signatures */
-            Types.LimitOrder memory currMaker = grabOrder(makers, i);
-            Types.LimitOrder memory currTaker = grabOrder(takers, i);
+            // retrieve orders and verify their signatures
+            // if the order does not exist, it is created here
+            uint256 makeOrderId = grabOrder(makers, i, market);
+            uint256 takeOrderId = grabOrder(takers, i, market);
 
-            /* check that prices match */
-            require(currMaker.price == currTaker.price, 'TDR: Price mismatch');
+            // match orders
+            ITracer(market).matchOrders(makeOrderId, takeOrderId);
 
-            /* TODO: make order if it doesn't already exist on-chain */
         }
     }
 
@@ -81,28 +82,43 @@ contract Trader {
      * @return the specified order
      * @dev Performs its own bounds check on the array access
      */
-    function grabOrder(Types.SignedLimitOrder[] memory orders, uint256 index)
+    function grabOrder(Types.SignedLimitOrder[] memory orders, uint256 index, address market)
         internal
-        returns (Types.LimitOrder memory)
+        returns (uint256)
     {
         require(index <= orders.length, 'TDR: Out of bounds access');
 
-        Types.SignedLimitOrder memory currentSigned = orders[index];
+        IDex dex = IDex(market);
 
-        /* verify signature and nonce */
+        Types.SignedLimitOrder memory signedOrder = orders[index];
+
+        // verify signature and nonce
         verify(
-            currentSigned.order.user,
-            currentSigned.order,
-            currentSigned.sigR,
-            currentSigned.sigS,
-            currentSigned.sigV
+            signedOrder.order.user,
+            signedOrder.order,
+            signedOrder.sigR,
+            signedOrder.sigS,
+            signedOrder.sigV
         );
 
-        return currentSigned.order;
+        bytes32 orderHash = hashOrderForDex(signedOrder.order);
+        // check if order exists on chain, if not, create it
+        uint orderId = dex.orderIdByHash(orderHash);
+        if (orderId == 0) {
+            //Create the order
+            return ITracer(market).permissionedMakeOrder(
+                signedOrder.order.amount,
+                signedOrder.order.price,
+                signedOrder.order.side,
+                signedOrder.order.expiration,
+                signedOrder.order.user);
+        }
+
+        return (orderId);
     }
 
     /**
-     * @notice hashes a limit order type in order to verify signatures
+     * @notice hashes a limit order type in order to verify signatures, per EIP712
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
@@ -126,6 +142,19 @@ contract Trader {
                     )
                 )
             );
+    }
+
+       /**
+     * @notice hashes a limit order type in order to verify signatures
+     * @param order the limit order being hashed
+     * @return an EIP712 compliant hash (with headers) of the limit order
+     */
+    function hashOrderForDex(Types.LimitOrder memory order) public view returns (bytes32) {
+        return(
+            keccak256(
+                abi.encode(order.amount, order.price, order.side, order.user, order.expiration)
+            )
+        );
     }
 
     /**
