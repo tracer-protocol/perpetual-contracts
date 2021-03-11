@@ -70,7 +70,7 @@ contract Account is IAccount, Ownable {
      * @param amount The amount of margin tokens to be deposited into the Tracer Market account
      * @param market The address of the tracer market that the margin tokens will be deposited into 
      */
-    function deposit(uint256 amount, address market) external override {
+    function deposit(uint256 amount, address market) external override isValidTracer(market) {
         require(amount > 0, "ACT: Deposit Amount <= 0"); 
         Types.AccountBalance storage userBalance = balances[market][msg.sender];
         address tracerBaseToken = ITracer(market).tracerBaseToken();
