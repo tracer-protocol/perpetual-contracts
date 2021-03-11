@@ -36,9 +36,6 @@ describe("Trader", async () => {
 
     let now
     let sevenDays: any
-    let limitOrder: any
-    let domain: any
-    let domainData: any
 
     before(async () => {
         await configure()
