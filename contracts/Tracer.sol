@@ -257,7 +257,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     * @param order2 the second order that exists on chain
     */
     function matchOrders(uint order1, uint order2) public override {
-        // perform compatability checks (price, side) and calc fill amount
+        // perform compatibility checks (price, side) and calc fill amount
         uint256 fillAmount = _matchOrder(order1, order2);
 
         int256 orderPrice = orders[order1].price;
