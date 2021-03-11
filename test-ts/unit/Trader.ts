@@ -8,10 +8,8 @@ import { accounts, configure, web3 } from "../configure"
 import { Trader } from "../artifacts"
 
 describe("Trader Shim unit tests", async () => {
-    let deployed;
     let trader: TraderInstance;
     let tracer: TracerInstance;
-    let account: AccountInstance
     
     let sampleMakers: any;
     let sampleTakers: any;
@@ -30,7 +28,6 @@ describe("Trader Shim unit tests", async () => {
 
         trader = await Trader.new()
         tracer = deployed.tracer
-        account = deployed.account
 
         //Get each user to "deposit" 100 tokens into the platform and approve the trader
         for (var i = 0; i < 6; i++) {
@@ -143,9 +140,6 @@ describe("Trader Shim unit tests", async () => {
                 /* sign orders for submission */
                 let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
                 let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
-
-                // await account.deposit(web3.utils.toWei("500"), tracer.address)
-                // await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
 
                 await expectRevert(
                     trader.executeTrade(signedMakers, signedTakers, market),

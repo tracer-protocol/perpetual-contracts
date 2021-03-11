@@ -45,8 +45,7 @@ contract Trader {
 
     /**
      * @notice Batch executes maker and taker orders against a given market. Currently matching works
-     *         by fully matching a single take order with N make orders, and then moving to the next take
-     *         order.
+     *         by matching orders 1 to 1
      * @param makers An array of signed make orders
      * @param takers An array of signed take orders
      * @param market The market to execute the trade in
@@ -69,7 +68,7 @@ contract Trader {
             Types.LimitOrder memory currTaker = grabOrder(takers, i);
 
             /* check that prices match */
-            require(currMaker.price == currTaker.price, 'TDR: Encountered price mismatch');
+            require(currMaker.price == currTaker.price, 'TDR: Price mismatch');
 
             /* TODO: make order if it doesn't already exist on-chain */
         }
