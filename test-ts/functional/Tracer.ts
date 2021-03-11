@@ -213,7 +213,7 @@ describe("Tracer", async () => {
             assert.equal(account2[1].toString(), web3.utils.toWei("-500").toString())
 
             //Order takers state is updated
-            let orderTakerAmount = await tracer.getOrderTakerAmount(0, accounts[1])
+            let orderTakerAmount = await tracer.getOrderTakerAmount(1, accounts[1])
             assert.equal(orderTakerAmount.toString(), web3.utils.toWei("500").toString())
         })
 
@@ -246,7 +246,7 @@ describe("Tracer", async () => {
             assert.equal(account2[2].toString(), web3.utils.toWei("500").toString())
 
             //Order takers state is updated
-            let orderTakerAmount = await tracer.getOrderTakerAmount(0, accounts[1])
+            let orderTakerAmount = await tracer.getOrderTakerAmount(1, accounts[1])
             assert.equal(orderTakerAmount.toString(), web3.utils.toWei("1000").toString())
         })
 

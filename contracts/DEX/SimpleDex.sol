@@ -2,11 +2,11 @@
 pragma solidity >0.6.0;
 pragma experimental ABIEncoderV2;
 
-import '@openzeppelin/contracts/math/SafeMath.sol';
-import '@openzeppelin/contracts/math/SignedSafeMath.sol';
-import '../lib/LibMath.sol';
-import '../Interfaces/Types.sol';
-import '../Interfaces/IDex.sol';
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/SignedSafeMath.sol";
+import "../lib/LibMath.sol";
+import "../Interfaces/Types.sol";
+import "../Interfaces/IDex.sol";
 
 /**
  * SimpleDex Contract: Implements the Tracer make/take without underlying
@@ -74,9 +74,9 @@ contract SimpleDex is IDex {
     {
         //Fill or partially fill order
         Types.Order storage order = orders[orderId];
-        require(order.amount.sub(order.filled) > 0, 'SDX: Order filled');
+        require(order.amount.sub(order.filled) > 0, "SDX: Order filled");
         /* solium-disable-next-line */
-        require(block.timestamp < order.expiration, 'SDX: Order expired');
+        require(block.timestamp < order.expiration, "SDX: Order expired");
 
         //Calculate the amount to fill
         uint256 fillAmount = (amount > order.amount.sub(order.filled)) ? order.amount.sub(order.filled) : amount;
@@ -103,23 +103,21 @@ contract SimpleDex is IDex {
         Types.Order storage order2 = orders[order2Id];
 
         // Ensure orders can be cancelled against each other
-        require(order1.price == order2.price, 'SDX: price mismatch');
+        require(order1.price == order2.price, "SDX: Price mismatch");
+
+        // Ensure orders are for opposite sides
+        require(order1.side != order2.side, "SDX: Side mismatch");
         
         /* solium-disable-next-line */
         require(block.timestamp < order1.expiration &&
-            block.timestamp < order2.expiration, 'SDX: Order expired');
+            block.timestamp < order2.expiration, "SDX: Order expired");
 
         // Calculate the amount to fill
         uint256 order1Remaining = order1.amount.sub(order1.filled);
         uint256 order2Remaining = order2.amount.sub(order2.filled);
-        uint256 fillAmount = 0;
-        if (order1Remaining >= order2Remaining) {
-            // Use order2Remaining amount
-            fillAmount = order2Remaining;
-        } else {
-            // Use order1Remaining amount
-            fillAmount = order1Remaining;
-        }
+        
+        // fill amount is the minimum of order 1 and order 2
+        uint256 fillAmount = order1Remaining > order2Remaining ? order2Remaining : order1Remaining;
 
         //Update orders
         order1.filled = order1.filled.add(fillAmount);

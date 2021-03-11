@@ -2,9 +2,9 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
-import './Interfaces/ITracer.sol';
-import './Interfaces/IDex.sol';
-import './Interfaces/Types.sol';
+import "./Interfaces/ITracer.sol";
+import "./Interfaces/IDex.sol";
+import "./Interfaces/Types.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -12,15 +12,15 @@ import './Interfaces/Types.sol';
 contract Trader {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
-    string private constant EIP712_DOMAIN_NAME = 'Tracer Protocol';
-    string private constant EIP712_DOMAIN_VERSION = '1.0';
+    string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
+    string private constant EIP712_DOMAIN_VERSION = "1.0";
     bytes32 private constant EIP712_DOMAIN_SEPERATOR =
-        keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     // EIP712 Types
     bytes32 private constant LIMIT_ORDER_TYPE =
         keccak256(
-            'LimitOrder(uint256 amount,int256 price,bool side,address user,uint256 expiration,address targetTracer,uint256 nonce)'
+            "LimitOrder(uint256 amount,int256 price,bool side,address user,uint256 expiration,address targetTracer,uint256 nonce)"
         );
 
     uint256 constant chainId = 1337; // Changes per chain
@@ -56,12 +56,12 @@ contract Trader {
         Types.SignedLimitOrder[] memory takers,
         address market
     ) external {
-        require(makers.length == takers.length, 'TDR: Lengths differ');
+        require(makers.length == takers.length, "TDR: Lengths differ");
 
         // safe as we've already bounds checked the array lengths
         uint256 n = makers.length;
 
-        require(n > 0, 'TDR: Received empty arrays');
+        require(n > 0, "TDR: Received empty arrays");
 
         for (uint256 i = 0; i < n; i++) {
             // retrieve orders and verify their signatures
@@ -86,7 +86,7 @@ contract Trader {
         internal
         returns (uint256)
     {
-        require(index <= orders.length, 'TDR: Out of bounds access');
+        require(index <= orders.length, "TDR: Out of bounds access");
 
         IDex dex = IDex(market);
 
@@ -126,7 +126,7 @@ contract Trader {
         return
             keccak256(
                 abi.encodePacked(
-                    '\x19\x01',
+                    "\x19\x01",
                     EIP712_DOMAIN,
                     keccak256(
                         abi.encode(
@@ -181,8 +181,8 @@ contract Trader {
         bytes32 sigS,
         uint8 sigV
     ) public view returns (bool) {
-        require(verifySignature(signer, order, sigR, sigS, sigV), 'TDR: Signature verification failed');
-        require(verifyNonce(order), 'TDR: Incorrect nonce');
+        require(verifySignature(signer, order, sigR, sigS, sigV), "TDR: Signature verification failed");
+        require(verifyNonce(order), "TDR: Incorrect nonce");
         return true;
     }
 
