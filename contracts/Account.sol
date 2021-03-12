@@ -215,8 +215,10 @@ contract Account is IAccount, Ownable {
     function bidOnAuction(uint256 auctionId, uint256 amount) public {
         Types.AccountBalance storage bidderBalance = balances[market][msg.sender];    
         Types.Auction storage auction = auctions[auctionId];
+        require(auction != 0, "ACT: Auction doesn't exist");
         require(block.timestamp < auction.startTime.add(auctionDuration), "ACT: Auction has ended");
         require(amount > auction.minBid, "ACT: Bid amount too low");
+        require(bidderBalance.base)
     }
 
     /**
