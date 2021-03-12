@@ -106,7 +106,7 @@ contract SimpleDex is IDex {
         require(order1.price == order2.price, "SDX: Price mismatch");
 
         // Ensure orders are for opposite sides
-        require(order1.side != order2.side, "SDX: Side mismatch");
+        require(order1.side != order2.side, "SDX: Same side");
         
         /* solium-disable-next-line */
         require(block.timestamp < order1.expiration &&
@@ -115,7 +115,7 @@ contract SimpleDex is IDex {
         // Calculate the amount to fill
         uint256 order1Remaining = order1.amount.sub(order1.filled);
         uint256 order2Remaining = order2.amount.sub(order2.filled);
-        
+
         // fill amount is the minimum of order 1 and order 2
         uint256 fillAmount = order1Remaining > order2Remaining ? order2Remaining : order1Remaining;
 
