@@ -247,10 +247,10 @@ contract Receipt is IReceipt, Ownable {
     }
 
     /**
-     * @param newReleaseTime new release time
+     * @param _releaseTime new release time
      */
-    function setReleaseTime(uint256 newReleaseTime) external onlyOwner {
-        releaseTime = newReleaseTime;
+    function setReleaseTime(uint256 _releaseTime) external onlyOwner {
+        releaseTime = _releaseTime;
     }
 
     function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
