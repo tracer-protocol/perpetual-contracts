@@ -19,8 +19,8 @@ library Balances {
     /**
      * @notice Calculates the new base and position given trade details. Assumes the entire trade will execute
                to calculate the new base and position.
-     * @param currentMargin the users current base account balance
-     * @param currentPosition the users current position balance
+     * @param currentBase the users current base account balance
+     * @param currentQuote the users current position balance
      * @param amount the amount of positions being purchased in this trade
      * @param price the price the positions are being purchased at
      * @param side the side of the order (true for LONG, false for SHORT)
@@ -28,173 +28,30 @@ library Balances {
      * @param feeRate the current fee rate of the tracer contract the calc is being run for
      */
     function safeCalcTradeMargin(
-        int256 currentMargin,
-        int256 currentPosition,
+        int256 currentBase,
+        int256 currentQuote,
         uint256 amount,
         int256 price,
         bool side,
         uint256 priceMultiplier,
         uint256 feeRate
-    ) internal pure returns (int256 _currentMargin, int256 _currentPosition) {
+    ) internal pure returns (int256 _currentBase, int256 _currentQuote) {
         // Get base change and fee if present
         int256 baseChange = (amount.mul(uint(price.abs()))).div(priceMultiplier).toInt256();
         int256 fee = (baseChange.mul(feeRate.toInt256())).div(priceMultiplier.toInt256());
         if (side) {
             // LONG
-            currentPosition = currentPosition.add(amount.toInt256());
-            currentMargin = currentMargin.sub(baseChange.add(fee));
+            currentQuote = currentQuote.add(amount.toInt256());
+            currentBase = currentBase.sub(baseChange.add(fee));
         } else {
             // SHORT
-            currentPosition = currentPosition.sub(amount.toInt256());
-            currentMargin = currentMargin.add(baseChange.sub(fee));
+            currentQuote = currentQuote.sub(amount.toInt256());
+            currentBase = currentBase.add(baseChange.sub(fee));
         }
 
-        return (currentMargin, currentPosition);
+        return (currentBase, currentQuote);
     }
 
-    /**
-     * @notice Calculates base given a base account and position. Returns 100% if there is no negative value
-     *         in the account. Throws if the base is negative
-     * @param base the users current base account balance
-     * @param position the users current position balance
-     * @param price the price for the base calculation to be run at
-     * @param priceMultiplier the price multiplier used for the tracer contract the calc is being run for
-     */
-    function safeCalcMarginPercent(
-        int256 base,
-        int256 position,
-        int256 price,
-        uint256 gasCost,
-        uint256 priceMultiplier
-    ) internal pure returns (uint256) {
-        (int256 baseCorrectUnits, int256 positionValue) = calcMarginPositionValue(base, position, price, priceMultiplier);
-
-        // Gas cost units: gwei * 10*8 (price multiplier) * 10000 / 10*8
-        uint256 mulGasCost = (uint256(6).mul(gasCost).mul(priceMultiplier).mul(uint256(MARGIN_MUL_FACTOR))).div(
-            FEED_UNIT_DIVIDER
-        );
-
-        // Edge cases
-        if (position == 0) {
-            if (base < 0) {
-                // negative base on no position, not allowed
-                return 0;
-            }
-            return 10000;
-        }
-
-        // Gas cost is considered part of the minimum value
-        // and is factored into the base of each account
-        int256 basePercent = 0;
-        if (position > 0) {
-            if (base > 0) {
-                // over collateralised, simply return 100%
-                basePercent = 10000;
-            } else {
-                // position > 0, base < 0, therefore long
-                int256 nonDivided = (baseCorrectUnits.add(mulGasCost.toInt256())).div(positionValue);
-                basePercent = MARGIN_MUL_FACTOR.sub(nonDivided);
-            }
-        } else {
-            if (base <= 0) {
-                // position < 0, base <= 0, reject
-                basePercent = 0;
-            } else {
-                // position < 0, base > 0, therefore short
-                int256 nonDivided = (baseCorrectUnits.sub(mulGasCost.toInt256())).div(positionValue);
-                basePercent = nonDivided.sub(MARGIN_MUL_FACTOR);
-            }
-        }
-
-        require(basePercent > 0, "BAL: Negative Margin");
-        return uint256(basePercent);
-    }
-
-    /**
-     * @notice Calculates base given a base account and position. Returns 100% if there is no negative value
-     *         in the account. Does not throw if the base is negative
-     * @param base the users current base account balance
-     * @param position the users current position balance
-     * @param price the price for the base calculation to be run at
-     * @param priceMultiplier the price multiplier used for the tracer contract the calc is being run for
-     */
-    function calcMarginPercent(
-        int256 base,
-        int256 position,
-        int256 price,
-        uint256 gasCost,
-        uint256 priceMultiplier
-    ) internal pure returns (int256) {
-        (int256 baseCorrectUnits, int256 positionValue) = calcMarginPositionValue(base, position, price, priceMultiplier);
-
-        uint256 mulGasCost = (uint256(6).mul(gasCost).mul(priceMultiplier).mul(uint256(MARGIN_MUL_FACTOR))).div(
-            FEED_UNIT_DIVIDER
-        );
-
-        // Edge cases
-        if (position == 0) {
-            if (base < 0) {
-                // negative base on no position, not allowed
-                return 0;
-            }
-            return 10000;
-        }
-
-        // Gas cost is considered part of the minimum value
-        // and is factored into the base of each account
-        int256 basePercent = 0;
-        if (position > 0) {
-            if (base > 0) {
-                // over collateralised, simply return 100%
-                basePercent = 10000;
-            } else {
-                // long
-                int256 nonDivided = (baseCorrectUnits.add(mulGasCost.toInt256())).div(positionValue);
-                basePercent = MARGIN_MUL_FACTOR.sub(nonDivided);
-            }
-        } else {
-            if (base <= 0) {
-                // position < 0, base <= 0, reject
-                basePercent = 0;
-            } else {
-                // short
-                int256 nonDivided = (baseCorrectUnits.sub(mulGasCost.toInt256())).div(positionValue);
-                basePercent = nonDivided.sub(MARGIN_MUL_FACTOR);
-            }
-        }
-        return basePercent;
-    }
-
-    /**
-     * @notice Calculates the positive and negative balances for an account.
-     * @param base the users current base account balance
-     * @param position the users current position balance
-     * @param price the price to calculate the positive and negative balances at
-     * @param priceMultiplier the price multiplier for the specific tracer contract.
-     */
-    function calcPositiveNegative(
-        int256 base,
-        int256 position,
-        int256 price,
-        uint256 priceMultiplier
-    ) internal pure returns (int256 _positiveValue, int256 _negativeValue) {
-        int256 positiveValue = 0;
-        int256 negativeValue = 0;
-
-        if (base >= 0) {
-            positiveValue = positiveValue.add((base).mul(priceMultiplier.toInt256()));
-        } else {
-            negativeValue = negativeValue.add(base.abs().mul(priceMultiplier.toInt256()));
-        }
-
-        if (position >= 0) {
-            positiveValue = positiveValue.add(position.mul(price));
-        } else {
-            negativeValue = negativeValue.add(position.abs().mul(price));
-        }
-
-        return (positiveValue, negativeValue);
-    }
 
     /**
      * @notice calculates the net value of both the users base and position given a

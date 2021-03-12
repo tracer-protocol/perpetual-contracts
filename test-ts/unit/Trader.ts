@@ -2,7 +2,7 @@
 import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
 import assert from "assert"
 import { setupContractsAndTracer } from "../lib/Setup"
-import { AccountInstance, TracerInstance, TraderInstance } from "../../types/truffle-contracts"
+import { AccountInstance, TracerInstance, TraderInstance, TestTokenInstance } from "../../types/truffle-contracts"
 import { signOrder, signOrders, domain, domainData, limitOrder } from "../lib/Signing"
 import { accounts, configure, web3 } from "../configure"
 import { Trader } from "../artifacts"
@@ -10,6 +10,8 @@ import { Trader } from "../artifacts"
 describe("Trader Shim unit tests", async () => {
     let trader: TraderInstance;
     let tracer: TracerInstance;
+    let account: AccountInstance;
+    let token: TestTokenInstance;
     
     let sampleMakers: any;
     let sampleTakers: any;
@@ -28,10 +30,14 @@ describe("Trader Shim unit tests", async () => {
 
         trader = await Trader.new()
         tracer = deployed.tracer
+        account = deployed.account
+        token = deployed.testToken
 
         //Get each user to "deposit" 100 tokens into the platform and approve the trader
         for (var i = 0; i < 6; i++) {
             await tracer.setUserPermissions(trader.address, true, { from: accounts[i] })
+            await token.approve(account.address, web3.utils.toWei("100000"))
+            await account.deposit(web3.utils.toWei("10000"), tracer.address, { from: accounts[i] })
         }
 
         now = await time.latest()
@@ -62,7 +68,7 @@ describe("Trader Shim unit tests", async () => {
             {
                 amount: "5000000000000000000",
                 price: "100000000",
-                side: true,
+                side: false,
                 user: accounts[2],
                 expiration: sevenDays,
                 targetTracer: tracer.address,
@@ -71,7 +77,7 @@ describe("Trader Shim unit tests", async () => {
             {
                 amount: "5000002200000000000",
                 price: "100000088",
-                side: false,
+                side: true,
                 user: accounts[2],
                 expiration: sevenDays,
                 targetTracer: tracer.address,
@@ -102,6 +108,24 @@ describe("Trader Shim unit tests", async () => {
     })
 
     describe("executeTrade", () => {
+        context("When order is executed twice", () => {
+            it("passes", async () => {
+                let makers: any = sampleMakers;
+                let takers: any = sampleTakers;
+                let market: string = tracer.address;
+
+                /* sign orders for submission */
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
+
+                assert(await trader.executeTrade(signedMakers, signedTakers, market));
+                await expectRevert(
+                    trader.executeTrade(signedMakers, signedTakers, market),
+                    "TDR: Incorrect nonce"
+                );
+            })
+        })
+
         context("When input array lengths differ", () => {
             it("reverts", async () => {
                 let makers: any = sampleMakers;
@@ -141,7 +165,10 @@ describe("Trader Shim unit tests", async () => {
                 let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
                 let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
 
-                assert(trader.executeTrade(signedMakers, signedTakers, market));
+                assert(await trader.executeTrade(signedMakers, signedTakers, market));
+                assert.equal(await trader.nonces(accounts[0]), "1")
+                assert.equal(await trader.nonces(accounts[1]), "1")
+                assert.equal(await trader.nonces(accounts[2]), "2")
             })
         })
     })
