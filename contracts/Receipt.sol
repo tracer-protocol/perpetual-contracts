@@ -245,6 +245,14 @@ contract Receipt is IReceipt, Ownable {
         );
     }
 
+    /**
+     * @notice Modifies the release time
+     * @param _releaseTime new release time
+     */
+    function setReleaseTime(uint256 _releaseTime) external onlyOwner() {
+        releaseTime = _releaseTime;
+    }
+
     function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
         maxSlippage = _maxSlippage;
     }
