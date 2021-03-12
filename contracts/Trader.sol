@@ -69,6 +69,11 @@ contract Trader {
             uint256 makeOrderId = grabOrder(makers, i, market);
             uint256 takeOrderId = grabOrder(takers, i, market);
 
+            address maker = makers[i].order.user;
+            address taker = takers[i].order.user;
+            nonces[maker]++;
+            nonces[taker]++;
+
             // match orders
             ITracer(market).matchOrders(makeOrderId, takeOrderId);
 

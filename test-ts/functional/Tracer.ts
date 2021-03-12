@@ -686,11 +686,8 @@ describe("Tracer", async () => {
     context("Calculates Margin Correctly", async () => {
         it("Gives correct margin on deposits", async () => {
             await account.deposit(web3.utils.toWei("500"), tracer.address)
-            //let balance = await account.getBalance(accounts[0], tracer.address)
-            // let gasCost = web3.utils.toWei("7348050000", "gwei") //250 gwei * gas used of 63516 8 eth price of 450
-            // let margin = await tracer.calcMarginPercent(balance[0].toString(), balance[1].toString(), gasCost)
-            let margin = await account.unsafeGetUserMargin(accounts[0], tracer.address)
-            assert.equal(margin.toString(), "10000")
+            let margin = await account.getUserMargin(accounts[0], tracer.address)
+            assert.equal(margin.toString(), web3.utils.toWei("500"))
         })
 
         it("Factors in the gas cost of liquidation while calculating minimum margin", async () => {
@@ -728,9 +725,6 @@ describe("Tracer", async () => {
 
             //Check margin of leveraged account (SHORT)
             //margin is ((600 - 42.87) / 500) - 1
-            // let balance = await tracer.getBalance(accounts[1])
-            // let gasCost = new BN("714555000000000000000000000")
-            // let margin = await tracer.calcMarginPercent(balance[0].toString(), balance[1].toString(), gasCost)
             let margin = await account.getUserMargin(accounts[0], tracer.address)
             let margin2 = await account.getUserMargin(accounts[1], tracer.address)
             let notional1 = await account.getUserNotionalValue(accounts[0], tracer.address)

@@ -665,26 +665,6 @@ contract Account is IAccount, Ownable {
     }
 
     /**
-     * @notice Returns a users margin in a particular Tracer Market
-     * @dev Will not throw if margin is negative
-     * @param account The address whose account is queried
-     * @param market The address of the relevant Tracer market
-     * @return the margin of the account (positive or negative)
-     */
-    function unsafeGetUserMargin(address account, address market) public override view returns (int256) {
-        Types.AccountBalance memory accountBalance = balances[market][account];
-        ITracer _tracer = ITracer(market);
-        return
-            Balances.calcMarginPercent(
-                accountBalance.base,
-                accountBalance.quote,
-                pricing.fairPrices(market),
-                uint256(accountBalance.lastUpdatedGasPrice).mul(_tracer.LIQUIDATION_GAS_COST()),
-                _tracer.priceMultiplier()
-            );
-    }
-
-    /**
      * @param newReceiptContract The new instance of Receipt.sol
      */
     function setReceiptContract(address newReceiptContract) public override onlyOwner() {

@@ -83,8 +83,6 @@ interface IAccount {
 
     function getUserMinMargin(address account, address market) external view returns (int256);
 
-    function unsafeGetUserMargin(address account, address market) external view returns (int256);
-
     function tracerLeveragedNotionalValue(address market) external view returns(int256);
 
     function tvl(address market) external view returns(uint256);
