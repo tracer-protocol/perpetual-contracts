@@ -119,7 +119,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("1000"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order 5x leverage
-            await tracer.takeOrder(0, web3.utils.toWei("1000"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("1000"), { from: accounts[1] })
 
             //Current margin % = 1 - ((500 + gas cost (42.87)) / 1000)
             await expectRevert(
@@ -136,7 +136,7 @@ describe("Tracer", async () => {
             const tx = await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
             await expectEvent(tx.receipt, "OrderMade", {
                 //DEPRECATED: tracerId: web3.utils.padRight(web3.utils.asciiToHex("TEST/USD"), 64),
-                orderId: new BN("0"),
+                orderId: new BN("1"),
                 amount: web3.utils.toWei("500").toString(),
                 price: oneDollar,
                 maker: accounts[0],
@@ -144,7 +144,7 @@ describe("Tracer", async () => {
             })
 
             //amount, filled, price, side
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("500").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("0").toString())
             assert.equal(order[2].toString(), oneDollar.toString())
@@ -158,7 +158,7 @@ describe("Tracer", async () => {
 
             await expectEvent(tx.receipt, "OrderMade", {
                 //DEPRECATED: tracerId: web3.utils.padRight(web3.utils.asciiToHex("TEST/USD"), 64),
-                orderId: new BN("0"),
+                orderId: new BN("1"),
                 amount: web3.utils.toWei("4000").toString(),
                 price: oneDollar,
                 maker: accounts[0],
@@ -166,7 +166,7 @@ describe("Tracer", async () => {
             })
 
             //amount, filled, price, side
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("4000").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("0").toString())
             assert.equal(order[2].toString(), oneDollar.toString())
@@ -194,10 +194,10 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //assert amount, filled
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("500").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("500").toString())
 
@@ -213,7 +213,7 @@ describe("Tracer", async () => {
             assert.equal(account2[1].toString(), web3.utils.toWei("-500").toString())
 
             //Order takers state is updated
-            let orderTakerAmount = await tracer.getOrderTakerAmount(0, accounts[1])
+            let orderTakerAmount = await tracer.getOrderTakerAmount(1, accounts[1])
             assert.equal(orderTakerAmount.toString(), web3.utils.toWei("500").toString())
         })
 
@@ -225,10 +225,10 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("1000"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("1000"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("1000"), { from: accounts[1] })
 
             //assert amount, filled
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("1000").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("1000").toString())
 
@@ -246,7 +246,7 @@ describe("Tracer", async () => {
             assert.equal(account2[2].toString(), web3.utils.toWei("500").toString())
 
             //Order takers state is updated
-            let orderTakerAmount = await tracer.getOrderTakerAmount(0, accounts[1])
+            let orderTakerAmount = await tracer.getOrderTakerAmount(1, accounts[1])
             assert.equal(orderTakerAmount.toString(), web3.utils.toWei("1000").toString())
         })
 
@@ -258,12 +258,12 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Short order for 3 TEST/USD against placed order
             await expectRevert(
                 //Order over 10x leverage
-                tracer.takeOrder(0, web3.utils.toWei("3"), { from: accounts[2] }),
+                tracer.takeOrder(2, web3.utils.toWei("3"), { from: accounts[2] }),
                 "SDX: Order filled"
             )
         })
@@ -277,13 +277,13 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 3 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("30"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("30"), { from: accounts[1] })
 
             //Short order for 3 TEST/USD against placed order, only fills 2
-            await tracer.takeOrder(0, web3.utils.toWei("30"), { from: accounts[2] })
+            await tracer.takeOrder(1, web3.utils.toWei("30"), { from: accounts[2] })
 
             //assert amount, filled
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("500").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("60").toString())
 
@@ -314,7 +314,7 @@ describe("Tracer", async () => {
             await expectRevert(
                 //Order over 10x leverage
 
-                tracer.takeOrder(0, web3.utils.toWei("3"), { from: accounts[2] }),
+                tracer.takeOrder(1, web3.utils.toWei("3"), { from: accounts[2] }),
                 "SDX: Order expired"
             )
         })
@@ -331,7 +331,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 80%, short order now is under margin requirements
             //$1 + 80% = 1.80
@@ -366,7 +366,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 60%, short order now is under margin requirements
             //$1 + 60% = 1.60
@@ -400,7 +400,7 @@ describe("Tracer", async () => {
             //Long order for 5 TEST/USD at a price of $1
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("5"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
 
             //Price increases 10%, both accounts still in margin
             //$1 + 10% = 1.1
@@ -421,7 +421,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 58%, short order now is under margin requirements
             //$1 + 58% = 1.58
@@ -451,7 +451,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 60%, short order now is under margin requirements
             //$1 + 60% = 1.60
@@ -492,7 +492,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 60%, short order now is under margin requirements
             //$1 + 60% = 1.60
@@ -511,15 +511,15 @@ describe("Tracer", async () => {
 
             //Liquidator sells his positions across multiple orders, and as maker and taker
             await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(1, web3.utils.toWei("200"), { from: accounts[3] })
+            await tracer.takeOrder(2, web3.utils.toWei("200"), { from: accounts[3] })
 
             await tracer.makeOrder(web3.utils.toWei("100"), lowerPrice, false, sevenDays, {
                 from: accounts[3],
             })
-            await tracer.takeOrder(2, web3.utils.toWei("100"), { from: accounts[2] })
+            await tracer.takeOrder(3, web3.utils.toWei("100"), { from: accounts[2] })
 
             await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(3, web3.utils.toWei("200"), { from: accounts[3] })
+            await tracer.takeOrder(4, web3.utils.toWei("200"), { from: accounts[3] })
 
             // Liquidated at $1.6, sold at $1.61.
             // 1.61*500 - 1.6 * 500 = $5
@@ -527,7 +527,7 @@ describe("Tracer", async () => {
             let balanceBefore = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceBefore = await account.getBalance(accounts[1], tracer.address)
 
-            await account.claimReceipts(0, [1, 2, 3], tracer.address, { from: accounts[2] })
+            await account.claimReceipts(0, [2, 3, 4], tracer.address, { from: accounts[2] })
 
             let balanceAfter = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceAfter = await account.getBalance(accounts[1], tracer.address)
@@ -566,7 +566,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 60%, short order now is under margin requirements
             //$1 + 60% = 1.60
@@ -587,15 +587,15 @@ describe("Tracer", async () => {
 
             //Liquidator sells his positions across multiple orders, and as maker and taker
             await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(1, web3.utils.toWei("200"), { from: accounts[3] })
+            await tracer.takeOrder(2, web3.utils.toWei("200"), { from: accounts[3] })
 
             await tracer.makeOrder(web3.utils.toWei("100"), lowerPrice, false, sevenDays, {
                 from: accounts[3],
             })
-            await tracer.takeOrder(2, web3.utils.toWei("100"), { from: accounts[2] })
+            await tracer.takeOrder(3, web3.utils.toWei("100"), { from: accounts[2] })
 
             await tracer.makeOrder(web3.utils.toWei("200"), lowerPrice, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(3, web3.utils.toWei("200"), { from: accounts[3] })
+            await tracer.takeOrder(4, web3.utils.toWei("200"), { from: accounts[3] })
 
             // Liquidated at $1.6, sold at $1.62.
             // 1.62*500 - 1.6 * 500 = $10
@@ -604,7 +604,7 @@ describe("Tracer", async () => {
             let balanceBefore = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceBefore = await account.getBalance(accounts[1], tracer.address)
 
-            await account.claimReceipts(0, [1, 2, 3], tracer.address, { from: accounts[2] })
+            await account.claimReceipts(0, [2, 3, 4], tracer.address, { from: accounts[2] })
 
             let balanceAfter = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceAfter = await account.getBalance(accounts[1], tracer.address)
@@ -638,7 +638,7 @@ describe("Tracer", async () => {
         it("Liquidator can not claim escrowed funds with orders that are too old", async () => {
             await account.deposit(web3.utils.toWei("500"), tracer.address)
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
-            let currentOrderId = 0;
+            let currentOrderId = 1;
             const oneSixtyOne = new BN("161000000")
             const oneSixty = new BN("160000000")
 
@@ -701,7 +701,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("750"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("750"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("750"), { from: accounts[1] })
 
             //Check margin of account
             //margin = 1 - ((margin + liquidation gas) / position value)
@@ -724,7 +724,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Check margin of leveraged account (SHORT)
             //margin is ((600 - 42.87) / 500) - 1
@@ -749,7 +749,7 @@ describe("Tracer", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
 
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //50% price increase to $1.5
             await oracle.setPrice(new BN("150000000"))
@@ -775,14 +775,14 @@ describe("Tracer", async () => {
             //Long order for 5 TEST/USD at a price of $1.01
             await tracer.makeOrder(web3.utils.toWei("505"), new BN("101000000"), true, sevenDays)
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("505"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("505"), { from: accounts[1] })
 
             //Time travel a day
             await time.increase(twentyFourHours)
 
             // Place order to trigger updates in contract pricing for the 24 hour period
             await tracer.makeOrder(web3.utils.toWei("505"), new BN("101000000"), true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(1, web3.utils.toWei("505"), { from: accounts[3] })
+            await tracer.takeOrder(2, web3.utils.toWei("505"), { from: accounts[3] })
 
             //Check 24 hour prices
             let currentHour = (await tracer.currentHour()).toNumber()
@@ -825,14 +825,14 @@ describe("Tracer", async () => {
             //Long order
             await tracer.makeOrder(web3.utils.toWei("2000"), oneDollar, true, sevenDays)
             //Short order
-            await tracer.takeOrder(0, web3.utils.toWei("2000"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("2000"), { from: accounts[1] })
             //Total Leveraged Value = $2000
 
             //Time travel a day
             await time.increase(twentyFourHours)
             //Place order to trigger updates in contract pricing for the 24 hour period
             await tracer.makeOrder(web3.utils.toWei("1000"), oneDollar, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(1, web3.utils.toWei("1000"), { from: accounts[3] })
+            await tracer.takeOrder(2, web3.utils.toWei("1000"), { from: accounts[3] })
             //Total leveraged value = $4000
 
             //Funding rate should now be 0 as price is the same
@@ -877,7 +877,7 @@ describe("Tracer", async () => {
             )
             await expectEvent(tx.receipt, "OrderMade", {
                 //DEPRECATED: tracerId: web3.utils.padRight(web3.utils.asciiToHex("TEST/USD"), 64),
-                orderId: new BN("0"),
+                orderId: new BN("1"),
                 amount: web3.utils.toWei("5").toString(),
                 price: oneDollar,
                 maker: accounts[0],
@@ -885,7 +885,7 @@ describe("Tracer", async () => {
             })
 
             //amount, filled, price, side
-            let order = await tracer.getOrder(0)
+            let order = await tracer.getOrder(1)
             assert.equal(order[0].toString(), web3.utils.toWei("5").toString())
             assert.equal(order[1].toString(), web3.utils.toWei("0").toString())
             assert.equal(order[2].toString(), oneDollar.toString())
@@ -913,16 +913,16 @@ describe("Tracer", async () => {
             //Long order for 5 TEST/USD at a price of $1
             await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, sevenDays)
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("5"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
             //Long order for 2 TEST/USD at a price of $2
             await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, sevenDays)
             //Short order for 2 TEST/USD against placed order
-            await tracer.takeOrder(1, web3.utils.toWei("2"), { from: accounts[1] })
+            await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
             //Long order for 1 TEST/USD at a price of $2
             await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, sevenDays)
             //Short order for 1 TEST/USD against placed order
             
-            await tracer.takeOrder(2, web3.utils.toWei("1"), { from: accounts[1] })
+            await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
 
             //fast forward time
             await time.increase(oneHour + 600)
@@ -931,7 +931,7 @@ describe("Tracer", async () => {
             //Long order for 1 TEST/USD at a price of $2
             await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, sevenDays)
             //Short order for 1 TEST/USD against placed order
-            await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
+            await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
 
             //Average price over last hour = 1+2+3/3 = 2
             //average oracle price over last hour = 200000000
@@ -953,7 +953,7 @@ describe("Tracer", async () => {
             //Long order for 1 TEST/USD at a price of $1
             await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, sevenDays)
             //Short order for 1 TEST/USD against placed order
-            await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
+            await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
             let fairPriceUpdated = await pricing.fairPrices(tracer.address)
             let avgPricesUpdated = await pricing.get24HourPrices(tracer.address)
             //fair price = oracle price - time value = $1 - (avg derivative price - average oracle price)/90
@@ -976,7 +976,7 @@ describe("Tracer", async () => {
             //Leveraged notional value = $1000
             await tracer.makeOrder(web3.utils.toWei("2000"), oneDollar, true, sevenDays)
             //Short order for 2000 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("2000"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("2000"), { from: accounts[1] })
 
             //Leveraged notional value = $1000
             let userBalance = await account.getBalance(accounts[0], tracer.address)
@@ -993,7 +993,7 @@ describe("Tracer", async () => {
             //user deposited in 1000 so is borrowing 1200 to get to a notional value of $1200
             await tracer.makeOrder(web3.utils.toWei("200"), oneDollar, true, sevenDays)
             //Short order for 200 TEST/USD against placed order
-            await tracer.takeOrder(1, web3.utils.toWei("200"), { from: accounts[2] })
+            await tracer.takeOrder(2, web3.utils.toWei("200"), { from: accounts[2] })
             //Leveraged notional value = $1000 + $200
             let updatedLev = await tracer.leveragedNotionalValue()
             assert.equal(updatedLev.toString(), web3.utils.toWei("1200"))
@@ -1001,7 +1001,7 @@ describe("Tracer", async () => {
             //Account 1 goes further short to increase leverage
             //leverage increased by $300
             await tracer.makeOrder(web3.utils.toWei("300"), oneDollar, false, sevenDays, { from: accounts[1] })
-            await tracer.takeOrder(2, web3.utils.toWei("300"), { from: accounts[2] })
+            await tracer.takeOrder(3, web3.utils.toWei("300"), { from: accounts[2] })
 
             //Account 1 has deposited $2000 and now has 2300 short positions worth $2300
             //total Leveraged notional value = $1200 + $300 = accounts[0].leveragedNotionalValue + accounts[1].leveragedNotionalValue
@@ -1010,7 +1010,7 @@ describe("Tracer", async () => {
 
             //Account 0 sells off all of their long, reducing system leverage
             await tracer.makeOrder(web3.utils.toWei("1200"), oneDollar, true, sevenDays, { from: accounts[3] })
-            await tracer.takeOrder(3, web3.utils.toWei("1200"), { from: accounts[0] })
+            await tracer.takeOrder(4, web3.utils.toWei("1200"), { from: accounts[0] })
 
             //total Leveraged notional value = $15 - $12
             let updatedLev3 = await tracer.leveragedNotionalValue()

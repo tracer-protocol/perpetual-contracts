@@ -267,13 +267,13 @@ contract Pricing is IPricing {
         uint256 underlyingInstances = 0;
         for (uint8 i = 0; i < 8; i++) {
             int256 timeWeight = 8 - i;
-            uint256 j = currentHour - i; // keep moving towards 0
+            int256 j = int256(currentHour) - int256(i); // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
-                j = 24 + (currentHour - i);
+                j = 23;
             }
-            int256 derivativePrice = getHourlyAvgTracerPrice(j, market);
-            int256 underlyingPrice = getHourlyAvgOraclePrice(j, market);
+            int256 derivativePrice = getHourlyAvgTracerPrice(uint256(j), market);
+            int256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j), market);
             if (derivativePrice != 0) {
                 derivativeInstances = derivativeInstances.add(uint256(timeWeight));
                 derivativeSum = derivativeSum.add((timeWeight).mul(derivativePrice));
@@ -328,11 +328,14 @@ contract Pricing is IPricing {
         Types.PricingMetrics memory pricing = prices[market];
         Types.HourlyPrices memory hourly;
 
-        // Check if hour out of bounds
-        if (hour >= pricing.hourlyTracerPrices.length) {
+        /* bounds check the provided hour (note that the cast is safe due to
+         * short-circuit evaluation of this conditional) */
+        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
             return 0;
         }
-        hourly = pricing.hourlyTracerPrices[hour];
+
+        /* note that this cast is safe due to our above bounds check */
+        hourly = pricing.hourlyTracerPrices[uint256(hour)];
 
         if (hourly.numTrades == 0) {
             return 0;
@@ -350,12 +353,15 @@ contract Pricing is IPricing {
         Types.PricingMetrics memory pricing = prices[market];
         Types.HourlyPrices memory hourly;
 
-        // Check hour out of bounds
-        if (hour >= pricing.hourlyOraclePrices.length) {
+        /* bounds check the provided hour (note that the cast is safe due to
+         * short-circuit evaluation of this conditional) */
+        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
             return 0;
         }
 
-        hourly = pricing.hourlyOraclePrices[hour];
+        /* note that this cast is safe due to our above bounds check */
+        hourly = pricing.hourlyOraclePrices[uint256(hour)];
+
         if (hourly.numTrades == 0) {
             return 0;
         } else {

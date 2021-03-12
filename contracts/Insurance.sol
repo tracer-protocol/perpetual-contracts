@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Interfaces/ITracer.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IInsurance.sol";
+import "./Interfaces/ITracerFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 
@@ -23,6 +24,7 @@ contract Insurance is IInsurance, Ownable {
     uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     address public immutable TCRTokenAddress;
     IAccount public account;
+    ITracerFactory public factory;
 
     struct StakePool { 
         address market;
@@ -186,8 +188,9 @@ contract Insurance is IInsurance, Ownable {
      *      this tracer to be supported
      * @param market the address of the new tracer market
      */
-    function deployInsurancePool(address market) external override onlyOwner() {
+    function deployInsurancePool(address market) external override {
         require(!supportedTracers[market], "INS: pool already exists");
+        require(factory.validTracers(market), "INS: pool not deployed by factory");
         ITracer _tracer = ITracer(market);
         // Deploy token for the pool
         InsurancePoolToken token = new InsurancePoolToken("Tracer Pool Token", "TPT", TCRTokenAddress);
@@ -294,10 +297,18 @@ contract Insurance is IInsurance, Ownable {
     }
 
     /**
+     * @notice sets the address of the Tracer factory
+     * @param tracerFactory the new address of the factory
+     */
+    function setFactory(address tracerFactory) external override onlyOwner {
+        factory = ITracerFactory(tracerFactory);
+    }
+
+    /**
      * @notice sets the address of the account contract (Account.sol)
      * @param accountContract the new address of the accountContract
      */
-    function setAccountContract(address accountContract) external onlyOwner {
+    function setAccountContract(address accountContract) external override onlyOwner {
         account = IAccount(accountContract);
     }
 

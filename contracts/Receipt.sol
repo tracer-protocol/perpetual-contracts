@@ -144,7 +144,7 @@ contract Receipt is IReceipt {
         uint256[] memory orderIds,
         uint256 receiptId,
         address market
-    ) internal view returns (uint256, int256) {
+    ) public view returns (uint256, int256) {
         Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;

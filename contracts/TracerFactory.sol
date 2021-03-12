@@ -68,9 +68,11 @@ contract TracerFactory is Ownable, ITracerFactory {
         // Create and link tracer to factory
         address market = IDeployer(deployer).deploy(_data);
         ITracer tracer = ITracer(market);
+
         validTracers[market] = true;
         tracersByIndex[tracerCounter] = market;
 
+        IInsurance(insurance).deployInsurancePool(market);
         tracerCounter++;
 
         // Perform admin operations on the tracer to finalise linking

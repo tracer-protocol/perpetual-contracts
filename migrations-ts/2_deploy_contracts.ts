@@ -159,35 +159,10 @@ module.exports = async function (deployer, network, accounts) {
         await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
         await time.increase(twoDays + 1)
         await gov.execute(proposalNum)
+        proposalNum++
         let tracerAddr = await tracerFactory.tracersByIndex(i)
         var tracer = await Tracer.at(tracerAddr)
         tracers.push(tracer)
-        //create insurance pools
-        await insurance.deployInsurancePool(tracer.address)
-        
-        //Pass proposal to set the insurance for this tracer to the insurance pool
-        const setInsuranceProposal = web3.eth.abi.encodeFunctionCall(
-            {
-                name: 'setInsuranceContract',
-                type: 'function',
-                inputs: [
-                    {
-                        type: 'address',
-                        name: 'insurance',
-                    },
-                ],
-            },
-            [insurance.address]
-        )
-
-        proposalNum++
-        await gov.propose([tracerFactory.address], [setInsuranceProposal])
-        //4th proposal
-        await time.increase(twoDays + 1)
-        await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
-        await time.increase(twoDays + 1)
-        await gov.execute(proposalNum)
-        proposalNum++
 
         //Send out 100 test tokens to each address
         for (var i = 1; i < 3; i++) {
@@ -205,15 +180,15 @@ module.exports = async function (deployer, network, accounts) {
         //Long order for 5 TEST/USD at a price of $1
         await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, fourteenDays)
         //Short order for 5 TEST/USD against placed order
-        await tracer.takeOrder(0, web3.utils.toWei("5"), { from: accounts[1] })
+        await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
         //Long order for 2 TEST/USD at a price of $2
         await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, fourteenDays)
         //Short order for 2 TEST/USD against placed order
-        await tracer.takeOrder(1, web3.utils.toWei("2"), { from: accounts[1] })
+        await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
         //Long order for 1 TEST/USD at a price of $2
         await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
         //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(2, web3.utils.toWei("1"), { from: accounts[1] })
+        await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
 
         //fast forward time
         await time.increase(time.duration.hours(1) + 600)
@@ -222,7 +197,7 @@ module.exports = async function (deployer, network, accounts) {
         //Long order for 1 TEST/USD at a price of $2
         await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
         //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
+        await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
 
         //fast forward 24 hours and check fair price has now updated
         await time.increase(time.duration.hours(24))
@@ -230,7 +205,7 @@ module.exports = async function (deployer, network, accounts) {
         //Long order for 1 TEST/USD at a price of $1
         await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, fourteenDays)
         //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
+        await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
 
         await oracle.setPrice(new BN("100000000"))
         //OR  Place long and short orders either side of $1
