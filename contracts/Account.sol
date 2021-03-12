@@ -33,21 +33,26 @@ contract Account is IAccount, Ownable {
     int256 private constant PERCENT_PRECISION = 10000; // Factor to keep precision in percent calcs
     int256 private constant DIVIDE_PRECISION = 10000000; // 10^7
     uint256 public currentLiquidationId;
+    uint256 public currentAuctionId;
 
     // one account per market per user
     // Tracer market => users address => Account Balance struct
     mapping(address => mapping(address => Types.AccountBalance)) public balances;
 
-    // tracer market => total leverage notional value
+    // Tracer market => total leverage notional value
     mapping(address => int256) public override tracerLeveragedNotionalValue;
 
-    // tracer market => TVL
+    // Tracer market => TVL
     mapping(address => uint256) public override tvl;
+
+    // Auction ID => Auction
+    mapping(uint256 => Types.Auction) public override auctions;
 
     event Deposit(address indexed user, uint256 indexed amount, address indexed market);
     event Withdraw(address indexed user, uint256 indexed amount, address indexed market);
     event AccountSettled(address indexed account, int256 margin);
     event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
+    event AuctionStarted(uint256 auctionId, address market, address seller, int256 amount, uint256 startTime);
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
 
@@ -55,14 +60,12 @@ contract Account is IAccount, Ownable {
         address _insuranceContract,
         address _gasPriceOracle,
         address _factory,
-        address _pricing,
-        address governance
+        address _pricing
     ) public {
         insuranceContract = _insuranceContract;
         gasPriceOracle = _gasPriceOracle;
         factory = ITracerFactory(_factory);
         pricing = IPricing(_pricing);
-        transferOwnership(governance);
     }
 
     /**
@@ -183,6 +186,103 @@ contract Account is IAccount, Ownable {
         emit AccountSettled(account, accountBalance.base);
     }
 
+    function startAuction(
+        address seller,
+        int256 amount,
+        address market,
+        bool isLong
+    ) internal override isValidTracer(market) {
+        currentAuctionId++;
+        Types.AccountBalance storage userBalance = balances[market][msg.sender];    
+        if (isLong) {
+            userBalance.quote = userBalance.quote.sub(amount);
+        } else {
+            userBalance.quote = userBalance.quote.add(amount);
+        }
+
+        Types.Auction storage newAuction = auctions[currentAuctionId];
+        newAuction.seller = seller;
+        newAuction.amount = amount;
+        newAuction.market = market;
+        newAuction.isLong = isLong;
+        newAuction.startTime = block.timeStamp;
+    }
+
+    /**
+     * @notice Liquidates the margin account of a particular user. A deposit is needed from the liquidator. 
+     *         Generates a liquidation receipt for the liquidator to use should they need a refund.
+     * @param amount The amount of tokens to be liquidated 
+     * @param account The account that is to be liquidated. 
+     * @param market The Tracer market in which this margin account will be liquidated.
+     */
+    function liquidateAuction(
+        int256 amount, 
+        address account,
+        address market
+    ) external override isValidTracer(market) {
+
+        int256 price = pricing.fairPrices(market);
+        int256 margin = getUserMargin(account, market);
+        int256 liquidateeQuote = balances[market][account].quote;
+        
+        require(amount > 0, "ACTL: Liquidation amount <= 0");
+        require(
+            !userMarginIsValid(account, market),
+            "ACTL: Account above margin "
+        );
+
+        require(amount <= liquidateeQuote.abs(), "ACTL: Liquidate Amount > Position");
+
+        // calc funds to liquidate and move to Escrow
+        uint256 amountToEscrow = calcEscrowLiquidationAmount(
+            account,
+            margin,
+            price,
+            market
+        );
+
+        // Liquidated the account at "account" in the "market" market, function caller is liquidator
+        // Updates the state of both accounts as if the liquidation is fully processed
+        liquidateAccount(msg.sender, account, amount, market);
+
+        // create a liquidation receipt
+        bool side = liquidateeQuote < 0 ? false : true;
+        receipt.submitLiquidation(
+            market,
+            msg.sender,
+            account,
+            price,
+            amountToEscrow,
+            amount,
+            side
+        );
+
+        // Escrow liquidator funds
+        Types.AccountBalance memory liqBalance = balances[market][msg.sender];
+        balances[market][msg.sender].base = liqBalance.base.sub(amountToEscrow.toInt256());
+
+        
+        // Limits the gas use when liquidating 
+        int256 gasPrice = IOracle(ITracer(market).gasPriceOracle()).latestAnswer();
+        require(tx.gasprice <= uint256(gasPrice.abs()), "ACTL: GasPrice > FGasPrice");
+
+        // Checks if the liquidator is in a valid position to process the liquidation 
+        require(
+            marginIsValid(
+                liqBalance.base,
+                liqBalance.quote,
+                price,
+                gasPrice,
+                market
+            ),
+            "ACTL: Taker undermargin"
+        );
+
+        // Update liquidators last updated gas price
+        balances[market][msg.sender].lastUpdatedGasPrice = gasPrice;
+        emit Liquidate(account, msg.sender, amount, side, market, receipt.currentLiquidationId() - 1);
+    }
+
     /**
      * @notice Liquidates the margin account of a particular user. A deposit is needed from the liquidator. 
      *         Generates a liquidation receipt for the liquidator to use should they need a refund.
@@ -212,6 +312,7 @@ contract Account is IAccount, Ownable {
         uint256 amountToEscrow = calcEscrowLiquidationAmount(
             account,
             margin,
+            price,
             market
         );
 
@@ -339,13 +440,15 @@ contract Account is IAccount, Ownable {
      * @notice Calculate the amount of funds a liquidator must escrow to claim the liquidation.
      * @param liquidatee The address of the liquadatees account 
      * @param currentUserMargin The users current margin 
+     * @param price The price of the Tracer
      * @param market The address of the Tracer market thats being targeted for this calculation 
      *               (e.g. USD tracer would calculate Escrow amount for the USD tracer market)
      * @return either the amount to escrow (uint) or zero if the userMargin is less than 0 
      */
     function calcEscrowLiquidationAmount(
-        address liquidatee,
-        int256 currentUserMargin,
+        address liquidatee, 
+        int256 currentUserMargin, 
+        int256 price,
         address market
     ) internal view returns (uint256) {
         int256 minMargin = getUserMinMargin(liquidatee, market);
@@ -442,21 +545,21 @@ contract Account is IAccount, Ownable {
      * @notice Updates the account state of a user given a specific tracer, in a trade event. Adds the 
      *         passed in margin and position changes to the current margin and position.
      * @dev Related to permissionedTakeOrder() in tracer.sol 
-     * @param baseChange Is equal to: FillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256()
-     * @param quoteChange The amount of the order filled changed to be negative (e.g. if 100$ of the order is filled this would be -$100  )
+     * @param marginChange Is equal to: FillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256()
+     * @param positionChange The amount of the order filled changed to be negative (e.g. if 100$ of the order is filled this would be -$100  )
      * @param accountAddress The address of the account to be updated 
      * @param market The address of the tracer market, used to target the tracer market where the update is relevant 
      */
     function updateAccountOnTrade(
-        int256 baseChange,
-        int256 quoteChange,
+        int256 marginChange,
+        int256 positionChange,
         address accountAddress,
         address market
     ) external override onlyTracer(market) {
         Types.AccountBalance storage userBalance = balances[market][accountAddress];
         ITracer _tracer = ITracer(market);
-        userBalance.base = userBalance.base.add(baseChange);
-        userBalance.quote = userBalance.quote.add(quoteChange);
+        userBalance.base = userBalance.base.add(marginChange);
+        userBalance.quote = userBalance.quote.add(positionChange);
         userBalance.lastUpdatedGasPrice = IOracle(_tracer.gasPriceOracle()).latestAnswer();
     }
 

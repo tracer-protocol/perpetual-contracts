@@ -72,5 +72,14 @@ interface Types {
         uint8 sigV;
     }
 
+    struct Auction {
+        uint256 startTime;
+        int256 quoteUnits;
+        uint256 minBid;
+        address market;
+        address bidder;
+        address seller;
+        bool isLong;
+    }
 
 }

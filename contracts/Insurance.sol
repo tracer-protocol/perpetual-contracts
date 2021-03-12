@@ -135,32 +135,28 @@ contract Insurance is IInsurance, Ownable {
      */
     function drainPool(address market, uint256 amount) external override onlyAccount() {
         ITracer _tracer = ITracer(market);
-
-        uint256 poolAmount = pools[market].amount;
         IERC20 tracerMarginToken = IERC20(_tracer.tracerBaseToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (poolAmount < 10 ** 18) {
+        if (tracerMarginToken.balanceOf(address(this)) < 10 ** 18) {
             return;
         }
 
-        if (amount > poolAmount) {
-            amount = poolAmount;
+        if (amount > tracerMarginToken.balanceOf(address(this))) {
+            amount = tracerMarginToken.balanceOf(address(this));
         }
 
         // What the balance will be after
-        uint256 difference = poolAmount - amount;
+        uint256 difference = tracerMarginToken.balanceOf(address(this)) - amount;
         if (difference < 10 ** 18) {
             // Once we go below one token, social loss is required
             // This calculation caps draining so pool always has at least one token
-            amount = poolAmount - (10 ** 18);
-            // Use new amount to compute difference again.
-            difference = poolAmount - amount;
+            amount = tracerMarginToken.balanceOf(address(this)) - (10 ** 18);
         }
 
         tracerMarginToken.approve(address(account), amount);
         account.deposit(amount, market);
-        pools[market].amount = difference;
+        pools[market].amount = tracerMarginToken.balanceOf(address(this));
     }
 
     /**

@@ -16,7 +16,6 @@ contract MockTracer {
     address _maker;
     uint256 _takerAmount;
     uint256 _priceMultiplier;
-    uint256 _creation;
 
     constructor(
         uint256 amount,
@@ -48,11 +47,10 @@ contract MockTracer {
             uint256,
             int256,
             bool,
-            address,
-            uint256
+            address
         )
     {
-        return (_amount, _filled, _price, _side, _maker, block.timestamp);
+        return (_amount, _filled, _price, _side, _maker);
     }
 
     /**

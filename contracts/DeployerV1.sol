@@ -14,33 +14,33 @@ contract DeployerV1 is IDeployer {
     ) external override returns(address) {
         (
             bytes32 _tracerId,
+            uint256 _minMargin,
             address _tracerBaseToken,
             address _oracle,
             address _gasPriceOracle,
             address _accountContract,
             address _pricingContract,
-            int256 _maxLeverage,
-            uint256 _fundingRateSensitivity
+            int256 _maxLeverage
         ) = abi.decode(_data, (
             bytes32,
+            uint256,
             address,
             address,
             address,
             address,
             address,
-            int256,
-            uint256
+            int256
         ));
         Tracer tracer = new Tracer(
             _tracerId,
+            _minMargin,
             _tracerBaseToken,
             _oracle,
             _gasPriceOracle,
             _accountContract,
             _pricingContract,
-            _maxLeverage,
-            _fundingRateSensitivity
-        );
+            _maxLeverage
+            );
         tracer.transferOwnership(msg.sender);
         return address(tracer);
     }

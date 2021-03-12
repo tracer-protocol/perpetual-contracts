@@ -466,18 +466,6 @@ This error appears because the escrow you are trying to claim has not yet been r
     Relevant Function:
     function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256)
 ***
-    REC: Order creation before liquidation
-This error appears because the orders that you are claiming the receipt for slippage against were created before the liquidation receipt was created. You can only claim receipts on orders that were made with the position acquired from the liquidation.
-
-    Relevant Function:
-    function claimReceipts(
-        uint256 escrowId,
-        uint256[] memory orderIds,
-        uint256 priceMultiplier,
-        address market,
-        address liquidator
-    ) external override onlyAccount returns (uint256);
-***
     REC: Only accounts
 This error appears because you are attempting to call a function that only an account contract can call 
 

@@ -41,6 +41,7 @@ contract TracerFactory is Ownable, ITracerFactory {
     function deployTracer(
         bytes calldata _data
     ) external {
+        //TODO: Security check on owner of a market being the deployer. May be problematic.
         _deployTracer(_data, msg.sender);
     }
 

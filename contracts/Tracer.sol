@@ -23,11 +23,12 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     using LibMath for int256;
     using SafeERC20 for IERC20;
 
-    uint256 public override FUNDING_RATE_SENSITIVITY;
+    uint256 public constant override FUNDING_RATE_SENSITIVITY = 1;
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     uint256 public immutable override priceMultiplier;
     address public immutable override tracerBaseToken;
     bytes32 public immutable override marketId;
+    uint256 public immutable override minMargin;
     IAccount public accountContract;
     IPricing public pricingContract;
     uint256 public override feeRate;
@@ -59,6 +60,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
      *         will be able to purchase and trade tracers after this deployment.
      * @param _marketId the id of the market, given as BASE/QUOTE
+     * @param _minMargin the minimum margin requirement for each account
      * @param _tracerBaseToken the address of the token used for margin accounts (i.e. The margin token)
      * @param _oracle the address of the contract implementing the tracer oracle interface
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
@@ -67,17 +69,18 @@ contract Tracer is ITracer, SimpleDex, Ownable {
      */
     constructor(
         bytes32 _marketId,
+        uint256 _minMargin,
         address _tracerBaseToken,
         address _oracle,
         address _gasPriceOracle,
         address _accountContract,
         address _pricingContract,
-        int256 _maxLeverage,
-        uint256 fundingRateSensitivity
+        int256 _maxLeverage
     ) public Ownable() {
         accountContract = IAccount(_accountContract);
         pricingContract = IPricing(_pricingContract);
         tracerBaseToken = _tracerBaseToken;
+        minMargin = _minMargin;
         oracle = _oracle;
         gasPriceOracle = _gasPriceOracle;
         marketId = _marketId;
@@ -85,7 +88,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         priceMultiplier = 10**uint256(ioracle.decimals());
         feeRate = 0;
         maxLeverage = _maxLeverage;
-        FUNDING_RATE_SENSITIVITY = fundingRateSensitivity;
 
         // Start average prices from deployment
         startLastHour = block.timestamp;
@@ -195,8 +197,8 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         (Types.Order memory order, uint256 fillAmount, uint256 amountOutstanding, address maker) = _takeOrder(orderId, amount, _taker);
         emit OrderFilled(orderId, amount, amountOutstanding, _taker, maker, marketId);
 
-        int256 baseChange = (fillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256();
-        require(baseChange > 0, "TCR: Margin change <= 0");
+        int256 marginChange = (fillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256();
+        require(marginChange > 0, "TCR: Margin change <= 0");
 
         int256 neg1 = -1;
 
@@ -204,13 +206,13 @@ contract Tracer is ITracer, SimpleDex, Ownable {
             // Maker long, taker short
             // sub taker position, add taker margin, add maker position, sub taker margin
             accountContract.updateAccountOnTrade(
-                baseChange,
+                marginChange,
                 neg1.mul(fillAmount.toInt256()),
                 _taker,
                 address(this)
             );
             accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
+                neg1.mul(marginChange),
                 fillAmount.toInt256(),
                 order.maker,
                 address(this)
@@ -219,13 +221,13 @@ contract Tracer is ITracer, SimpleDex, Ownable {
             // Taker long, maker short
             // add taker position, sub taker margin, sub maker position, add maker margin
             accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
+                neg1.mul(marginChange),
                 fillAmount.toInt256(),
                 _taker,
                 address(this)
             );
             accountContract.updateAccountOnTrade(
-                baseChange,
+                marginChange,
                 neg1.mul(fillAmount.toInt256()),
                 order.maker,
                 address(this)
@@ -362,12 +364,11 @@ contract Tracer is ITracer, SimpleDex, Ownable {
             uint256,
             int256,
             bool,
-            address,
-            uint256
+            address
         )
     {
         Types.Order memory order = orders[orderId];
-        return (order.amount, order.filled, order.price, order.side, order.maker, order.creation);
+        return (order.amount, order.filled, order.price, order.side, order.maker);
     }
 
     /**
@@ -446,10 +447,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
 
     function setMaxLeverage(int256 _maxLeverage) public override onlyOwner {
         maxLeverage = _maxLeverage;
-    }
-
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) public override onlyOwner {
-        FUNDING_RATE_SENSITIVITY = _fundingRateSensitivity;
     }
 
     function transferOwnership(address newOwner) public override(Ownable, ITracer) onlyOwner {

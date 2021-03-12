@@ -3,7 +3,6 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./Interfaces/IReceipt.sol";
@@ -14,14 +13,13 @@ import "./Interfaces/ITracer.sol";
 * Each call enforces that the contract calling the account is only updating the balance
 * of the account for that contract.
 */
-contract Receipt is IReceipt, Ownable {
+contract Receipt is IReceipt {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
 
     uint256 public override currentLiquidationId;
-    int256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
     IAccount public accounts;
 
@@ -31,10 +29,8 @@ contract Receipt is IReceipt, Ownable {
     int256 private constant PERCENT_PRECISION = 10000;
 
     // On contract deployment set the account contract. 
-    constructor(address accountContract, int256 _maxSlippage, address gov) public {
+    constructor(address accountContract) public {
         accounts = IAccount(accountContract);
-        maxSlippage = _maxSlippage;
-        transferOwnership(gov);
     }
 
     /**
@@ -93,7 +89,7 @@ contract Receipt is IReceipt, Ownable {
         require(block.timestamp < receipt.releaseTime, "REC: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "REC: Already claimed");
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market, receipt.time);
+        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "REC: Unit mismatch"
@@ -103,44 +99,21 @@ contract Receipt is IReceipt, Ownable {
         liquidationReceipts[escrowId].liquidatorRefundClaimed = true;
 
         // Check price slippage and update account states
-        if (
-            avgPrice == receipt.price || // No price change
-            (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
-            (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
-        ) {
-            /* No slippage */
-            return 0;
-        } else {
-            // Liquidator took a long position, and price dropped
+        if (avgPrice < receipt.price) {
             int256 amountSoldFor = avgPrice.mul(unitsSold.toInt256()).div(priceMultiplier.toInt256());
             int256 amountExpectedFor = (receipt.price).mul(unitsSold.toInt256()).div(priceMultiplier.toInt256());
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
-            uint256 amountToReturn = 0;
-            int256 percentSlippage = 0;
-            if (avgPrice < receipt.price && receipt.liquidationSide) {
-                amountToReturn = uint256(amountExpectedFor.sub(amountSoldFor));
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage = amountToReturn.toInt256().mul(PERCENT_PRECISION).div(amountExpectedFor);
-            } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
-                amountToReturn = uint256(amountSoldFor.sub(amountExpectedFor));
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage = amountToReturn.toInt256().mul(PERCENT_PRECISION).div(amountExpectedFor);
-            }
-            if (percentSlippage > maxSlippage) {
-                amountToReturn = uint256(maxSlippage.mul(amountExpectedFor).div(PERCENT_PRECISION));
-            }
+            uint256 amountToReturn = uint256(amountExpectedFor.sub(amountSoldFor));
             if (amountToReturn > receipt.escrowedAmount) {
                 liquidationReceipts[escrowId].escrowedAmount = 0;
             } else {
                 liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount.sub(amountToReturn);
             }
             return (amountToReturn);
+        } else {
+            return 0;
         }
     }
 
@@ -170,23 +143,15 @@ contract Receipt is IReceipt, Ownable {
     function calcUnitsSold(
         uint256[] memory orderIds,
         uint256 receiptId,
-        address market,
-        uint256 receiptStartTime
-    ) public view returns (uint256, int256) {
+        address market
+    ) internal view returns (uint256, int256) {
         Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
         ITracer _tracer = ITracer(market);
         for (uint256 i; i < orderIds.length; i++) {
             uint256 orderId = orderIds[i];
-            (,
-                uint256 orderFilled,
-                int256 orderPrice,
-                bool orderSide,
-                address orderMaker,
-                uint256 creation
-            ) = _tracer.getOrder(orderId);
-            require(creation >= receipt.time, "REC: Order creation before liquidation");
+            (, uint256 orderFilled, int256 orderPrice, bool orderSide, address orderMaker) = _tracer.getOrder(orderId);
             if (orderMaker == receipt.liquidator) {
                 // Order was made by liquidator
                 if (orderSide != receipt.liquidationSide) {
@@ -244,10 +209,6 @@ contract Receipt is IReceipt, Ownable {
             _receipt.liquidationSide,
             _receipt.liquidatorRefundClaimed
         );
-    }
-
-    function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
-        maxSlippage = _maxSlippage;
     }
 
     modifier onlyAccount() {
