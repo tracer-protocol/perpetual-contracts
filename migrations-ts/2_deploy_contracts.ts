@@ -180,15 +180,15 @@ module.exports = async function (deployer, network, accounts) {
         //Long order for 5 TEST/USD at a price of $1
         await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, fourteenDays)
         //Short order for 5 TEST/USD against placed order
-        await tracer.takeOrder(0, web3.utils.toWei("5"), { from: accounts[1] })
+        await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
         //Long order for 2 TEST/USD at a price of $2
         await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, fourteenDays)
         //Short order for 2 TEST/USD against placed order
-        await tracer.takeOrder(1, web3.utils.toWei("2"), { from: accounts[1] })
+        await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
         //Long order for 1 TEST/USD at a price of $2
         await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
         //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(2, web3.utils.toWei("1"), { from: accounts[1] })
+        await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
 
         //fast forward time
         await time.increase(time.duration.hours(1) + 600)
@@ -197,7 +197,7 @@ module.exports = async function (deployer, network, accounts) {
         //Long order for 1 TEST/USD at a price of $2
         await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
         //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
+        await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
 
         //fast forward 24 hours and check fair price has now updated
         await time.increase(time.duration.hours(24))
@@ -205,7 +205,7 @@ module.exports = async function (deployer, network, accounts) {
         //Long order for 1 TEST/USD at a price of $1
         await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, fourteenDays)
         //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
+        await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
 
         await oracle.setPrice(new BN("100000000"))
         //OR  Place long and short orders either side of $1

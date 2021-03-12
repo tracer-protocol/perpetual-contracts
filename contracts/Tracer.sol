@@ -251,6 +251,76 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         );
     }
 
+     /**
+    * @notice Match two orders that exist against each other
+    * @param order1 the first order that exists on chain
+    * @param order2 the second order that exists on chain
+    */
+    function matchOrders(uint order1, uint order2) public override {
+        // perform compatibility checks (price, side) and calc fill amount
+        uint256 fillAmount = _matchOrder(order1, order2);
+
+        int256 orderPrice = orders[order1].price;
+        address order1User = orders[order1].maker;
+        address order2User = orders[order2].maker;
+        bool order1Side = orders[order1].side;
+        int256 baseChange = (fillAmount.mul(uint256(orderPrice))).div(priceMultiplier).toInt256();
+
+        //Update account states
+        //todo this is the same as takeOrder -> logic can be factored out
+        int256 neg1 = -1;
+
+        if (order1Side) {
+            // Maker long, taker short
+            // sub taker position, add taker margin, add maker position, sub taker margin
+            accountContract.updateAccountOnTrade(
+                baseChange,
+                neg1.mul(fillAmount.toInt256()),
+                order2User,
+                address(this)
+            );
+            accountContract.updateAccountOnTrade(
+                neg1.mul(baseChange),
+                fillAmount.toInt256(),
+                order1User,
+                address(this)
+            );
+        } else {
+            // Taker long, maker short
+            // add taker position, sub taker margin, sub maker position, add maker margin
+            accountContract.updateAccountOnTrade(
+                neg1.mul(baseChange),
+                fillAmount.toInt256(),
+                order1User,
+                address(this)
+            );
+            accountContract.updateAccountOnTrade(
+                baseChange,
+                neg1.mul(fillAmount.toInt256()),
+                order2User,
+                address(this)
+            );
+        }
+
+        // Update leverage
+        accountContract.updateAccountLeverage(order1User, address(this));
+        accountContract.updateAccountLeverage(order2User, address(this));
+
+        // Settle accounts
+        settle(order1User);
+        settle(order2User);
+
+        // Update internal trade state
+        updateInternalRecords(orderPrice);
+
+        // Ensures that you are in a position to take the trade
+        require(
+            accountContract.userMarginIsValid(order1User, address(this)) &&
+                accountContract.userMarginIsValid(order2User, address(this)),
+            "TCR: Margin Invalid post trade"
+        );
+    }
+
     /**
      * @notice settles an account. Compares current global rate with the users last updated rate
      *         Updates the accounts margin balance accordingly.

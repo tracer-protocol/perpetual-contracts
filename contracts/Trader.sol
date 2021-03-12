@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >= 0.6.0;
+pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "./Interfaces/ITracer.sol";
+import "./Interfaces/IDex.sol";
 import "./Interfaces/Types.sol";
 
 /**
@@ -13,19 +14,19 @@ contract Trader {
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
     string private constant EIP712_DOMAIN_VERSION = "1.0";
-    bytes32 private constant EIP712_DOMAIN_SEPERATOR = keccak256(
-        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-    );
+    bytes32 private constant EIP712_DOMAIN_SEPERATOR =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     // EIP712 Types
-    bytes32 private constant LIMIT_ORDER_TYPE = keccak256(
-        "LimitOrder(uint256 amount,int256 price,bool side,address user,uint256 expiration,address targetTracer,uint256 nonce)"
-    );
+    bytes32 private constant LIMIT_ORDER_TYPE =
+        keccak256(
+            "LimitOrder(uint256 amount,int256 price,bool side,address user,uint256 expiration,address targetTracer,uint256 nonce)"
+        );
 
     uint256 constant chainId = 1337; // Changes per chain
     bytes32 public immutable EIP712_DOMAIN;
     // Trader => nonce
-    mapping(address => uint256) public nonce; // Prevents replay attacks
+    mapping(address => uint256) public nonces; // Prevents replay attacks
 
     event Verify(address sig);
     event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address targetTracer);
@@ -45,63 +46,32 @@ contract Trader {
 
     /**
      * @notice Batch executes maker and taker orders against a given market. Currently matching works
-     *         by fully matching a single take order with N make orders, and then moving to the next take
-     *         order.
-     * @param makerOrders An array of signed make orders
-     * @param takerOrders An array of signed take orders
+     *         by matching orders 1 to 1
+     * @param makers An array of signed make orders
+     * @param takers An array of signed take orders
      * @param market The market to execute the trade in
      */
     function executeTrade(
-        Types.SignedLimitOrder[] memory makerOrders,
-        Types.SignedLimitOrder[] memory takerOrders,
+        Types.SignedLimitOrder[] memory makers,
+        Types.SignedLimitOrder[] memory takers,
         address market
     ) external {
-        /* bounds check the size of each order array */
-        require(makerOrders.length == takerOrders.length,
-            "TDR: Mismatched sides");
+        require(makers.length == takers.length, "TDR: Lengths differ");
 
-        ITracer tracer = ITracer(market);
-        // Take from make and match with take until fully matched
-        uint256 latestTake = 0;
+        // safe as we've already bounds checked the array lengths
+        uint256 n = makers.length;
 
-        /* we can do this due to our earlier bounds check on lengths */
-        uint256 numOrders = makerOrders.length;        
+        require(n > 0, "TDR: Received empty arrays");
 
-        /* iterate through BOTH order arrays, matching pairwise */
-        for (uint256 i = 0; i < numOrders; i++) {
-            /* get current make order */
-            Types.LimitOrder memory currentMake = grabOrder(makerOrders, i);
+        for (uint256 i = 0; i < n; i++) {
+            // retrieve orders and verify their signatures
+            // if the order does not exist, it is created here
+            uint256 makeOrderId = grabOrder(makers, i, market);
+            uint256 takeOrderId = grabOrder(takers, i, market);
 
-            uint256 filled = 0;
-            uint256 orderId = tracer.permissionedMakeOrder(
-                currentMake.amount,
-                currentMake.price,
-                currentMake.side,
-                currentMake.expiration,
-                currentMake.user
-            );
+            // match orders
+            ITracer(market).matchOrders(makeOrderId, takeOrderId);
 
-            // Increment nonce
-            nonce[currentMake.user]++;
-            
-            /* get current take order */    
-            Types.LimitOrder memory currentTake = grabOrder(takerOrders, i);
-
-            //Order matching validation
-            require(currentTake.price == currentMake.price,
-                "TDR: price mismatch");
-
-            if (currentTake.amount + filled > currentMake.amount) {
-                //Dont bother taking order, order already over filled.
-                latestTake = i;
-                break;
-            } else {
-                tracer.permissionedTakeOrder(orderId, currentTake.amount,
-                    currentTake.user);
-                filled += currentTake.amount;
-                //Increment nonce
-                nonce[currentTake.user]++;
-            }
         }
     }
 
@@ -112,37 +82,49 @@ contract Trader {
      * @return the specified order
      * @dev Performs its own bounds check on the array access
      */
-    function grabOrder(
-        Types.SignedLimitOrder[] memory orders,
-        uint256 index
-    ) internal view returns (Types.LimitOrder memory) {
-            require(index <= orders.length, "TDR: Out of bounds access");
+    function grabOrder(Types.SignedLimitOrder[] memory orders, uint256 index, address market)
+        internal
+        returns (uint256)
+    {
+        require(index <= orders.length, "TDR: Out of bounds access");
 
-            Types.SignedLimitOrder memory currentSigned = orders[index];
-            
-            /* verify signature and nonce */
-            require(
-                verify(
-                    currentSigned.order.user,
-                    currentSigned.order,
-                    currentSigned.sigR,
-                    currentSigned.sigS,
-                    currentSigned.sigV
-                ),
-                "TDR: incorrect order sig or nonce"
-            );
+        IDex dex = IDex(market);
 
-            return currentSigned.order;
+        Types.SignedLimitOrder memory signedOrder = orders[index];
+
+        // verify signature and nonce
+        verify(
+            signedOrder.order.user,
+            signedOrder.order,
+            signedOrder.sigR,
+            signedOrder.sigS,
+            signedOrder.sigV
+        );
+
+        bytes32 orderHash = hashOrderForDex(signedOrder.order);
+        // check if order exists on chain, if not, create it
+        uint orderId = dex.orderIdByHash(orderHash);
+        if (orderId == 0) {
+            //Create the order
+            return ITracer(market).permissionedMakeOrder(
+                signedOrder.order.amount,
+                signedOrder.order.price,
+                signedOrder.order.side,
+                signedOrder.order.expiration,
+                signedOrder.order.user);
+        }
+
+        return (orderId);
     }
 
     /**
-    * @notice hashes a limit order type in order to verify signatures
-    * @param order the limit order being hashed
-    * @return an EIP712 compliant hash (with headers) of the limit order
-    */
+     * @notice hashes a limit order type in order to verify signatures, per EIP712
+     * @param order the limit order being hashed
+     * @return an EIP712 compliant hash (with headers) of the limit order
+     */
     function hashOrder(Types.LimitOrder memory order) public view returns (bytes32) {
         return
-        keccak256(
+            keccak256(
                 abi.encodePacked(
                     "\x19\x01",
                     EIP712_DOMAIN,
@@ -158,6 +140,19 @@ contract Trader {
                             order.nonce
                         )
                     )
+                )
+            );
+    }
+
+       /**
+     * @notice hashes a limit order type in order to verify signatures
+     * @param order the limit order being hashed
+     * @return an EIP712 compliant hash (with headers) of the limit order
+     */
+    function hashOrderForDex(Types.LimitOrder memory order) public view returns (bytes32) {
+        return(
+            keccak256(
+                abi.encode(order.amount, order.price, order.side, order.user, order.expiration)
             )
         );
     }
@@ -170,15 +165,15 @@ contract Trader {
     }
 
     /**
-    * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
-    * @param signer The signer who is being verified against the order
-    * @param order The unsigned order to verify the signature of
-    * @param sigR R component of the signature
-    * @param sigS S component of the signature
-    * @param sigV V component of the signature
-    * @return true is signer has signed the order as given by the signature components
-    *         and if the nonce of the order is correct else false.
-    */
+     * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
+     * @param signer The signer who is being verified against the order
+     * @param order The unsigned order to verify the signature of
+     * @param sigR R component of the signature
+     * @param sigS S component of the signature
+     * @param sigV V component of the signature
+     * @return true is signer has signed the order as given by the signature components
+     *         and if the nonce of the order is correct else false.
+     */
     function verify(
         address signer,
         Types.LimitOrder memory order,
@@ -186,7 +181,9 @@ contract Trader {
         bytes32 sigS,
         uint8 sigV
     ) public view returns (bool) {
-        return verifySignature(signer, order, sigR, sigS, sigV) && verifyNonce(order);
+        require(verifySignature(signer, order, sigR, sigS, sigV), "TDR: Signature verification failed");
+        require(verifyNonce(order), "TDR: Incorrect nonce");
+        return true;
     }
 
     /**
@@ -210,9 +207,9 @@ contract Trader {
 
     /**
      * @notice Verifies that the nonce of a order is the current user nonce
-     * @param order The order being verified 
+     * @param order The order being verified
      */
     function verifyNonce(Types.LimitOrder memory order) public view returns (bool) {
-        return order.nonce == nonce[order.user];
+        return order.nonce == nonces[order.user];
     }
 }

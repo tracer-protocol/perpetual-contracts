@@ -80,4 +80,6 @@ interface ITracer {
     function transferOwnership(address newOwner) external;
 
     function initializePricing() external;
+
+    function matchOrders(uint order1, uint order2) external;
 }

@@ -260,7 +260,7 @@ describe("Insurance", async () => {
         //Leveraged notional value = $10
         await tracer.makeOrder(web3.utils.toWei("10000"), oneDollar, true, sevenDays)
         //Short order for 20 TEST/USD against placed order
-        await tracer.takeOrder(0, web3.utils.toWei("10000"), { from: accounts[1] })
+        await tracer.takeOrder(1, web3.utils.toWei("10000"), { from: accounts[1] })
 
         //Leveraged notional value = $180
         let lev = await tracer.leveragedNotionalValue()
@@ -292,14 +292,14 @@ describe("Insurance", async () => {
             //Long order for 5 TEST/USD at a price of $1
             await tracer.makeOrder(web3.utils.toWei("2000"), oneDollar, true, sevenDays)
             //Short order for 5 TEST/USD against placed order
-            await tracer.takeOrder(0, web3.utils.toWei("2000"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("2000"), { from: accounts[1] })
             //Total Leveraged Value = $20
 
             //Time travel a day
             await time.increase(twentyFourHours)
             //Place order to trigger updates in contract pricing for the 24 hour period
             await tracer.makeOrder(web3.utils.toWei("1000"), oneDollar, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(1, web3.utils.toWei("1000"), { from: accounts[3] })
+            await tracer.takeOrder(2, web3.utils.toWei("1000"), { from: accounts[3] })
             //Total leveraged value = $40
 
             //Funding rate should now be 0 as price is the same
@@ -329,7 +329,7 @@ describe("Insurance", async () => {
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
             await oracle.setPrice(oneDollar);
 
-            await tracer.takeOrder(0, web3.utils.toWei("500"), { from: accounts[1] })
+            await tracer.takeOrder(1, web3.utils.toWei("500"), { from: accounts[1] })
 
             //Price increases 95%, short order now is under margin requirements
             //$1 + 95% = 1.95
@@ -347,17 +347,17 @@ describe("Insurance", async () => {
 
             //Liquidator sells his positions across multiple orders, and as maker and taker
             await tracer.makeOrder(web3.utils.toWei("200"), newPrice, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(1, web3.utils.toWei("200"), { from: accounts[3] })
+            await tracer.takeOrder(2, web3.utils.toWei("200"), { from: accounts[3] })
 
             await tracer.makeOrder(web3.utils.toWei("100"), newPrice, false, sevenDays, {
                 from: accounts[3],
             })
-            await tracer.takeOrder(2, web3.utils.toWei("100"), { from: accounts[2] })
+            await tracer.takeOrder(3, web3.utils.toWei("100"), { from: accounts[2] })
 
             await tracer.makeOrder(web3.utils.toWei("200"), newPrice, true, sevenDays, { from: accounts[2] })
-            await tracer.takeOrder(3, web3.utils.toWei("200"), { from: accounts[3] })
+            await tracer.takeOrder(4, web3.utils.toWei("200"), { from: accounts[3] })
             
-            await account.claimReceipts(0, [1, 2, 3], tracer.address, { from: accounts[2] })
+            await account.claimReceipts(0, [2, 3, 4], tracer.address, { from: accounts[2] })
             let insuranceBalance = await insurance.getPoolHoldings(tracer.address);
             assert.equal(insuranceBalance.toString(), web3.utils.toWei("1"))
         })
