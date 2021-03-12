@@ -34,6 +34,7 @@ contract Account is IAccount, Ownable {
     int256 private constant DIVIDE_PRECISION = 10000000; // 10^7
     uint256 public currentLiquidationId;
     uint256 public currentAuctionId;
+    uint256 public auctionDuration;
 
     // one account per market per user
     // Tracer market => users address => Account Balance struct
@@ -60,12 +61,14 @@ contract Account is IAccount, Ownable {
         address _insuranceContract,
         address _gasPriceOracle,
         address _factory,
-        address _pricing
+        address _pricing,
+        uint256 _auctionDuration
     ) public {
         insuranceContract = _insuranceContract;
         gasPriceOracle = _gasPriceOracle;
         factory = ITracerFactory(_factory);
         pricing = IPricing(_pricing);
+        auctionDuration = _auctionDuration;
     }
 
     /**
@@ -193,7 +196,7 @@ contract Account is IAccount, Ownable {
         bool isLong
     ) internal override isValidTracer(market) {
         currentAuctionId++;
-        Types.AccountBalance storage userBalance = balances[market][msg.sender];    
+        Types.AccountBalance storage userBalance = balances[market][seller];    
         if (isLong) {
             userBalance.quote = userBalance.quote.sub(amount);
         } else {
@@ -202,10 +205,18 @@ contract Account is IAccount, Ownable {
 
         Types.Auction storage newAuction = auctions[currentAuctionId];
         newAuction.seller = seller;
-        newAuction.amount = amount;
+        newAuction.quoteUnits = amount;
         newAuction.market = market;
         newAuction.isLong = isLong;
         newAuction.startTime = block.timeStamp;
+        currentAuctionId++;
+    }
+
+    function bidOnAuction(uint256 auctionId, uint256 amount) public {
+        Types.AccountBalance storage bidderBalance = balances[market][msg.sender];    
+        Types.Auction storage auction = auctions[auctionId];
+        require(block.timestamp < auction.startTime.add(auctionDuration), "ACT: Auction has ended");
+        require(amount > auction.minBid, "ACT: Bid amount too low");
     }
 
     /**
@@ -820,6 +831,13 @@ contract Account is IAccount, Ownable {
      */
     function setPricingContract(address newPricing) public override onlyOwner() {
         pricing = IPricing(newPricing);
+    }
+
+    /**
+     * @param newAuctionDuration The new duration before an auction expires
+     */
+    function setAuctionDuration(address newAuctionDuration) public override onlyOwner() {
+        auctionDuration = newAuctionDuration;
     }
 
     /**
