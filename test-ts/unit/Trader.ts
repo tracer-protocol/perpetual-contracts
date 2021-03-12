@@ -108,24 +108,6 @@ describe("Trader Shim unit tests", async () => {
     })
 
     describe("executeTrade", () => {
-        context("When order is executed twice", () => {
-            it("passes", async () => {
-                let makers: any = sampleMakers;
-                let takers: any = sampleTakers;
-                let market: string = tracer.address;
-
-                /* sign orders for submission */
-                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
-                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
-
-                assert(await trader.executeTrade(signedMakers, signedTakers, market));
-                await expectRevert(
-                    trader.executeTrade(signedMakers, signedTakers, market),
-                    "TDR: Incorrect nonce"
-                );
-            })
-        })
-
         context("When input array lengths differ", () => {
             it("reverts", async () => {
                 let makers: any = sampleMakers;
