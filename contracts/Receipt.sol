@@ -38,13 +38,6 @@ contract Receipt is IReceipt, Ownable {
     }
 
     /**
-     * @param newReleaseTime new release time
-     */
-    function setReleaseTime(uint256 newReleaseTime) external onlyOwner {
-        releaseTime = newReleaseTime;
-    }
-
-    /**
      * @notice Creates a liquidation receipt for a given trader
      * @param market the Tracer that this receipt belongs too
      * @param liquidator the account executing the liquidation
@@ -251,6 +244,13 @@ contract Receipt is IReceipt, Ownable {
             _receipt.liquidationSide,
             _receipt.liquidatorRefundClaimed
         );
+    }
+
+    /**
+     * @param newReleaseTime new release time
+     */
+    function setReleaseTime(uint256 newReleaseTime) external onlyOwner {
+        releaseTime = newReleaseTime;
     }
 
     function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
