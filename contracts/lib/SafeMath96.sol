@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 
 library SafeMath96 {
     function add96(uint96 a, uint96 b) internal pure returns (uint96) {
