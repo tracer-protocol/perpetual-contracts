@@ -124,8 +124,6 @@ contract Insurance is IInsurance, Ownable {
         if (margin > 0) {
             account.withdraw(uint(margin), market);
         }
-        // Sync with the balance of the tracer margin token
-        pools[market].amount = tracerBaseToken.balanceOf(address(this));
     }
 
     /**
