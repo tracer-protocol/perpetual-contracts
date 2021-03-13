@@ -198,39 +198,8 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         int256 baseChange = (fillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256();
         require(baseChange > 0, "TCR: Margin change <= 0");
 
-        int256 neg1 = -1;
-
-        if (order.side) {
-            // Maker long, taker short
-            // sub taker position, add taker margin, add maker position, sub taker margin
-            accountContract.updateAccountOnTrade(
-                baseChange,
-                neg1.mul(fillAmount.toInt256()),
-                _taker,
-                address(this)
-            );
-            accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
-                fillAmount.toInt256(),
-                order.maker,
-                address(this)
-            );
-        } else {
-            // Taker long, maker short
-            // add taker position, sub taker margin, sub maker position, add maker margin
-            accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
-                fillAmount.toInt256(),
-                _taker,
-                address(this)
-            );
-            accountContract.updateAccountOnTrade(
-                baseChange,
-                neg1.mul(fillAmount.toInt256()),
-                order.maker,
-                address(this)
-            );
-        }
+        // update account states
+        updateAccounts(baseChange, fillAmount, order.side, order.maker, _taker);
         
         // Update leverage
         accountContract.updateAccountLeverage(_taker, address(this));
@@ -251,7 +220,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         );
     }
 
-     /**
+    /**
     * @notice Match two orders that exist against each other
     * @param order1 the first order that exists on chain
     * @param order2 the second order that exists on chain
@@ -267,40 +236,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         int256 baseChange = (fillAmount.mul(uint256(orderPrice))).div(priceMultiplier).toInt256();
 
         //Update account states
-        //todo this is the same as takeOrder -> logic can be factored out
-        int256 neg1 = -1;
-
-        if (order1Side) {
-            // Maker long, taker short
-            // sub taker position, add taker margin, add maker position, sub taker margin
-            accountContract.updateAccountOnTrade(
-                baseChange,
-                neg1.mul(fillAmount.toInt256()),
-                order2User,
-                address(this)
-            );
-            accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
-                fillAmount.toInt256(),
-                order1User,
-                address(this)
-            );
-        } else {
-            // Taker long, maker short
-            // add taker position, sub taker margin, sub maker position, add maker margin
-            accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
-                fillAmount.toInt256(),
-                order1User,
-                address(this)
-            );
-            accountContract.updateAccountOnTrade(
-                baseChange,
-                neg1.mul(fillAmount.toInt256()),
-                order2User,
-                address(this)
-            );
-        }
+        updateAccounts(baseChange, fillAmount, order1Side, order1User, order2User);
 
         // Update leverage
         accountContract.updateAccountLeverage(order1User, address(this));
@@ -319,6 +255,50 @@ contract Tracer is ITracer, SimpleDex, Ownable {
                 accountContract.userMarginIsValid(order2User, address(this)),
             "TCR: Margin Invalid post trade"
         );
+    }
+
+    /**
+    * @notice Updates account states of two accounts given a change in base, an amount of positions filled and
+    *         the side of the first account listed.
+    * @dev relies on the account contarct to perform actual state update for a trade.
+    */
+    function updateAccounts(int256 baseChange, uint256 fillAmount, bool user1Side, address user1, address user2) internal {
+        //Update account states
+        int256 neg1 = -1;
+
+        if (user1Side) {
+            // User 1 long, user 2 short
+            // short - base increased, quote decreased
+            accountContract.updateAccountOnTrade(
+                baseChange,
+                neg1.mul(fillAmount.toInt256()),
+                user2,
+                address(this)
+            );
+            // long - base decreased, quote increased
+            accountContract.updateAccountOnTrade(
+                neg1.mul(baseChange),
+                fillAmount.toInt256(),
+                user1,
+                address(this)
+            );
+        } else {
+            // User 2 long, user 1 short
+            // long - base decreased, quote increased
+            accountContract.updateAccountOnTrade(
+                neg1.mul(baseChange),
+                fillAmount.toInt256(),
+                user2,
+                address(this)
+            );
+            // short - base increased, quote decreased
+            accountContract.updateAccountOnTrade(
+                baseChange,
+                neg1.mul(fillAmount.toInt256()),
+                user1,
+                address(this)
+            );
+        }
     }
 
     /**

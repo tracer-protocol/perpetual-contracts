@@ -218,7 +218,6 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
 
     //Deploy account state contract
     account = await setupAccount(insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, accounts[0])
-    // TODO: This was using gasOracle instead of gasPriceOracle. How did it pass?
 
     //Deploy and link receipt contract
     receipt = await setupReceipt(account, gov.address)
