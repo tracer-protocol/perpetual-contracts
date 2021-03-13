@@ -118,11 +118,10 @@ contract Insurance is IInsurance, Ownable {
      * @param market the tracer contract that the insurance pool is for.
      */
     function updatePoolAmount(address market) external override {
-        ITracer _tracer = ITracer(market);
-        IERC20 tracerBaseToken = IERC20(_tracer.tracerBaseToken());
-        (int256 margin, , , , , ) = account.getBalance(address(this), market);
-        if (margin > 0) {
-            account.withdraw(uint(margin), market);
+        (int256 base, , , , , ) = account.getBalance(address(this), market);
+        if (base > 0) {
+            account.withdraw(uint(base), market);
+            pools[market].amount = pools[market].amount.add(uint(base));
         }
     }
 
