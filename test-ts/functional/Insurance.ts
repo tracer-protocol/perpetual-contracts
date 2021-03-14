@@ -105,7 +105,7 @@ describe("Insurance", async () => {
             await tracerBaseToken.transfer(insurance.address, web3.utils.toWei("5"))
 
             //Deposit into insurance pool and sync holdings
-            await account.depositTo(web3.utils.toWei("5"), tracers[0].address, insurance.address, accounts[0])
+            await account.depositTo(web3.utils.toWei("5"), tracers[0].address, insurance.address)
             await insurance.updatePoolAmount(tracers[0].address)
 
             //Insurance state: margin: 10, outstandingPoolTokens: 5. (2:1)
@@ -145,7 +145,7 @@ describe("Insurance", async () => {
             let tracerBaseToken = await TestToken.at(tracerMarginAddr)
 
             //Sync the insurance pool with its margin holding
-            await account.depositTo(web3.utils.toWei("5"), tracers[0].address, insurance.address, accounts[0])
+            await account.depositTo(web3.utils.toWei("5"), tracers[0].address, insurance.address)
             await insurance.updatePoolAmount(tracers[0].address)
 
             //Insurance state: margin: 10, outstandingPoolTokens: 5
