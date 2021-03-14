@@ -150,9 +150,9 @@ contract Trader {
     }
 
        /**
-     * @notice hashes a limit order type in order to verify signatures
+     * @notice hashes a limit order type
      * @param order the limit order being hashed
-     * @return an EIP712 compliant hash (with headers) of the limit order
+     * @return a simple hash as used by the simple dex to store order ids
      */
     function hashOrderForDex(Types.LimitOrder memory order) public view returns (bytes32) {
         return(

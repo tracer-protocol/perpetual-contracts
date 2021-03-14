@@ -108,7 +108,7 @@ contract Receipt is IReceipt, Ownable {
             (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
             (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
         ) {
-            /* No slippage */
+            // No slippage
             return 0;
         } else {
             // Liquidator took a long position, and price dropped

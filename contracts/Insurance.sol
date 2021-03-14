@@ -143,6 +143,7 @@ contract Insurance is IInsurance, Ownable {
             return;
         }
 
+        // Enforce a maximum at poolAmount
         if (amount > poolAmount) {
             amount = poolAmount;
         }

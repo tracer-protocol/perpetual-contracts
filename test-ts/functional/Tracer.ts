@@ -310,13 +310,113 @@ describe("Tracer", async () => {
             //Long order for 5 TEST/USD at a price of $1
             await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, now)
 
-            //Short order for 3 TEST/USD against placed order
             await expectRevert(
-                //Order over 10x leverage
-
                 tracer.takeOrder(1, web3.utils.toWei("3"), { from: accounts[2] }),
                 "SDX: Order expired"
             )
+        })
+    })
+
+    context('Match Orders', async() => {
+        it('Can sucessfully match two made orders on chain', async() => {
+            it("Fully matches an order successfully", async () => {
+                await account.deposit(web3.utils.toWei("500"), tracer.address)
+                await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+                //Long order for 5 TEST/USD at a price of $1
+                await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
+                //Short order for 5 TEST/USD
+                await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, false, sevenDays, { from: accounts[1] })
+                await tracer.matchOrders(1, 2)
+
+                //assert amount, filled
+                let order = await tracer.getOrder(1)
+                assert.equal(order[0].toString(), web3.utils.toWei("500").toString())
+                assert.equal(order[1].toString(), web3.utils.toWei("500").toString())
+    
+                //Check positions are updated
+                let account1 = await tracer.tracerGetBalance(accounts[0])
+                let account2 = await account.getBalance(accounts[1], tracer.address)
+    
+                //Account 1 margin and position (MAKER)
+                assert.equal(account1[0].toString(), web3.utils.toWei("0").toString())
+                assert.equal(account1[1].toString(), web3.utils.toWei("500").toString())
+                //Account 2 margin and position (TAKER)
+                assert.equal(account2[0].toString(), web3.utils.toWei("1000").toString())
+                assert.equal(account2[1].toString(), web3.utils.toWei("-500").toString())
+    
+                //Order takers state is updated
+                let orderTakerAmount = await tracer.getOrderTakerAmount(1, accounts[1])
+                assert.equal(orderTakerAmount.toString(), web3.utils.toWei("500").toString())
+            })
+    
+            it("Fully matches an order successfully (leveraged)", async () => {
+                await account.deposit(web3.utils.toWei("1000"), tracer.address)
+                await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+                await oracle.setPrice(oneDollar)
+                //Long order for 5 TEST/USD at a price of $1
+                await tracer.makeOrder(web3.utils.toWei("1000"), oneDollar, true, sevenDays)
+                
+                //Short order for 5 TEST/USD
+                await tracer.makeOrder(web3.utils.toWei("1000"), oneDollar, false, sevenDays, { from: accounts[1] })
+                await tracer.matchOrders(1, 2)
+
+                //assert amount, filled
+                let order = await tracer.getOrder(1)
+                assert.equal(order[0].toString(), web3.utils.toWei("1000").toString())
+                assert.equal(order[1].toString(), web3.utils.toWei("1000").toString())
+    
+                //Check positions are updated
+                let account1 = await tracer.tracerGetBalance(accounts[0])
+                let account2 = await account.getBalance(accounts[1], tracer.address)
+    
+                //Account 1 margin and position (MAKER)
+                assert.equal(account1[0].toString(), web3.utils.toWei("0").toString())
+                assert.equal(account1[1].toString(), web3.utils.toWei("1000").toString())
+                assert.equal(account1[2].toString(), web3.utils.toWei("0").toString())
+                //Account 2 margin and position (TAKER)
+                assert.equal(account2[0].toString(), web3.utils.toWei("1500").toString())
+                assert.equal(account2[1].toString(), web3.utils.toWei("-1000").toString())
+                assert.equal(account2[2].toString(), web3.utils.toWei("500").toString())
+    
+                //Order takers state is updated
+                let orderTakerAmount = await tracer.getOrderTakerAmount(1, accounts[1])
+                assert.equal(orderTakerAmount.toString(), web3.utils.toWei("1000").toString())
+            })
+    
+            it("Rejects taking a fully matched order", async () => {
+                await account.deposit(web3.utils.toWei("500"), tracer.address)
+                await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+                await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[2] })
+                //Long order for 5 TEST/USD at a price of $1
+                await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, sevenDays)
+                await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, false, sevenDays, { from: accounts[1] })
+                await tracer.makeOrder(web3.utils.toWei("300"), oneDollar, false, sevenDays, { from: accounts[2] })
+    
+                //Short order for 5 TEST/USD against placed order
+                
+                await tracer.matchOrders(1, 2)
+    
+                //Short order for 3 TEST/USD against placed order
+                await expectRevert(
+                    //Order over 10x leverage
+                    await tracer.matchOrders(1, 3),
+                    "SDX: Order filled"
+                )
+            })
+    
+            it("Rejects taking an expired order", async () => {
+                await account.deposit(web3.utils.toWei("500"), tracer.address)
+                await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+                await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[2] })
+                //Long order for 5 TEST/USD at a price of $1
+                await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, true, now)
+                await tracer.makeOrder(web3.utils.toWei("500"), oneDollar, false, sevenDays, { from: accounts[1] })
+    
+                await expectRevert(
+                    await tracer.matchOrders(1, 2),
+                    "SDX: Order expired"
+                )
+            })
         })
     })
 
@@ -701,12 +801,6 @@ describe("Tracer", async () => {
             await tracer.takeOrder(1, web3.utils.toWei("750"), { from: accounts[1] })
 
             //Check margin of account
-            //margin = 1 - ((margin + liquidation gas) / position value)
-            //liquidation gas = 7.145 * 6 = 42.87
-            //margin = 500 - 750 = -250
-            //position = 750
-            //margin = 1 - ((250 + 42.87) / 750) = 0.6095 (dust = 0.6096?)
-            //TODO --> investigate decimal accuracy and why these end up as different
             let minMargin0 = await account.getUserMinMargin(accounts[0], tracer.address)
             let minMargin1 = await account.getUserMinMargin(accounts[1], tracer.address)
             assert.equal(minMargin0.toString(), web3.utils.toWei("212.4384"))
