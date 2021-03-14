@@ -70,10 +70,9 @@ contract Account is IAccount, Ownable {
      * @param amount The amount of base tokens to be deposited into the Tracer Market account
      * @param market The address of the tracer market that the margin tokens will be deposited into
      * @param user the user whos account the deposit is being made into
-     * @param depositer the address who is depositing the funds
      */
-    function depositTo(uint256 amount, address market, address user, address depositer) external override {
-        _deposit(amount, market, user, depositer);
+    function depositTo(uint256 amount, address market, address user) external override {
+        _deposit(amount, market, user, msg.sender);
     }
 
     /**

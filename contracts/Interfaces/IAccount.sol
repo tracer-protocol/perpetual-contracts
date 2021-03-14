@@ -6,7 +6,7 @@ import "./Types.sol";
 interface IAccount {
     function deposit(uint256 amount, address market) external;
 
-    function depositTo(uint256 amount, address market, address user, address depositer) external;
+    function depositTo(uint256 amount, address market, address user) external;
 
     function withdraw(uint256 amount, address market) external;
 
