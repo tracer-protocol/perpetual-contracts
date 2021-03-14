@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 import "./Interfaces/ITracer.sol";
 import "./Interfaces/IOracle.sol";
@@ -66,15 +66,28 @@ contract Account is IAccount, Ownable {
     }
 
     /**
+     * @notice Allows am account to deposit on behalf of a user into a specific market
+     * @param amount The amount of margin tokens to be deposited into the Tracer Market account
+     * @param market The address of the tracer market that the margin tokens will be deposited into 
+     */
+    function depositTo(uint256 amount, address market, address user, address depositer) external override {
+        _deposit(amount, market, user, depositer);
+    }
+
+    /**
      * @notice Allows a user to deposit into a margin account of a specific tracer
      * @param amount The amount of margin tokens to be deposited into the Tracer Market account
      * @param market The address of the tracer market that the margin tokens will be deposited into 
      */
-    function deposit(uint256 amount, address market) external override isValidTracer(market) {
+    function deposit(uint256 amount, address market) external override {
+        _deposit(amount, market, msg.sender, msg.sender);
+    }
+
+    function _deposit(uint256 amount, address market, address user, address depositer) internal isValidTracer(market) {
         require(amount > 0, "ACT: Deposit Amount <= 0"); 
-        Types.AccountBalance storage userBalance = balances[market][msg.sender];
+        Types.AccountBalance storage userBalance = balances[market][user];
         address tracerBaseToken = ITracer(market).tracerBaseToken();
-        IERC20(tracerBaseToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(tracerBaseToken).safeTransferFrom(depositer, address(this), amount);
         userBalance.base = userBalance.base.add(amount.toInt256());
         userBalance.deposited = userBalance.deposited.add(amount);
         int256 originalLeverage = userBalance.totalLeveragedValue;
@@ -82,12 +95,12 @@ contract Account is IAccount, Ownable {
         _updateAccountLeverage(userBalance.quote,
             pricing.fairPrices(market),
             userBalance.base,
-            msg.sender,
+            user,
             market,
             originalLeverage
         );
         tvl[market] = tvl[market].add(amount);
-        emit Deposit(msg.sender, amount, market);
+        emit Deposit(user, amount, market);
     }
 
     /**

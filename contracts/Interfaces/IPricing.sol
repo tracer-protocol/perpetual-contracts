@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 
 interface IPricing {
     function setFundingRate(address market, int256 price, int256 fundingRate, int256 fundingRateValue) external;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
@@ -118,14 +118,11 @@ contract Insurance is IInsurance, Ownable {
      * @param market the tracer contract that the insurance pool is for.
      */
     function updatePoolAmount(address market) external override {
-        ITracer _tracer = ITracer(market);
-        IERC20 tracerBaseToken = IERC20(_tracer.tracerBaseToken());
-        (int256 margin, , , , , ) = account.getBalance(address(this), market);
-        if (margin > 0) {
-            account.withdraw(uint(margin), market);
+        (int256 base, , , , , ) = account.getBalance(address(this), market);
+        if (base > 0) {
+            account.withdraw(uint(base), market);
+            pools[market].amount = pools[market].amount.add(uint(base));
         }
-        // Sync with the balance of the tracer margin token
-        pools[market].amount = tracerBaseToken.balanceOf(address(this));
     }
 
     /**
