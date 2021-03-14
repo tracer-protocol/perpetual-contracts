@@ -34,8 +34,7 @@ contract TracerFactory is Ownable, ITracerFactory {
     }
 
     /**
-     * @notice Allows the factory to deploy tracer markets.
-     * @dev reverts if the market ID already exists.
+     * @notice Allows any user to deploy a tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
     function deployTracer(
@@ -45,8 +44,7 @@ contract TracerFactory is Ownable, ITracerFactory {
     }
 
    /**
-     * @notice Allows the factory to deploy tracer markets.
-     * @dev reverts if the market ID already exists.
+     * @notice Allows the Tracer DAO to deploy a DAO approved Tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
     function deployTracerAndApprove(

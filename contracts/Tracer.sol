@@ -221,7 +221,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     }
 
     /**
-    * @notice Match two orders that exist against each other
+    * @notice Match two orders that exist on chain against each other
     * @param order1 the first order that exists on chain
     * @param order2 the second order that exists on chain
     */

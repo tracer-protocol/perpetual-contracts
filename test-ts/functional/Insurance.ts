@@ -159,8 +159,6 @@ describe("Insurance", async () => {
             assert.equal((marginAfter.sub(marginBefore)).toString(), web3.utils.toWei("10"))
             assert.equal(poolTokensAfter.toString(), web3.utils.toWei("0"))
         })
-        //TODO test for when the ratio is below 1 (i.e. totalSupply increases while pool.margin does not)
-
     })
 
     context("Rewards", async () => {
