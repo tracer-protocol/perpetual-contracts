@@ -282,7 +282,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
             account.address,
             pricing.address,
             maxLeverage,
-            1 //funding rate sensitivity
+            new BN("10000") // funding rate sensitivity; supporting up to 5 decimal places
         ]
     )
 

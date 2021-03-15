@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 
 contract Pricing is IPricing {
     uint256 private constant DIVIDE_PRECISION = 100000000; // 10^7
+    uint256 private constant PERCENT_FACTOR = 10000; // 10^5; supports 5 decimal places for funding rate sensitivity
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using LibMath for uint256;
@@ -95,9 +96,9 @@ contract Pricing is IPricing {
         ITracer _tracer = ITracer(market);
         int256 timeValue = timeValues[market];
         (int256 underlyingTWAP, int256 deriativeTWAP) = getTWAPs(market, _tracer.currentHour());
-        int256 newFundingRate = ((deriativeTWAP).sub(underlyingTWAP).sub(timeValue)).mul(
+        int256 newFundingRate = (((deriativeTWAP).sub(underlyingTWAP).sub(timeValue)).mul(
             _tracer.FUNDING_RATE_SENSITIVITY().toInt256()
-        );
+        )).div(PERCENT_FACTOR.toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex[market] - 1;
 
