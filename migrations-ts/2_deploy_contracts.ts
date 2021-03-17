@@ -9,11 +9,11 @@ const TracerFactory = artifacts.require('TracerFactory')
 const Oracle = artifacts.require('Oracle')
 const Insurance = artifacts.require('Insurance')
 const LibBalances = artifacts.require('Balances')
-const Types = artifacts.require('Types')
 const Account = artifacts.require('Account')
 const Pricing = artifacts.require('Pricing')
 const DeployerV1 = artifacts.require('DeployerV1')
 const Gov = artifacts.require('Gov')
+const Trader = artifacts.require('Trader')
 
 const fs = require('fs');
 
@@ -57,13 +57,15 @@ module.exports = async function (deployer, network, accounts) {
     const fourteenDays = (Math.floor(Date.now() / 1000) + 604800) * 2 //14 days from now
     const twoDays = 172800
 
-    //Libs
-    deployer.deploy(LibBalances)
-    //Links
-    deployer.link(LibBalances, Tracer)
-    deployer.link(LibBalances, TracerFactory)
+    await deployer.deploy(Trader)
 
-    deployer.link(LibBalances, Account)
+    //Libs
+    await deployer.deploy(LibBalances)
+    //Links
+    await deployer.link(LibBalances, Tracer)
+    await deployer.link(LibBalances, TracerFactory)
+
+    await deployer.link(LibBalances, Account)
 
     //Deploys
     await deployer.deploy(Token, web3.utils.toWei('100000'))
