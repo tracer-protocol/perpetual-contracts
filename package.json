@@ -26,6 +26,7 @@
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.2.0",
     "@types/node": "^14.14.14",
+    "arb-ethers-web3-bridge": "^0.7.3",
     "chai": "^4.2.0",
     "cross-env": "^7.0.3",
     "ganache-cli": "^6.12.0",

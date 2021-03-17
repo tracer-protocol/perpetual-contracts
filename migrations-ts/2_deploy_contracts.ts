@@ -1,5 +1,7 @@
 //@ts-nocheck
 import { BN, time } from '@openzeppelin/test-helpers'
+//@ts-ignore
+import { web3 } from "@openzeppelin/test-helpers/src/setup"
 
 const Tracer = artifacts.require('Tracer')
 const Token = artifacts.require('TestToken')
@@ -92,12 +94,14 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.deploy(TracerFactory, insurance.address, deployerV1.address, gov.address)
     let tracerFactory = await TracerFactory.deployed()
 
+    await insurance.setFactory(tracerFactory.address)
+
     //Deploy pricing contract
     await deployer.deploy(Pricing, tracerFactory.address)
     let pricing = await Pricing.deployed()
 
     //Deploy accounts contract
-    await deployer.deploy(Account, insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address)
+    await deployer.deploy(Account, insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, gov.address)
     let account = await Account.deployed()
 
     //Write contract addresses to JSON file, used for workspace setup script
@@ -108,21 +112,17 @@ module.exports = async function (deployer, network, accounts) {
         await govToken.transfer(accounts[i], web3.utils.toWei('250'))
     }
 
-
     let tokens = []
     let tracers = []
-    //Sample deploy some tracers
-    //Deploy a few test tokens and tracers
-    let proposalNum = 0
-    await govToken.approve(gov.address, web3.utils.toWei('10'))
-    await gov.stake(web3.utils.toWei('10'))
-    await govToken.approve(gov.address, web3.utils.toWei('10'), { from: accounts[1] })
-    await gov.stake(web3.utils.toWei('10'), { from: accounts[1] })
 
     // maxLeveraged = 12.5 * 10,000. notional_value/margin is at most 12.5
     const maxLeverage = new BN("125000").toString();
 
-    for (var i = 0; i < 4; i++) {
+    const tracerCount = network == "development" ? 4 : 1
+
+    //Sample deploy some tracers
+    //Deploy a few test tokens and tracers
+    for (var i = 0; i < tracerCount; i++) {
         var token = await Token.new(web3.utils.toWei('1000000'))
         tokens.push(token)
 
@@ -154,73 +154,90 @@ module.exports = async function (deployer, network, accounts) {
             [deployTracerData]
         )
 
-        await gov.propose([tracerFactory.address], [proposeTracerData])
-        await time.increase(twoDays + 1)
-        await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
-        await time.increase(twoDays + 1)
-        await gov.execute(proposalNum)
-        proposalNum++
+        /* Deploy a tracer, either through governance (localhost) or directly through factory (testnet) */
+        console.log("Deploying tracer")
+        if (network == "kovan") {
+            await tracerFactory.deployTracer(
+                deployTracerData
+            )
+        } else {
+            let proposalNum = 0
+            await govToken.approve(gov.address, web3.utils.toWei('10'))
+            await gov.stake(web3.utils.toWei('10'))
+            await govToken.approve(gov.address, web3.utils.toWei('10'), { from: accounts[1] })
+            await gov.stake(web3.utils.toWei('10'), { from: accounts[1] })
+            await gov.propose([tracerFactory.address], [proposeTracerData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(proposalNum)
+            proposalNum++
+        }
         let tracerAddr = await tracerFactory.tracersByIndex(i)
         var tracer = await Tracer.at(tracerAddr)
         tracers.push(tracer)
+        console.log("Tracer: ")
+        console.log(tracerAddr)
+        console.log("Base token for above tracer: ")
+        console.log(token.address)
 
-        //Send out 100 test tokens to each address
-        for (var i = 1; i < 3; i++) {
-            await token.transfer(accounts[i], web3.utils.toWei('10000'), { from: accounts[0] })
-        }
+        if (network == "development") {
+            for (var i = 1; i < 3; i++) {
+                await token.transfer(accounts[i], web3.utils.toWei('10000'), { from: accounts[0] })
+            }
+            //Get each user to 'deposit' 100 tokens into the platform
+            for (var i = 0; i < 3; i++) {
+                await token.approve(account.address, web3.utils.toWei('10000'), { from: accounts[i] })
+                await account.deposit(web3.utils.toWei('10000'), tracer.address, { from: accounts[i] })
+            }
 
-        //Get each user to 'deposit' 100 tokens into the platform
-        for (var i = 0; i < 3; i++) {
-            await token.approve(account.address, web3.utils.toWei('10000'), { from: accounts[i] })
-            await account.deposit(web3.utils.toWei('10000'), tracer.address, { from: accounts[i] })
-        }
+            console.log("\nTesting fair price\n")
+            // Take some orders to adjust the fair price
+            //Long order for 5 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, fourteenDays)
+            //Short order for 5 TEST/USD against placed order
+            await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
+            //Long order for 2 TEST/USD at a price of $2
+            await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, fourteenDays)
+            //Short order for 2 TEST/USD against placed order
+            await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
+            //Long order for 1 TEST/USD at a price of $2
+            await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
+            //Short order for 1 TEST/USD against placed order
+            await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
 
-        console.log("\nTesting fair price\n")
-        // Take some orders to adjust the fair price
-        //Long order for 5 TEST/USD at a price of $1
-        await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, fourteenDays)
-        //Short order for 5 TEST/USD against placed order
-        await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
-        //Long order for 2 TEST/USD at a price of $2
-        await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, fourteenDays)
-        //Short order for 2 TEST/USD against placed order
-        await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
-        //Long order for 1 TEST/USD at a price of $2
-        await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
-        //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
+            //fast forward time
+            // await time.increase(time.duration.hours(1) + 600)
+            //Make a trade to tick over into the next hour
+            await oracle.setPrice(new BN("200000000"))
+            //Long order for 1 TEST/USD at a price of $2
+            await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
+            //Short order for 1 TEST/USD against placed order
+            await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
 
-        //fast forward time
-        await time.increase(time.duration.hours(1) + 600)
-        //Make a trade to tick over into the next hour
-        await oracle.setPrice(new BN("200000000"))
-        //Long order for 1 TEST/USD at a price of $2
-        await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
-        //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
+            //fast forward 24 hours and check fair price has now updated
+            // await time.increase(time.duration.hours(24))
 
-        //fast forward 24 hours and check fair price has now updated
-        await time.increase(time.duration.hours(24))
+            //Long order for 1 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, fourteenDays)
+            //Short order for 1 TEST/USD against placed order
+            await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
 
-        //Long order for 1 TEST/USD at a price of $1
-        await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, fourteenDays)
-        //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
-
-        await oracle.setPrice(new BN("100000000"))
-        //OR  Place long and short orders either side of $1
-        for (var n = 0; n < 50; n++) {
-            //Maximum per order of 50 units @ $1.5 to keep account collateralised
-            let amount = Math.round(Math.random() * 50)
-            //Generate a random price between $0.5 and $1.5
-            let price = Math.random() > 0.5 ? 1 + Math.random() * 0.5 : 1 - Math.random() * 0.5
-            let onChainPrice = Math.round(price * 1000000)
-            let side = Math.random() > 0.5 ? true : false
-            await tracer.makeOrder(web3.utils.toWei(amount.toString()), onChainPrice, side, fourteenDays, {
-                from: accounts[0],
-            })
-            let sideText = side ? 'LONG' : 'SHORT'
-            console.log(`Order placed ${sideText} for ${amount} at a price of ${onChainPrice} ($${price})`)
+            await oracle.setPrice(new BN("100000000"))
+            //OR  Place long and short orders either side of $1
+            for (var n = 0; n < 50; n++) {
+                //Maximum per order of 50 units @ $1.5 to keep account collateralised
+                let amount = Math.round(Math.random() * 50)
+                //Generate a random price between $0.5 and $1.5
+                let price = Math.random() > 0.5 ? 1 + Math.random() * 0.5 : 1 - Math.random() * 0.5
+                let onChainPrice = Math.round(price * 1000000)
+                let side = Math.random() > 0.5 ? true : false
+                await tracer.makeOrder(web3.utils.toWei(amount.toString()), onChainPrice, side, fourteenDays, {
+                    from: accounts[0],
+                })
+                let sideText = side ? 'LONG' : 'SHORT'
+                console.log(`Order placed ${sideText} for ${amount} at a price of ${onChainPrice} ($${price})`)
+            }
         }
     }
 
