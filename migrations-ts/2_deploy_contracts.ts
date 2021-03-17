@@ -65,7 +65,7 @@ module.exports = async function (deployer, network, accounts) {
     deployer.link(LibBalances, Tracer)
     deployer.link(LibBalances, TracerFactory)
 
-    await deployer.link(LibBalances, Account)
+    deployer.link(LibBalances, Account)
 
     //Deploys
     await deployer.deploy(Token, web3.utils.toWei('100000'))
