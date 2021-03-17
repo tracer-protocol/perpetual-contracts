@@ -60,10 +60,10 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.deploy(Trader)
 
     //Libs
-    await deployer.deploy(LibBalances)
+    deployer.deploy(LibBalances)
     //Links
-    await deployer.link(LibBalances, Tracer)
-    await deployer.link(LibBalances, TracerFactory)
+    deployer.link(LibBalances, Tracer)
+    deployer.link(LibBalances, TracerFactory)
 
     await deployer.link(LibBalances, Account)
 
