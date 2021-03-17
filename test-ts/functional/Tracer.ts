@@ -421,8 +421,8 @@ describe("Tracer", async () => {
     })
 
     context("Liquidation", async () => {
-        /* Current liquidation gas cost is 25.4064 * 10^18 USD */
-        /* maxLeverage is 12.5 */
+        // Current liquidation gas cost is 25.4064 * 10^18 USD
+        // maxLeverage is 12.5
 
         it("Updates balances after liquidation with 0 escrow amount", async () => {
             await account.deposit(web3.utils.toWei("500"), tracer.address)

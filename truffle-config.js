@@ -23,6 +23,26 @@
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
+const wrapProvider = require('arb-ethers-web3-bridge').wrapProvider
+const HDWalletProvider = require('@truffle/hdwallet-provider')
+const fs = require('fs')
+
+let mnemonic
+try {
+  mnemonic = fs.readFileSync(__dirname + "/mnemonic.secret", 'utf8')
+  mnemonic = mnemonic.trim()
+} catch (err) {
+  console.error(err)
+}
+
+let endpoint
+try {
+  endpoint = fs.readFileSync(__dirname + "/kovan.secret", 'utf8')
+  endpoint = endpoint.trim()
+} catch (err) {
+  console.error(err)
+}
+const arbitrumEndpoint = "https://kovan3.arbitrum.io/rpc"
 
 module.exports = {
     /**
@@ -41,7 +61,15 @@ module.exports = {
         // You should run a client (like ganache-cli, geth or parity) in a separate terminal
         // tab if you use this network and you must also set the `host`, `port` and `network_id`
         // options below to some value.
-        //
+
+        kovan: {
+          provider: () => new HDWalletProvider(mnemonic, endpoint),
+          network_id: '42',
+          // gas: 700000,
+          gasPrice: 5 * 1e9, // 5 gwei
+          skipDryRun: true
+        },
+
         development: {
             host: '127.0.0.1', // Localhost (default: none)
             port: 8545, // Standard Ethereum port (default: none)
@@ -77,6 +105,19 @@ module.exports = {
             network_id: '*',
             gasPrice: 0,
         },
+        arbitrum: {
+          provider: function () {
+            // return wrapped provider:
+            return wrapProvider(
+              new HDWalletProvider(mnemonic, arbitrumEndpoint)
+            )
+          },
+          network_id: '*',
+          // gasPrice: 0
+          // network_id: '79377087078960',
+          gas: 9000000,
+          gasPrice: 10000000000 //10 Gwei
+        }
         // Another network with more advanced options...
         // advanced: {
         // port: 8777,             // Custom port
