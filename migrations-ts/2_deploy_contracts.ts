@@ -9,11 +9,11 @@ const TracerFactory = artifacts.require('TracerFactory')
 const Oracle = artifacts.require('Oracle')
 const Insurance = artifacts.require('Insurance')
 const LibBalances = artifacts.require('Balances')
-const Types = artifacts.require('Types')
 const Account = artifacts.require('Account')
 const Pricing = artifacts.require('Pricing')
 const DeployerV1 = artifacts.require('DeployerV1')
 const Gov = artifacts.require('Gov')
+const Trader = artifacts.require('Trader')
 
 const fs = require('fs');
 
@@ -56,6 +56,8 @@ module.exports = async function (deployer, network, accounts) {
     const oneDollar = new BN('1000000')
     const fourteenDays = (Math.floor(Date.now() / 1000) + 604800) * 2 //14 days from now
     const twoDays = 172800
+
+    await deployer.deploy(Trader)
 
     //Libs
     deployer.deploy(LibBalances)
