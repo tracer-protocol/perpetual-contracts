@@ -3,7 +3,7 @@ import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
 import assert from "assert"
 import { setupContractsAndTracer } from "../lib/Setup"
 import { AccountInstance, TracerInstance, TraderInstance, TestTokenInstance } from "../../types/truffle-contracts"
-import { signOrder, signOrders, domain, domainData, limitOrder } from "../lib/Signing"
+import { signOrders } from "@lions-mane/tracer-utils"
 import { accounts, configure, web3 } from "../configure"
 import { Trader } from "../artifacts"
 

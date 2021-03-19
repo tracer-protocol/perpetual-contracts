@@ -5,7 +5,7 @@ import { AccountInstance, DeployerV1Instance, GasOracleInstance, GovInstance, In
 import { Trader } from "../artifacts"
 import { setupContractsAndTracer } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
-import { signOrders } from "../lib/Signing"
+import { signOrders } from "@lions-mane/tracer-utils";
 
 require("dotenv").config()
 
