@@ -1,6 +1,6 @@
 {
-  "name": "@tracer/contracts",
-  "version": "0.1.0",
+  "name": "@tracer-protocol/contracts",
+  "version": "0.0.1",
   "description": "Tracer Protocol",
   "main": "truffle-config.js",
   "directories": {
@@ -90,5 +90,6 @@
   ],
   "engines": {
     "node": ">=10"
-  }
+  },
+  "private": false
 }
