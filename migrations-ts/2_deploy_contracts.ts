@@ -1,9 +1,9 @@
 //@ts-nocheck
 import { BN, time } from '@openzeppelin/test-helpers'
-//@ts-ignore
-import { web3 } from "@openzeppelin/test-helpers/src/setup"
+const Web3 = require('web3');
 
 const Tracer = artifacts.require('Tracer')
+const Trader = artifacts.require('Trader')
 const Token = artifacts.require('TestToken')
 const TracerFactory = artifacts.require('TracerFactory')
 const Oracle = artifacts.require('Oracle')
@@ -16,6 +16,22 @@ const DeployerV1 = artifacts.require('DeployerV1')
 const Gov = artifacts.require('Gov')
 
 const fs = require('fs');
+
+let endpoint
+try {
+  endpoint = fs.readFileSync(__dirname + "/../kovan.secret", 'utf8')
+  endpoint = endpoint.trim()
+} catch (err) {
+  console.error(err)
+}
+
+const deployerPrivKey
+try {
+  deployerPrivKey = fs.readFileSync(__dirname + "/../priv_key.secret", 'utf8')
+  deployerPrivKey = deployerPrivKey.trim()
+} catch (err) {
+  console.error(err)
+}
 
 /**
  * Writes several addresses to json
@@ -44,8 +60,195 @@ const writeToJson = (account, factory, insurance, pricing, oracle) => {
     return
 }
 
+async function setupSingleAccount(
+    tracerAddr: string,
+    tokenAddr: string,
+    accountAddr: string,
+    traderAddr: string,
+    deployerPrivKey: string,
+    web3,
+    network: string,
+    deployer
+) {
+    let wallet = web3.eth.accounts.create();
+    const transferData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "transfer",
+            type: "function",
+            inputs: [
+                {
+                    type: "address",
+                    name: "to",
+                },
+                {
+                    type: "uint256",
+                    name: "amount",
+                },
+            ],
+        },
+        [wallet.address, web3.utils.toWei("1000")]
+    )
+    const transferTx = {
+        to: tokenAddr,
+        data: transferData,
+        gas: 1000000,
+    }
+
+    const approveData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "approve",
+            type: "function",
+            inputs: [
+                {
+                    type: "address",
+                    name: "spender",
+                },
+                {
+                    type: "uint256",
+                    name: "amount",
+                },
+            ],
+        },
+        [accountAddr, web3.utils.toWei("100000")]
+    )
+    const approveTx = {
+        to: tokenAddr,
+        data: approveData,
+        gas: 1000000,
+    }
+    const depositData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "deposit",
+            type: "function",
+            inputs: [
+                {
+                    type: "uint256",
+                    name: "amount",
+                },
+                {
+                    type: "address",
+                    name: "market",
+                },
+            ],
+        },
+        [web3.utils.toWei("1000"), tracerAddr]
+    )
+    const depositTx = {
+        to: accountAddr,
+        data: depositData,
+        gas: 1000000,
+    }
+    const permissionsData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "setUserPermissions",
+            type: "function",
+            inputs: [
+                {
+                    type: "address",
+                    name: "account",
+                },
+                {
+                    type: "bool",
+                    name: "permission",
+                },
+            ],
+        },
+        [traderAddr, true]
+    )
+    const permissionTx = {
+        to: tracerAddr,
+        data: permissionsData,
+        gas: 1000000,
+    }
+    // Transfer each address a bit of ETH
+    // Then transfer tokens from token deployer address to new address
+    if (network == "development") {
+        // Since we are on development(localhost), we just want to send transactions direclty from
+        // accounts[0] without signing
+        await web3.eth.sendTransaction({
+            from: deployer, to: wallet.address, value: web3.utils.toWei("0.2"), gas: 500000,
+        })
+
+        await web3.eth.sendTransaction({
+            to: tokenAddr,
+            from: deployer,
+            data: transferData,
+            gas: 10000000,
+        })
+    } else {
+        // Since we are not on localhost, we want to sign transactions then send them
+        const signedTransaction = await web3.eth.accounts.signTransaction({
+            from: deployer, to: wallet.address, value: web3.utils.toWei("0.2"), gas: 900000},
+            deployerPrivKey
+        )
+        await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction)
+
+        const signedTransfer = await web3.eth.accounts.signTransaction(transferTx, deployerPrivKey)
+        await web3.eth.sendSignedTransaction(signedTransfer.rawTransaction)
+    }
+
+    // Approve Account to transfer token
+    const signedTransaction = await web3.eth.accounts.signTransaction(approveTx, wallet.privateKey)
+    await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction)
+
+    // Deposit into Account contract
+    const signedDeposit = await web3.eth.accounts.signTransaction(depositTx, wallet.privateKey)
+    await web3.eth.sendSignedTransaction(signedDeposit.rawTransaction)
+
+    // Setting user permissions of Trader.sol to trade on wallet's behalf
+    const signedPermission = await web3.eth.accounts.signTransaction(permissionTx, wallet.privateKey)
+    await web3.eth.sendSignedTransaction(signedPermission.rawTransaction)
+
+    fs.appendFileSync('./private_keys.txt', wallet.privateKey + "\n", (err, result) => {
+        if (err) {
+            console.log("Encounted an error when saving private key", err)
+        }
+    });
+
+}
+
+async function setupAccounts(
+    numAccounts: number,
+    tracerAddr: string,
+    tokenAddr: string,
+    accountAddr: string,
+    traderAddr: string,
+    deployerPrivKey: string,
+    web3,
+    network: string,
+    deployer
+) {
+    // clear the file
+    fs.writeFile('./private_keys.txt', "", (err, result) => {
+        if (err) {
+            console.log("Encounted an error when clearing private key file", err)
+        }
+    });
+
+    for (let i = 0; i < numAccounts; i++) {
+        console.log("Setting up account number " + i)
+        await setupSingleAccount(
+            tracerAddr,
+            tokenAddr,
+            accountAddr,
+            traderAddr,
+            deployerPrivKey,
+            web3,
+            network,
+            deployer
+        )
+    }
+}
 
 module.exports = async function (deployer, network, accounts) {
+    const numAccounts = 0
+    const web3
+    if (network == "kovan") {
+        web3 = new Web3(endpoint)
+    } else if (network == "development") {
+        web3 = new Web3("ws://localhost:8545")
+    }
+
     if (network === 'test') {
         //Dont deploy everything for tests
         console.log('Running test network')
@@ -64,6 +267,10 @@ module.exports = async function (deployer, network, accounts) {
     deployer.link(LibBalances, TracerFactory)
 
     deployer.link(LibBalances, Account)
+
+    await deployer.deploy(Trader)
+
+    let trader = await Trader.deployed()
 
     //Deploys
     await deployer.deploy(Token, web3.utils.toWei('100000'))
@@ -124,7 +331,7 @@ module.exports = async function (deployer, network, accounts) {
     //Deploy a few test tokens and tracers
     for (var i = 0; i < tracerCount; i++) {
         var token = await Token.new(web3.utils.toWei('1000000'))
-        tokens.push(token)
+        tokens.push(token.address)
 
         //Deploy a new Tracer contract per test
         var deployTracerData = web3.eth.abi.encodeParameters(
@@ -154,7 +361,7 @@ module.exports = async function (deployer, network, accounts) {
             [deployTracerData]
         )
 
-        /* Deploy a tracer, either through governance (localhost) or directly through factory (testnet) */
+        // Deploy a tracer, either through governance (localhost) or directly through factory (testnet)
         console.log("Deploying tracer")
         if (network == "kovan") {
             await tracerFactory.deployTracer(
@@ -175,11 +382,24 @@ module.exports = async function (deployer, network, accounts) {
         }
         let tracerAddr = await tracerFactory.tracersByIndex(i)
         var tracer = await Tracer.at(tracerAddr)
-        tracers.push(tracer)
+        tracers.push(tracerAddr)
         console.log("Tracer: ")
         console.log(tracerAddr)
         console.log("Base token for above tracer: ")
         console.log(token.address)
+        if (network == "kovan" || true) {
+            await setupAccounts(
+                numAccounts,
+                tracer.address,
+                token.address,
+                account.address,
+                trader.address,
+                deployerPrivKey,
+                web3,
+                network,
+                accounts[0]
+            )
+        }
 
         if (network == "development") {
             for (var i = 1; i < 3; i++) {
@@ -240,6 +460,26 @@ module.exports = async function (deployer, network, accounts) {
             }
         }
     }
+
+    console.log(
+        "SUMMARY: \n",
+        "========\n",
+        "Contracts:",
+        "\nAccount.sol: " + account.address,
+        "\nTrader.sol: " + trader.address,
+        "\ngovToken: " + govToken.address,
+        "\nGov.sol: " + gov.address,
+        "\ngasPriceOracle: " + gasPriceOracle.address,
+        "\noracle: " + oracle.address,
+        "\ndeployerV1: " + deployerV1.address,
+        "\nInsurance.sol: " + insurance.address,
+        "\nTracerFactory.sol: " + tracerFactory.address,
+        "\nPricing.sol: " + pricing.address,
+        "\nTracers"
+    )
+    console.log(tracers)
+    console.log("... and their corresponding base tokens (ordered):")
+    console.log(tokens)
 
     if (network === 'localtestnet') {
         //Users addresses to give some tokens and ETH to
