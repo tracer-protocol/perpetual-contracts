@@ -98,7 +98,6 @@ contract Account is IAccount, Ownable {
         address tracerBaseToken = ITracer(market).tracerBaseToken();
         IERC20(tracerBaseToken).safeTransferFrom(depositer, address(this), amount);
         userBalance.base = userBalance.base.add(amount.toInt256());
-        userBalance.deposited = userBalance.deposited.add(amount);
         int256 originalLeverage = userBalance.totalLeveragedValue;
         
         _updateAccountLeverage(userBalance.quote,
@@ -135,7 +134,6 @@ contract Account is IAccount, Ownable {
         address tracerBaseToken = _tracer.tracerBaseToken();
         IERC20(tracerBaseToken).safeTransfer(msg.sender, amount);
         userBalance.base = userBalance.base.sub(amount.toInt256());
-        userBalance.deposited = userBalance.deposited.sub(amount);
         int256 originalLeverage = userBalance.totalLeveragedValue;
         _updateAccountLeverage(userBalance.quote, pricing.fairPrices(market), userBalance.base, msg.sender, market, originalLeverage);
         
@@ -195,7 +193,6 @@ contract Account is IAccount, Ownable {
                 accountBalance.base = accountBalance.base.sub(changeInInsuranceBalance);
                 insuranceBalance.base = insuranceBalance.base.add(changeInInsuranceBalance);
                 // uint is safe since changeInInsuranceBalance > 0
-                insuranceBalance.deposited = insuranceBalance.deposited.add(uint256(changeInInsuranceBalance));
             }
         }
 
@@ -461,7 +458,6 @@ contract Account is IAccount, Ownable {
         userBalance.base = base;
         userBalance.quote = quote;
         userBalance.totalLeveragedValue = leverage;
-        userBalance.deposited = deposited;
         userBalance.lastUpdatedGasPrice = IOracle(_tracer.gasPriceOracle()).latestAnswer();
     }
 
@@ -578,7 +574,6 @@ contract Account is IAccount, Ownable {
             int256 base,
             int256 quote,
             int256 totalLeveragedValue,
-            uint256 deposited,
             int256 lastUpdatedGasPrice,
             uint256 lastUpdatedIndex
         )
@@ -588,7 +583,6 @@ contract Account is IAccount, Ownable {
             userBalance.base,
             userBalance.quote,
             userBalance.totalLeveragedValue,
-            userBalance.deposited,
             userBalance.lastUpdatedGasPrice,
             userBalance.lastUpdatedIndex
         );
