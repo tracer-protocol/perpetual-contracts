@@ -1,5 +1,5 @@
 //@ts-ignore
-import { BN, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers"
+import { BN, time } from "@openzeppelin/test-helpers"
 import { assert } from "chai"
 const truffleAssert = require('truffle-assertions');
 import {
@@ -14,7 +14,7 @@ import {
     TracerInstance,
 } from "../../types/truffle-contracts"
 import { TestToken, InsurancePoolToken } from "../artifacts"
-import { deployMultiTracers, setupContracts, setupContractsAndTracer } from "../lib/Setup"
+import { deployMultiTracers, setupContracts } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
 
 /**

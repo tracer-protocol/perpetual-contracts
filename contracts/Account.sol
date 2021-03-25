@@ -239,8 +239,11 @@ contract Account is IAccount, Ownable {
         Types.Auction storage auction = auctions[auctionId];
         require(auction != 0, "ACT: Auction doesn't exist");
         require(block.timestamp < auction.startTime.add(auctionDuration), "ACT: Auction has ended");
-        require(amount > auction.minBid, "ACT: Bid amount too low");
-        require(bidderBalance.base)
+        require(amount > auction.bestBid, "ACT: Bid amount too low");
+        require(bidderBalance.base >= amount.toInt256(), "ACT: Bid amount too high");
+
+        auction.bestBid = amount;
+        auction.bidder = msg.sender;
     }
 
     /**
@@ -255,7 +258,6 @@ contract Account is IAccount, Ownable {
         address account,
         address market
     ) external override isValidTracer(market) {
-
         int256 price = pricing.fairPrices(market);
         int256 margin = getUserMargin(account, market);
         int256 liquidateeQuote = balances[market][account].quote;

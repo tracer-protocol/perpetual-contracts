@@ -74,11 +74,11 @@ interface Types {
 
     struct Auction {
         uint256 startTime;
-        int256 quoteUnits;
-        uint256 minBid;
+        uint256 bestBid; /* Current highest bid */
+        int256 quoteUnits; /* How big the auction is for */
+        address bidder; /* Current bidder */
         address market;
-        address bidder;
-        address seller;
+        address seller; /* Whose position is being auctioned */
         bool isLong;
     }
 
