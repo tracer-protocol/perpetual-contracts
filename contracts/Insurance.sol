@@ -118,7 +118,7 @@ contract Insurance is IInsurance, Ownable {
      * @param market the tracer contract that the insurance pool is for.
      */
     function updatePoolAmount(address market) external override {
-        (int256 base, , , , , ) = account.getBalance(address(this), market);
+        (int256 base, , , , ) = account.getBalance(address(this), market);
         if (base > 0) {
             account.withdraw(uint(base), market);
             pools[market].amount = pools[market].amount.add(uint(base));

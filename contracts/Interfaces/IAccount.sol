@@ -40,12 +40,11 @@ interface IAccount {
         external
         view
         returns (
-            int256,
-            int256,
-            int256,
-            uint256,
-            int256,
-            uint256
+            int256 margin,
+            int256 position,
+            int256 totalLeveragedValue,
+            int256 lastUpdatedGasPrice,
+            uint256 lastUpdatedIndex
         );
 
     function updateAccountOnTrade(

@@ -141,7 +141,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     ) public override isPermissioned(maker) returns (uint256) {
         {
             // Validate in its own context to help stack
-            (int256 base, int256 quote, , , , ) = accountContract.getBalance(maker, address(this));
+            (int256 base, int256 quote, , , ) = accountContract.getBalance(maker, address(this));
 
             // Check base will hold up after trade
             (int256 baseAfterTrade, int256 quoteAfterTrade) = Balances.safeCalcTradeMargin(
@@ -311,7 +311,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
      */
     function settle(address account) public override {
         // Get account and global last updated indexes
-        (, , , , , uint256 accountLastUpdatedIndex) = accountContract.getBalance(account, address(this));
+        (, , , , uint256 accountLastUpdatedIndex) = accountContract.getBalance(account, address(this));
         uint256 currentGlobalFundingIndex = pricingContract.currentFundingIndex(address(this));
 
         // Only settle account if its last updated index was before the current global index
@@ -439,7 +439,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         int256 margin,
         int256 position,
         int256 totalLeveragedValue,
-        uint256 deposited,
         int256 lastUpdatedGasPrice,
         uint256 lastUpdatedIndex
     ) {
