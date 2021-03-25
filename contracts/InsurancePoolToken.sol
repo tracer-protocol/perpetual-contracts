@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
+import "./lib/SafetyWithdraw.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -9,7 +10,7 @@ import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 * The Tracer Insurance Pool Token is a minimal implementation of ERC2222
 * https://github.com/ethereum/EIPs/issues/2222
 */
-contract InsurancePoolToken is ERC20, Ownable {
+contract InsurancePoolToken is ERC20, Ownable, SafetyWithdraw {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
 
