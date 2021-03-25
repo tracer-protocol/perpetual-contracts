@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "./Interfaces/ITracer.sol";
@@ -68,6 +68,11 @@ contract Trader {
             // if the order does not exist, it is created here
             uint256 makeOrderId = grabOrder(makers, i, market);
             uint256 takeOrderId = grabOrder(takers, i, market);
+
+            address maker = makers[i].order.user;
+            address taker = takers[i].order.user;
+            nonces[maker]++;
+            nonces[taker]++;
 
             // match orders
             ITracer(market).matchOrders(makeOrderId, takeOrderId);
@@ -145,9 +150,9 @@ contract Trader {
     }
 
        /**
-     * @notice hashes a limit order type in order to verify signatures
+     * @notice hashes a limit order type
      * @param order the limit order being hashed
-     * @return an EIP712 compliant hash (with headers) of the limit order
+     * @return a simple hash as used by the simple dex to store order ids
      */
     function hashOrderForDex(Types.LimitOrder memory order) public view returns (bytes32) {
         return(

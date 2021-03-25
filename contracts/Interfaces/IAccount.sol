@@ -1,10 +1,12 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 import "./Types.sol";
 
 interface IAccount {
     function deposit(uint256 amount, address market) external;
+
+    function depositTo(uint256 amount, address market, address user) external;
 
     function withdraw(uint256 amount, address market) external;
 
@@ -82,8 +84,6 @@ interface IAccount {
     function getUserNotionalValue(address account, address market) external view returns (int256);
 
     function getUserMinMargin(address account, address market) external view returns (int256);
-
-    function unsafeGetUserMargin(address account, address market) external view returns (int256);
 
     function tracerLeveragedNotionalValue(address market) external view returns(int256);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
@@ -99,7 +99,15 @@ contract Receipt is IReceipt {
         liquidationReceipts[escrowId].liquidatorRefundClaimed = true;
 
         // Check price slippage and update account states
-        if (avgPrice < receipt.price) {
+        if (
+            avgPrice == receipt.price || // No price change
+            (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
+            (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
+        ) {
+            // No slippage
+            return 0;
+        } else {
+            // Liquidator took a long position, and price dropped
             int256 amountSoldFor = avgPrice.mul(unitsSold.toInt256()).div(priceMultiplier.toInt256());
             int256 amountExpectedFor = (receipt.price).mul(unitsSold.toInt256()).div(priceMultiplier.toInt256());
 
@@ -209,6 +217,18 @@ contract Receipt is IReceipt {
             _receipt.liquidationSide,
             _receipt.liquidatorRefundClaimed
         );
+    }
+
+    /**
+     * @notice Modifies the release time
+     * @param _releaseTime new release time
+     */
+    function setReleaseTime(uint256 _releaseTime) external onlyOwner() {
+        releaseTime = _releaseTime;
+    }
+
+    function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
+        maxSlippage = _maxSlippage;
     }
 
     modifier onlyAccount() {

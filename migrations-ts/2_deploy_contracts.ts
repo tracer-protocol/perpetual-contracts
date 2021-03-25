@@ -1,19 +1,37 @@
 //@ts-nocheck
 import { BN, time } from '@openzeppelin/test-helpers'
+const Web3 = require('web3');
 
 const Tracer = artifacts.require('Tracer')
+const Trader = artifacts.require('Trader')
 const Token = artifacts.require('TestToken')
 const TracerFactory = artifacts.require('TracerFactory')
 const Oracle = artifacts.require('Oracle')
 const Insurance = artifacts.require('Insurance')
 const LibBalances = artifacts.require('Balances')
-const Types = artifacts.require('Types')
 const Account = artifacts.require('Account')
 const Pricing = artifacts.require('Pricing')
 const DeployerV1 = artifacts.require('DeployerV1')
 const Gov = artifacts.require('Gov')
+const Trader = artifacts.require('Trader')
 
 const fs = require('fs');
+
+let endpoint
+try {
+  endpoint = fs.readFileSync(__dirname + "/../kovan.secret", 'utf8')
+  endpoint = endpoint.trim()
+} catch (err) {
+  console.error(err)
+}
+
+const deployerPrivKey
+try {
+  deployerPrivKey = fs.readFileSync(__dirname + "/../priv_key.secret", 'utf8')
+  deployerPrivKey = deployerPrivKey.trim()
+} catch (err) {
+  console.error(err)
+}
 
 /**
  * Writes several addresses to json
@@ -42,8 +60,195 @@ const writeToJson = (account, factory, insurance, pricing, oracle) => {
     return
 }
 
+async function setupSingleAccount(
+    tracerAddr: string,
+    tokenAddr: string,
+    accountAddr: string,
+    traderAddr: string,
+    deployerPrivKey: string,
+    web3,
+    network: string,
+    deployer
+) {
+    let wallet = web3.eth.accounts.create();
+    const transferData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "transfer",
+            type: "function",
+            inputs: [
+                {
+                    type: "address",
+                    name: "to",
+                },
+                {
+                    type: "uint256",
+                    name: "amount",
+                },
+            ],
+        },
+        [wallet.address, web3.utils.toWei("1000")]
+    )
+    const transferTx = {
+        to: tokenAddr,
+        data: transferData,
+        gas: 1000000,
+    }
+
+    const approveData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "approve",
+            type: "function",
+            inputs: [
+                {
+                    type: "address",
+                    name: "spender",
+                },
+                {
+                    type: "uint256",
+                    name: "amount",
+                },
+            ],
+        },
+        [accountAddr, web3.utils.toWei("100000")]
+    )
+    const approveTx = {
+        to: tokenAddr,
+        data: approveData,
+        gas: 1000000,
+    }
+    const depositData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "deposit",
+            type: "function",
+            inputs: [
+                {
+                    type: "uint256",
+                    name: "amount",
+                },
+                {
+                    type: "address",
+                    name: "market",
+                },
+            ],
+        },
+        [web3.utils.toWei("1000"), tracerAddr]
+    )
+    const depositTx = {
+        to: accountAddr,
+        data: depositData,
+        gas: 1000000,
+    }
+    const permissionsData = web3.eth.abi.encodeFunctionCall(
+        {
+            name: "setUserPermissions",
+            type: "function",
+            inputs: [
+                {
+                    type: "address",
+                    name: "account",
+                },
+                {
+                    type: "bool",
+                    name: "permission",
+                },
+            ],
+        },
+        [traderAddr, true]
+    )
+    const permissionTx = {
+        to: tracerAddr,
+        data: permissionsData,
+        gas: 1000000,
+    }
+    // Transfer each address a bit of ETH
+    // Then transfer tokens from token deployer address to new address
+    if (network == "development") {
+        // Since we are on development(localhost), we just want to send transactions direclty from
+        // accounts[0] without signing
+        await web3.eth.sendTransaction({
+            from: deployer, to: wallet.address, value: web3.utils.toWei("0.2"), gas: 500000,
+        })
+
+        await web3.eth.sendTransaction({
+            to: tokenAddr,
+            from: deployer,
+            data: transferData,
+            gas: 10000000,
+        })
+    } else {
+        // Since we are not on localhost, we want to sign transactions then send them
+        const signedTransaction = await web3.eth.accounts.signTransaction({
+            from: deployer, to: wallet.address, value: web3.utils.toWei("0.2"), gas: 900000},
+            deployerPrivKey
+        )
+        await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction)
+
+        const signedTransfer = await web3.eth.accounts.signTransaction(transferTx, deployerPrivKey)
+        await web3.eth.sendSignedTransaction(signedTransfer.rawTransaction)
+    }
+
+    // Approve Account to transfer token
+    const signedTransaction = await web3.eth.accounts.signTransaction(approveTx, wallet.privateKey)
+    await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction)
+
+    // Deposit into Account contract
+    const signedDeposit = await web3.eth.accounts.signTransaction(depositTx, wallet.privateKey)
+    await web3.eth.sendSignedTransaction(signedDeposit.rawTransaction)
+
+    // Setting user permissions of Trader.sol to trade on wallet's behalf
+    const signedPermission = await web3.eth.accounts.signTransaction(permissionTx, wallet.privateKey)
+    await web3.eth.sendSignedTransaction(signedPermission.rawTransaction)
+
+    fs.appendFileSync('./private_keys.txt', wallet.privateKey + "\n", (err, result) => {
+        if (err) {
+            console.log("Encounted an error when saving private key", err)
+        }
+    });
+
+}
+
+async function setupAccounts(
+    numAccounts: number,
+    tracerAddr: string,
+    tokenAddr: string,
+    accountAddr: string,
+    traderAddr: string,
+    deployerPrivKey: string,
+    web3,
+    network: string,
+    deployer
+) {
+    // clear the file
+    fs.writeFile('./private_keys.txt', "", (err, result) => {
+        if (err) {
+            console.log("Encounted an error when clearing private key file", err)
+        }
+    });
+
+    for (let i = 0; i < numAccounts; i++) {
+        console.log("Setting up account number " + i)
+        await setupSingleAccount(
+            tracerAddr,
+            tokenAddr,
+            accountAddr,
+            traderAddr,
+            deployerPrivKey,
+            web3,
+            network,
+            deployer
+        )
+    }
+}
 
 module.exports = async function (deployer, network, accounts) {
+    const numAccounts = 0
+    const web3
+    if (network == "kovan") {
+        web3 = new Web3(endpoint)
+    } else if (network == "development") {
+        web3 = new Web3("ws://localhost:8545")
+    }
+
     if (network === 'test') {
         //Dont deploy everything for tests
         console.log('Running test network')
@@ -55,6 +260,8 @@ module.exports = async function (deployer, network, accounts) {
     const fourteenDays = (Math.floor(Date.now() / 1000) + 604800) * 2 //14 days from now
     const twoDays = 172800
 
+    await deployer.deploy(Trader)
+
     //Libs
     deployer.deploy(LibBalances)
     //Links
@@ -62,6 +269,10 @@ module.exports = async function (deployer, network, accounts) {
     deployer.link(LibBalances, TracerFactory)
 
     deployer.link(LibBalances, Account)
+
+    await deployer.deploy(Trader)
+
+    let trader = await Trader.deployed()
 
     //Deploys
     await deployer.deploy(Token, web3.utils.toWei('100000'))
@@ -92,12 +303,14 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.deploy(TracerFactory, insurance.address, deployerV1.address, gov.address)
     let tracerFactory = await TracerFactory.deployed()
 
+    await insurance.setFactory(tracerFactory.address)
+
     //Deploy pricing contract
     await deployer.deploy(Pricing, tracerFactory.address)
     let pricing = await Pricing.deployed()
 
     //Deploy accounts contract
-    await deployer.deploy(Account, insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address)
+    await deployer.deploy(Account, insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, gov.address)
     let account = await Account.deployed()
 
     //Write contract addresses to JSON file, used for workspace setup script
@@ -108,23 +321,19 @@ module.exports = async function (deployer, network, accounts) {
         await govToken.transfer(accounts[i], web3.utils.toWei('250'))
     }
 
-
     let tokens = []
     let tracers = []
-    //Sample deploy some tracers
-    //Deploy a few test tokens and tracers
-    let proposalNum = 0
-    await govToken.approve(gov.address, web3.utils.toWei('10'))
-    await gov.stake(web3.utils.toWei('10'))
-    await govToken.approve(gov.address, web3.utils.toWei('10'), { from: accounts[1] })
-    await gov.stake(web3.utils.toWei('10'), { from: accounts[1] })
 
     // maxLeveraged = 12.5 * 10,000. notional_value/margin is at most 12.5
     const maxLeverage = new BN("125000").toString();
 
-    for (var i = 0; i < 4; i++) {
+    const tracerCount = network == "development" ? 4 : 1
+
+    //Sample deploy some tracers
+    //Deploy a few test tokens and tracers
+    for (var i = 0; i < tracerCount; i++) {
         var token = await Token.new(web3.utils.toWei('1000000'))
-        tokens.push(token)
+        tokens.push(token.address)
 
         //Deploy a new Tracer contract per test
         var deployTracerData = web3.eth.abi.encodeParameters(
@@ -154,75 +363,125 @@ module.exports = async function (deployer, network, accounts) {
             [deployTracerData]
         )
 
-        await gov.propose([tracerFactory.address], [proposeTracerData])
-        await time.increase(twoDays + 1)
-        await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
-        await time.increase(twoDays + 1)
-        await gov.execute(proposalNum)
-        proposalNum++
+        // Deploy a tracer, either through governance (localhost) or directly through factory (testnet)
+        console.log("Deploying tracer")
+        if (network == "kovan") {
+            await tracerFactory.deployTracer(
+                deployTracerData
+            )
+        } else {
+            let proposalNum = 0
+            await govToken.approve(gov.address, web3.utils.toWei('10'))
+            await gov.stake(web3.utils.toWei('10'))
+            await govToken.approve(gov.address, web3.utils.toWei('10'), { from: accounts[1] })
+            await gov.stake(web3.utils.toWei('10'), { from: accounts[1] })
+            await gov.propose([tracerFactory.address], [proposeTracerData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(proposalNum)
+            proposalNum++
+        }
         let tracerAddr = await tracerFactory.tracersByIndex(i)
         var tracer = await Tracer.at(tracerAddr)
-        tracers.push(tracer)
-
-        //Send out 100 test tokens to each address
-        for (var i = 1; i < 3; i++) {
-            await token.transfer(accounts[i], web3.utils.toWei('10000'), { from: accounts[0] })
+        tracers.push(tracerAddr)
+        console.log("Tracer: ")
+        console.log(tracerAddr)
+        console.log("Base token for above tracer: ")
+        console.log(token.address)
+        if (network == "kovan" || true) {
+            await setupAccounts(
+                numAccounts,
+                tracer.address,
+                token.address,
+                account.address,
+                trader.address,
+                deployerPrivKey,
+                web3,
+                network,
+                accounts[0]
+            )
         }
 
-        //Get each user to 'deposit' 100 tokens into the platform
-        for (var i = 0; i < 3; i++) {
-            await token.approve(account.address, web3.utils.toWei('10000'), { from: accounts[i] })
-            await account.deposit(web3.utils.toWei('10000'), tracer.address, { from: accounts[i] })
-        }
+        if (network == "development") {
+            for (var i = 1; i < 3; i++) {
+                await token.transfer(accounts[i], web3.utils.toWei('10000'), { from: accounts[0] })
+            }
+            //Get each user to 'deposit' 100 tokens into the platform
+            for (var i = 0; i < 3; i++) {
+                await token.approve(account.address, web3.utils.toWei('10000'), { from: accounts[i] })
+                await account.deposit(web3.utils.toWei('10000'), tracer.address, { from: accounts[i] })
+            }
 
-        console.log("\nTesting fair price\n")
-        // Take some orders to adjust the fair price
-        //Long order for 5 TEST/USD at a price of $1
-        await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, fourteenDays)
-        //Short order for 5 TEST/USD against placed order
-        await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
-        //Long order for 2 TEST/USD at a price of $2
-        await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, fourteenDays)
-        //Short order for 2 TEST/USD against placed order
-        await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
-        //Long order for 1 TEST/USD at a price of $2
-        await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
-        //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
+            console.log("\nTesting fair price\n")
+            // Take some orders to adjust the fair price
+            //Long order for 5 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("5"), oneDollar, true, fourteenDays)
+            //Short order for 5 TEST/USD against placed order
+            await tracer.takeOrder(1, web3.utils.toWei("5"), { from: accounts[1] })
+            //Long order for 2 TEST/USD at a price of $2
+            await tracer.makeOrder(web3.utils.toWei("2"), new BN("200000000"), true, fourteenDays)
+            //Short order for 2 TEST/USD against placed order
+            await tracer.takeOrder(2, web3.utils.toWei("2"), { from: accounts[1] })
+            //Long order for 1 TEST/USD at a price of $2
+            await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
+            //Short order for 1 TEST/USD against placed order
+            await tracer.takeOrder(3, web3.utils.toWei("1"), { from: accounts[1] })
 
-        //fast forward time
-        await time.increase(time.duration.hours(1) + 600)
-        //Make a trade to tick over into the next hour
-        await oracle.setPrice(new BN("200000000"))
-        //Long order for 1 TEST/USD at a price of $2
-        await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
-        //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
+            //fast forward time
+            // await time.increase(time.duration.hours(1) + 600)
+            //Make a trade to tick over into the next hour
+            await oracle.setPrice(new BN("200000000"))
+            //Long order for 1 TEST/USD at a price of $2
+            await tracer.makeOrder(web3.utils.toWei("1"), new BN("300000000"), true, fourteenDays)
+            //Short order for 1 TEST/USD against placed order
+            await tracer.takeOrder(4, web3.utils.toWei("1"), { from: accounts[1] })
 
-        //fast forward 24 hours and check fair price has now updated
-        await time.increase(time.duration.hours(24))
+            //fast forward 24 hours and check fair price has now updated
+            // await time.increase(time.duration.hours(24))
 
-        //Long order for 1 TEST/USD at a price of $1
-        await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, fourteenDays)
-        //Short order for 1 TEST/USD against placed order
-        await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
+            //Long order for 1 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("1"), new BN("100000000"), true, fourteenDays)
+            //Short order for 1 TEST/USD against placed order
+            await tracer.takeOrder(5, web3.utils.toWei("1"), { from: accounts[1] })
 
-        await oracle.setPrice(new BN("100000000"))
-        //OR  Place long and short orders either side of $1
-        for (var n = 0; n < 50; n++) {
-            //Maximum per order of 50 units @ $1.5 to keep account collateralised
-            let amount = Math.round(Math.random() * 50)
-            //Generate a random price between $0.5 and $1.5
-            let price = Math.random() > 0.5 ? 1 + Math.random() * 0.5 : 1 - Math.random() * 0.5
-            let onChainPrice = Math.round(price * 1000000)
-            let side = Math.random() > 0.5 ? true : false
-            await tracer.makeOrder(web3.utils.toWei(amount.toString()), onChainPrice, side, fourteenDays, {
-                from: accounts[0],
-            })
-            let sideText = side ? 'LONG' : 'SHORT'
-            console.log(`Order placed ${sideText} for ${amount} at a price of ${onChainPrice} ($${price})`)
+            await oracle.setPrice(new BN("100000000"))
+            //OR  Place long and short orders either side of $1
+            for (var n = 0; n < 50; n++) {
+                //Maximum per order of 50 units @ $1.5 to keep account collateralised
+                let amount = Math.round(Math.random() * 50)
+                //Generate a random price between $0.5 and $1.5
+                let price = Math.random() > 0.5 ? 1 + Math.random() * 0.5 : 1 - Math.random() * 0.5
+                let onChainPrice = Math.round(price * 1000000)
+                let side = Math.random() > 0.5 ? true : false
+                await tracer.makeOrder(web3.utils.toWei(amount.toString()), onChainPrice, side, fourteenDays, {
+                    from: accounts[0],
+                })
+                let sideText = side ? 'LONG' : 'SHORT'
+                console.log(`Order placed ${sideText} for ${amount} at a price of ${onChainPrice} ($${price})`)
+            }
         }
     }
+
+    console.log(
+        "SUMMARY: \n",
+        "========\n",
+        "Contracts:",
+        "\nAccount.sol: " + account.address,
+        "\nTrader.sol: " + trader.address,
+        "\ngovToken: " + govToken.address,
+        "\nGov.sol: " + gov.address,
+        "\ngasPriceOracle: " + gasPriceOracle.address,
+        "\noracle: " + oracle.address,
+        "\ndeployerV1: " + deployerV1.address,
+        "\nInsurance.sol: " + insurance.address,
+        "\nTracerFactory.sol: " + tracerFactory.address,
+        "\nPricing.sol: " + pricing.address,
+        "\nTracers"
+    )
+    console.log(tracers)
+    console.log("... and their corresponding base tokens (ordered):")
+    console.log(tokens)
 
     if (network === 'localtestnet') {
         //Users addresses to give some tokens and ETH to

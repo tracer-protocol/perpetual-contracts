@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.6.0;
+pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 import "./Interfaces/ITracer.sol";
 import "./Interfaces/IOracle.sol";
@@ -72,15 +72,37 @@ contract Account is IAccount, Ownable {
     }
 
     /**
+     * @notice Allows am account to deposit on behalf of a user into a specific market
+     * @param amount The amount of base tokens to be deposited into the Tracer Market account
+     * @param market The address of the tracer market that the margin tokens will be deposited into
+     * @param user the user whos account the deposit is being made into
+     */
+    function depositTo(uint256 amount, address market, address user) external override {
+        _deposit(amount, market, user, msg.sender);
+    }
+
+    /**
      * @notice Allows a user to deposit into a margin account of a specific tracer
-     * @param amount The amount of margin tokens to be deposited into the Tracer Market account
+     * @param amount The amount of base tokens to be deposited into the Tracer Market account
      * @param market The address of the tracer market that the margin tokens will be deposited into 
      */
-    function deposit(uint256 amount, address market) external override isValidTracer(market) {
+    function deposit(uint256 amount, address market) external override {
+        _deposit(amount, market, msg.sender, msg.sender);
+    }
+
+    /**
+    * @notice Internal deposit logic for accounts adding to the account contract.
+    * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
+    * @param amount The amount of base tokens to be deposited into the Tracer Market account  
+    * @param market The address of the tracer market that the margin tokens will be deposited into 
+    * @param user the user whos account the deposit is being made into
+    * @param depositer the address who is depositing the funds
+    */
+    function _deposit(uint256 amount, address market, address user, address depositer) internal isValidTracer(market) {
         require(amount > 0, "ACT: Deposit Amount <= 0"); 
-        Types.AccountBalance storage userBalance = balances[market][msg.sender];
+        Types.AccountBalance storage userBalance = balances[market][user];
         address tracerBaseToken = ITracer(market).tracerBaseToken();
-        IERC20(tracerBaseToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(tracerBaseToken).safeTransferFrom(depositer, address(this), amount);
         userBalance.base = userBalance.base.add(amount.toInt256());
         userBalance.deposited = userBalance.deposited.add(amount);
         int256 originalLeverage = userBalance.totalLeveragedValue;
@@ -88,12 +110,12 @@ contract Account is IAccount, Ownable {
         _updateAccountLeverage(userBalance.quote,
             pricing.fairPrices(market),
             userBalance.base,
-            msg.sender,
+            user,
             market,
             originalLeverage
         );
         tvl[market] = tvl[market].add(amount);
-        emit Deposit(msg.sender, amount, market);
+        emit Deposit(user, amount, market);
     }
 
     /**
@@ -410,8 +432,13 @@ contract Account is IAccount, Ownable {
                 insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else { // insuranceBalance.base < amountWantedFromInsurance
-                // Todo check if insuranceBalance.base can be <0 and what you should do in this case
-                IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance.sub(uint256(insuranceBalance.base)));
+                if (insuranceBalance.base <= 0) {
+                    // attempt to drain entire balance that is needed from the pool
+                    IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance);
+                } else {
+                    // attempt to drain the required balance taking into account the insurance balance in the account contract
+                    IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance.sub(uint256(insuranceBalance.base)));
+                }
                 if (insuranceBalance.base < amountWantedFromInsurance.toInt256()) { // Still not enough
                     amountTakenFromInsurance = uint(insuranceBalance.base);
                     insuranceBalance.base = 0;
@@ -778,26 +805,6 @@ contract Account is IAccount, Ownable {
             _tracer.maxLeverage(),
             _tracer.priceMultiplier()
         );
-    }
-
-    /**
-     * @notice Returns a users margin in a particular Tracer Market
-     * @dev Will not throw if margin is negative
-     * @param account The address whose account is queried
-     * @param market The address of the relevant Tracer market
-     * @return the margin of the account (positive or negative)
-     */
-    function unsafeGetUserMargin(address account, address market) public override view returns (int256) {
-        Types.AccountBalance memory accountBalance = balances[market][account];
-        ITracer _tracer = ITracer(market);
-        return
-            Balances.calcMarginPercent(
-                accountBalance.base,
-                accountBalance.quote,
-                pricing.fairPrices(market),
-                uint256(accountBalance.lastUpdatedGasPrice).mul(_tracer.LIQUIDATION_GAS_COST()),
-                _tracer.priceMultiplier()
-            );
     }
 
     /**
