@@ -22,7 +22,11 @@ try {
   endpoint = fs.readFileSync(__dirname + "/../kovan.secret", 'utf8')
   endpoint = endpoint.trim()
 } catch (err) {
-  console.error(err)
+  if (err.errno == -2) {
+    console.error("../kovan.secret not found")
+  } else {
+    console.error(err)
+  }
 }
 
 const deployerPrivKey
@@ -30,7 +34,11 @@ try {
   deployerPrivKey = fs.readFileSync(__dirname + "/../priv_key.secret", 'utf8')
   deployerPrivKey = deployerPrivKey.trim()
 } catch (err) {
-  console.error(err)
+  if (err.errno == -2) {
+    console.error("../priv_key.secret not found")
+  } else {
+    console.error(err)
+  }
 }
 
 /**
