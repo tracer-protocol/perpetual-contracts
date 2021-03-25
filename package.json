@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@openzeppelin/test-helpers": "^0.5.6",
-    "@lions-mane/tracer-utils": "^0.0.1",
+    "@tracer-protocol/tracer-utils": "^0.0.4",
     "@truffle/contract": "^4.3.3",
     "@typechain/ethers-v5": "^2.0.0",
     "@typechain/truffle-v5": "^2.0.2",
