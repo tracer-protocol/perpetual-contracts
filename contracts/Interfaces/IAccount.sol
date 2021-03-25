@@ -47,15 +47,6 @@ interface IAccount {
             uint256 lastUpdatedIndex
         );
 
-    function updateAccount(
-        int256 margin,
-        int256 position,
-        int256 leverage,
-        uint256 deposited,
-        address account,
-        address market
-    ) external;
-
     function updateAccountOnTrade(
         int256 marginChange,
         int256 positionChange,

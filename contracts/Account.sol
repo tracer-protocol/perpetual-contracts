@@ -437,31 +437,6 @@ contract Account is IAccount, Ownable {
     }
 
     /**
-     * @notice Used by a Tracer to update the account details (values) of a accounts position in a particular tracer market 
-     * @param base The base the account will be set to
-     * @param quote The position the account is to be set to
-     * @param leverage The leverage the account is to be set to 
-     * @param deposited The amount deposited into the tracer account, this will be the new deposited value
-     * @param account The address of the account to be updated 
-     * @param market The address of the tracer market of which the details being updated are relevant to 
-     */
-    function updateAccount(
-        int256 base,
-        int256 quote,
-        int256 leverage,
-        uint256 deposited,
-        address account,
-        address market
-    ) external override onlyTracer(market) {
-        Types.AccountBalance storage userBalance = balances[market][account];
-        ITracer _tracer = ITracer(market);
-        userBalance.base = base;
-        userBalance.quote = quote;
-        userBalance.totalLeveragedValue = leverage;
-        userBalance.lastUpdatedGasPrice = IOracle(_tracer.gasPriceOracle()).latestAnswer();
-    }
-
-    /**
      * @notice Updates the account state of a user given a specific tracer, in a trade event. Adds the 
      *         passed in margin and position changes to the current margin and position.
      * @dev Related to permissionedTakeOrder() in tracer.sol 
