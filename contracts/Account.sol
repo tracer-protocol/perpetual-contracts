@@ -8,6 +8,7 @@ import "./Interfaces/IReceipt.sol";
 import "./Interfaces/ITracerFactory.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
+import "./lib/SafetyWithdraw.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Account is IAccount, Ownable {
+contract Account is IAccount, Ownable, SafetyWithdraw {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using LibMath for uint256;
