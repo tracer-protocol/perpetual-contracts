@@ -5,7 +5,6 @@ pragma experimental ABIEncoderV2;
 interface Types {
 
     struct AccountBalance {
-        uint256 deposited;
         int256 base; // The amount of units in the base asset
         int256 quote; // The amount of units in the quote asset
         int256 totalLeveragedValue;

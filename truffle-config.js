@@ -32,7 +32,11 @@ try {
   mnemonic = fs.readFileSync(__dirname + "/mnemonic.secret", 'utf8')
   mnemonic = mnemonic.trim()
 } catch (err) {
-  console.error(err)
+  if (err.errno == -2) {
+    console.error("mnemonic.secret not found")
+  } else {
+    console.error(err)
+  }
 }
 
 let endpoint
@@ -40,7 +44,11 @@ try {
   endpoint = fs.readFileSync(__dirname + "/kovan.secret", 'utf8')
   endpoint = endpoint.trim()
 } catch (err) {
-  console.error(err)
+  if (err.errno == -2) {
+    console.error("kovan.secret not found")
+  } else {
+    console.error(err)
+  }
 }
 const arbitrumEndpoint = "https://kovan3.arbitrum.io/rpc"
 

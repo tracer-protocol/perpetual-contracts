@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/ITracer.sol";
 import "./Interfaces/IPricing.sol";
 import "./DEX/SimpleDex.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/SignedSafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-contract Tracer is ITracer, SimpleDex, Ownable {
+contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using LibMath for uint256;
@@ -141,7 +142,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
     ) public override isPermissioned(maker) returns (uint256) {
         {
             // Validate in its own context to help stack
-            (int256 base, int256 quote, , , , ) = accountContract.getBalance(maker, address(this));
+            (int256 base, int256 quote, , , ) = accountContract.getBalance(maker, address(this));
 
             // Check base will hold up after trade
             (int256 baseAfterTrade, int256 quoteAfterTrade) = Balances.safeCalcTradeMargin(
@@ -311,7 +312,7 @@ contract Tracer is ITracer, SimpleDex, Ownable {
      */
     function settle(address account) public override {
         // Get account and global last updated indexes
-        (, , , , , uint256 accountLastUpdatedIndex) = accountContract.getBalance(account, address(this));
+        (, , , , uint256 accountLastUpdatedIndex) = accountContract.getBalance(account, address(this));
         uint256 currentGlobalFundingIndex = pricingContract.currentFundingIndex(address(this));
 
         // Only settle account if its last updated index was before the current global index
@@ -439,7 +440,6 @@ contract Tracer is ITracer, SimpleDex, Ownable {
         int256 margin,
         int256 position,
         int256 totalLeveragedValue,
-        uint256 deposited,
         int256 lastUpdatedGasPrice,
         uint256 lastUpdatedIndex
     ) {

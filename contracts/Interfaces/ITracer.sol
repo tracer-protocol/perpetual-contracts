@@ -54,7 +54,6 @@ interface ITracer {
         int256 margin,
         int256 position,
         int256 totalLeveragedValue,
-        uint256 deposited,
         int256 lastUpdatedGasPrice,
         uint256 lastUpdatedIndex
     );

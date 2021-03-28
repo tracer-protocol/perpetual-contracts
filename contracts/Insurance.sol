@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Interfaces/ITracer.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
+import "./lib/SafetyWithdraw.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/SignedSafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Insurance is IInsurance, Ownable {
+contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using SafeERC20 for IERC20;
@@ -118,7 +119,7 @@ contract Insurance is IInsurance, Ownable {
      * @param market the tracer contract that the insurance pool is for.
      */
     function updatePoolAmount(address market) external override {
-        (int256 base, , , , , ) = account.getBalance(address(this), market);
+        (int256 base, , , , ) = account.getBalance(address(this), market);
         if (base > 0) {
             account.withdraw(uint(base), market);
             pools[market].amount = pools[market].amount.add(uint(base));

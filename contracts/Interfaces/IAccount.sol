@@ -40,22 +40,12 @@ interface IAccount {
         external
         view
         returns (
-            int256,
-            int256,
-            int256,
-            uint256,
-            int256,
-            uint256
+            int256 margin,
+            int256 position,
+            int256 totalLeveragedValue,
+            int256 lastUpdatedGasPrice,
+            uint256 lastUpdatedIndex
         );
-
-    function updateAccount(
-        int256 margin,
-        int256 position,
-        int256 leverage,
-        uint256 deposited,
-        address account,
-        address market
-    ) external;
 
     function updateAccountOnTrade(
         int256 marginChange,
