@@ -101,6 +101,16 @@ contract Trader is Ownable {
     }
 
     /**
+     * @notice Sets `trader`'s gas balance to `amount`
+     * @param trader The address of the trader
+     * @param amount The amount of ETH to set the trader's gas balance to
+     * @dev Allows traders to be potentially credited gas fees by the DAO
+     */
+    function setGas(address trader, uint256 amount) public onlyOwner {
+        gasBalances[trader] = amount;
+    }
+
+    /**
      * @notice Retrieves and validates an order from an order array
      * @param orders an array of orders
      * @param index the index into the array where the desired order is
