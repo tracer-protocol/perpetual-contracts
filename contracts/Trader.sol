@@ -90,6 +90,10 @@ contract Trader {
         }
     }
 
+    function depositGas() public payable {
+        gasBalances[msg.sender] += msg.value;
+    }
+
     /**
      * @notice Retrieves and validates an order from an order array
      * @param orders an array of orders
