@@ -64,6 +64,9 @@ contract Trader {
 
         require(n > 0, "TDR: Received empty arrays");
 
+        // gas cost for individual traders
+        uint256 gasCost = (tx.gasprice) / (2 * n);
+
         for (uint256 i = 0; i < n; i++) {
             // retrieve orders and verify their signatures
             // if the order does not exist, it is created here
@@ -72,12 +75,18 @@ contract Trader {
 
             address maker = makers[i].order.user;
             address taker = takers[i].order.user;
+
+            // increment nonces
             nonces[maker]++;
             nonces[taker]++;
 
+            // enforce gas balance check
+            require(gasBalances[maker] >= gasCost &&
+                gasBalances[taker] >= gasCost,
+                "TDR: Trader has insufficient gas");
+
             // match orders
             ITracer(market).matchOrders(makeOrderId, takeOrderId);
-
         }
     }
 
