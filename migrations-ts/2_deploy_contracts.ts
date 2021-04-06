@@ -395,7 +395,7 @@ module.exports = async function (deployer, network, accounts) {
         console.log(tracerAddr)
         console.log("Base token for above tracer: ")
         console.log(token.address)
-        if (network == "kovan" || network == "ome") {
+        if (network == "kovan") {
             await setupAccounts(
                 numAccounts,
                 tracer.address,
@@ -407,6 +407,17 @@ module.exports = async function (deployer, network, accounts) {
                 network,
                 accounts[0]
             )
+        } else if (network == "ome") {
+            //simple setup, transfer tokens and approve trader
+            for (var i = 1; i < 5; i++) {
+                await token.transfer(accounts[i], web3.utils.toWei('10000'), { from: accounts[0] })
+            }
+            //Get each user to 'deposit' 100 tokens into the platform
+            for (var i = 0; i < 5; i++) {
+                await token.approve(account.address, web3.utils.toWei('10000'), { from: accounts[i] })
+                await account.deposit(web3.utils.toWei('10000'), tracer.address, { from: accounts[i] })
+                await tracer.setUserPermissions(trader.address, true, { from: accounts[i]})
+            }
         }
 
         if (network == "development") {
