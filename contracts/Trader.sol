@@ -2,6 +2,8 @@
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 import "./Interfaces/ITracer.sol";
 import "./Interfaces/IDex.sol";
 import "./Interfaces/Types.sol";
@@ -9,7 +11,7 @@ import "./Interfaces/Types.sol";
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader {
+contract Trader is Ownable {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -92,6 +94,10 @@ contract Trader {
 
     function depositGas() public payable {
         gasBalances[msg.sender] += msg.value;
+    }
+
+    function drain() public onlyOwner {
+        msg.sender.transfer(address(this).balance);
     }
 
     /**
