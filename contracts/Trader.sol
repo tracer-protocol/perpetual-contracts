@@ -218,4 +218,18 @@ contract Trader {
     function verifyNonce(Types.LimitOrder memory order) public view returns (bool) {
         return order.nonce == nonces[order.user];
     }
+
+    /**
+     * @notice Decreases `trader`'s gas balance by `amount`
+     * @param trader The address of the trader
+     * @param amount The amount of ETH to deduct
+     * @dev This is basically just saturating subtraction
+     */
+    function decreaseGas(address trader, uint256 amount) internal {
+        if(gasBalances[trader] <= amount) {
+            gasBalances[trader] = 0;
+        } else {
+            gasBalances[trader] -= amount;
+        }
+    }
 }
