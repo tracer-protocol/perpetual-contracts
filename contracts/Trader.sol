@@ -27,6 +27,7 @@ contract Trader {
     bytes32 public immutable EIP712_DOMAIN;
     // Trader => nonce
     mapping(address => uint256) public nonces; // Prevents replay attacks
+    mapping (address => uint256) public gasBalances; // Stores gas allowances for each trader
 
     event Verify(address sig);
     event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address targetTracer);
