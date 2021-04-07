@@ -196,7 +196,7 @@ contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
         (Types.Order memory order, uint256 fillAmount, uint256 amountOutstanding, address maker) = _takeOrder(orderId, amount, _taker);
         emit OrderFilled(orderId, amount, amountOutstanding, _taker, maker, marketId);
 
-        int256 baseChange = (fillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256();
+        int256 baseChange = (fillAmount.toInt256().mul(order.price)).div(priceMultiplier.toInt256());
         require(baseChange > 0, "TCR: Margin change <= 0");
 
         // update account states
@@ -234,7 +234,7 @@ contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
         address order1User = orders[order1].maker;
         address order2User = orders[order2].maker;
         bool order1Side = orders[order1].side;
-        int256 baseChange = (fillAmount.mul(uint256(orderPrice))).div(priceMultiplier).toInt256();
+        int256 baseChange = (fillAmount.toInt256().mul(orderPrice)).div(priceMultiplier.toInt256());
 
         //Update account states
         updateAccounts(baseChange, fillAmount, order1Side, order1User, order2User);
