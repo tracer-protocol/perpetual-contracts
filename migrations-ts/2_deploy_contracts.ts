@@ -22,7 +22,11 @@ try {
   endpoint = fs.readFileSync(__dirname + "/../kovan.secret", 'utf8')
   endpoint = endpoint.trim()
 } catch (err) {
-  console.error(err)
+  if (err.errno == -2) {
+    console.error("../kovan.secret not found")
+  } else {
+    console.error(err)
+  }
 }
 
 const deployerPrivKey
@@ -30,7 +34,11 @@ try {
   deployerPrivKey = fs.readFileSync(__dirname + "/../priv_key.secret", 'utf8')
   deployerPrivKey = deployerPrivKey.trim()
 } catch (err) {
-  console.error(err)
+  if (err.errno == -2) {
+    console.error("../priv_key.secret not found")
+  } else {
+    console.error(err)
+  }
 }
 
 /**
@@ -162,8 +170,8 @@ async function setupSingleAccount(
     }
     // Transfer each address a bit of ETH
     // Then transfer tokens from token deployer address to new address
-    if (network == "development") {
-        // Since we are on development(localhost), we just want to send transactions direclty from
+    if (network == "ome") {
+        // Since we are on network "ome"(localhost), we just want to send transactions direclty from
         // accounts[0] without signing
         await web3.eth.sendTransaction({
             from: deployer, to: wallet.address, value: web3.utils.toWei("0.2"), gas: 500000,
@@ -241,11 +249,11 @@ async function setupAccounts(
 }
 
 module.exports = async function (deployer, network, accounts) {
-    const numAccounts = 0
+    const numAccounts = 15
     const web3
     if (network == "kovan") {
         web3 = new Web3(endpoint)
-    } else if (network == "development") {
+    } else if (network == "development" || network == "ome") {
         web3 = new Web3("ws://localhost:8545")
     }
 
@@ -259,8 +267,6 @@ module.exports = async function (deployer, network, accounts) {
     const oneDollar = new BN('1000000')
     const fourteenDays = (Math.floor(Date.now() / 1000) + 604800) * 2 //14 days from now
     const twoDays = 172800
-
-    await deployer.deploy(Trader)
 
     //Libs
     deployer.deploy(LibBalances)
@@ -389,7 +395,7 @@ module.exports = async function (deployer, network, accounts) {
         console.log(tracerAddr)
         console.log("Base token for above tracer: ")
         console.log(token.address)
-        if (network == "kovan" || true) {
+        if (network == "kovan") {
             await setupAccounts(
                 numAccounts,
                 tracer.address,
@@ -401,6 +407,17 @@ module.exports = async function (deployer, network, accounts) {
                 network,
                 accounts[0]
             )
+        } else if (network == "ome") {
+            //simple setup, transfer tokens and approve trader
+            for (var i = 1; i < 5; i++) {
+                await token.transfer(accounts[i], web3.utils.toWei('10000'), { from: accounts[0] })
+            }
+            //Get each user to 'deposit' 100 tokens into the platform
+            for (var i = 0; i < 5; i++) {
+                await token.approve(account.address, web3.utils.toWei('10000'), { from: accounts[i] })
+                await account.deposit(web3.utils.toWei('10000'), tracer.address, { from: accounts[i] })
+                await tracer.setUserPermissions(trader.address, true, { from: accounts[i]})
+            }
         }
 
         if (network == "development") {

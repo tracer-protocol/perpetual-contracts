@@ -12,4 +12,5 @@ contract-addresses.json
 .vscode/
 test/**/*.js
 *.secret
+private_keys.txt
 
