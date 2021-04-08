@@ -48,7 +48,7 @@ try {
  * @param factory contract address
  * @param insurance contract address
  */
-const writeToJson = (account, factory, insurance, pricing, oracle) => {
+const writeToJson = (account, factory, insurance, pricing, oracle, trader) => {
 
     console.log("Writing out contract addresses")
     const obj = {
@@ -56,7 +56,8 @@ const writeToJson = (account, factory, insurance, pricing, oracle) => {
         'factory': factory,
         'insurance': insurance,
         'pricing': pricing,
-        'oracle': oracle
+        'oracle': oracle,
+	'trader': trader
     }
     let json = JSON.stringify(obj);
     console.log(json)
@@ -269,7 +270,8 @@ module.exports = async function (deployer, network, accounts) {
     const twoDays = 172800
 
     //Libs
-    deployer.deploy(LibBalances)
+    await deployer.deploy(LibBalances)
+    
     //Links
     deployer.link(LibBalances, Tracer)
     deployer.link(LibBalances, TracerFactory)
@@ -320,7 +322,14 @@ module.exports = async function (deployer, network, accounts) {
     let account = await Account.deployed()
 
     //Write contract addresses to JSON file, used for workspace setup script
-    writeToJson(account.address, tracerFactory.address, insurance.address, pricing.address, oracle.address)
+    writeToJson(
+        account.address, 
+        tracerFactory.address,
+        insurance.address,
+        pricing.address,
+        oracle.address, 
+        trader.address
+    )
 
     //Send out gov tokens
     for (var i = 0; i < 3; i++) {
