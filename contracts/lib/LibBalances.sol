@@ -37,7 +37,7 @@ library Balances {
         uint256 feeRate
     ) internal pure returns (int256 _currentBase, int256 _currentQuote) {
         // Get base change and fee if present
-        int256 baseChange = (amount.mul(uint(price.abs()))).div(priceMultiplier).toInt256();
+        int256 baseChange = (amount.toInt256().mul(price.abs())).div(priceMultiplier.toInt256());
         int256 fee = (baseChange.mul(feeRate.toInt256())).div(priceMultiplier.toInt256());
         if (side) {
             // LONG

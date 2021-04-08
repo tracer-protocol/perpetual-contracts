@@ -78,6 +78,15 @@ module.exports = {
           skipDryRun: true
         },
 
+        /* For setting up accounts on localhost */
+        ome: {
+            host: '127.0.0.1', // Localhost (default: none)
+            port: 8545, // Standard Ethereum port (default: none)
+            network_id: '*', // Any network (default: none)
+            gas: 8500000, // pump pump the gas
+            websockets: false
+        },
+
         development: {
             host: '127.0.0.1', // Localhost (default: none)
             port: 8545, // Standard Ethereum port (default: none)
