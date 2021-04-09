@@ -66,6 +66,16 @@ describe("Trader", async () => {
             await tracer.setUserPermissions(trader.address, true, { from: accounts[i] })
         }
 
+        // amount of gas that each trader will deposit initially
+        let gasAllowance: number = 10000000000;
+
+        // get each trader to deposit some gas
+        for (let i=0;i<6;i++) {
+            // Typescript says BN isn't in web3.utils but it is
+            // @ts-ignore
+            await trader.depositGas({ from: accounts[i], value: new web3.utils.BN(gasAllowance) });
+        }
+
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
     })
