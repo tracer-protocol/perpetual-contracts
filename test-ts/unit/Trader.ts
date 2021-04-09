@@ -53,7 +53,7 @@ describe("Trader Shim unit tests", async () => {
         }
 
         // this user has no gas
-        noGasUser = accounts[7];
+        noGasUser = accounts[6];
 
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
