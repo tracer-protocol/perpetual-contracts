@@ -90,7 +90,7 @@ export async function setupTestToken(accounts: Truffle.Accounts): Promise<any> {
     testToken = await TestToken.new(web3.utils.toWei("100000"))
 
     //Send out 10000 test tokens to each address
-    for (var i = 1; i < 6; i++) {
+    for (var i = 1; i < 7; i++) {
         await testToken.transfer(accounts[i], web3.utils.toWei("10000"), { from: accounts[0] })
     }
 
