@@ -36,7 +36,7 @@ describe("Trader Shim unit tests", async () => {
         token = deployed.testToken
 
         //Get each user to "deposit" 100 tokens into the platform and approve the trader
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < 7; i++) {
             await tracer.setUserPermissions(trader.address, true, { from: accounts[i] })
             await token.approve(account.address, web3.utils.toWei("100000"))
             await account.deposit(web3.utils.toWei("10000"), tracer.address, { from: accounts[i] })
