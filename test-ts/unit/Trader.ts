@@ -16,6 +16,8 @@ describe("Trader Shim unit tests", async () => {
     let sampleMakers: any;
     let sampleTakers: any;
     let badMakers: any;
+    let noGasMaker: any;
+    let noGasUser: any;
 
     let now
     let sevenDays: any
@@ -49,6 +51,9 @@ describe("Trader Shim unit tests", async () => {
             // @ts-ignore
             await trader.depositGas({ from: accounts[i], value: new web3.utils.BN(gasAllowance) });
         }
+
+        // this user has no gas
+        noGasUser = accounts[7];
 
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
@@ -94,6 +99,16 @@ describe("Trader Shim unit tests", async () => {
                 nonce: 1,
             }
         ];
+
+        noGasMaker = {
+                amount: "5000002200000000000",
+                price: "100000088",
+                side: false,
+                user: noGasUser,
+                expiration: sevenDays,
+                targetTracer: tracer.address,
+                nonce: 0,
+        };
 
         badMakers = [
             {
@@ -163,6 +178,21 @@ describe("Trader Shim unit tests", async () => {
                 assert.equal(await trader.nonces(accounts[2]), "2")
             })
         })
+
+        context("When a user has no gas deposited", () => {
+            it("reverts", async () => {
+                let makers: any = sampleMakers.slice(0, 1);
+                makers.push(noGasMaker);
+                let takers: any = sampleTakers;
+                let market: string = tracer.address;
+
+                /* sign orders for submission */
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
+
+                await expectRevert(trader.executeTrade(signedMakers, signedTakers, market), "TDR: Trader has insufficient gas");
+            });
+        });
     })
 })
 
