@@ -314,7 +314,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     tracer = await Tracer.at(tracerAddr)
 
     //Get each user to "deposit" 100 tokens into the platform
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 7; i++) {
         await testToken.approve(account.address, web3.utils.toWei("10000"), { from: accounts[i] })
     }
 
