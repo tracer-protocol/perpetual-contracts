@@ -76,7 +76,7 @@ export async function setupGovToken(accounts: Truffle.Accounts): Promise<any> {
     govToken = await TestToken.new(web3.utils.toWei("100000"))
 
     //Send out 10000 test tokens to each address
-    for (var i = 1; i < 6; i++) {
+    for (var i = 1; i < 7; i++) {
         await govToken.transfer(accounts[i], web3.utils.toWei("200"))
     }
 
