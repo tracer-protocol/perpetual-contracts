@@ -6,6 +6,8 @@ import "./Interfaces/ITracer.sol";
 import "./Interfaces/IDex.sol";
 import "./Interfaces/Types.sol";
 
+import "./DEX/SimpleDex.sol"; // needed to use default getters!
+
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
@@ -71,12 +73,31 @@ contract Trader {
 
             address maker = makers[i].order.user;
             address taker = takers[i].order.user;
-            nonces[maker]++;
-            nonces[taker]++;
 
             // match orders
             ITracer(market).matchOrders(makeOrderId, takeOrderId);
 
+            // get DEX handle
+            SimpleDex dex = SimpleDex(market);
+
+            // pull fresh state from DEX
+            (, uint256 makerAmount, , uint256 makerFilled, , ,) =
+                dex.orders(makeOrderId);
+            (, uint256 takerAmount, , uint256 takerFilled, , ,) =
+                dex.orders(takeOrderId);
+
+            bool completeMaker = makerFilled == makerAmount;
+            bool completeTaker = takerFilled == takerAmount;
+
+            // check if we need to increment maker's nonce
+            if (completeMaker) {
+                nonces[maker]++;
+            }
+
+            // check if we need to increment taker's nonce
+            if (completeTaker) {
+                nonces[taker]++;
+            }
         }
     }
 
