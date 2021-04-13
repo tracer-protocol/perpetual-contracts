@@ -13,4 +13,5 @@ contract-addresses.json
 test/**/*.js
 *.secret
 private_keys.txt
+yarn-error.log
 
