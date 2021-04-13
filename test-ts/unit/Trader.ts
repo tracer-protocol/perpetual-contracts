@@ -148,10 +148,23 @@ describe("Trader Shim unit tests", async () => {
                 let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
 
                 assert(await trader.executeTrade(signedMakers, signedTakers, market));
+            })
+
+            it("increments nonces correctly", async () => {
+                let makers: any = sampleMakers;
+                let takers: any = sampleTakers;
+                let market: string = tracer.address;
+
+                /* sign orders for submission */
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
+
+                await trader.executeTrade(signedMakers, signedTakers, market);
+            
                 assert.equal(await trader.nonces(accounts[0]), "1")
                 assert.equal(await trader.nonces(accounts[1]), "1")
                 assert.equal(await trader.nonces(accounts[2]), "2")
-            })
+            });
         })
     })
 })
