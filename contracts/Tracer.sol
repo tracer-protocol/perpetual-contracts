@@ -54,6 +54,7 @@ contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
     event InsuranceFundingRateUpdated(int256 insuranceFundingRate, int256 insuranceFundingRateValue);
     event OrderMade(uint256 indexed orderId, uint256 amount, int256 price, address indexed maker, bool isLong, bytes32 indexed marketId);
     event OrderFilled(uint256 indexed orderId, uint256 amount, uint256 amountOutstanding, address indexed taker, address maker, bytes32 indexed marketId);
+    event Value(int256 value);
 
 
     /**
@@ -197,7 +198,8 @@ contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
         emit OrderFilled(orderId, amount, amountOutstanding, _taker, maker, marketId);
 
         int256 baseChange = (fillAmount.toInt256().mul(order.price)).div(priceMultiplier.toInt256());
-        require(baseChange > 0, "TCR: Margin change <= 0");
+        emit Value(baseChange);
+        require(baseChange > 0, "TCR: Base change <= 0");
 
         // update account states
         updateAccounts(baseChange, fillAmount, order.side, order.maker, _taker);

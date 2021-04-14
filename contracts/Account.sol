@@ -34,10 +34,12 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     int256 private constant PERCENT_PRECISION = 10000; // Factor to keep precision in percent calcs
     int256 private constant DIVIDE_PRECISION = 10000000; // 10^7
     uint256 public currentLiquidationId;
+    uint256 public DELEVERAGE_LOCK_TIME = 600;
 
     // one account per market per user
-    // Tracer market => users address => Account Balance struct
+    // Tracer market => user address => Account Balance struct
     mapping(address => mapping(address => Types.AccountBalance)) public balances;
+    mapping(address => mapping(address => uint256)) public accountsDeleveraged;
 
     // tracer market => total leverage notional value
     mapping(address => int256) public override tracerLeveragedNotionalValue;
@@ -51,6 +53,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
+    event Value(int256 value);
 
     constructor(
         address _insuranceContract,
@@ -64,6 +67,104 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         factory = ITracerFactory(_factory);
         pricing = IPricing(_pricing);
         transferOwnership(governance);
+    }
+
+    function calculateDeleverageAmount(
+        address market,
+        address leveragedAccount,
+        address underwaterAddress
+    ) public {
+    }
+
+    /**
+     * @return The minimum notionalValue:baseAmount ratio for an account to be deleveraged
+     */
+    function minimumDeleverageRatio(
+        address market
+    ) public pure returns(int256) {
+        return 2; // TODO arbitrary for MVP
+    }
+
+    /**
+     * @dev TODO this only works for accounts that are underwater and long. needs to be generalised
+     */
+    function deleverage(
+        address market,
+        address[] memory leveragedAccounts,
+        address underwaterAddress
+    ) external override {
+        Types.AccountBalance storage underwaterBalance = balances[market][underwaterAddress];
+        int256 deleverageAmount = getUserMargin(underwaterAddress, market).abs().div(6); // Currently arbitrarily chosen for MVP. The amount to deleverage divided by 6
+        require(getUserMargin(underwaterAddress, market) < 0, "ACT: Account not underwater");
+        IInsurance insurance = IInsurance(insuranceContract);
+        int256 minRatio = minimumDeleverageRatio(market);
+        emit Value(minRatio);
+        emit Value(getUserMargin(underwaterAddress, market));
+
+        // Make sure insurance pool is drained
+        insurance.updatePoolAmount(market); // TODO should this be called, or should we be relying on the insurance pool to be relatively updated at any point in time?
+        if (insurance.getPoolHoldings(market).toInt256() < deleverageAmount) {
+            for (uint i = 0; i < leveragedAccounts.length; i++) {
+                _deleverageShort(market, underwaterBalance, underwaterAddress, leveragedAccounts[i], deleverageAmount, minRatio);
+            }
+        }
+        // address tracerBaseToken = ITracer(market).tracerBaseToken();
+    }
+
+    function _deleverageShort(
+        address market,
+        Types.AccountBalance storage underwater,
+        address underwaterAddress,
+        address leveraged,
+        int256 amount,
+        int256 minRatio
+    ) internal {
+        if (accountsDeleveraged[market][leveraged] > block.timestamp.sub(DELEVERAGE_LOCK_TIME)) {
+            // Account already deleveraged recently
+            return;
+        }
+        ITracer _tracer = ITracer(market);
+        Types.AccountBalance storage leveragedBalance = balances[market][leveraged];
+        int256 leveragedMargin = getUserMargin(leveraged, market);
+        if (leveragedMargin <= 0) {
+            return;
+        }
+
+        int256 resultantNotionalValue = Balances.calcNotionalValue(
+            leveragedBalance.quote.sub(amount),
+            pricing.fairPrices(market)
+        ).div(_tracer.priceMultiplier().toInt256());
+
+        emit Value(resultantNotionalValue);
+        emit Value(leveragedMargin);
+        emit Value((resultantNotionalValue.mul(DIVIDE_PRECISION)).div(leveragedMargin));
+        emit Value(minRatio.mul(DIVIDE_PRECISION));
+        // Go to the next if you can't deleverage this account
+        if ((resultantNotionalValue.mul(DIVIDE_PRECISION)).div(leveragedMargin) < minRatio.mul(DIVIDE_PRECISION)) {
+            return;
+        }
+        if (leveragedBalance.base < amount) {
+            return;
+        }
+        leveragedBalance.base = leveragedBalance.base.sub(amount);
+        underwater.base = underwater.base.add(amount);
+
+        _updateAccountLeverage(
+            leveragedBalance.quote,
+            pricing.fairPrices(market),
+            leveragedBalance.base,
+            leveraged,
+            market,
+            leveragedBalance.totalLeveragedValue
+        );
+        _updateAccountLeverage(
+            underwater.quote,
+            pricing.fairPrices(market),
+            underwater.base,
+            underwaterAddress,
+            market,
+            underwater.totalLeveragedValue
+        );
     }
 
     /**
@@ -703,7 +804,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     modifier onlyTracer(address market) {
         require(
             msg.sender == market && factory.validTracers(market),
-            "ACT: Tracer only function "
+            "ACT: Tracer only function"
         );
         _;
     }
