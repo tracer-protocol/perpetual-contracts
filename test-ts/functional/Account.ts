@@ -74,6 +74,8 @@ describe("Account", async () => {
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[2] })
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[3] })
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[4] })
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[5] })
             //Long order for 5 TEST/USD at a price of $1
             await tracer.makeOrder(web3.utils.toWei("600"), oneDollar, true, sevenDays)
 
@@ -87,6 +89,8 @@ describe("Account", async () => {
 
             await tracer.makeOrder(web3.utils.toWei("100000"), lowerPrice, true, sevenDays, { from: accounts[2] })
             await tracer.takeOrder(2, web3.utils.toWei("100000"), { from: accounts[3] })
+            await tracer.makeOrder(web3.utils.toWei("100000"), lowerPrice, true, sevenDays, { from: accounts[4] })
+            await tracer.takeOrder(3, web3.utils.toWei("100000"), { from: accounts[5] })
             /*
             let bal3 = await account.getBalance(accounts[3], tracer.address)
             console.log("====accounts[3]====")
@@ -107,21 +111,93 @@ describe("Account", async () => {
             console.log((await insurance.getPoolHoldings(tracer.address)).toString());
             console.log("INS2")
 
+            let bal0 = await account.getBalance(accounts[0], tracer.address)
+            console.log("====accounts[0] (the underwater account)====")
+            console.log("base: " + web3.utils.fromWei(bal0[0]))
+            console.log("quote: " + web3.utils.fromWei(bal0[1]))
             let bal3 = await account.getBalance(accounts[3], tracer.address)
             console.log("====accounts[3] (the overwater account)====")
             console.log("base: " + web3.utils.fromWei(bal3[0]))
             console.log("quote: " + web3.utils.fromWei(bal3[1]))
 
             //Third party liquidates and takes on the short position
-            const tx = await account.deleverage(tracer.address, [accounts[3]], accounts[0]);
+            const tx = await account.deleverage(tracer.address, [accounts[3], accounts[5]], accounts[0]);
             printValueLogs(tx)
-            const bal0 = await account.getBalance(accounts[0], tracer.address)
+            bal0 = await account.getBalance(accounts[0], tracer.address)
             bal3 = await account.getBalance(accounts[3], tracer.address)
             console.log("====accounts[0] (the underwater account)====")
             console.log("base: " + web3.utils.fromWei(bal0[0]))
             console.log("quote: " + web3.utils.fromWei(bal0[1]))
 
             console.log("====accounts[3] (the overwater account)====")
+            console.log("base: " + web3.utils.fromWei(bal3[0]))
+            console.log("quote: " + web3.utils.fromWei(bal3[1]))
+        })
+
+        it("Deleverage long accounts to bring short above water", async () => {
+            console.log("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            await token.approve(insurance.address, "50000000000000")
+            await insurance.stake(500, tracer.address);
+            await account.deposit(web3.utils.toWei("500"), tracer.address)
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[2] })
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[3] })
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[4] })
+            await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[5] })
+            //Long order for 5 TEST/USD at a price of $1
+            await tracer.makeOrder(web3.utils.toWei("600"), oneDollar, true, sevenDays)
+
+            //Short order for 5 TEST/USD against placed order
+            await tracer.takeOrder(1, web3.utils.toWei("600"), { from: accounts[1] })
+
+            //Price decreases to $0.01 long order now is underwater
+            //margin = -100 + 600 * 0.01 = -94
+            const higherPrice = oneDollar.mul(new BN("10"))
+            await oracle.setPrice(higherPrice)
+
+            await tracer.makeOrder(web3.utils.toWei("100"), higherPrice, true, sevenDays, { from: accounts[2] })
+            await tracer.takeOrder(2, web3.utils.toWei("100"), { from: accounts[3] })
+            await tracer.makeOrder(web3.utils.toWei("100"), higherPrice, true, sevenDays, { from: accounts[4] })
+            await tracer.takeOrder(3, web3.utils.toWei("100"), { from: accounts[5] })
+            /*
+            let bal3 = await account.getBalance(accounts[3], tracer.address)
+            console.log("====accounts[3]====")
+            console.log("base: " + web3.utils.fromWei(bal3[0]))
+            console.log("quote: " + web3.utils.fromWei(bal3[1]))
+
+
+            bal3 = await account.getBalance(accounts[3], tracer.address)
+            console.log("====accounts[3]====")
+            console.log("base: " + web3.utils.fromWei(bal3[0]))
+            console.log("quote: " + web3.utils.fromWei(bal3[1]))
+            */
+
+            console.log("INS")
+            await insurance.updatePoolAmount(tracer.address)
+            console.log((await insurance.getPoolHoldings(tracer.address)).toString());
+            await insurance.withdraw(500, tracer.address);
+            console.log((await insurance.getPoolHoldings(tracer.address)).toString());
+            console.log("INS2")
+
+            let bal0 = await account.getBalance(accounts[1], tracer.address)
+            console.log("====accounts[1] (the underwater account)====")
+            console.log("base: " + web3.utils.fromWei(bal0[0]))
+            console.log("quote: " + web3.utils.fromWei(bal0[1]))
+            let bal3 = await account.getBalance(accounts[2], tracer.address)
+            console.log("====accounts[2] (the overwater account)====")
+            console.log("base: " + web3.utils.fromWei(bal3[0]))
+            console.log("quote: " + web3.utils.fromWei(bal3[1]))
+
+            //Third party liquidates and takes on the short position
+            const tx = await account.deleverage(tracer.address, [accounts[2], accounts[4]], accounts[1]);
+            printValueLogs(tx)
+            bal0 = await account.getBalance(accounts[1], tracer.address)
+            bal3 = await account.getBalance(accounts[2], tracer.address)
+            console.log("====accounts[1] (the underwater account)====")
+            console.log("base: " + web3.utils.fromWei(bal0[0]))
+            console.log("quote: " + web3.utils.fromWei(bal0[1]))
+
+            console.log("====accounts[2] (the overwater account)====")
             console.log("base: " + web3.utils.fromWei(bal3[0]))
             console.log("quote: " + web3.utils.fromWei(bal3[1]))
         })

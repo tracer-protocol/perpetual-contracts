@@ -94,23 +94,111 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         address underwaterAddress
     ) external override {
         Types.AccountBalance storage underwaterBalance = balances[market][underwaterAddress];
-        int256 deleverageAmount = getUserMargin(underwaterAddress, market).abs().div(6); // Currently arbitrarily chosen for MVP. The amount to deleverage divided by 6
+        int256 originalQuote = underwaterBalance.quote;
+        int256 originalBase = underwaterBalance.base;
+        int256 baseChange = originalBase.mul(-1).div(2);
+        int256 quoteChange = originalQuote.mul(-1).div(2);
         require(getUserMargin(underwaterAddress, market) < 0, "ACT: Account not underwater");
         IInsurance insurance = IInsurance(insuranceContract);
         int256 minRatio = minimumDeleverageRatio(market);
-        emit Value(minRatio);
-        emit Value(getUserMargin(underwaterAddress, market));
+        // emit Value(minRatio);
+        // emit Value(getUserMargin(underwaterAddress, market));
 
         // Make sure insurance pool is drained
         insurance.updatePoolAmount(market); // TODO should this be called, or should we be relying on the insurance pool to be relatively updated at any point in time?
-        if (insurance.getPoolHoldings(market).toInt256() < deleverageAmount) {
+        if (insurance.getPoolHoldings(market).toInt256() < baseChange.abs()) {
+            emit Value(69);
             for (uint i = 0; i < leveragedAccounts.length; i++) {
-                _deleverageShort(market, underwaterBalance, underwaterAddress, leveragedAccounts[i], deleverageAmount, minRatio);
+                emit Value(70);
+                _deleverageShort(market, underwaterBalance, underwaterAddress, leveragedAccounts[i], quoteChange, baseChange, minRatio);
             }
         }
+        emit Value(insurance.getPoolHoldings(market).toInt256());
+        emit Value(123);
         // address tracerBaseToken = ITracer(market).tracerBaseToken();
     }
 
+    function _deleverageShort(
+        address market,
+        Types.AccountBalance storage underwater,
+        address underwaterAddress,
+        address leveraged,
+        int256 quoteChange,
+        int256 baseChange,
+        int256 minRatio
+    ) internal {
+        if (accountsDeleveraged[market][leveraged] > block.timestamp.sub(DELEVERAGE_LOCK_TIME)) {
+            // Account already deleveraged recently
+            emit Value(1);
+            return;
+        }
+        ITracer _tracer = ITracer(market);
+        Types.AccountBalance storage leveragedBalance = balances[market][leveraged];
+
+        int256 resultantNotionalValue = Balances.calcNotionalValue(
+            leveragedBalance.quote.add(quoteChange),
+            pricing.fairPrices(market)
+        ).div(_tracer.priceMultiplier().toInt256());
+
+        int256 resultantMargin = Balances.calcMargin(
+            leveragedBalance.quote.add(quoteChange),
+            pricing.fairPrices(market),
+            leveragedBalance.base.sub(baseChange),
+            _tracer.priceMultiplier()
+        );
+
+        // Go to the next if you can't deleverage this account
+        if (resultantMargin <= 0) {
+            emit Value(2);
+            return;
+        }
+        if ((resultantNotionalValue.mul(DIVIDE_PRECISION)).div(resultantMargin) < minRatio.mul(DIVIDE_PRECISION)) {
+            emit Value(resultantNotionalValue);
+            emit Value(resultantMargin);
+            emit Value(quoteChange);
+            emit Value(baseChange);
+            emit Value(getUserMargin(leveraged, market));
+            emit Value(leveragedBalance.quote);
+            emit Value(3);
+            return;
+        }
+        if (leveragedBalance.base.abs() < baseChange) {
+            emit Value(4);
+            return;
+        }
+        if (leveragedBalance.quote.abs() < quoteChange) {
+            emit Value(5);
+            return;
+        }
+
+        accountsDeleveraged[market][leveraged] = block.timestamp;
+        leveragedBalance.base = leveragedBalance.base.sub(baseChange);
+        underwater.base = underwater.base.add(baseChange);
+        leveragedBalance.quote = leveragedBalance.quote.sub(quoteChange);
+        underwater.quote = underwater.quote.add(quoteChange);
+
+        _updateAccountLeverage(
+            leveragedBalance.quote,
+            pricing.fairPrices(market),
+            leveragedBalance.base,
+            leveraged,
+            market,
+            leveragedBalance.totalLeveragedValue
+        );
+        _updateAccountLeverage(
+            underwater.quote,
+            pricing.fairPrices(market),
+            underwater.base,
+            underwaterAddress,
+            market,
+            underwater.totalLeveragedValue
+        );
+    }
+
+    /**
+     * @notice deleverage a short position to bring long position above 0 margin
+     */
+     /*
     function _deleverageShort(
         address market,
         Types.AccountBalance storage underwater,
@@ -135,10 +223,6 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             pricing.fairPrices(market)
         ).div(_tracer.priceMultiplier().toInt256());
 
-        emit Value(resultantNotionalValue);
-        emit Value(leveragedMargin);
-        emit Value((resultantNotionalValue.mul(DIVIDE_PRECISION)).div(leveragedMargin));
-        emit Value(minRatio.mul(DIVIDE_PRECISION));
         // Go to the next if you can't deleverage this account
         if ((resultantNotionalValue.mul(DIVIDE_PRECISION)).div(leveragedMargin) < minRatio.mul(DIVIDE_PRECISION)) {
             return;
@@ -146,8 +230,10 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         if (leveragedBalance.base < amount) {
             return;
         }
-        leveragedBalance.base = leveragedBalance.base.sub(amount);
-        underwater.base = underwater.base.add(amount);
+
+        accountsDeleveraged[market][leveraged] = block.timestamp;
+        leveragedBalance.quote = leveragedBalance.quote.add(amount);
+        underwater.quote = underwater.base.sub(amount);
 
         _updateAccountLeverage(
             leveragedBalance.quote,
@@ -166,6 +252,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             underwater.totalLeveragedValue
         );
     }
+    */
 
     /**
      * @notice Allows am account to deposit on behalf of a user into a specific market
