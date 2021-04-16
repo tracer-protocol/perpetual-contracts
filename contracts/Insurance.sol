@@ -274,7 +274,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         }
 
         int256 rate = (multiplyFactor.mul(getPoolTarget(market).sub(getPoolHoldings(market))).toInt256())
-
             .div(levNotionalValue);
         if (rate < 0) {
             return 0;

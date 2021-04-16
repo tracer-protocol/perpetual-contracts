@@ -67,6 +67,21 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     }
 
     /**
+     * @notice Adjust the max leverage as insurance pool slides from 100% of target to 0% of target
+     */
+    function realMaxLeverage(address market) public override {
+        ITracer _tracer = ITracer(market);
+        IInsurance insurance = IInsurance(insuranceContract);
+        int256 baseMaxLeverage = _tracer.maxLeverage();
+        uint256 holdings = insurance.getPoolHoldings(market);
+        uint256 target = insurance.getPoolTarget(market);
+        
+        int256 ratio = holdings.toInt256().mul(PERCENT_PRECISION).div(target.toInt256());
+        // Use int256 for compatibility with baseMaxLeverage
+        int256 realMaxLeverage = baseMaxLeverage.mul(ratio).div(PERCENT_PRECISION);
+    }
+
+    /**
      * @notice Allows am account to deposit on behalf of a user into a specific market
      * @param amount The amount of base tokens to be deposited into the Tracer Market account
      * @param market The address of the tracer market that the margin tokens will be deposited into

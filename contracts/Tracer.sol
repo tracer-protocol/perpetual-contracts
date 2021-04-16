@@ -236,16 +236,16 @@ contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
         bool order1Side = orders[order1].side;
         int256 baseChange = (fillAmount.toInt256().mul(orderPrice)).div(priceMultiplier.toInt256());
 
+        // Settle accounts
+        settle(order1User);
+        settle(order2User);
+
         //Update account states
         updateAccounts(baseChange, fillAmount, order1Side, order1User, order2User);
 
         // Update leverage
         accountContract.updateAccountLeverage(order1User, address(this));
         accountContract.updateAccountLeverage(order2User, address(this));
-
-        // Settle accounts
-        settle(order1User);
-        settle(order2User);
 
         // Update internal trade state
         updateInternalRecords(orderPrice);
