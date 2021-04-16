@@ -728,13 +728,13 @@ describe("Gov: unit tests", async () => {
                 [deployTracerData]
             )
 
-            await gov.propose([tracerFactory.address], [proposeTracerData])
+            await gov.propose([perpsFactory.address], [proposeTracerData])
             await time.increase(twoDays + 1)
             await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
             await time.increase(twoDays + 1)
             await gov.execute(0)
-            let tracerAddress = await tracerFactory.tracers(web3.utils.fromAscii(`TEST/USD`))
-            assert.equal(true, await tracerFactory.validTracers(tracerAddress))
+            let tracerAddress = await perpsFactory.tracers(web3.utils.fromAscii(`TEST/USD`))
+            assert.equal(true, await perpsFactory.validTracers(tracerAddress))
         })
     })
     */

@@ -1,13 +1,13 @@
 //@ts-ignore
 import { BN, ether, expectRevert, time } from "@openzeppelin/test-helpers"
-import { ReceiptInstance, MockTracerInstance, GovInstance } from "../../types/truffle-contracts"
-import { MockTracer, Receipt } from "../artifacts"
+import { ReceiptInstance, MockTracerPerpetualSwapsInstance, GovInstance } from "../../types/truffle-contracts"
+import { MockTracerPerpetualSwaps, Receipt } from "../artifacts"
 import { accounts, web3, configure } from "../configure"
 import { setupGovAndToken } from "../lib/Setup"
 
 describe("Receipt: unit tests", async () => {
     let receipt: ReceiptInstance
-    let mockTracer: MockTracerInstance
+    let mockTracer: MockTracerPerpetualSwapsInstance
     let gov: GovInstance
 
     const maxSlippage = new BN("1000") // 10%*10000
@@ -18,7 +18,7 @@ describe("Receipt: unit tests", async () => {
 
     beforeEach(async () => {
         //Deploy receipt contract and let account 4 be the accounts contract
-        mockTracer = await MockTracer.new(
+        mockTracer = await MockTracerPerpetualSwaps.new(
                 5, 3, ether("1"), true, accounts[4], 1, new BN("100000000")
         );
         const govAndToken = await setupGovAndToken(accounts)
@@ -61,7 +61,7 @@ describe("Receipt: unit tests", async () => {
         context("When the refund is already claimed", () => {
             it("fails", async () => {
                 //Deploy a new mock tracer with 0 units so that a unit mismatch doesnt throw.
-                let mockTracerWithCorrectUnits = await MockTracer.new(
+                let mockTracerWithCorrectUnits = await MockTracerPerpetualSwaps.new(
                         0, 0, ether("1"), true, accounts[1], 0, new BN("100000000")
                 );
                 let receipt2 = await Receipt.new(accounts[4], maxSlippage, gov.address)

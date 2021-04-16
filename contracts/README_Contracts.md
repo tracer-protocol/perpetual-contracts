@@ -25,9 +25,10 @@ Usage: This contract is used to manage the insurance pools of tracers.
 **TracerFactory.sol**   
 **Explanation:** This contract deploys new Tracers and is used to validate if a tracer is DAO approved. It also sets up new insurance pools (using Insurance.sol), and initialising the Tracer.
 
-**Tracer.sol**   
+**TracerPerpetualSwaps.sol**   
 **Explanation:** The tracer contract handles the creation and filling of market orders, settlement of accounts and updating the pricing values of the Tracer (via a pricing contract (e.g. Pricing.sol)). 
-The Tracer contract also contains governance functions that allows the contract owner to transfer ownership of a Tracer, change/set the pricing oracles and manipulate the fee system.   
+The Tracer contract also contains governance functions that allows the contract owner to transfer ownership of a Tracer, change/set the pricing oracles and manipulate the fee system.
+
 
 **Pricing.sol**  
 **Explanation:** A Pricing contract handles all of the updating, storage allocation and retrieval of values related to the value of a Tracer (e.g. funding rate, Tracer price, timeValue/interestRates)  

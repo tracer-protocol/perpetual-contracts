@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IReceipt.sol";
-import "./Interfaces/ITracerFactory.sol";
+import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 import "./lib/SafetyWithdraw.sol";
@@ -29,7 +29,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     address public insuranceContract;
     address public gasPriceOracle;
     IReceipt public receipt;
-    ITracerFactory public factory;
+    ITracerPerpetualsFactory public perpsFactory;
     IPricing public pricing;
     int256 private constant PERCENT_PRECISION = 10000; // Factor to keep precision in percent calcs
     int256 private constant DIVIDE_PRECISION = 10000000; // 10^7
@@ -55,13 +55,13 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     constructor(
         address _insuranceContract,
         address _gasPriceOracle,
-        address _factory,
+        address _perpsFactory,
         address _pricing,
         address governance
     ) public {
         insuranceContract = _insuranceContract;
         gasPriceOracle = _gasPriceOracle;
-        factory = ITracerFactory(_factory);
+        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         pricing = IPricing(_pricing);
         transferOwnership(governance);
     }
@@ -96,7 +96,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     function _deposit(uint256 amount, address market, address user, address depositer) internal isValidTracer(market) {
         require(amount > 0, "ACT: Deposit Amount <= 0"); 
         Types.AccountBalance storage userBalance = balances[market][user];
-        address tracerBaseToken = ITracer(market).tracerBaseToken();
+        address tracerBaseToken = ITracerPerpetualSwaps(market).tracerBaseToken();
         IERC20(tracerBaseToken).safeTransferFrom(depositer, address(this), amount);
         userBalance.base = userBalance.base.add(amount.toInt256());
         int256 originalLeverage = userBalance.totalLeveragedValue;
@@ -119,7 +119,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @param market The address of the tracer market to be withdrawn from 
      */
     function withdraw(uint256 amount, address market) external override {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         require(amount > 0, "ACT: Withdraw Amount <= 0");
         Types.AccountBalance storage userBalance = balances[market][msg.sender];    
         require(
@@ -257,7 +257,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
 
         
         // Limits the gas use when liquidating 
-        int256 gasPrice = IOracle(ITracer(market).gasPriceOracle()).latestAnswer();
+        int256 gasPrice = IOracle(ITracerPerpetualSwaps(market).gasPriceOracle()).latestAnswer();
         require(tx.gasprice <= uint256(gasPrice.abs()), "ACTL: GasPrice > FGasPrice");
 
         // Checks if the liquidator is in a valid position to process the liquidation 
@@ -294,7 +294,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             .getLiquidationReceipt(receiptID);
         int256 liquidatorMargin = balances[market][receiptLiquidator].base;
         int256 liquidateeMargin = balances[market][receiptLiquidatee].base;
-        ITracer tracer = ITracer(market);
+        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
         uint256 amountToReturn = receipt.claimReceipts(receiptID, orderIds, tracer.priceMultiplier(), market, msg.sender);
 
         /* 
@@ -440,7 +440,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     /**
      * @notice Updates the account state of a user given a specific tracer, in a trade event. Adds the 
      *         passed in margin and position changes to the current margin and position.
-     * @dev Related to permissionedTakeOrder() in tracer.sol 
+     * @dev Related to permissionedTakeOrder() in TracerPerpetualSwaps.sol 
      * @param baseChange Is equal to: FillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256()
      * @param quoteChange The amount of the order filled changed to be negative (e.g. if 100$ of the order is filled this would be -$100  )
      * @param accountAddress The address of the account to be updated 
@@ -453,7 +453,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         address market
     ) external override onlyTracer(market) {
         Types.AccountBalance storage userBalance = balances[market][accountAddress];
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         userBalance.base = userBalance.base.add(baseChange);
         userBalance.quote = userBalance.quote.add(quoteChange);
         userBalance.lastUpdatedGasPrice = IOracle(_tracer.gasPriceOracle()).latestAnswer();
@@ -497,7 +497,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             quote,
             price,
             base,
-            ITracer(market).priceMultiplier()
+            ITracerPerpetualSwaps(market).priceMultiplier()
         );
         balances[market][account].totalLeveragedValue = newLeverage;
 
@@ -580,7 +580,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         int256 gasPrice,
         address market
     ) public override view returns (bool) {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         int256 gasCost = gasPrice.mul(_tracer.LIQUIDATION_GAS_COST().toInt256());
         int256 minMargin = Balances.calcMinMargin(quote, price, base, gasCost, _tracer.maxLeverage(), _tracer.priceMultiplier());
         int256 margin = Balances.calcMargin(quote, price, base, _tracer.priceMultiplier());
@@ -622,7 +622,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @return the margin of the account
      */
     function getUserMargin(address account, address market) public override view returns (int256) {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         Types.AccountBalance memory accountBalance = balances[market][account];
         return Balances.calcMargin(
             accountBalance.quote, pricing.fairPrices(market), accountBalance.base, _tracer.priceMultiplier());
@@ -635,7 +635,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @return the margin of the account in power of 10^18
      */
     function getUserNotionalValue(address account, address market) public override view returns (int256) {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         Types.AccountBalance memory accountBalance = balances[market][account];
         return Balances.calcNotionalValue(accountBalance.quote, pricing.fairPrices(market)).div(_tracer.priceMultiplier().toInt256());
     }
@@ -649,7 +649,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @return the margin of the account
      */
     function getUserMinMargin(address account, address market) public override view returns (int256) {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         Types.AccountBalance memory accountBalance = balances[market][account];
         return Balances.calcMinMargin(
             accountBalance.quote,
@@ -683,10 +683,10 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @param newFactory The new instance of Factory.sol
+     * @param newPerpsFactory The new instance of Factory.sol
      */
-    function setFactoryContract(address newFactory) public override onlyOwner() {
-        factory = ITracerFactory(newFactory);
+    function setFactoryContract(address newPerpsFactory) public override onlyOwner() {
+        perpsFactory = ITracerPerpetualsFactory(newPerpsFactory);
     }
 
     /**
@@ -702,7 +702,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      */
     modifier onlyTracer(address market) {
         require(
-            msg.sender == market && factory.validTracers(market),
+            msg.sender == market && perpsFactory.validTracers(market),
             "ACT: Tracer only function "
         );
         _;
@@ -710,11 +710,11 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
 
 
     /**
-     * @dev Checks if that passed address is a valid tracer address (i.e. is part of a tracerfactory)
+     * @dev Checks if that passed address is a valid tracer address (i.e. is part of a perpsFactory)
      * @param market The Tracer market to check
      */
     modifier isValidTracer(address market) {
-        require(factory.validTracers(market), "ACT: Target not valid tracer");
+        require(perpsFactory.validTracers(market), "ACT: Target not valid tracer");
         _;
     }
 }

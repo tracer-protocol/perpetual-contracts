@@ -45,15 +45,15 @@ try {
  * Writes several addresses to json
  * 
  * @param account contract address
- * @param factory contract address
+ * @param perpsFactory contract address
  * @param insurance contract address
  */
-const writeToJson = (account, factory, insurance, pricing, oracle) => {
+const writeToJson = (account, perpsFactory, insurance, pricing, oracle) => {
 
     console.log("Writing out contract addresses")
     const obj = {
         'account': account,
-        'factory': factory,
+        'perpsFactory': perpsFactory,
         'insurance': insurance,
         'pricing': pricing,
         'oracle': oracle
@@ -305,22 +305,22 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.deploy(Insurance, govToken.address)
     let insurance = await Insurance.deployed()
 
-    //Deploy factory
+    //Deploy perpsFactory
     await deployer.deploy(TracerFactory, insurance.address, deployerV1.address, gov.address)
-    let tracerFactory = await TracerFactory.deployed()
+    let perpsFactory = await TracerFactory.deployed()
 
-    await insurance.setFactory(tracerFactory.address)
+    await insurance.setFactory(perpsFactory.address)
 
     //Deploy pricing contract
-    await deployer.deploy(Pricing, tracerFactory.address)
+    await deployer.deploy(Pricing, perpsFactory.address)
     let pricing = await Pricing.deployed()
 
     //Deploy accounts contract
-    await deployer.deploy(Account, insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, gov.address)
+    await deployer.deploy(Account, insurance.address, gasPriceOracle.address, perpsFactory.address, pricing.address, gov.address)
     let account = await Account.deployed()
 
     //Write contract addresses to JSON file, used for workspace setup script
-    writeToJson(account.address, tracerFactory.address, insurance.address, pricing.address, oracle.address)
+    writeToJson(account.address, perpsFactory.address, insurance.address, pricing.address, oracle.address)
 
     //Send out gov tokens
     for (var i = 0; i < 3; i++) {
@@ -369,10 +369,10 @@ module.exports = async function (deployer, network, accounts) {
             [deployTracerData]
         )
 
-        // Deploy a tracer, either through governance (localhost) or directly through factory (testnet)
+        // Deploy a tracer, either through governance (localhost) or directly through perpsFactory (testnet)
         console.log("Deploying tracer")
         if (network == "kovan") {
-            await tracerFactory.deployTracer(
+            await perpsFactory.deployTracer(
                 deployTracerData
             )
         } else {
@@ -381,14 +381,14 @@ module.exports = async function (deployer, network, accounts) {
             await gov.stake(web3.utils.toWei('10'))
             await govToken.approve(gov.address, web3.utils.toWei('10'), { from: accounts[1] })
             await gov.stake(web3.utils.toWei('10'), { from: accounts[1] })
-            await gov.propose([tracerFactory.address], [proposeTracerData])
+            await gov.propose([perpsFactory.address], [proposeTracerData])
             await time.increase(twoDays + 1)
             await gov.voteFor(proposalNum, web3.utils.toWei('10'), { from: accounts[1] })
             await time.increase(twoDays + 1)
             await gov.execute(proposalNum)
             proposalNum++
         }
-        let tracerAddr = await tracerFactory.tracersByIndex(i)
+        let tracerAddr = await perpsFactory.tracersByIndex(i)
         var tracer = await Tracer.at(tracerAddr)
         tracers.push(tracerAddr)
         console.log("Tracer: ")
@@ -492,7 +492,7 @@ module.exports = async function (deployer, network, accounts) {
         "\noracle: " + oracle.address,
         "\ndeployerV1: " + deployerV1.address,
         "\nInsurance.sol: " + insurance.address,
-        "\nTracerFactory.sol: " + tracerFactory.address,
+        "\nTracerFactory.sol: " + perpsFactory.address,
         "\nPricing.sol: " + pricing.address,
         "\nTracers"
     )
