@@ -2,7 +2,7 @@
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IDex.sol";
 import "./Interfaces/Types.sol";
 
@@ -75,7 +75,7 @@ contract Trader {
             address taker = takers[i].order.user;
 
             // match orders
-            ITracer(market).matchOrders(makeOrderId, takeOrderId);
+            ITracerPerpetualSwaps(market).matchOrders(makeOrderId, takeOrderId);
 
             // get DEX handle
             SimpleDex dex = SimpleDex(market);
@@ -132,7 +132,7 @@ contract Trader {
         uint orderId = dex.orderIdByHash(orderHash);
         if (orderId == 0) {
             //Create the order
-            return ITracer(market).permissionedMakeOrder(
+            return ITracerPerpetualSwaps(market).permissionedMakeOrder(
                 signedOrder.order.amount,
                 signedOrder.order.price,
                 signedOrder.order.side,

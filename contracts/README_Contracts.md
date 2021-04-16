@@ -34,10 +34,10 @@ Usage: This contract is used to manage the insurance pools of tracers.
 **Explanation:** This contract absorbs valid Tracers and is used to validate if a tracer is in fact valid and accepted. Also has functionality to allow changing of the current deployment and insurance contracts  
 **Inheritance:** This contract inheritance from the ITraceFactory.sol interface
 
-**Tracer.sol**   
+**TracerPerpetualSwaps.sol**   
 **Explanation:** The tracer contract handles the deployment  of tracer markets, creation and filling of market orders, settlement of accounts and updating the pricing values of the Tracer (via a pricing contract (e.g. Pricing.sol)). 
 The Tracer contract also contains governance functions that allows the contract owner to transfer ownership of a Tracer, change/set the pricing oracles and manipulate the fee system.   
-**Inheritance:** The Tracer.sol contract inherits from the ITracer interface
+**Inheritance:** The TracerPerpetualSwaps.sol contract inherits from the ITracerPerpetualSwaps interface
 
 **Pricing.sol**  
 **Explanation:** A Pricing contract handles all of the updating, storage allocation and retrieval of values related to the value of a Tracer (e.g. funding rate, Tracer price, timeValue/interestRates)  

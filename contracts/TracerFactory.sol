@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerFactory.sol";
 import "./Interfaces/IDeployer.sol";
@@ -64,7 +64,7 @@ contract TracerFactory is Ownable, ITracerFactory {
     ) internal returns (address) {
         // Create and link tracer to factory
         address market = IDeployer(deployer).deploy(_data);
-        ITracer tracer = ITracer(market);
+        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
 
         validTracers[market] = true;
         tracersByIndex[tracerCounter] = market;

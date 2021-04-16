@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 
-import "../Interfaces/ITracer.sol";
+import "../Interfaces/ITracerPerpetualSwaps.sol";
 import "../Interfaces/IInsurance.sol";
 import "../Interfaces/ITracerFactory.sol";
 import "../Interfaces/IDeployer.sol";
@@ -59,7 +59,7 @@ contract MockTracerFactory is ITracerFactory {
     function mockDeployTracer(
         address market
     ) external {
-        ITracer tracer = ITracer(market);
+        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
         // bytes32 marketId = tracer.marketId();
         bytes32 marketId = bytes32("TEST/USD");
         validTracers[market] = true;

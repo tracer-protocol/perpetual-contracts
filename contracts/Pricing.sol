@@ -4,7 +4,7 @@ pragma solidity ^0.6.12;
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./Interfaces/IPricing.sol";
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerFactory.sol";
 import "./Interfaces/IOracle.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -45,7 +45,7 @@ contract Pricing is IPricing {
     /**
      * @notice Updates both the latest market price and the latest underlying asset price (from an oracle) for a given tracer market given a tracer price
      *         and an oracle price.
-     * @param marketPrice The price that a tracer was bought at, returned by the Tracer.sol contract when an order is filled
+     * @param marketPrice The price that a tracer was bought at, returned by the TracerPerpetualSwaps.sol contract when an order is filled
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
      * @param newRecord Bool that decides if a new hourly record should be started (true) or if a current hour should be updated (false)
      * @param market The address of the Tracer being updated
@@ -56,7 +56,7 @@ contract Pricing is IPricing {
         bool newRecord,
         address market
     ) public override onlyTracer(market) {
-        uint256 currentHour = ITracer(market).currentHour();
+        uint256 currentHour = ITracerPerpetualSwaps(market).currentHour();
         // Price records entries updated every hour
         Types.PricingMetrics storage pricing = prices[market];
         if (newRecord) {
@@ -92,7 +92,7 @@ contract Pricing is IPricing {
         int256 IPoolFundingRate
     ) public override onlyTracer(market) {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         int256 timeValue = timeValues[market];
         (int256 underlyingTWAP, int256 deriativeTWAP) = getTWAPs(market, _tracer.currentHour());
         int256 newFundingRate = ((deriativeTWAP).sub(underlyingTWAP).sub(timeValue)).mul(
@@ -121,7 +121,7 @@ contract Pricing is IPricing {
      */
     function fairPrices(address market) public override view validTracer(market) returns(int256) {
         // grab all necessary variable from helper functions
-        ITracer tracer = ITracer(market);
+        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
 
         int256 oraclePrice = IOracle(tracer.oracle()).latestAnswer();
         int256 timeValue = timeValues[market];

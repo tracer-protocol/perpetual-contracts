@@ -15,7 +15,7 @@ interface IDice {
 ```
 
 **Specific Example:**  
-  In ITracer.sol: 
+  In ITracerPerpetualSwaps.sol: 
   ```
 function takeOrder(OrderLib.Order calldata order, uint256 amount) external;
 ```
@@ -60,8 +60,8 @@ IReceipt.sol is an interface that describes the functions that a Receipt contrac
 =>The specific implementation of this interface as a contract can be found in Receipt.sol   
 **Explanation:** The receipt contract handles the creation of liquidation  receipts and retrieval  of funds entitled to entities who facilitate a complete and successful liquidation ; 
 
-**ITracer.sol**   
-ITracer.sol is an interface that describes the functions that a Tracer contract should implement.   
+**ITracerPerpetualSwaps.sol**   
+ITracerPerpetualSwaps.sol is an interface that describes the functions that a Tracer contract should implement.   
 =>The specific implementation of this interface as a contract can be found in TracerV2.sol   
 **Explanation:** The tracer contract handles the deployment  of tracer markets, creation and filling of market orders, settlement of accounts and updating the pricing values of the Tracer (via a pricing contract (e.g. Pricing.sol)). 
 The Tracer contract also contains governance functions that allows the contract owner to transfer ownership of a Tracer, change/set the pricing oracles and manipulate the fee system. 
