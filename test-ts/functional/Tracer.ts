@@ -5,12 +5,12 @@ import {
     ReceiptInstance,
     DeployerV1Instance,
     TestTokenInstance,
-    TracerFactoryInstance,
+    TracerPerpetualsFactoryInstance,
     OracleInstance,
     InsuranceInstance,
     AccountInstance,
     PricingInstance,
-    TracerInstance,
+    TracerPerpetualSwapsInstance,
     GasOracleInstance,
     GovInstance,
 } from "../../types/truffle-contracts"
@@ -33,8 +33,8 @@ describe("Tracer", async () => {
     let receipt: ReceiptInstance
     let deployer: DeployerV1Instance
     let testToken: TestTokenInstance
-    let tracerFactory: TracerFactoryInstance
-    let tracer: TracerInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let tracer: TracerPerpetualSwapsInstance
     let oracle: OracleInstance
     let insurance: InsuranceInstance
     let account: AccountInstance
@@ -55,8 +55,8 @@ describe("Tracer", async () => {
         receipt = deployed.receipt
         deployer = deployed.deployer
         testToken = deployed.testToken
-        tracerFactory = deployed.tracerFactory
-        tracer = deployed.tracer
+        perpsFactory = deployed.perpsFactory
+        tracer = deployed.perps
         oracle = deployed.oracle
         insurance = deployed.insurance
         account = deployed.account

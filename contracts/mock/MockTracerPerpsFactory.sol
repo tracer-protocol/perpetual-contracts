@@ -7,7 +7,7 @@ import "../Interfaces/ITracerPerpetualsFactory.sol";
 import "../Interfaces/IDeployer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MockTracerFactory is ITracerPerpetualsFactory {
+contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
 
     uint256 public tracerCounter;
     address public insurance;

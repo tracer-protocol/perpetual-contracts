@@ -301,10 +301,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     /**
      * @notice sets the address of the Tracer factory
-     * @param tracerFactory the new address of the factory
+     * @param perpsFactory the new address of the factory
      */
-    function setFactory(address tracerFactory) external override onlyOwner {
-        factory = ITracerPerpetualsFactory(tracerFactory);
+    function setFactory(address perpsFactory) external override onlyOwner {
+        factory = ITracerPerpetualsFactory(perpsFactory);
     }
 
     /**

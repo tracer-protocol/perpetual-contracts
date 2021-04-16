@@ -73,7 +73,7 @@ ITracerPerpetualsFactory.sol is an interface that describes the functions that a
 **Types.sol**   
 Types.sol is an interface that describes the nature of the structs used within the project.  
 =>The specific implementation of this interface as a contract can be found in TracerV2.sol     
-**Explanation:** The tracerFactory contract collates Tracers so they can be validated as valid tracers. Third parties may propose their Tracer become part of the factory. 
+**Explanation:** The perpsFactory contract collates Tracers so they can be validated as valid tracers. Third parties may propose their Tracer become part of the factory. 
 
 
 

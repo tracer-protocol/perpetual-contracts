@@ -1,7 +1,7 @@
 //@ts-ignore
 import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
 import { assert } from "chai"
-import { AccountInstance, DeployerV1Instance, GasOracleInstance, GovInstance, InsuranceInstance, OracleInstance, PricingInstance, ReceiptInstance, TestTokenInstance, TracerFactoryInstance, TracerInstance, TraderInstance } from "../../types/truffle-contracts"
+import { AccountInstance, DeployerV1Instance, GasOracleInstance, GovInstance, InsuranceInstance, OracleInstance, PricingInstance, ReceiptInstance, TestTokenInstance, TracerPerpetualsFactoryInstance, TracerPerpetualSwapsInstance, TraderInstance } from "../../types/truffle-contracts"
 import { Trader } from "../artifacts"
 import { setupContractsAndTracer } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
@@ -24,8 +24,8 @@ describe("Trader", async () => {
 
     let deployer: DeployerV1Instance
     let testToken: TestTokenInstance
-    let tracerFactory: TracerFactoryInstance
-    let tracer: TracerInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let tracer: TracerPerpetualSwapsInstance
     let oracle: OracleInstance
     let trader: TraderInstance
     let receipt: ReceiptInstance
@@ -47,8 +47,8 @@ describe("Trader", async () => {
         receipt = deployed.receipt
         deployer = deployed.deployer
         testToken = deployed.testToken
-        tracerFactory = deployed.tracerFactory
-        tracer = deployed.tracer
+        perpsFactory = deployed.perpsFactory
+        tracer = deployed.perps
         oracle = deployed.oracle
         gov = deployed.gov
         govToken = deployed.govToken
