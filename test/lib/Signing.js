@@ -27,7 +27,6 @@ function domainData(trader_address) {
 
 /* Helpers for signing */
 
-//@ts-ignore
 const signOrder = async (web3, signingAccount, data, callback) => {
     const signer = web3.utils.toChecksumAddress(signingAccount)
     return new Promise((resolve, reject) => {
@@ -37,7 +36,7 @@ const signOrder = async (web3, signingAccount, data, callback) => {
                 params: [signer, data],
                 from: signer,
             },
-            //@ts-ignore
+
             async (err, result) => {
                 if (err) {
                     reject(err)
@@ -54,10 +53,8 @@ const signOrder = async (web3, signingAccount, data, callback) => {
 
 
 //Process and sign orders
-//@ts-ignore
 const signOrders = async (web3, orders, traderAddress) => {
     let _domainData = domainData(traderAddress)
-    //@ts-ignore
     return await orders.map(async (order) => {
         let type = {
             EIP712Domain: domain,
@@ -71,7 +68,6 @@ const signOrders = async (web3, orders, traderAddress) => {
             types: type,
         }
 
-        //@ts-ignore
         let signedData = await signOrder(web3, order.user, dataToSign)
 
         return {

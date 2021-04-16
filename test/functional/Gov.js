@@ -1,4 +1,3 @@
-//@ts-ignore
 const { time, expectRevert } = require("@openzeppelin/test-helpers")
 const { assert } = require("chai")
 const { setupGovAndToken } = require("../lib/Setup")

@@ -1,9 +1,8 @@
 
-import { task } from "hardhat/config";
-import "@nomiclabs/hardhat-truffle5";
-import 'hardhat-contract-sizer'
+require("@nomiclabs/hardhat-truffle5");
+require('hardhat-contract-sizer')
 
-export default {
+module.exports = {
     solidity: {
         version: "0.6.12",
         settings: {
