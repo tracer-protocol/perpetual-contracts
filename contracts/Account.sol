@@ -29,7 +29,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     address public insuranceContract;
     address public gasPriceOracle;
     IReceipt public receipt;
-    ITracerPerpetualsFactory public factory;
+    ITracerPerpetualsFactory public perpsFactory;
     IPricing public pricing;
     int256 private constant PERCENT_PRECISION = 10000; // Factor to keep precision in percent calcs
     int256 private constant DIVIDE_PRECISION = 10000000; // 10^7
@@ -55,13 +55,13 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     constructor(
         address _insuranceContract,
         address _gasPriceOracle,
-        address _factory,
+        address _perpsFactory,
         address _pricing,
         address governance
     ) public {
         insuranceContract = _insuranceContract;
         gasPriceOracle = _gasPriceOracle;
-        factory = ITracerPerpetualsFactory(_factory);
+        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         pricing = IPricing(_pricing);
         transferOwnership(governance);
     }
@@ -685,8 +685,8 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     /**
      * @param newFactory The new instance of Factory.sol
      */
-    function setFactoryContract(address newFactory) public override onlyOwner() {
-        factory = ITracerPerpetualsFactory(newFactory);
+    function setFactoryContract(address newPerpsFactory) public override onlyOwner() {
+        perpsFactory = ITracerPerpetualsFactory(newPerpsFactory);
     }
 
     /**
@@ -702,7 +702,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      */
     modifier onlyTracer(address market) {
         require(
-            msg.sender == market && factory.validTracers(market),
+            msg.sender == market && perpsFactory.validTracers(market),
             "ACT: Tracer only function "
         );
         _;
@@ -710,11 +710,11 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
 
 
     /**
-     * @dev Checks if that passed address is a valid tracer address (i.e. is part of a tracerfactory)
+     * @dev Checks if that passed address is a valid tracer address (i.e. is part of a perpsFactory)
      * @param market The Tracer market to check
      */
     modifier isValidTracer(address market) {
-        require(factory.validTracers(market), "ACT: Target not valid tracer");
+        require(perpsFactory.validTracers(market), "ACT: Target not valid tracer");
         _;
     }
 }

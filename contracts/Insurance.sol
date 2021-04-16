@@ -4,7 +4,7 @@ pragma solidity ^0.6.12;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
+import "./Interfaces/ITracerFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
@@ -25,7 +25,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     address public immutable TCRTokenAddress;
     IAccount public account;
-    ITracerPerpetualsFactory public factory;
+    ITracerFactory public perpsFactory;
 
     struct StakePool { 
         address market;
@@ -193,7 +193,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function deployInsurancePool(address market) external override {
         require(!supportedTracers[market], "INS: pool already exists");
-        require(factory.validTracers(market), "INS: pool not deployed by factory");
+        require(perpsFactory.validTracers(market), "INS: pool not deployed by perpsFactory");
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         // Deploy token for the pool
         InsurancePoolToken token = new InsurancePoolToken("Tracer Pool Token", "TPT", TCRTokenAddress);
@@ -300,11 +300,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice sets the address of the Tracer factory
-     * @param perpsFactory the new address of the factory
+     * @notice sets the address of the Tracer perpetual swaps factory
+     * @param tracerFactory the new address of the factory
      */
     function setFactory(address perpsFactory) external override onlyOwner {
-        factory = ITracerPerpetualsFactory(perpsFactory);
+        perpsFactory = ITracerFactory(perpsFactory);
     }
 
     /**

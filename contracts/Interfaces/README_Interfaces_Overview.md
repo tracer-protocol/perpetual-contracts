@@ -69,12 +69,11 @@ The Tracer contract also contains governance functions that allows the contract 
 **ITracerPerpetualsFactory.sol**   
 ITracerPerpetualsFactory.sol is an interface that describes the functions that a TracerFactory contract should implement.    
 =>An example can be found in Pricing.sol:20 where a fundingRate struct is used in a mapping
+**Explanation:** The Perpetual Swaps Factory contract collates Tracer perpetual swap markets so they can be validated as valid tracers. Third parties may propose their Tracer market become part of the factory. 
 
 **Types.sol**   
 Types.sol is an interface that describes the nature of the structs used within the project.  
 =>The specific implementation of this interface as a contract can be found in TracerV2.sol     
-**Explanation:** The perpsFactory contract collates Tracers so they can be validated as valid tracers. Third parties may propose their Tracer become part of the factory. 
-
 
 
 i.e.  

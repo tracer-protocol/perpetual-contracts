@@ -17,7 +17,7 @@ contract Pricing is IPricing {
     using LibMath for uint256;
     using LibMath for int256;
 
-    ITracerPerpetualsFactory public factory;
+    ITracerPerpetualsFactory public perpsFactory;
 
     // Tracer market => pricing metrics
     mapping(address => Types.PricingMetrics) internal prices;
@@ -35,11 +35,11 @@ contract Pricing is IPricing {
     mapping(address => uint256) public override currentFundingIndex;
 
     /**
-     * @dev Set tracer factory
-     * @param _factory The address of the tracer factory
+     * @dev Set tracer perps factory
+     * @param _perpsFactory The address of the tracer perpsFactory
      */
-    constructor(address _factory) public {
-        factory = ITracerPerpetualsFactory(_factory);
+    constructor(address _perpsFactory) public {
+        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
     }
 
     /**
@@ -375,7 +375,7 @@ contract Pricing is IPricing {
      * @dev Used when only valid tracers are allowed
      */
     modifier onlyTracer(address market) {
-        require(msg.sender == market && factory.validTracers(market), "PRC: Only Tracer");
+        require(msg.sender == market && perpsFactory.validTracers(market), "PRC: Only Tracer");
         _;
     }
 
@@ -383,7 +383,7 @@ contract Pricing is IPricing {
      * @dev Used when only valid tracers are allowed
      */
     modifier validTracer(address market) {
-        require(factory.validTracers(market), "PRC: Only Tracer");
+        require(perpsFactory.validTracers(market), "PRC: Only Tracer");
         _;
     }
 }
