@@ -4,7 +4,7 @@ pragma solidity ^0.6.12;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerFactory.sol";
+import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
@@ -25,7 +25,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     address public immutable TCRTokenAddress;
     IAccount public account;
-    ITracerFactory public perpsFactory;
+    ITracerPerpetualsFactory public perpsFactory;
 
     struct StakePool { 
         address market;
@@ -301,10 +301,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     /**
      * @notice sets the address of the Tracer perpetual swaps factory
-     * @param tracerFactory the new address of the factory
+     * @param _perpsFactory the new address of the factory
      */
-    function setFactory(address perpsFactory) external override onlyOwner {
-        perpsFactory = ITracerFactory(perpsFactory);
+    function setFactory(address _perpsFactory) external override onlyOwner {
+        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
     }
 
     /**

@@ -683,7 +683,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @param newFactory The new instance of Factory.sol
+     * @param newPerpsFactory The new instance of Factory.sol
      */
     function setFactoryContract(address newPerpsFactory) public override onlyOwner() {
         perpsFactory = ITracerPerpetualsFactory(newPerpsFactory);
