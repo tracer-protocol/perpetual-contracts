@@ -19,9 +19,15 @@ yarn install
 ```
 
 ## Test
+Testing uses the [Hardhat](https://hardhat.org/) framework
 
+To run all tests
 ```
 yarn test
+```
+To run individual test files, use
+```
+npx hardhat test <PATH_TO_TEST>
 ```
 
 ## Constants
@@ -30,11 +36,8 @@ yarn test
 |----------|-----------------------------------|
 | TracerToken   | [0x9C4A4204B79dd291D6b6571C5BE8BbcD0622F050](https://etherscan.io/address/0x9C4A4204B79dd291D6b6571C5BE8BbcD0622F050) | 
 | TracerDAO   | [0x515f2815c950C8385C1C3c30B63AdF3207Aa259a](https://etherscan.io/address/0x515f2815c950C8385C1C3c30B63AdF3207Aa259a) | 
-
-## Tests
-Tests use the mocha testing framework. We avoid using truffle globals such as to enable multi-core parrallel testing. Instead of using the global `artifacts` variable from the Truffle environment, contracts are instantiated in our own custom `artifacts.ts` file. This enables the child processes instantiated by mocha to access the Truffle contracts. We also use use ganache-core for testing as opposed to connecting to a server endpoint or using the Truffle web3 global. For more info check out this answer https://github.com/trufflesuite/truffle/issues/1707#issuecomment-748313997.
-
 ## Migrations
+TODO PATCH THIS WITH HARDHAT
 #### To deploy to Kovan
 1) Add a file called `kovan.secret`, including only your Kovan RPC endpoint.
 2) Add a file called `mnemonic.secret`, including only the mnemonic of the account which you want to deploy from. This account must have enough KETH.
