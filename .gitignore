@@ -10,8 +10,9 @@ types/truffle-contracts/
 types/web3-v1-contracts/
 contract-addresses.json
 .vscode/
-test/**/*.js
 *.secret
 private_keys.txt
 yarn-error.log
+artifacts/
+cache/
 

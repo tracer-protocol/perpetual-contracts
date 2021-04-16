@@ -1,20 +1,18 @@
 //@ts-ignore
-import { time, expectRevert } from "@openzeppelin/test-helpers"
-import { assert } from "chai"
-import { GovInstance, TestTokenInstance } from "../../types/truffle-contracts"
-import { setupGovAndToken } from "../lib/Setup"
-import { accounts, web3, configure } from "../configure"
+const { time, expectRevert } = require("@openzeppelin/test-helpers")
+const { assert } = require("chai")
+const { setupGovAndToken } = require("../lib/Setup")
 
 describe("Gov", async () => {
-    let sampleProposalData: any
-    let sampleSelfUpdate: any
-
-    let gov: GovInstance
-    let govToken: TestTokenInstance
+    let sampleProposalData
+    let sampleSelfUpdate
+    let accounts
+    let gov
+    let govToken
     const twoDays = 172800
 
     before(async () => {
-        await configure()
+        accounts = await web3.eth.getAccounts();
     })
 
     beforeEach(async () => {
@@ -161,7 +159,4 @@ describe("Gov", async () => {
         })
     })
 })
-
-// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
-export { }
 
