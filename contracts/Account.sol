@@ -5,7 +5,7 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IReceipt.sol";
-import "./Interfaces/ITracerFactory.sol";
+import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 import "./lib/SafetyWithdraw.sol";
@@ -29,7 +29,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     address public insuranceContract;
     address public gasPriceOracle;
     IReceipt public receipt;
-    ITracerFactory public factory;
+    ITracerPerpetualsFactory public factory;
     IPricing public pricing;
     int256 private constant PERCENT_PRECISION = 10000; // Factor to keep precision in percent calcs
     int256 private constant DIVIDE_PRECISION = 10000000; // 10^7
@@ -61,7 +61,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     ) public {
         insuranceContract = _insuranceContract;
         gasPriceOracle = _gasPriceOracle;
-        factory = ITracerFactory(_factory);
+        factory = ITracerPerpetualsFactory(_factory);
         pricing = IPricing(_pricing);
         transferOwnership(governance);
     }
@@ -686,7 +686,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @param newFactory The new instance of Factory.sol
      */
     function setFactoryContract(address newFactory) public override onlyOwner() {
-        factory = ITracerFactory(newFactory);
+        factory = ITracerPerpetualsFactory(newFactory);
     }
 
     /**

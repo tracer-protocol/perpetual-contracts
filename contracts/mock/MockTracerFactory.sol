@@ -3,11 +3,11 @@ pragma solidity ^0.6.12;
 
 import "../Interfaces/ITracerPerpetualSwaps.sol";
 import "../Interfaces/IInsurance.sol";
-import "../Interfaces/ITracerFactory.sol";
+import "../Interfaces/ITracerPerpetualsFactory.sol";
 import "../Interfaces/IDeployer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MockTracerFactory is ITracerFactory {
+contract MockTracerFactory is ITracerPerpetualsFactory {
 
     uint256 public tracerCounter;
     address public insurance;

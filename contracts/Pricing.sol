@@ -5,7 +5,7 @@ import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/ITracerFactory.sol";
+import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IOracle.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
@@ -17,7 +17,7 @@ contract Pricing is IPricing {
     using LibMath for uint256;
     using LibMath for int256;
 
-    ITracerFactory public factory;
+    ITracerPerpetualsFactory public factory;
 
     // Tracer market => pricing metrics
     mapping(address => Types.PricingMetrics) internal prices;
@@ -39,7 +39,7 @@ contract Pricing is IPricing {
      * @param _factory The address of the tracer factory
      */
     constructor(address _factory) public {
-        factory = ITracerFactory(_factory);
+        factory = ITracerPerpetualsFactory(_factory);
     }
 
     /**
