@@ -2,14 +2,14 @@
 import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
 import assert from "assert"
 import { setupContractsAndTracer } from "../lib/Setup"
-import { AccountInstance, TracerInstance, TraderInstance, TestTokenInstance } from "../../types/truffle-contracts"
+import { AccountInstance, TracerPerpetualSwapsInstance, TraderInstance, TestTokenInstance } from "../../types/truffle-contracts"
 import { signOrder, signOrders, domain, domainData, limitOrder } from "../lib/Signing"
 import { accounts, configure, web3 } from "../configure"
 import { Trader } from "../artifacts"
 
 describe("Trader Shim unit tests", async () => {
     let trader: TraderInstance;
-    let tracer: TracerInstance;
+    let tracer: TracerPerpetualSwapsInstance;
     let account: AccountInstance;
     let token: TestTokenInstance;
     
@@ -29,7 +29,7 @@ describe("Trader Shim unit tests", async () => {
         let deployed = await setupContractsAndTracer(accounts)
 
         trader = await Trader.new()
-        tracer = deployed.tracer
+        tracer = deployed.perps
         account = deployed.account
         token = deployed.testToken
 

@@ -4,14 +4,14 @@ import { assert } from "chai"
 const truffleAssert = require('truffle-assertions');
 import {
     TestTokenInstance,
-    TracerFactoryInstance,
+    TracerPerpetualsFactoryInstance,
     OracleInstance,
     GovInstance,
     InsuranceInstance,
     AccountInstance,
     PricingInstance,
     GasOracleInstance,
-    TracerInstance,
+    TracerPerpetualSwapsInstance,
 } from "../../types/truffle-contracts"
 import { TestToken, InsurancePoolToken } from "../artifacts"
 import { deployMultiTracers, setupContracts, setupContractsAndTracer } from "../lib/Setup"
@@ -28,7 +28,7 @@ describe("Insurance", async () => {
     const oneHour = 3600
     const twentyFourHours = 24 * oneHour
 
-    let tracerFactory: TracerFactoryInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
     let oracle: OracleInstance
     let gov: GovInstance
     let tracerGovToken: TestTokenInstance
@@ -37,7 +37,7 @@ describe("Insurance", async () => {
     let pricing: PricingInstance
     let gasPriceOracle: GasOracleInstance
     let tokens: TestTokenInstance[]
-    let tracers: TracerInstance[]
+    let tracers: TracerPerpetualSwapsInstance[]
 
     let now
     let sevenDays: any
@@ -49,7 +49,7 @@ describe("Insurance", async () => {
     beforeEach(async () => {
         //Setup all contracts
         let deployed = await setupContracts(accounts)
-        tracerFactory = deployed.tracerFactory
+        perpsFactory = deployed.perpsFactory
         oracle = deployed.oracle
         gov = deployed.gov
         insurance = deployed.insurance
@@ -61,7 +61,7 @@ describe("Insurance", async () => {
         //Deploy multiple tracers and tokens
         let tracerAndTokens = await deployMultiTracers(
             accounts,
-            tracerFactory,
+            perpsFactory,
             gov,
             tracerGovToken,
             insurance,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerFactory.sol";
+import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
@@ -25,7 +25,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     address public immutable TCRTokenAddress;
     IAccount public account;
-    ITracerFactory public factory;
+    ITracerPerpetualsFactory public perpsFactory;
 
     struct StakePool { 
         address market;
@@ -134,7 +134,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param amount The desired amount to take from the insurance pool
      */
     function drainPool(address market, uint256 amount) external override onlyAccount() {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
 
         uint256 poolAmount = pools[market].amount;
         IERC20 tracerMarginToken = IERC20(_tracer.tracerBaseToken());
@@ -193,8 +193,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function deployInsurancePool(address market) external override {
         require(!supportedTracers[market], "INS: pool already exists");
-        require(factory.validTracers(market), "INS: pool not deployed by factory");
-        ITracer _tracer = ITracer(market);
+        require(perpsFactory.validTracers(market), "INS: pool not deployed by perpsFactory");
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         // Deploy token for the pool
         InsurancePoolToken token = new InsurancePoolToken("Tracer Pool Token", "TPT", TCRTokenAddress);
         StakePool storage pool = pools[market];
@@ -239,7 +239,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param market the market of the insurance pool to get the target for.
      */
     function getPoolTarget(address market) public override view returns (uint256) {
-        ITracer tracer = ITracer(pools[market].market);
+        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(pools[market].market);
         int256 target = tracer.leveragedNotionalValue().div(100);
 
         if (target > 0) {
@@ -265,7 +265,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param market the market of the insurance pool to get the funding rate of.
      */
     function getPoolFundingRate(address market) external override view returns (uint256) {
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
 
         uint256 multiplyFactor = 3652300;
         int256 levNotionalValue = _tracer.leveragedNotionalValue();
@@ -299,11 +299,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice sets the address of the Tracer factory
-     * @param tracerFactory the new address of the factory
+     * @notice sets the address of the Tracer perpetual swaps factory
+     * @param _perpsFactory the new address of the factory
      */
-    function setFactory(address tracerFactory) external override onlyOwner {
-        factory = ITracerFactory(tracerFactory);
+    function setFactory(address _perpsFactory) external override onlyOwner {
+        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
     }
 
     /**

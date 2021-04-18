@@ -6,17 +6,17 @@ import {
     InsuranceContract,
     OracleContract,
     ReceiptContract,
-    TracerContract,
-    TracerFactoryContract,
+    TracerPerpetualSwapsContract,
+    TracerPerpetualsFactoryContract,
     DeployerV1Contract,
     PricingContract,
-    MockTracerContract,
+    MockTracerPerpetualSwapsContract,
     InsurancePoolTokenContract,
     TraderContract,
 } from "../types/truffle-contracts"
 
-import TracerArtifact from "../build/contracts/Tracer.json"
-import TracerFactoryArtifact from "../build/contracts/TracerFactory.json"
+import TracerPerpetualSwapsArtifact from "../build/contracts/TracerPerpetualSwaps.json"
+import TracerPerpetualsFactoryArtifact from "../build/contracts/TracerPerpetualsFactory.json"
 import TestTokenArtifact from "../build/contracts/TestToken.json"
 import OracleArtifact from "../build/contracts/Oracle.json"
 import GasOracleArtifact from "../build/contracts/GasOracle.json"
@@ -28,13 +28,13 @@ import DeployerV1Artifact from "../build/contracts/DeployerV1.json"
 import ReceiptArtifact from "../build/contracts/Receipt.json"
 import GovArtifact from "../build/contracts/Gov.json"
 import TraderArtifact from "../build/contracts/Trader.json"
-import MockTracerArtifact from "../build/contracts/MockTracer.json"
+import MockTracerPerpetualSwapsArtifact from "../build/contracts/MockTracerPerpetualSwaps.json"
 
 const Contract = require("@truffle/contract");
 
 
-export const Tracer = Contract(TracerArtifact) as TracerContract
-export const TracerFactory = Contract(TracerFactoryArtifact) as TracerFactoryContract
+export const TracerPerpetualSwaps = Contract(TracerPerpetualSwapsArtifact) as TracerPerpetualSwapsContract
+export const TracerPerpetualsFactory = Contract(TracerPerpetualsFactoryArtifact) as TracerPerpetualsFactoryContract
 export const TestToken = Contract(TestTokenArtifact) as TestTokenContract
 export const Oracle = Contract(OracleArtifact) as OracleContract
 export const GasOracle = Contract(GasOracleArtifact) as GasOracleContract
@@ -46,11 +46,11 @@ export const Receipt = Contract(ReceiptArtifact) as ReceiptContract
 export const Gov = Contract(GovArtifact) as GovContract
 export const InsurancePoolToken = Contract(InsurancePoolTokenArtifact) as InsurancePoolTokenContract
 export const Trader = Contract(TraderArtifact) as TraderContract
-export const MockTracer = Contract(MockTracerArtifact) as MockTracerContract
+export const MockTracerPerpetualSwaps = Contract(MockTracerPerpetualSwapsArtifact) as MockTracerPerpetualSwapsContract
 
 const otherContracts = {
-    "Tracer": Tracer,
-    "TracerFactory": TracerFactory,
+    "Tracer": TracerPerpetualSwaps,
+    "TracerPerpetualsFactory": TracerPerpetualsFactory,
     "TestToken": TestToken,
     "Oracle": Oracle,
     "GasOracle": GasOracle,
@@ -62,7 +62,7 @@ const otherContracts = {
     "Gov": Gov,
     "InsurancePoolToken": InsurancePoolToken,
     "Trader": Trader,
-    "MockTracer": MockTracer,
+    "MockTracerPerpetualSwaps": MockTracerPerpetualSwaps,
 }
 
 export const contracts = {

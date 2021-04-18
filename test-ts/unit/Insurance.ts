@@ -4,7 +4,7 @@ import assert from "assert"
 import {
     TestTokenInstance,
     InsuranceInstance,
-    TracerInstance,
+    TracerPerpetualSwapsInstance,
 } from "../../types/truffle-contracts"
 import { setupContractsAndTracer } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
@@ -15,7 +15,7 @@ import { accounts, web3, configure } from "../configure"
  */
 describe("Unit tests: Insurance", async () => {
     let insurance: InsuranceInstance
-    let tracer: TracerInstance
+    let tracer: TracerPerpetualSwapsInstance
     let testToken: TestTokenInstance
 
     before(async () => {
@@ -26,7 +26,7 @@ describe("Unit tests: Insurance", async () => {
         //Setup all contracts
         let deployed = await setupContractsAndTracer(accounts)
         insurance = deployed.insurance
-        tracer = deployed.tracer
+        tracer = deployed.perps
         testToken = deployed.testToken
     })
 

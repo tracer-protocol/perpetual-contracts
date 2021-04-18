@@ -9,18 +9,18 @@ import {
     ReceiptInstance,
     DeployerV1Instance,
     TestTokenInstance,
-    TracerFactoryInstance,
+    TracerPerpetualsFactoryInstance,
     OracleInstance,
     GovInstance,
     InsuranceInstance,
     AccountInstance,
     PricingInstance,
     GasOracleInstance,
-    TracerInstance
+    TracerPerpetualSwapsInstance
 } from "../../types/truffle-contracts"
 import {
-    Tracer,
-    TracerFactory,
+    TracerPerpetualSwaps,
+    TracerPerpetualsFactory,
     TestToken,
     Oracle,
     GasOracle,
@@ -131,23 +131,23 @@ export async function setupDeployer(): Promise<any> {
     return (await DeployerV1.new())
 }
 
-export async function setupFactory(
+export async function setupPerpsFactory(
     insurance: InsuranceInstance,
     deployer: DeployerV1Instance,
     gov: GovInstance
 ): Promise<any> {
-    let factory = await TracerFactory.new(insurance.address, deployer.address, gov.address)
-    await insurance.setFactory(factory.address)
-    return factory
+    let perpsFactory = await TracerPerpetualsFactory.new(insurance.address, deployer.address, gov.address)
+    await insurance.setFactory(perpsFactory.address)
+    return perpsFactory
 }
 
-export async function setupFactoryFull(accounts: Truffle.Accounts): Promise<any> {
+export async function setupPerpsFactoryFull(accounts: Truffle.Accounts): Promise<any> {
     const { insurance, account, govToken } = await setupInsuranceFull(accounts)
     const deployer = await setupDeployer();
     const gov = await setupGov(govToken);
-    const factory = await setupFactory(insurance, deployer, gov)
-    await insurance.setFactory(factory.address)
-    return { factory, gov, deployer, account, insurance, govToken }
+    const perpsFactory = await setupPerpsFactory(insurance, deployer, gov)
+    await insurance.setFactory(perpsFactory.address)
+    return { perpsFactory, gov, deployer, account, insurance, govToken }
 }
 
 export async function setupPricing(tracerFacAddress: string): Promise<any> {
@@ -157,11 +157,11 @@ export async function setupPricing(tracerFacAddress: string): Promise<any> {
 export async function setupAccount(
     insuranceAddr: string,
     gasPriceAddr: string,
-    factoryAddr: string,
+    perpsFactoryAddr: string,
     pricingAddr: string,
     govAddr: string
 ): Promise<any> {
-    return (await Account.new(insuranceAddr, gasPriceAddr, factoryAddr, pricingAddr, govAddr))
+    return (await Account.new(insuranceAddr, gasPriceAddr, perpsFactoryAddr, pricingAddr, govAddr))
 }
 
 export async function setupAccountFull(accounts: Truffle.Accounts): Promise<any> {
@@ -170,9 +170,9 @@ export async function setupAccountFull(accounts: Truffle.Accounts): Promise<any>
     const { gasPriceOracle } = await setupOracles();
     const gov = await setupGov(govToken);
     const deployer = await setupDeployer();
-    const factory = await setupFactory(insurance, deployer, gov);
-    const pricing = await setupPricing(factory.address);
-    return await setupAccount(insurance.address, gasPriceOracle.address, factory.address, pricing.address, gov.address);
+    const perpsFactory = await setupPerpsFactory(insurance, deployer, gov);
+    const pricing = await setupPricing(perpsFactory.address);
+    return await setupAccount(insurance.address, gasPriceOracle.address, perpsFactory.address, pricing.address, gov.address);
 }
 
 export async function setupReceipt(account: AccountInstance, govAddr: string): Promise<any> {
@@ -185,7 +185,7 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     let receipt: ReceiptInstance
     let deployer: DeployerV1Instance
     let testToken: TestTokenInstance
-    let tracerFactory: TracerFactoryInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
     let oracle: OracleInstance
     let gov: GovInstance
     let govToken: TestTokenInstance
@@ -210,14 +210,14 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     //Deploy gov
     gov = await setupGov(govToken);
 
-    //Deploy the tracer factory
-    tracerFactory = await setupFactory(insurance, deployer, gov)
+    //Deploy the tracer perpsFactory
+    perpsFactory = await setupPerpsFactory(insurance, deployer, gov)
     
     //Deploy pricing contract
-    pricing = await setupPricing(tracerFactory.address)
+    pricing = await setupPricing(perpsFactory.address)
 
     //Deploy account state contract
-    account = await setupAccount(insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, accounts[0])
+    account = await setupAccount(insurance.address, gasPriceOracle.address, perpsFactory.address, pricing.address, accounts[0])
 
     //Deploy and link receipt contract
     receipt = await setupReceipt(account, gov.address)
@@ -228,7 +228,7 @@ export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
     return {
         gov,
         govToken,
-        tracerFactory,
+        perpsFactory,
         testToken,
         account,
         pricing,
@@ -244,8 +244,8 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     let receipt: ReceiptInstance
     let deployer: DeployerV1Instance
     let testToken: TestTokenInstance
-    let tracerFactory: TracerFactoryInstance
-    let tracer: TracerInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let perps: TracerPerpetualSwapsInstance
     let oracle: OracleInstance
     let gov: GovInstance
     let govToken: TestTokenInstance
@@ -258,7 +258,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     const contracts = await setupContracts(accounts)
     gov = contracts.gov
     govToken = contracts.govToken
-    tracerFactory = contracts.tracerFactory
+    perpsFactory = contracts.perpsFactory
     testToken = contracts.testToken
     account = contracts.account
     pricing = contracts.pricing
@@ -304,14 +304,14 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     await gov.stake(web3.utils.toWei("10"))
     await govToken.approve(gov.address, web3.utils.toWei("10"), { from: accounts[1] })
     await gov.stake(web3.utils.toWei("10"), { from: accounts[1] })
-    await gov.propose([tracerFactory.address], [proposeTracerData])
+    await gov.propose([perpsFactory.address], [proposeTracerData])
     await time.increase(twoDays + 1)
     await gov.voteFor(0, web3.utils.toWei("10"), { from: accounts[1] })
     await time.increase(twoDays + 1)
     await gov.execute(0)
 
-    let tracerAddr = await tracerFactory.tracersByIndex(0)
-    tracer = await Tracer.at(tracerAddr)
+    let tracerAddr = await perpsFactory.tracersByIndex(0)
+    perps = await TracerPerpetualSwaps.at(tracerAddr)
 
     //Get each user to "deposit" 100 tokens into the platform
     for (var i = 0; i < 6; i++) {
@@ -332,7 +332,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
         },
         [accounts[0]]
     )
-    await gov.propose([tracer.address], [transferOwnershipProposal])
+    await gov.propose([perps.address], [transferOwnershipProposal])
     //4th proposal
     await time.increase(twoDays + 1)
     await gov.voteFor(1, web3.utils.toWei("10"), { from: accounts[1] })
@@ -344,9 +344,9 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
     return {
         gov,
         govToken,
-        tracerFactory,
+        perpsFactory,
         testToken,
-        tracer,
+        perps,
         account,
         pricing,
         insurance,
@@ -359,7 +359,7 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
 
 export async function deployMultiTracers(
     accounts: Truffle.Accounts,
-    tracerFactory: TracerFactoryInstance,
+    perpsFactory: TracerPerpetualsFactoryInstance,
     gov: GovInstance,
     govToken: TestTokenInstance,
     insurance: InsuranceInstance,
@@ -411,14 +411,14 @@ export async function deployMultiTracers(
             [deployTracerData]
         )
 
-        await gov.propose([tracerFactory.address], [proposeTracerData])
+        await gov.propose([perpsFactory.address], [proposeTracerData])
         await time.increase(twoDays + 1)
         await gov.voteFor(proposalNum, web3.utils.toWei("10"), { from: accounts[1] })
         await time.increase(twoDays)
         await gov.execute(proposalNum)
-        let tracerAddr = await tracerFactory.tracersByIndex(i)
-        var tracer = await Tracer.at(tracerAddr)
-        tracers.push(tracer)
+        let tracerAddr = await perpsFactory.tracersByIndex(i)
+        var perps = await TracerPerpetualSwaps.at(tracerAddr)
+        tracers.push(perps)
         //create insurance pools
         proposalNum++
     }
