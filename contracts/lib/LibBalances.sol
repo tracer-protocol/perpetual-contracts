@@ -167,7 +167,7 @@ library Balances {
 
     /**
      * @notice Calculates the notional value. i.e. the absolute value of a position
-     * @dev Due to the price oracle's price multiplier, the returned value should usually be divided by this price multiplier
+     * @dev Due to the price oracle's price multiplier, the returned value should usually be divided by the same multiplier
      * @param quote The amount of quote units
      * @param price The price of the quote asset
      */
