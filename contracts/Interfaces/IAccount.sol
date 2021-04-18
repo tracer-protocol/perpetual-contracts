@@ -59,12 +59,6 @@ interface IAccount {
         address market
     ) external;
 
-    function deleverage(
-        address market,
-        address[] memory leveragedAccounts,
-        address underwaterAccount
-    ) external;
-
     function marginIsValid(
         int256 base,
         int256 quote,
