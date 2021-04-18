@@ -1,7 +1,7 @@
 //@ts-ignore
 import { assert } from "chai"
-import { GovInstance, TracerFactoryInstance } from "../../types/truffle-contracts"
-import { setupFactoryFull } from "../lib/Setup"
+import { GovInstance, TracerPerpetualsFactoryInstance } from "../../types/truffle-contracts"
+import { setupPerpsFactoryFull } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
 
 /**
@@ -10,7 +10,7 @@ import { accounts, web3, configure } from "../configure"
  */
 describe("TracerFactory", async () => {
 
-    let factory: TracerFactoryInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
     let gov: GovInstance
     // let pricing: PricingInstance
     // let insurance: InsuranceInstance
@@ -24,14 +24,14 @@ describe("TracerFactory", async () => {
 
     beforeEach(async () => {
         //insurance, account, govToken
-        let setupFactory = await setupFactoryFull(accounts)
-        factory = setupFactory.factory
-        gov = setupFactory.gov
+        let setupPerpsFactory = await setupPerpsFactoryFull(accounts)
+        perpsFactory = setupPerpsFactory.perpsFactory
+        gov = setupPerpsFactory.gov
     })
 
     context("Initilization", async () => {
         it("Deploying address owns the Tracer Factory", async () => {
-            assert.equal(await factory.owner(), gov.address)
+            assert.equal(await perpsFactory.owner(), gov.address)
         })
     })
 
@@ -55,9 +55,9 @@ describe("TracerFactory", async () => {
                 ]
             )
 
-            await factory.deployTracer(deployData)
-            let market = await factory.tracersByIndex(0)
-            let isApproved = await factory.daoApproved(market)
+            await perpsFactory.deployTracer(deployData)
+            let market = await perpsFactory.tracersByIndex(0)
+            let isApproved = await perpsFactory.daoApproved(market)
             assert.equal(isApproved, true);
         })
     })

@@ -8,7 +8,7 @@ import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./Interfaces/IReceipt.sol";
 import "./Interfaces/IAccount.sol";
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 
 /**
 * Each call enforces that the contract calling the account is only updating the balance
@@ -175,7 +175,7 @@ contract Receipt is IReceipt, Ownable {
         Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
-        ITracer _tracer = ITracer(market);
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         for (uint256 i; i < orderIds.length; i++) {
             uint256 orderId = orderIds[i];
             (,

@@ -7,7 +7,7 @@ pragma solidity ^0.6.12;
 * it may be used in testing of other components that rely on certain
 * getter functions implemented by the Tracer contract
 */
-contract MockTracer {
+contract MockTracerPerpetualSwaps {
 
     uint256 _amount;
     uint256 _filled;

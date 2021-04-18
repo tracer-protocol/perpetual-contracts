@@ -125,12 +125,12 @@ This error appears because the receipt has not yet been released; you must wait 
     function claimEscrow(uint256 receiptID) public override
 ***
     ACT: Tracer only function
-This error appears because an attempt was made to call a function in the account contract that only a valid (confirmed by tracerfactory) tracer contract can call. 
+This error appears because an attempt was made to call a function in the account contract that only a valid (confirmed by TracerPerpetualsFactory) tracer contract can call. 
 
     Relevant Modifier: modifier onlyTracer(address market)
 ***
     ACT: Target not valid tracer
-This error appears when you attempt to call a function with a tracer market as an argument and the address you have provided is not a valid Tracer address (not in Tracerfactory). 
+This error appears when you attempt to call a function with a tracer market as an argument and the address you have provided is not a valid Tracer address (not in TracerPerpetualsFactory). 
 
     Relevant Modifier: modifier isValidTracer(address market) 
 ***
@@ -313,7 +313,7 @@ INS: Insurance error
 
 ***
     INS: Tracer not supported
-This error appears when you attempt to stake in a tracer market that is not supported (i.e. not in Tracerfactory) 
+This error appears when you attempt to stake in a tracer market that is not supported (i.e. not in TracerPerpetualsFactory) 
 
     Relevant Functions:
     function stake(uint256 amount, address market) external override
@@ -383,7 +383,7 @@ PRC: Pricing Error
 
 ***
     PRC: Only Tracer
-This error appears because you are trying to call a function that is accessible only to valid tracers (tracers that are in Tracerfactory)
+This error appears because you are trying to call a function that is accessible only to valid tracers (tracers that are in TracerPerpetualsFactory)
 
     Relevant Modifier: modifier onlyTracer(address market)
 ***

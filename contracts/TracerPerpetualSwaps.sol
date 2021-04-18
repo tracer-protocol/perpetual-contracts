@@ -8,7 +8,7 @@ import {Types} from "./Interfaces/Types.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IAccount.sol";
-import "./Interfaces/ITracer.sol";
+import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
 import "./DEX/SimpleDex.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -17,7 +17,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
+contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, SafetyWithdraw {
     using SafeMath for uint256;
     using SignedSafeMath for int256;
     using LibMath for uint256;
@@ -504,7 +504,7 @@ contract Tracer is ITracer, SimpleDex, Ownable, SafetyWithdraw {
         FUNDING_RATE_SENSITIVITY = _fundingRateSensitivity;
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, ITracer) onlyOwner {
+    function transferOwnership(address newOwner) public override(Ownable, ITracerPerpetualSwaps) onlyOwner {
         super.transferOwnership(newOwner);
     }
 

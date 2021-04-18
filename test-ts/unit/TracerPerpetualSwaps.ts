@@ -5,7 +5,7 @@ import assert from "assert"
 import {
     TestTokenInstance,
     GovInstance,
-    TracerInstance,
+    TracerPerpetualSwapsInstance,
 } from "../../types/truffle-contracts"
 import { setupContractsAndTracer } from "../lib/Setup"
 import { accounts, web3, configure } from "../configure"
@@ -16,11 +16,11 @@ const twoDays = 172800
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
  * simply by the owning account. For governance tests, see test/Gov.js
  */
-describe("Tracer: units tests", async () => {
+describe("TracerPerpetualSwaps: units tests", async () => {
     const oneHour = 3600
 
     let gov: GovInstance
-    let tracer: TracerInstance
+    let tracer: TracerPerpetualSwapsInstance
     let govToken: TestTokenInstance
 
     let now
@@ -35,7 +35,7 @@ describe("Tracer: units tests", async () => {
         let deployed = await setupContractsAndTracer(accounts)
         gov = deployed.gov
         govToken = deployed.govToken
-        tracer = deployed.tracer
+        tracer = deployed.perps
 
         //Set end of test setup times for use throughout tests
         now = await time.latest()
@@ -63,7 +63,7 @@ describe("Tracer: units tests", async () => {
                 await time.increase(twoDays + 1)
                 await gov.voteFor(proposalCounter, web3.utils.toWei("50"), { from: accounts[1] })
                 await time.increase(twoDays + 1)
-                // Should fail since initializePricing is already called in tracerFactory.deployTracer
+                // Should fail since initializePricing is already called in perpsFactory.deployTracer
                 await expectRevert(
                     gov.execute(proposalCounter),
                     "GOV: Failed execution"

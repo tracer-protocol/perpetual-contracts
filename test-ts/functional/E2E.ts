@@ -1,7 +1,7 @@
 //@ts-ignore
 import { BN, constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers"
 import { assert } from "chai"
-import { ReceiptInstance, DeployerV1Instance, TestTokenInstance, TracerFactoryInstance, OracleInstance, GovInstance, InsuranceInstance, AccountInstance, PricingInstance, GasOracleInstance, TracerInstance } from "../../types/truffle-contracts"
+import { ReceiptInstance, DeployerV1Instance, TestTokenInstance, TracerPerpetualsFactoryInstance, OracleInstance, GovInstance, InsuranceInstance, AccountInstance, PricingInstance, GasOracleInstance, TracerPerpetualSwapsInstance } from "../../types/truffle-contracts"
 import { accounts, configure } from "../configure"
 import { setupContractsAndTracer, deployMultiTracers } from "../lib/Setup"
 
@@ -14,8 +14,8 @@ describe("E2E", async () => {
     let receipt: ReceiptInstance
     let deployer: DeployerV1Instance
     let testToken: TestTokenInstance
-    let tracerFactory: TracerFactoryInstance
-    let tracer: TracerInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let perps: TracerPerpetualSwapsInstance
     let oracle: OracleInstance
     let gov: GovInstance
     let govToken: TestTokenInstance
@@ -27,7 +27,7 @@ describe("E2E", async () => {
     let now: any
     let sevenDays: any
 
-    let tracers: TracerInstance[]
+    let tracers: TracerPerpetualSwapsInstance[]
     let tokens: TestTokenInstance[]
 
     before(async () => {
@@ -43,8 +43,8 @@ describe("E2E", async () => {
         receipt = deployed.receipt
         deployer = deployed.deployer
         testToken = deployed.testToken
-        tracerFactory = deployed.tracerFactory
-        tracer = deployed.tracer
+        perpetualsFactory = deployed.perpsFactory
+        perps = deployed.perps
         oracle = deployed.oracle
         gov = deployed.gov
         govToken = deployed.govToken
@@ -56,7 +56,7 @@ describe("E2E", async () => {
         //Deploy multiple tracers and tokens
         let tracerAndTokens = await deployMultiTracers(
             accounts,
-            tracerFactory,
+            perpsFactory,
             gov,
             govToken,
             insurance,
