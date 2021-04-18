@@ -48,7 +48,7 @@
     "web3-eth-contract": "^1.3.0"
   },
   "scripts": {
-    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 mocha test/test-ts/unit/Account.js",
+    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 mocha",
     "test:unit": "cross-env NODE_OPTIONS=--max-old-space-size=4096 mocha test/test-ts/unit/**",
     "test:functional": "cross-env NODE_OPTIONS=--max-old-space-size=4096 mocha test/test-ts/functional/**",
     "test:compile": "npm run clean:test && tsc -p ./tsconfig.test.json --outDir ./test",
