@@ -1,6 +1,6 @@
-
 require("@nomiclabs/hardhat-truffle5");
 require('hardhat-contract-sizer')
+require('hardhat-deploy');
 
 module.exports = {
     solidity: {
@@ -16,6 +16,9 @@ module.exports = {
         hardhat: {
             blockGasLimit: 12450000
         },
+    },
+    namedAccounts: {
+        deployer: 0,
     },
     contractSizer: {
         alphaSort: true,

@@ -1,6 +1,9 @@
 const { time, expectRevert } = require("@openzeppelin/test-helpers")
 const { assert } = require("chai")
 const { setupGovAndToken } = require("../lib/Setup")
+const hre = require("hardhat");
+const TestToken = artifacts.require("TestToken");
+const Gov = artifacts.require("Gov");
 
 describe("Gov", async () => {
     let sampleProposalData

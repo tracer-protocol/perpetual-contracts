@@ -14,6 +14,9 @@ const Gov = artifacts.require("Gov");
 const twoDays = 172800
 let accounts
 
+// used for new deployment fixtures
+const { deployments } = require('hardhat');
+
 async function setupOracles() {
     let oracle
     let gasPriceOracle
@@ -88,11 +91,28 @@ async function setupGov(govToken) {
     return (await Gov.new(govToken.address))
 }
 
-async function setupGovAndToken(accounts) {
-    const govToken = await setupGovToken(accounts)
-    const gov = await setupGov(govToken)
-    return { gov, govToken }
-}
+
+// this is a demo of how 
+const setupGovAndToken = deployments.createFixture(async ({ deployments, getNamedAccounts, ethers }, options) => {
+    let accounts = await web3.eth.getAccounts();
+    await deployments.fixture(["GovAndToken"]); // ensure you start from a fresh deployments
+    let govToken = await deployments.get('TestToken');
+    let gov = await deployments.get("Gov")
+    govToken = await TestToken.at(govToken.address)
+    gov = await Gov.at(gov.address)
+
+    for (var i = 1; i < 6; i++) {
+        await govToken.transfer(accounts[i], web3.utils.toWei("200"))
+    }
+
+    return {
+        gov,
+        govToken
+    }
+})
+
+
+
 
 async function setupDeployer() {
     return (await DeployerV1.new())
@@ -206,6 +226,7 @@ async function setupContracts(accounts) {
         deployer,
     }
 }
+
 
 async function setupContractsAndTracer(accounts) {
     let receipt
