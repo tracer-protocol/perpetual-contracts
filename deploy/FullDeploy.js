@@ -1,3 +1,5 @@
+const Insurance = artifacts.require("Insurance");
+
 module.exports = async (hre) => {
     const { deployments, getNamedAccounts } = hre;
     const { deploy } = deployments;
@@ -62,5 +64,8 @@ module.exports = async (hre) => {
         from: deployer,
         log: true,
     });
+
+    let insuranceInstance = await Insurance.at(insurance.address)
+    await insuranceInstance.setFactory(factory.address)
 };
 module.exports.tags = ['FullDeploy'];

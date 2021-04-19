@@ -13,6 +13,7 @@ async function main() {
 
     // deploy all contracts
     await deployments.fixture(["FullDeploy"]);
+
     // todo how do collisions work on  multiple instances of a contract?
     let oracle = await deployments.get('Oracle');
     let gasPriceOracle = await deployments.get('Oracle');
@@ -49,32 +50,10 @@ async function main() {
         ]
     )
 
-    const proposeTracerData = web3.eth.abi.encodeFunctionCall(
-        {
-            name: 'deployTracer',
-            type: 'function',
-            inputs: [
-                {
-                    type: 'bytes',
-                    name: '_data',
-                },
-            ],
-        },
-        [deployTracerData]
-    )
-
-    // perform steps to deploy via governance
-    await govToken.approve(gov.address, web3.utils.toWei('10'))
-    await gov.stake(web3.utils.toWei('10'))
-    await govToken.approve(gov.address, web3.utils.toWei('10'), { from: accounts[1] })
-    await gov.stake(web3.utils.toWei('10'), { from: accounts[1] })
-    await gov.propose([factory.address], [proposeTracerData])
-    await time.increase(twoDays + 1)
-    await gov.voteFor(0, web3.utils.toWei('10'), { from: accounts[1] })
-    await time.increase(twoDays + 1)
-    await gov.execute(0)
-
-
+    await factory.deployTracer(deployTracerData)
+    let tracerAddr = await factory.tracersByIndex(0)
+    console.log(`Tracer Deplpoyed: ${tracerAddr}`)
+    console.log(`Margin Token Deplpoyed: ${token.address}`)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

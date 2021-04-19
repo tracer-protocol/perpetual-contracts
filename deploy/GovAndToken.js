@@ -4,7 +4,6 @@ module.exports = async (hre) => {
     const { deployments, getNamedAccounts } = hre;
     const { deploy } = deployments;
     const { deployer } = await getNamedAccounts();
-    const accounts = await web3.eth.getAccounts();
 
     // deploy mock gov token
     const govToken = await deploy('TestToken', {

@@ -17,7 +17,6 @@ For more on the Tracer protoco and the Tracer DAO, view the DAO's [Twitter](http
 ```
 yarn install
 ```
-
 ## Test
 Testing uses the [Hardhat](https://hardhat.org/) framework
 
@@ -29,7 +28,21 @@ To run individual test files, use
 ```
 npx hardhat test <PATH_TO_TEST>
 ```
+## Deployment
+Hardhat does not support native deployments. To aid in deployment, hardhat-deploy is being used. You can see the deployment scripts in the `/deploy` directory.
 
+To run deploys
+```
+npx hardhat deploy
+```
+This will run all deployments.
+
+Scripts have also been created to run deployments and add supporting function calls. For example, `DeployAndAddTracer.js` runs the `FullDeploy.js` file and then creates a Tracer market with this deployment.
+
+To run a specific script, run
+```
+npx hardhat run <PATH_TO_SCRIPT>
+```
 ## Constants
 ### Mainnet
 | Contract | address                           |
