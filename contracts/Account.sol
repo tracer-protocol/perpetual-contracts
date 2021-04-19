@@ -441,7 +441,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @notice Updates the account state of a user given a specific tracer, in a trade event. Adds the 
      *         passed in margin and position changes to the current margin and position.
      * @dev Related to permissionedTakeOrder() in TracerPerpetualSwaps.sol 
-     * @param baseChange Is equal to: FillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256()
+     * @param baseChange Is equal to: FillAmount.mul(order.price)).div(priceMultiplier).toInt256()
      * @param quoteChange The amount of the order filled changed to be negative (e.g. if 100$ of the order is filled this would be -$100  )
      * @param accountAddress The address of the account to be updated 
      * @param market The address of the tracer market, used to target the tracer market where the update is relevant 

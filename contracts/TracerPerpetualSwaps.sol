@@ -197,7 +197,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         emit OrderFilled(orderId, amount, amountOutstanding, _taker, maker, marketId);
 
         int256 baseChange = (fillAmount.toInt256().mul(order.price)).div(priceMultiplier.toInt256());
-        require(baseChange > 0, "TCR: Margin change <= 0");
 
         // update account states
         updateAccounts(baseChange, fillAmount, order.side, order.maker, _taker);
