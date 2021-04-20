@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.6.12;
 
-import "./Tracer.sol";
+import "./TracerPerpetualSwaps.sol";
 import "./Interfaces/IDeployer.sol";
 
 /**
@@ -31,7 +31,7 @@ contract DeployerV1 is IDeployer {
             int256,
             uint256
         ));
-        Tracer tracer = new Tracer(
+        TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
             _tracerId,
             _tracerBaseToken,
             _oracle,

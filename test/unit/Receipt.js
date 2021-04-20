@@ -1,6 +1,6 @@
 const { BN, ether, expectRevert, time } = require("@openzeppelin/test-helpers")
 const { setupGovAndToken } = require( "../lib/Setup")
-const MockTracer = artifacts.require("MockTracer");
+const MockTracerPerpetualSwaps = artifacts.require("MockTracerPerpetualSwaps");
 const Receipt = artifacts.require("Receipt");
 
 describe("Receipt: unit tests", async () => {
@@ -17,7 +17,7 @@ describe("Receipt: unit tests", async () => {
 
     beforeEach(async () => {
         //Deploy receipt contract and let account 4 be the accounts contract
-        mockTracer = await MockTracer.new(
+        mockTracer = await MockTracerPerpetualSwaps.new(
                 5, 3, ether("1"), true, accounts[4], 1, new BN("100000000")
         );
         const govAndToken = await setupGovAndToken(accounts)
@@ -60,7 +60,7 @@ describe("Receipt: unit tests", async () => {
         context("When the refund is already claimed", () => {
             it("fails", async () => {
                 //Deploy a new mock tracer with 0 units so that a unit mismatch doesnt throw.
-                let mockTracerWithCorrectUnits = await MockTracer.new(
+                let mockTracerWithCorrectUnits = await MockTracerPerpetualSwaps.new(
                         0, 0, ether("1"), true, accounts[1], 0, new BN("100000000")
                 );
                 let receipt2 = await Receipt.new(accounts[4], maxSlippage, gov.address)

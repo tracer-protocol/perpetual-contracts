@@ -20,7 +20,7 @@ describe("Unit tests: Insurance", async () => {
         //Setup all contracts
         let deployed = await setupContractsAndTracer(accounts)
         insurance = deployed.insurance
-        tracer = deployed.tracer
+        tracer = deployed.perps
         testToken = deployed.testToken
     })
 

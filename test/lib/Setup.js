@@ -7,15 +7,12 @@ const Insurance = artifacts.require("Insurance");
 const Pricing = artifacts.require("Pricing");
 const Receipt = artifacts.require("Receipt");
 const TestToken = artifacts.require("TestToken");
-const Tracer = artifacts.require("Tracer");
-const TracerFactory = artifacts.require("TracerFactory");
+const TracerPerpetualSwaps = artifacts.require("TracerPerpetualSwaps");
+const TracerFactory = artifacts.require("TracerPerpetualsFactory");
 const DeployerV1 = artifacts.require("DeployerV1");
 const Gov = artifacts.require("Gov");
 const twoDays = 172800
 let accounts
-
-// used for new deployment fixtures
-const { deployments } = require('hardhat');
 
 async function setupOracles() {
     let oracle
@@ -101,7 +98,7 @@ async function setupDeployer() {
     return (await DeployerV1.new())
 }
 
-async function setupFactory(
+async function setupPerpsFactory(
     insurance,
     deployer,
     gov
@@ -111,13 +108,13 @@ async function setupFactory(
     return factory
 }
 
-async function setupFactoryFull(accounts) {
+async function setupPerpsFactoryFull(accounts) {
     const { insurance, account, govToken } = await setupInsuranceFull(accounts)
     const deployer = await setupDeployer();
     const gov = await setupGov(govToken);
-    const factory = await setupFactory(insurance, deployer, gov)
-    await insurance.setFactory(factory.address)
-    return { factory, gov, deployer, account, insurance, govToken }
+    const perpsFactory = await setupPerpsFactory(insurance, deployer, gov)
+    await insurance.setFactory(perpsFactory.address)
+    return { perpsFactory, gov, deployer, account, insurance, govToken }
 }
 
 async function setupPricing(tracerFacAddress) {
@@ -140,9 +137,9 @@ async function setupAccountFull(accounts) {
     const { gasPriceOracle } = await setupOracles();
     const gov = await setupGov(govToken);
     const deployer = await setupDeployer();
-    const factory = await setupFactory(insurance, deployer, gov);
-    const pricing = await setupPricing(factory.address);
-    return await setupAccount(insurance.address, gasPriceOracle.address, factory.address, pricing.address, gov.address);
+    const perpsFactory = await setupPerpsFactory(insurance, deployer, gov);
+    const pricing = await setupPricing(perpsFactory.address);
+    return await setupAccount(insurance.address, gasPriceOracle.address, perpsFactory.address, pricing.address, gov.address);
 }
 
 async function setupReceipt(account, govAddr) {
@@ -155,7 +152,7 @@ async function setupContracts(accounts) {
     let receipt
     let deployer
     let testToken
-    let tracerFactory
+    let perpsFactory
     let oracle
     let gov
     let govToken
@@ -181,13 +178,13 @@ async function setupContracts(accounts) {
     gov = await setupGov(govToken);
 
     //Deploy the tracer factory
-    tracerFactory = await setupFactory(insurance, deployer, gov)
+    perpsFactory = await setupFactory(insurance, deployer, gov)
 
     //Deploy pricing contract
-    pricing = await setupPricing(tracerFactory.address)
+    pricing = await setupPricing(perpsFactory.address)
 
     //Deploy account state contract
-    account = await setupAccount(insurance.address, gasPriceOracle.address, tracerFactory.address, pricing.address, accounts[0])
+    account = await setupAccount(insurance.address, gasPriceOracle.address, perpsFactory.address, pricing.address, accounts[0])
 
     //Deploy and link receipt contract
     receipt = await setupReceipt(account, gov.address)
@@ -198,7 +195,7 @@ async function setupContracts(accounts) {
     return {
         gov,
         govToken,
-        tracerFactory,
+        perpsFactory,
         testToken,
         account,
         pricing,
@@ -229,7 +226,7 @@ async function setupContractsAndTracer(accounts) {
     const contracts = await setupContracts(accounts)
     gov = contracts.gov
     govToken = contracts.govToken
-    tracerFactory = contracts.tracerFactory
+    perpsFactory = contracts.perpsFactory
     testToken = contracts.testToken
     account = contracts.account
     pricing = contracts.pricing
@@ -275,14 +272,14 @@ async function setupContractsAndTracer(accounts) {
     await gov.stake(web3.utils.toWei("10"))
     await govToken.approve(gov.address, web3.utils.toWei("10"), { from: accounts[1] })
     await gov.stake(web3.utils.toWei("10"), { from: accounts[1] })
-    await gov.propose([tracerFactory.address], [proposeTracerData])
+    await gov.propose([perpsFactory.address], [proposeTracerData])
     await time.increase(twoDays + 1)
     await gov.voteFor(0, web3.utils.toWei("10"), { from: accounts[1] })
     await time.increase(twoDays + 1)
     await gov.execute(0)
 
-    let tracerAddr = await tracerFactory.tracersByIndex(0)
-    tracer = await Tracer.at(tracerAddr)
+    let tracerAddr = await perpsFactory.tracersByIndex(0)
+    perps = await TracerPerpetualSwaps.at(tracerAddr)
 
     //Get each user to "deposit" 100 tokens into the platform
     for (var i = 0; i < 6; i++) {
@@ -303,7 +300,7 @@ async function setupContractsAndTracer(accounts) {
         },
         [accounts[0]]
     )
-    await gov.propose([tracer.address], [transferOwnershipProposal])
+    await gov.propose([perps.address], [transferOwnershipProposal])
     //4th proposal
     await time.increase(twoDays + 1)
     await gov.voteFor(1, web3.utils.toWei("10"), { from: accounts[1] })
@@ -315,9 +312,9 @@ async function setupContractsAndTracer(accounts) {
     return {
         gov,
         govToken,
-        tracerFactory,
+        perpsFactory,
         testToken,
-        tracer,
+        perps,
         account,
         pricing,
         insurance,
@@ -382,14 +379,14 @@ async function deployMultiTracers(
             [deployTracerData]
         )
 
-        await gov.propose([tracerFactory.address], [proposeTracerData])
+        await gov.propose([perpsFactory.address], [proposeTracerData])
         await time.increase(twoDays + 1)
         await gov.voteFor(proposalNum, web3.utils.toWei("10"), { from: accounts[1] })
         await time.increase(twoDays)
         await gov.execute(proposalNum)
-        let tracerAddr = await tracerFactory.tracersByIndex(i)
-        var tracer = await Tracer.at(tracerAddr)
-        tracers.push(tracer)
+        let tracerAddr = await perpsFactory.tracersByIndex(i)
+        var perps = await TracerPerpetualSwaps.at(tracerAddr)
+        tracers.push(perps)
         //create insurance pools
         proposalNum++
     }
@@ -416,8 +413,8 @@ module.exports = {
     setupGov,
     setupGovAndToken,
     setupDeployer,
-    setupFactory,
-    setupFactoryFull,
+    setupPerpsFactory,
+    setupPerpsFactoryFull,
     setupPricing,
     setupInsurance,
     setupInsuranceFull,

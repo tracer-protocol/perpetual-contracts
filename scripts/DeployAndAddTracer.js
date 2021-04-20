@@ -2,7 +2,7 @@ const hre = require("hardhat");
 const TestToken = artifacts.require("TestToken");
 const { BN, time } = require('@openzeppelin/test-helpers')
 const Gov = artifacts.require("Gov");
-const TracerFactory = artifacts.require("TracerFactory");
+const TracerFactory = artifacts.require("TracerPerpetualsFactory");
 
 // small sample script for using deploys and then deploying a trace
 async function main() {

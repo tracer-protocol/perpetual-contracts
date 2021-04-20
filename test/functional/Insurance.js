@@ -34,7 +34,7 @@ describe("Insurance", async () => {
     beforeEach(async () => {
         //Setup all contracts
         let deployed = await setupContracts(accounts)
-        tracerFactory = deployed.tracerFactory
+        perpsFactory = deployed.perpsFactory
         oracle = deployed.oracle
         gov = deployed.gov
         insurance = deployed.insurance
@@ -46,7 +46,7 @@ describe("Insurance", async () => {
         //Deploy multiple tracers and tokens
         let tracerAndTokens = await deployMultiTracers(
             accounts,
-            tracerFactory,
+            perpsFactory,
             gov,
             tracerGovToken,
             insurance,

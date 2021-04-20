@@ -24,7 +24,7 @@ describe("Trader Shim unit tests", async () => {
         let deployed = await setupContractsAndTracer(accounts)
 
         trader = await Trader.new()
-        tracer = deployed.tracer
+        tracer = deployed.perps
         account = deployed.account
         token = deployed.testToken
 

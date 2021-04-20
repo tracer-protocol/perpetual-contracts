@@ -1,5 +1,5 @@
 const { assert } = require("chai")
-const { setupFactoryFull } = require("../lib/Setup")
+const { setupPerpsFactoryFull } = require("../lib/Setup")
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
@@ -17,14 +17,14 @@ describe("TracerFactory", async () => {
 
     beforeEach(async () => {
         //insurance, account, govToken
-        let setupFactory = await setupFactoryFull(accounts)
-        factory = setupFactory.factory
-        gov = setupFactory.gov
+        let setupPerpsFactory = await setupPerpsFactoryFull(accounts)
+        perpsFactory = setupPerpsFactory.perpsFactory
+        gov = setupPerpsFactory.gov
     })
 
     context("Initilization", async () => {
         it("Deploying address owns the Tracer Factory", async () => {
-            assert.equal(await factory.owner(), gov.address)
+            assert.equal(await perpsFactory.owner(), gov.address)
         })
     })
 
@@ -48,9 +48,9 @@ describe("TracerFactory", async () => {
                 ]
             )
 
-            await factory.deployTracer(deployData)
-            let market = await factory.tracersByIndex(0)
-            let isApproved = await factory.daoApproved(market)
+            await perpsFactory.deployTracer(deployData)
+            let market = await perpsFactory.tracersByIndex(0)
+            let isApproved = await perpsFactory.daoApproved(market)
             assert.equal(isApproved, true);
         })
     })

@@ -45,7 +45,7 @@ module.exports = async (hre) => {
     });
 
     // deploy Tracer perps factory
-    const factory = await deploy('TracerFactory', {
+    const factory = await deploy('TracerPerpetualsFactory', {
         args: [insurance.address, deployerV1.address, gov.address],
         from: deployer,
         log: true,
