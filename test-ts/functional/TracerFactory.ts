@@ -37,8 +37,9 @@ describe("TracerFactory", async () => {
 
     context("Deploy and Approve", async () => {
         it.skip("approves the deployed market", async () => {
+            const deleveragingCliff = 20
             let deployData = web3.eth.abi.encodeParameters(
-                ["bytes32", "address", "address", "address", "address", "address", "int256"],
+                ["bytes32", "address", "address", "address", "address", "address", "int256", "uint256", "int256"],
                 [
                     web3.utils.fromAscii(`LINK/USD`),
                     // govToken.address,
@@ -51,7 +52,8 @@ describe("TracerFactory", async () => {
                     accounts[0],
                     //pricing,
                     125000, //12.5 max leverage,
-                    1 //funding rate sensitivity
+                    1, //funding rate sensitivity
+                    deleveragingCliff
                 ]
             )
 

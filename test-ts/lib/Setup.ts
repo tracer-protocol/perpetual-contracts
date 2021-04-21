@@ -270,10 +270,11 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
 
     // maxLeveraged = 12.5 * 10,000. notional_value/margin is at most 12.5
     const maxLeverage = 125000
+    const deleveragingCliff = 20 // 20% of ins pool
 
     //Deploy a new Tracer contract per test
     var deployTracerData = web3.eth.abi.encodeParameters(
-        ["bytes32", "address", "address", "address", "address", "address", "int256", "uint256"],
+        ["bytes32", "address", "address", "address", "address", "address", "int256", "uint256", "int256"],
         [
             web3.utils.fromAscii(`TEST/USD`),
             testToken.address,
@@ -282,7 +283,8 @@ export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promi
             account.address,
             pricing.address,
             maxLeverage,
-            1 //funding rate sensitivity
+            1, //funding rate sensitivity
+            deleveragingCliff
         ]
     )
 
@@ -379,13 +381,14 @@ export async function deployMultiTracers(
 
     // maxLeveraged = 12.5 * 10,000. notional_value/margin is at most 12.5
     const maxLeverage = 125000
+    const deleveragingCliff = 20 // 20% of ins pool
     for (var i = 0; i < 4; i++) {
         var token = await TestToken.new(web3.utils.toWei("100000"))
         tokens.push(token)
 
         //Deploy a new Tracer contract per test
         var deployTracerData = web3.eth.abi.encodeParameters(
-            ["bytes32", "address", "address", "address", "address", "address", "uint256", "uint256"],
+            ["bytes32", "address", "address", "address", "address", "address", "uint256", "uint256", "int256"],
             [
                 web3.utils.fromAscii(`TEST${i}/USD`),
                 token.address,
@@ -394,7 +397,8 @@ export async function deployMultiTracers(
                 account.address,
                 pricing.address,
                 maxLeverage,
-                1 //funding rate sensitivity
+                1, //funding rate sensitivity
+                deleveragingCliff
             ]
         )
         const proposeTracerData = web3.eth.abi.encodeFunctionCall(

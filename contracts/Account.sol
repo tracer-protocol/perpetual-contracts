@@ -51,7 +51,6 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
-    event Value(int256 value);
 
     constructor(
         address _insuranceContract,
@@ -70,16 +69,39 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     /**
      * @notice Adjust the max leverage as insurance pool slides from 100% of target to 0% of target
      */
-    function realMaxLeverage(address market) public override {
-        ITracer _tracer = ITracer(market);
+    function realMaxLeverage(address market) public view override returns(int256) {
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         IInsurance insurance = IInsurance(insuranceContract);
         int256 baseMaxLeverage = _tracer.maxLeverage();
-        uint256 holdings = insurance.getPoolHoldings(market);
-        uint256 target = insurance.getPoolTarget(market);
-        
-        int256 ratio = holdings.toInt256().mul(PERCENT_PRECISION).div(target.toInt256());
+
+        int256 percentFull =
+            insurance.getPoolHoldings(market).toInt256()
+            .mul(PERCENT_PRECISION)
+            .div(insurance.getPoolTarget(market).toInt256()).mul(100);
+        int256 cliff = _tracer.INSURANCE_DELEVERAGING_CLIFF();
+
+        if (percentFull > cliff.mul(PERCENT_PRECISION)) {
+            return baseMaxLeverage;
+        }
+
         // Use int256 for compatibility with baseMaxLeverage
-        int256 realMaxLeverage = baseMaxLeverage.mul(ratio).div(PERCENT_PRECISION);
+        //int256 oneXLeverage = 10000;
+        // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
+        // y = mx + b,
+        // where m = INSURANCE_DELEVERAGING_CLIFF - 1
+        //       x = percentFull
+        //       b = 1 (since 1 is the y-intercept)
+        // 1*10,000
+
+        int256 one = PERCENT_PRECISION;
+        int256 realMaxLeverage =
+            (baseMaxLeverage.sub(PERCENT_PRECISION))
+            .mul(PERCENT_PRECISION)
+            .div(_tracer.INSURANCE_DELEVERAGING_CLIFF().mul(PERCENT_PRECISION))
+            .mul(percentFull)
+            .add(PERCENT_PRECISION.mul(PERCENT_PRECISION));
+
+        return realMaxLeverage.div(PERCENT_PRECISION);
     }
 
     /**

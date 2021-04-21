@@ -44,6 +44,8 @@ interface ITracerPerpetualSwaps {
 
     function FUNDING_RATE_SENSITIVITY() external pure returns(uint256);
 
+    function INSURANCE_DELEVERAGING_CLIFF() external pure returns(int256);
+
     function currentHour() external view returns(uint8);
 
     function getOrder(uint orderId) external view returns(uint256, uint256, int256, bool, address, uint256);
@@ -75,6 +77,8 @@ interface ITracerPerpetualSwaps {
     function setMaxLeverage(int256 _maxLeverage) external;
 
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
+
+    function setInsuranceDeleveragingCliff(int256 _insuranceDeleveragingCliff) external;
 
     function transferOwnership(address newOwner) external;
 

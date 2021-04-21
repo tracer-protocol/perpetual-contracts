@@ -26,6 +26,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
 
     uint256 public override FUNDING_RATE_SENSITIVITY;
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
+    int256 public override INSURANCE_DELEVERAGING_CLIFF;
     uint256 public immutable override priceMultiplier;
     address public immutable override tracerBaseToken;
     bytes32 public immutable override marketId;
@@ -65,6 +66,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _accountContract the address of the contract implementing the IAccount.sol interface
      * @param _pricingContract the address of the contract implementing the IPricing.sol interface
+     * @param _insuranceDeleveragingCliff the threshold for the insurance pool when deleveraging begins
      */
     constructor(
         bytes32 _marketId,
@@ -74,7 +76,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         address _accountContract,
         address _pricingContract,
         int256 _maxLeverage,
-        uint256 fundingRateSensitivity
+        uint256 fundingRateSensitivity,
+        int256 _insuranceDeleveragingCliff
     ) public Ownable() {
         accountContract = IAccount(_accountContract);
         pricingContract = IPricing(_pricingContract);
@@ -87,6 +90,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         feeRate = 0;
         maxLeverage = _maxLeverage;
         FUNDING_RATE_SENSITIVITY = fundingRateSensitivity;
+        INSURANCE_DELEVERAGING_CLIFF = _insuranceDeleveragingCliff;
 
         // Start average prices from deployment
         startLastHour = block.timestamp;
@@ -198,6 +202,10 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
 
         int256 baseChange = (fillAmount.toInt256().mul(order.price)).div(priceMultiplier.toInt256());
         require(baseChange > 0, "TCR: Base change <= 0");
+        
+        // Settle accounts
+        settle(_taker);
+        settle(order.maker);
 
         // update account states
         updateAccounts(baseChange, fillAmount, order.side, order.maker, _taker);
@@ -205,10 +213,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         // Update leverage
         accountContract.updateAccountLeverage(_taker, address(this));
         accountContract.updateAccountLeverage(order.maker, address(this));
-        
-        // Settle accounts
-        settle(_taker);
-        settle(order.maker);
 
         // Update internal trade state
         updateInternalRecords(order.price);
@@ -482,24 +486,28 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         pricingContract = IPricing(pricing);
     }
 
-    function setOracle(address _oracle) public override onlyOwner {
+    function setOracle(address _oracle) external override onlyOwner {
         oracle = _oracle;
     }
 
-    function setGasOracle(address _gasOracle) public override onlyOwner {
+    function setGasOracle(address _gasOracle) external override onlyOwner {
         gasPriceOracle = _gasOracle;
     }
 
-    function setFeeRate(uint256 _feeRate) public override onlyOwner {
+    function setFeeRate(uint256 _feeRate) external override onlyOwner {
         feeRate = _feeRate;
     }
 
-    function setMaxLeverage(int256 _maxLeverage) public override onlyOwner {
+    function setMaxLeverage(int256 _maxLeverage) external override onlyOwner {
         maxLeverage = _maxLeverage;
     }
 
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) public override onlyOwner {
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external override onlyOwner {
         FUNDING_RATE_SENSITIVITY = _fundingRateSensitivity;
+    }
+
+    function setInsuranceDeleveragingCliff(int256 _insuranceDeleveragingCliff) external override onlyOwner {
+        INSURANCE_DELEVERAGING_CLIFF = _insuranceDeleveragingCliff;
     }
 
     function transferOwnership(address newOwner) public override(Ownable, ITracerPerpetualSwaps) onlyOwner {

@@ -67,7 +67,7 @@ interface IAccount {
         address market
     ) external view returns (bool);
 
-    function realMaxLeverage(address market) external;
+    function realMaxLeverage(address market) external view returns(int256);
 
     function userMarginIsValid(address account, address market) external view returns (bool);
 
