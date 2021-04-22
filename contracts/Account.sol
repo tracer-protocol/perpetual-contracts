@@ -209,7 +209,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     function realMaxLeverage(address market) public view override returns(int256) {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         IInsurance insurance = IInsurance(insuranceContract);
-        int256 baseMaxLeverage = _tracer.maxLeverage();
+        int256 baseMaxLeverage = realMaxLeverage(market);
 
         int256 percentFull =
             insurance.getPoolHoldings(market).toInt256()
@@ -623,7 +623,8 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     ) public override view returns (bool) {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         int256 gasCost = gasPrice.mul(_tracer.LIQUIDATION_GAS_COST().toInt256());
-        int256 minMargin = Balances.calcMinMargin(quote, price, base, gasCost, _tracer.maxLeverage(), _tracer.priceMultiplier());
+        int256 maxLeverage = realMaxLeverage(market);
+        int256 minMargin = Balances.calcMinMargin(quote, price, base, gasCost, maxLeverage, _tracer.priceMultiplier());
         int256 margin = Balances.calcMargin(quote, price, base, _tracer.priceMultiplier());
 
         if (margin < 0) {
@@ -697,7 +698,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             pricing.fairPrices(market),
             accountBalance.base,
             accountBalance.lastUpdatedGasPrice.mul(_tracer.LIQUIDATION_GAS_COST().toInt256()),
-            _tracer.maxLeverage(),
+            realMaxLeverage(market),
             _tracer.priceMultiplier()
         );
     }
