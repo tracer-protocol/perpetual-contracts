@@ -223,7 +223,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
 
         // Use int256 for compatibility with baseMaxLeverage
         //int256 oneXLeverage = 10000;
-        // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
+        // Linear function intercepting points (0, 1) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
         // Where the x axis is how full the insurance pool is as a percentage,
         // and the y axis is max leverage.
         // y = mx + b,
