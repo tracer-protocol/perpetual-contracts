@@ -1,25 +1,19 @@
-//@ts-ignore
-import { expectRevert } from "@openzeppelin/test-helpers"
-import assert from "assert"
-import {
-    TestTokenInstance,
-    InsuranceInstance,
-    TracerPerpetualSwapsInstance,
-} from "../../types/truffle-contracts"
-import { setupContractsAndTracer } from "../lib/Setup"
-import { accounts, web3, configure } from "../configure"
+const { expectRevert } = require("@openzeppelin/test-helpers")
+const assert = require("assert")
+const { setupContractsAndTracer } = require("../lib/Setup")
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
  * simply by the owning account. For governance tests, see test/Gov.js
  */
 describe("Unit tests: Insurance", async () => {
-    let insurance: InsuranceInstance
-    let tracer: TracerPerpetualSwapsInstance
-    let testToken: TestTokenInstance
+    let insurance
+    let tracer
+    let testToken
+    let accounts
 
     before(async () => {
-        await configure()
+        accounts = await web3.eth.getAccounts();
     })
 
     beforeEach(async () => {
@@ -102,6 +96,3 @@ describe("Unit tests: Insurance", async () => {
         })
     })
 })
-
-// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
-export { }

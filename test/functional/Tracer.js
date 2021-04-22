@@ -1,22 +1,6 @@
-//@ts-ignore
-import { BN, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers"
-import { assert } from "chai"
-import {
-    ReceiptInstance,
-    DeployerV1Instance,
-    TestTokenInstance,
-    TracerPerpetualsFactoryInstance,
-    OracleInstance,
-    InsuranceInstance,
-    AccountInstance,
-    PricingInstance,
-    TracerPerpetualSwapsInstance,
-    GasOracleInstance,
-    GovInstance,
-} from "../../types/truffle-contracts"
-import { setupContractsAndTracer } from "../lib/Setup"
-import { accounts, web3, configure } from "../configure"
-const truffleAssert = require('truffle-assertions');
+const { BN, expectEvent, expectRevert, time } = require("@openzeppelin/test-helpers")
+const { assert } = require("chai")
+const { setupContractsAndTracer } = require("../lib/Setup")
 
 
 /**
@@ -30,23 +14,23 @@ describe("Tracer", async () => {
     const twentyFourHours = 24 * oneHour
     const twoDays = twentyFourHours * 2
 
-    let receipt: ReceiptInstance
-    let deployer: DeployerV1Instance
-    let testToken: TestTokenInstance
-    let perpsFactory: TracerPerpetualsFactoryInstance
-    let tracer: TracerPerpetualSwapsInstance
-    let oracle: OracleInstance
-    let insurance: InsuranceInstance
-    let account: AccountInstance
-    let pricing: PricingInstance
-    let gasPriceOracle: GasOracleInstance
-    let gov: GovInstance
-
-    let now: any
-    let sevenDays: any
+    let receipt
+    let deployer
+    let testToken
+    let tracerFactory
+    let tracer
+    let oracle
+    let insurance
+    let account
+    let pricing
+    let gasPriceOracle
+    let gov
+    let accounts
+    let now
+    let sevenDays
 
     before(async () => {
-        await configure()
+        accounts = await web3.eth.getAccounts();
     })
 
     beforeEach(async () => {
@@ -571,7 +555,7 @@ describe("Tracer", async () => {
             let balanceBefore = await account.getBalance(accounts[1], tracer.address)
 
             //Invalid account trying to claim escrow
-            await expectRevert(account.claimEscrow(0, { from: accounts[2] }), "ACTL: Not Entitled ")
+            await expectRevert(account.claimEscrow(0, { from: accounts[2] }), "ACTL: Not Entitled")
 
             //Claim escrow from the liquidation
             await account.claimEscrow(0, { from: accounts[1] })
@@ -1106,6 +1090,3 @@ describe("Tracer", async () => {
         })
     })
 })
-
-// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
-export { }

@@ -1,27 +1,24 @@
-//@ts-ignore
-import { BN, constants, ether, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers"
-import { assert } from 'chai';
-import { Gov, TestToken } from "../artifacts"
-import { TestTokenInstance, GovInstance } from "../../types/truffle-contracts"
-import { accounts, web3, configure } from "../configure"
-
+const { BN, constants, ether, expectEvent, expectRevert, time } = require("@openzeppelin/test-helpers")
+const { assert } = require('chai');
+const TestToken = artifacts.require("TestToken");
+const Gov = artifacts.require("Gov");
 
 describe("Gov: unit tests", async () => {
     //All prices in price ($) * 1000000
     //const oneDollar = new BN("1000000")
     const twoDays = 172800
     const sevenDays = 604800
-    const maxLeverage = 12500
 
-    let sampleProposalData: any;
-    let setCoolingOffData: any;
-    let setWarmUpData: any;
-    let gov: GovInstance
-    let govToken: TestTokenInstance
+    let sampleProposalData
+    let setCoolingOffData
+    let setWarmUpData
+    let gov
+    let govToken
     let proposalNum = 0
+    let accounts
 
     before(async () => {
-        await configure()
+        accounts = await web3.eth.getAccounts();
 
         sampleProposalData = web3.eth.abi.encodeFunctionCall(
             {
@@ -289,18 +286,18 @@ describe("Gov: unit tests", async () => {
                 await gov.propose([accounts[0]], [sampleProposalData])
                 const proposal = await gov.proposals(0)
                 const staked = await gov.getStakedAndDelegated(accounts[0])
-                //@ts-ignore
+
                 assert.equal(accounts[0], proposal.proposer)
-                //@ts-ignore
+
                 assert.isTrue(proposal.yes.eq(staked))
-                //@ts-ignore
+
                 assert.equal(0, proposal.no)
-                //@ts-ignore
+
                 assert.equal(0, proposal.passTime)
 
                 // The number associated with ProposalState.PROPOSED
                 const proposedState = 0;
-                //@ts-ignore
+
                 assert.equal(proposedState, proposal.state)
             })
 
@@ -328,18 +325,13 @@ describe("Gov: unit tests", async () => {
                     await gov.propose([accounts[0]], [sampleProposalData], { from: accounts[1] })
                     const proposal = await gov.proposals(0)
                     const staked = await gov.getStakedAndDelegated(accounts[1])
-                    //@ts-ignore
                     assert.equal(accounts[1], proposal.proposer)
-                    //@ts-ignore
                     assert.isTrue(proposal.yes.eq(staked))
-                    //@ts-ignore
                     assert.equal(0, proposal.no)
-                    //@ts-ignore
                     assert.equal(0, proposal.passTime)
 
                     // The number associated with ProposalState.PROPOSED
                     const proposedState = 0;
-                    //@ts-ignore
                     assert.equal(proposedState, proposal.state)
                 })
             })
@@ -497,7 +489,7 @@ describe("Gov: unit tests", async () => {
             await gov.acceptDelegates({ from: accounts[1] })
             await gov.delegate(accounts[1])
             const staker = await gov.stakers(accounts[0])
-            //@ts-ignore
+
             assert.isAbove(Number(staker.lockedUntil), 0)
         })
 
@@ -507,7 +499,7 @@ describe("Gov: unit tests", async () => {
             await gov.acceptDelegates({ from: accounts[1] })
             await gov.delegate(accounts[1])
             const staker = await gov.stakers(accounts[0])
-            //@ts-ignore
+
             assert.equal(staker.delegate, accounts[1])
         })
 
@@ -544,25 +536,25 @@ describe("Gov: unit tests", async () => {
             const delegateBefore = await gov.stakers(accounts[1])
             const stakedAndDelegatedBefore = await gov.getStakedAndDelegated(accounts[1])
             assert.isTrue(stakedAndDelegatedBefore.eq(ether("50")))
-            //@ts-ignore
+
             assert.isTrue(delegateBefore.delegatedAmount.eq(ether("50")))
             await time.increase(sevenDays + 1)
             await gov.removeDelegate()
             const delegatedAfter = await gov.stakers(accounts[1])
             const stakedAndDelegatedAfter = await gov.getStakedAndDelegated(accounts[1])
             assert.isTrue(stakedAndDelegatedAfter.eq(ether("0")))
-            //@ts-ignore
+
             assert.isTrue(delegatedAfter.delegatedAmount.eq(ether("0")))
         })
 
         it("clears the delegate address for the staker", async () => {
             const stakerBefore = await gov.stakers(accounts[0])
-            //@ts-ignore
+
             assert.equal(accounts[1], stakerBefore.delegate)
             await time.increase(sevenDays + 1)
             await gov.removeDelegate()
             const stakerAfter = await gov.stakers(accounts[0])
-            //@ts-ignore
+
             assert.equal(constants.ZERO_ADDRESS, stakerAfter.delegate)
         })
 
@@ -604,11 +596,11 @@ describe("Gov: unit tests", async () => {
             await gov.stake(ether("50"))
             await gov.acceptDelegates({ from: accounts[1] })
             const stakerBefore = await gov.stakers(accounts[1])
-            //@ts-ignore
+
             assert.isTrue(stakerBefore.acceptingDelegates)
             await gov.disableDelegates({ from: accounts[1] })
             const stakerAfter = await gov.stakers(accounts[1])
-            //@ts-ignore
+
             assert.isFalse(stakerAfter.acceptingDelegates)
         })
     })
@@ -638,7 +630,7 @@ describe("Gov: unit tests", async () => {
 
             // The number associated with ProposalState.REJECTED
             const rejectedState = 3;
-            //@ts-ignore
+
             assert.equal(rejectedState, proposal.state)
             await expectRevert(gov.execute(0), "GOV: Proposal state != PASSED")
         })
@@ -653,7 +645,7 @@ describe("Gov: unit tests", async () => {
 
             // The number associated with ProposalState.EXECUTED
             const executedState = 2;
-            //@ts-ignore
+
             assert.equal(executedState, proposal.state)
             await expectRevert(gov.execute(0), "GOV: Proposal state != PASSED")
         })
@@ -686,7 +678,7 @@ describe("Gov: unit tests", async () => {
             await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
             await time.increase(twoDays + 1)
             await gov.execute(0)
-            //@ts-ignore
+
             assert.equal(1, await gov.coolingOff())
         })
 
@@ -698,254 +690,210 @@ describe("Gov: unit tests", async () => {
             const { receipt } = await gov.execute(0)
             assert.isAtMost(receipt.gasUsed, 66000)
         })
+    })
 
-        /*
-        it("executes external function calls", async () => {
-            var deployTracerData = web3.eth.abi.encodeParameters(
-                ["bytes32", "address", "address", "address", "address", "address", "uint256"],
-                [
-                    web3.utils.fromAscii(`TEST/USD`),
-                    testToken.address,
-                    oracle.address,
-                    gasPriceOracle.address,
-                    account.address,
-                    pricing.address,
-                    oneDollar,
-                    1 //funding rate sensitivity
-                ]
-            )
-            const proposeTracerData = web3.eth.abi.encodeFunctionCall(
-                {
-                    name: "deployTracer",
-                    type: "function",
-                    inputs: [
-                        {
-                            type: "bytes",
-                            name: "_data",
-                        },
-                    ],
-                },
-                [deployTracerData]
-            )
+    describe("setCoolingOff", () => {
+        beforeEach(async () => {
+            await govToken.approve(gov.address, ether("50"))
+            await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
+            await gov.stake(ether("50"))
+            await gov.stake(ether("50"), { from: accounts[1] })
+        })
 
-            await gov.propose([perpsFactory.address], [proposeTracerData])
+        it("reverts when called by an external account", async () => {
+            await expectRevert(gov.setCoolingOff(0), "GOV: Only governance")
+        })
+
+        it("sets through a proposal", async () => {
+            await gov.propose([gov.address], [setCoolingOffData])
             await time.increase(twoDays + 1)
             await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
             await time.increase(twoDays + 1)
             await gov.execute(0)
-            let tracerAddress = await perpsFactory.tracers(web3.utils.fromAscii(`TEST/USD`))
-            assert.equal(true, await perpsFactory.validTracers(tracerAddress))
+
+            assert.equal(1, await gov.coolingOff())
         })
     })
-    */
 
-        describe("setCoolingOff", () => {
-            beforeEach(async () => {
-                await govToken.approve(gov.address, ether("50"))
-                await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
-                await gov.stake(ether("50"))
-                await gov.stake(ether("50"), { from: accounts[1] })
-            })
-
-            it("reverts when called by an external account", async () => {
-                await expectRevert(gov.setCoolingOff(0), "GOV: Only governance")
-            })
-
-            it("sets through a proposal", async () => {
-                await gov.propose([gov.address], [setCoolingOffData])
-                await time.increase(twoDays + 1)
-                await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                await time.increase(twoDays + 1)
-                await gov.execute(0)
-                //@ts-ignore
-                assert.equal(1, await gov.coolingOff())
-            })
+    describe("setWarmUp", () => {
+        beforeEach(async () => {
+            await govToken.approve(gov.address, ether("50"))
+            await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
+            await gov.stake(ether("50"))
+            await gov.stake(ether("50"), { from: accounts[1] })
         })
 
-        describe("setWarmUp", () => {
-            beforeEach(async () => {
-                await govToken.approve(gov.address, ether("50"))
-                await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
-                await gov.stake(ether("50"))
-                await gov.stake(ether("50"), { from: accounts[1] })
-            })
-
-            it("reverts when called by an external account", async () => {
-                await expectRevert(gov.setWarmUp(0), "GOV: Only governance")
-            })
-
-            it("sets through a proposal", async () => {
-                await gov.propose([gov.address], [setWarmUpData])
-                await time.increase(twoDays + 1)
-                await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                await time.increase(twoDays + 1)
-                await gov.execute(0)
-                //@ts-ignore
-                assert.equal(1, await gov.warmUp())
-            })
+        it("reverts when called by an external account", async () => {
+            await expectRevert(gov.setWarmUp(0), "GOV: Only governance")
         })
 
-        describe("setProposalDuration", () => {
-            let setProposalDurationData: any
-            before(() => {
-                setProposalDurationData = web3.eth.abi.encodeFunctionCall(
-                    {
-                        name: "setProposalDuration",
-                        type: "function",
-                        inputs: [
-                            {
-                                type: "uint32",
-                                name: "newProposalDuration",
-                            },
-                        ],
-                    },
-                    ['1'])
-            })
+        it("sets through a proposal", async () => {
+            await gov.propose([gov.address], [setWarmUpData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(0)
 
-            beforeEach(async () => {
-                await govToken.approve(gov.address, ether("50"))
-                await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
-                await gov.stake(ether("50"))
-                await gov.stake(ether("50"), { from: accounts[1] })
-            })
+            assert.equal(1, await gov.warmUp())
+        })
+    })
 
-            it("reverts when called by an external account", async () => {
-                await expectRevert(gov.setProposalDuration(0), "GOV: Only governance")
-            })
-
-            it("sets through a proposal", async () => {
-                await gov.propose([gov.address], [setProposalDurationData])
-                await time.increase(twoDays + 1)
-                await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                await time.increase(twoDays + 1)
-                await gov.execute(0)
-                //@ts-ignore
-                assert.equal(1, await gov.proposalDuration())
-            })
+    describe("setProposalDuration", () => {
+        let setProposalDurationData
+        before(() => {
+            setProposalDurationData = web3.eth.abi.encodeFunctionCall(
+                {
+                    name: "setProposalDuration",
+                    type: "function",
+                    inputs: [
+                        {
+                            type: "uint32",
+                            name: "newProposalDuration",
+                        },
+                    ],
+                },
+                ['1'])
         })
 
-        describe("setLockDuration", () => {
-            let setLockDurationData: any
-            before(() => {
-                setLockDurationData = web3.eth.abi.encodeFunctionCall(
-                    {
-                        name: "setLockDuration",
-                        type: "function",
-                        inputs: [
-                            {
-                                type: "uint32",
-                                name: "newLockDuration",
-                            },
-                        ],
-                    },
-                    ['1']
-                )
-            })
-
-            beforeEach(async () => {
-                await govToken.approve(gov.address, ether("50"))
-                await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
-                await gov.stake(ether("50"))
-                await gov.stake(ether("50"), { from: accounts[1] })
-            })
-
-            it("reverts when called by an external account", async () => {
-                await expectRevert(gov.setLockDuration(0), "GOV: Only governance")
-            })
-
-            it("sets through a proposal", async () => {
-                await gov.propose([gov.address], [setLockDurationData])
-                await time.increase(twoDays + 1)
-                await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                await time.increase(twoDays + 1)
-                await gov.execute(0)
-                //@ts-ignore
-                assert.equal(1, await gov.lockDuration())
-            })
+        beforeEach(async () => {
+            await govToken.approve(gov.address, ether("50"))
+            await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
+            await gov.stake(ether("50"))
+            await gov.stake(ether("50"), { from: accounts[1] })
         })
 
-        describe("setMaxProposalTargets", () => {
-            let setMaxProposalTargetsData: any
-            before(() => {
-                setMaxProposalTargetsData = web3.eth.abi.encodeFunctionCall(
-                    {
-                        name: "setMaxProposalTargets",
-                        type: "function",
-                        inputs: [
-                            {
-                                type: "uint32",
-                                name: "newMaxProposalTargets",
-                            },
-                        ],
-                    },
-                    ['1']
-                )
-            })
-
-            beforeEach(async () => {
-                await govToken.approve(gov.address, ether("50"))
-                await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
-                await gov.stake(ether("50"))
-                await gov.stake(ether("50"), { from: accounts[1] })
-            })
-
-            it("reverts when called by an external account", async () => {
-                await expectRevert(gov.setMaxProposalTargets(0), "GOV: Only governance")
-            })
-
-            it("sets through a proposal", async () => {
-                await gov.propose([gov.address], [setMaxProposalTargetsData])
-                await time.increase(twoDays + 1)
-                await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                await time.increase(twoDays + 1)
-                await gov.execute(0)
-                //@ts-ignore
-                assert.equal(1, await gov.maxProposalTargets())
-            })
+        it("reverts when called by an external account", async () => {
+            await expectRevert(gov.setProposalDuration(0), "GOV: Only governance")
         })
 
-        describe("setProposalThreshold", () => {
-            let setProposalThresholdData: any
-            before(() => {
-                setProposalThresholdData = web3.eth.abi.encodeFunctionCall(
-                    {
-                        name: "setProposalThreshold",
-                        type: "function",
-                        inputs: [
-                            {
-                                type: "uint96",
-                                name: "newThreshold",
-                            },
-                        ],
-                    },
-                    ['1']
-                )
-            })
+        it("sets through a proposal", async () => {
+            await gov.propose([gov.address], [setProposalDurationData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(0)
 
-            beforeEach(async () => {
-                await govToken.approve(gov.address, ether("50"))
-                await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
-                await gov.stake(ether("50"))
-                await gov.stake(ether("50"), { from: accounts[1] })
-            })
+            assert.equal(1, await gov.proposalDuration())
+        })
+    })
 
-            it("reverts when called by an external account", async () => {
-                await expectRevert(gov.setProposalThreshold(0), "GOV: Only governance")
-            })
+    describe("setLockDuration", () => {
+        let setLockDurationData
+        before(() => {
+            setLockDurationData = web3.eth.abi.encodeFunctionCall(
+                {
+                    name: "setLockDuration",
+                    type: "function",
+                    inputs: [
+                        {
+                            type: "uint32",
+                            name: "newLockDuration",
+                        },
+                    ],
+                },
+                ['1']
+            )
+        })
 
-            it("sets through a proposal", async () => {
-                await gov.propose([gov.address], [setProposalThresholdData])
-                await time.increase(twoDays + 1)
-                await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                await time.increase(twoDays + 1)
-                await gov.execute(0)
-                //@ts-ignore
-                assert.equal(1, await gov.proposalThreshold())
-            })
+        beforeEach(async () => {
+            await govToken.approve(gov.address, ether("50"))
+            await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
+            await gov.stake(ether("50"))
+            await gov.stake(ether("50"), { from: accounts[1] })
+        })
+
+        it("reverts when called by an external account", async () => {
+            await expectRevert(gov.setLockDuration(0), "GOV: Only governance")
+        })
+
+        it("sets through a proposal", async () => {
+            await gov.propose([gov.address], [setLockDurationData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(0)
+
+            assert.equal(1, await gov.lockDuration())
+        })
+    })
+
+    describe("setMaxProposalTargets", () => {
+        let setMaxProposalTargetsData
+        before(() => {
+            setMaxProposalTargetsData = web3.eth.abi.encodeFunctionCall(
+                {
+                    name: "setMaxProposalTargets",
+                    type: "function",
+                    inputs: [
+                        {
+                            type: "uint32",
+                            name: "newMaxProposalTargets",
+                        },
+                    ],
+                },
+                ['1']
+            )
+        })
+
+        beforeEach(async () => {
+            await govToken.approve(gov.address, ether("50"))
+            await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
+            await gov.stake(ether("50"))
+            await gov.stake(ether("50"), { from: accounts[1] })
+        })
+
+        it("reverts when called by an external account", async () => {
+            await expectRevert(gov.setMaxProposalTargets(0), "GOV: Only governance")
+        })
+
+        it("sets through a proposal", async () => {
+            await gov.propose([gov.address], [setMaxProposalTargetsData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(0)
+
+            assert.equal(1, await gov.maxProposalTargets())
+        })
+    })
+
+    describe("setProposalThreshold", () => {
+        let setProposalThresholdData
+        before(() => {
+            setProposalThresholdData = web3.eth.abi.encodeFunctionCall(
+                {
+                    name: "setProposalThreshold",
+                    type: "function",
+                    inputs: [
+                        {
+                            type: "uint96",
+                            name: "newThreshold",
+                        },
+                    ],
+                },
+                ['1']
+            )
+        })
+
+        beforeEach(async () => {
+            await govToken.approve(gov.address, ether("50"))
+            await govToken.approve(gov.address, ether("50"), { from: accounts[1] })
+            await gov.stake(ether("50"))
+            await gov.stake(ether("50"), { from: accounts[1] })
+        })
+
+        it("reverts when called by an external account", async () => {
+            await expectRevert(gov.setProposalThreshold(0), "GOV: Only governance")
+        })
+
+        it("sets through a proposal", async () => {
+            await gov.propose([gov.address], [setProposalThresholdData])
+            await time.increase(twoDays + 1)
+            await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
+            await time.increase(twoDays + 1)
+            await gov.execute(0)
+
+            assert.equal(1, await gov.proposalThreshold())
         })
     })
 })
-
-// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
-export { }
-
