@@ -225,7 +225,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         //int256 oneXLeverage = 10000;
         // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
         // y = mx + b,
-        // where m = INSURANCE_DELEVERAGING_CLIFF - 1
+        // where m = (INSURANCE_DELEVERAGING_CLIFF - 1)/(DELEVERAGING_CLIFF)
         //       x = percentFull
         //       b = 1 (since 1 is the y-intercept)
 
