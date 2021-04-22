@@ -11,7 +11,7 @@ import "./DEX/SimpleDex.sol"; // needed to use default getters!
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader {
+contract Trader is Ownable {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -29,6 +29,7 @@ contract Trader {
     bytes32 public immutable EIP712_DOMAIN;
     // Trader => nonce
     mapping(address => uint256) public nonces; // Prevents replay attacks
+    mapping (address => uint256) public gasBalances; // Stores gas allowances for each trader
 
     event Verify(address sig);
     event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address targetTracer);
@@ -65,6 +66,9 @@ contract Trader {
 
         require(n > 0, "TDR: Received empty arrays");
 
+        // gas cost for individual traders
+        uint256 gasCost = (tx.gasprice * gasleft()) / (2 * n);
+
         for (uint256 i = 0; i < n; i++) {
             // retrieve orders and verify their signatures
             // if the order does not exist, it is created here
@@ -73,6 +77,15 @@ contract Trader {
 
             address maker = makers[i].order.user;
             address taker = takers[i].order.user;
+
+            // increment nonces
+            nonces[maker]++;
+            nonces[taker]++;
+
+            // enforce gas balance check
+            require(gasBalances[maker] >= gasCost &&
+                gasBalances[taker] >= gasCost,
+                "TDR: Trader has insufficient gas");
 
             // match orders
             ITracerPerpetualSwaps(market).matchOrders(makeOrderId, takeOrderId);
@@ -99,6 +112,24 @@ contract Trader {
                 nonces[taker]++;
             }
         }
+    }
+
+    function depositGas() public payable {
+        gasBalances[msg.sender] += msg.value;
+    }
+
+    function drain() public onlyOwner {
+        msg.sender.transfer(address(this).balance);
+    }
+
+    /**
+     * @notice Sets `trader`'s gas balance to `amount`
+     * @param trader The address of the trader
+     * @param amount The amount of ETH to set the trader's gas balance to
+     * @dev Allows traders to be potentially credited gas fees by the DAO
+     */
+    function setGas(address trader, uint256 amount) public onlyOwner {
+        gasBalances[trader] = amount;
     }
 
     /**
@@ -237,5 +268,19 @@ contract Trader {
      */
     function verifyNonce(Types.LimitOrder memory order) public view returns (bool) {
         return order.nonce == nonces[order.user];
+    }
+
+    /**
+     * @notice Decreases `trader`'s gas balance by `amount`
+     * @param trader The address of the trader
+     * @param amount The amount of ETH to deduct
+     * @dev This is basically just saturating subtraction
+     */
+    function decreaseGas(address trader, uint256 amount) internal {
+        if(gasBalances[trader] <= amount) {
+            gasBalances[trader] = 0;
+        } else {
+            gasBalances[trader] -= amount;
+        }
     }
 }

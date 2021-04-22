@@ -43,7 +43,7 @@ async function setupGovToken(accounts) {
     govToken = await TestToken.new(web3.utils.toWei("100000"))
 
     //Send out 10000 test tokens to each address
-    for (var i = 1; i < 6; i++) {
+    for (var i = 1; i < 7; i++) {
         await govToken.transfer(accounts[i], web3.utils.toWei("200"))
     }
 
@@ -57,7 +57,7 @@ async function setupTestToken(accounts) {
     testToken = await TestToken.new(web3.utils.toWei("100000"))
 
     //Send out 10000 test tokens to each address
-    for (var i = 1; i < 6; i++) {
+    for (var i = 1; i < 7; i++) {
         await testToken.transfer(accounts[i], web3.utils.toWei("10000"), { from: accounts[0] })
     }
 
@@ -282,7 +282,7 @@ async function setupContractsAndTracer(accounts) {
     perps = await TracerPerpetualSwaps.at(tracerAddr)
 
     //Get each user to "deposit" 100 tokens into the platform
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 7; i++) {
         await testToken.approve(account.address, web3.utils.toWei("10000"), { from: accounts[i] })
     }
 
