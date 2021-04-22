@@ -67,7 +67,7 @@ contract Trader is Ownable {
         require(n > 0, "TDR: Received empty arrays");
 
         // gas cost for individual traders
-        uint256 gasCost = (tx.gasprice * tx.gasused) / (2 * n);
+        uint256 gasCost = (tx.gasprice * gasleft()) / (2 * n);
 
         for (uint256 i = 0; i < n; i++) {
             // retrieve orders and verify their signatures
