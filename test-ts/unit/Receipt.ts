@@ -1,18 +1,19 @@
-const { BN, ether, expectRevert, time } = require("@openzeppelin/test-helpers")
-const { setupGovAndToken } = require( "../lib/Setup")
-const MockTracerPerpetualSwaps = artifacts.require("MockTracerPerpetualSwaps");
-const Receipt = artifacts.require("Receipt");
+//@ts-ignore
+import { BN, ether, expectRevert, time } from "@openzeppelin/test-helpers"
+import { ReceiptInstance, MockTracerPerpetualSwapsInstance, GovInstance } from "../../types/truffle-contracts"
+import { MockTracerPerpetualSwaps, Receipt } from "../artifacts"
+import { accounts, web3, configure } from "../configure"
+import { setupGovAndToken } from "../lib/Setup"
 
 describe("Receipt: unit tests", async () => {
-    let receipt
-    let mockTracer
-    let gov
-    let accounts
+    let receipt: ReceiptInstance
+    let mockTracer: MockTracerPerpetualSwapsInstance
+    let gov: GovInstance
 
     const maxSlippage = new BN("1000") // 10%*10000
 
     before(async () => {
-        accounts = await web3.eth.getAccounts();
+        await configure()
     })
 
     beforeEach(async () => {
@@ -124,3 +125,7 @@ describe("Receipt: unit tests", async () => {
         })
     })
 })
+
+// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
+export { }
+

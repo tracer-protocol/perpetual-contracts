@@ -1,9 +1,17 @@
-const { BN, expectRevert, time } = require("@openzeppelin/test-helpers")
-const { assert } = require("chai")
-const { setupContractsAndTracer } = require("../lib/Setup")
-const { signOrders } = require("../lib/Signing")
+//@ts-ignore
+import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
+import { assert } from "chai"
+import { AccountInstance, DeployerV1Instance, GasOracleInstance, GovInstance, InsuranceInstance, OracleInstance, PricingInstance, ReceiptInstance, TestTokenInstance, TracerPerpetualsFactoryInstance, TracerPerpetualSwapsInstance, TraderInstance } from "../../types/truffle-contracts"
+import { Trader } from "../artifacts"
+import { setupContractsAndTracer } from "../lib/Setup"
+import { accounts, web3, configure } from "../configure"
+import { signOrders } from "../lib/Signing"
+
 require("dotenv").config()
-const Trader = artifacts.require("Trader");
+
+
+const threeDays = 259200
+const twoDays = 172800
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
@@ -14,23 +22,23 @@ describe("Trader", async () => {
     //All prices in price ($) * 1000000
     const oneDollar = new BN("100000000")
 
-    let deployer
-    let testToken
-    let tracerFactory
-    let tracer
-    let oracle
-    let trader
-    let receipt
-    let gov
-    let govToken
-    let insurance
-    let account
-    let accounts
+    let deployer: DeployerV1Instance
+    let testToken: TestTokenInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let tracer: TracerPerpetualSwapsInstance
+    let oracle: OracleInstance
+    let trader: TraderInstance
+    let receipt: ReceiptInstance
+    let gov: GovInstance
+    let govToken: TestTokenInstance
+    let insurance: InsuranceInstance
+    let account: AccountInstance
+
     let now
-    let sevenDays
+    let sevenDays: any
 
     before(async () => {
-        accounts = await web3.eth.getAccounts();
+        await configure()
     })
 
     beforeEach(async () => {
@@ -88,8 +96,8 @@ describe("Trader", async () => {
                 }
             ]
 
-            let signedTakes= await Promise.all(await signOrders(web3, takes, trader.address))
-            let signedMakes = await Promise.all(await signOrders(web3, makes, trader.address))
+            let signedTakes: any = await Promise.all(await signOrders(web3, takes, trader.address))
+            let signedMakes: any = await Promise.all(await signOrders(web3, makes, trader.address))
 
             await account.deposit(web3.utils.toWei("500"), tracer.address)
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
@@ -161,10 +169,10 @@ describe("Trader", async () => {
                 },
             ]
 
-            let signedTakesNormal = await Promise.all(await signOrders(web3, takes, trader.address))
-            let signedTakesReplay = await Promise.all(await signOrders(web3, takesReplay, trader.address))
-            let signedMakes = await Promise.all(await signOrders(web3, makes, trader.address))
-            let signedTakes = signedTakesNormal.concat(signedTakesReplay)
+            let signedTakesNormal: any = await Promise.all(await signOrders(web3, takes, trader.address))
+            let signedTakesReplay: any = await Promise.all(await signOrders(web3, takesReplay, trader.address))
+            let signedMakes: any = await Promise.all(await signOrders(web3, makes, trader.address))
+            let signedTakes: any = signedTakesNormal.concat(signedTakesReplay)
 
             await account.deposit(web3.utils.toWei("500"), tracer.address)
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
@@ -223,10 +231,10 @@ describe("Trader", async () => {
                 },
             ]
 
-            let signedTakesNormal = await Promise.all(await signOrders(web3, takes, trader.address))
-            let signedTakesReplay = await Promise.all(await signOrders(web3, takes, trader.address))
-            let signedMakes = await Promise.all(await signOrders(web3, makes, trader.address))
-            let signedMakes2 = await Promise.all(await signOrders(web3, makes2, trader.address))
+            let signedTakesNormal: any = await Promise.all(await signOrders(web3, takes, trader.address))
+            let signedTakesReplay: any = await Promise.all(await signOrders(web3, takes, trader.address))
+            let signedMakes: any = await Promise.all(await signOrders(web3, makes, trader.address))
+            let signedMakes2: any = await Promise.all(await signOrders(web3, makes2, trader.address))
             await account.deposit(web3.utils.toWei("500"), tracer.address)
             await account.deposit(web3.utils.toWei("500"), tracer.address, { from: accounts[1] })
 
@@ -240,4 +248,7 @@ describe("Trader", async () => {
     })
 
 })
+
+// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
+export { }
 

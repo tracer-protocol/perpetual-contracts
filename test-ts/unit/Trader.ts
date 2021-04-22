@@ -1,22 +1,27 @@
-const { expectRevert, time } = require("@openzeppelin/test-helpers")
-const assert = require("assert")
-const { setupContractsAndTracer } = require("../lib/Setup")
-const { signOrders } = require("../lib/Signing")
-const Trader = artifacts.require("Trader");
+//@ts-ignore
+import { BN, expectRevert, time } from "@openzeppelin/test-helpers"
+import assert from "assert"
+import { setupContractsAndTracer } from "../lib/Setup"
+import { AccountInstance, TracerPerpetualSwapsInstance, TraderInstance, TestTokenInstance } from "../../types/truffle-contracts"
+import { signOrder, signOrders, domain, domainData, limitOrder } from "../lib/Signing"
+import { accounts, configure, web3 } from "../configure"
+import { Trader } from "../artifacts"
 
 describe("Trader Shim unit tests", async () => {
-    let trader
-    let account
-    let token
-    let sampleMakers
-    let sampleTakers
-    let badMakers
+    let trader: TraderInstance;
+    let tracer: TracerPerpetualSwapsInstance;
+    let account: AccountInstance;
+    let token: TestTokenInstance;
+    
+    let sampleMakers: any;
+    let sampleTakers: any;
+    let badMakers: any;
+
     let now
-    let sevenDays
-    let accounts
+    let sevenDays: any
 
     before(async () => {
-        accounts = await web3.eth.getAccounts();
+        await configure()
     })
 
     beforeEach(async () => {
@@ -37,7 +42,7 @@ describe("Trader Shim unit tests", async () => {
 
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
-
+    
         sampleMakers = [
             {
                 amount: "5000000000000000000",
@@ -58,7 +63,7 @@ describe("Trader Shim unit tests", async () => {
                 nonce: 0,
             }
         ];
-
+    
         sampleTakers = [
             {
                 amount: "5000000000000000000",
@@ -105,13 +110,13 @@ describe("Trader Shim unit tests", async () => {
     describe("executeTrade", () => {
         context("When input array lengths differ", () => {
             it("reverts", async () => {
-                let makers = sampleMakers;
-                let takers = sampleTakers.slice(0, 1);
-                let market = tracer.address;
+                let makers: any = sampleMakers;
+                let takers: any = sampleTakers.slice(0, 1);
+                let market: string = tracer.address;
 
                 /* sign orders for submission */
-                let signedMakers = await Promise.all(await signOrders(web3, makers, trader.address));
-                let signedTakers = await Promise.all(await signOrders(web3, takers, trader.address));
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
 
                 await expectRevert(
                     trader.executeTrade(signedMakers, signedTakers, market),
@@ -122,9 +127,9 @@ describe("Trader Shim unit tests", async () => {
 
         context("When input arrays are both empty", () => {
             it("reverts", async () => {
-                let makers = [];
-                let takers = [];
-                let market = tracer.address;
+                let makers: any = [];
+                let takers: any = [];
+                let market: string = tracer.address;
 
                 await expectRevert(
                     trader.executeTrade(makers, takers, market),
@@ -134,28 +139,28 @@ describe("Trader Shim unit tests", async () => {
 
         context("When both input arrays are valid", () => {
             it("passes", async () => {
-                let makers = sampleMakers;
-                let takers = sampleTakers;
-                let market = tracer.address;
+                let makers: any = sampleMakers;
+                let takers: any = sampleTakers;
+                let market: string = tracer.address;
 
                 /* sign orders for submission */
-                let signedMakers = await Promise.all(await signOrders(web3, makers, trader.address));
-                let signedTakers = await Promise.all(await signOrders(web3, takers, trader.address));
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
 
                 assert(await trader.executeTrade(signedMakers, signedTakers, market));
             })
 
             it("increments nonces correctly", async () => {
-                let makers = sampleMakers;
-                let takers = sampleTakers;
-                let market = tracer.address;
+                let makers: any = sampleMakers;
+                let takers: any = sampleTakers;
+                let market: string = tracer.address;
 
                 /* sign orders for submission */
-                let signedMakers = await Promise.all(await signOrders(web3, makers, trader.address));
-                let signedTakers = await Promise.all(await signOrders(web3, takers, trader.address));
+                let signedMakers: any = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers: any = await Promise.all(await signOrders(web3, takers, trader.address));
 
                 await trader.executeTrade(signedMakers, signedTakers, market);
-
+            
                 assert.equal(await trader.nonces(accounts[0]), "1")
                 assert.equal(await trader.nonces(accounts[1]), "1")
                 assert.equal(await trader.nonces(accounts[2]), "2")
@@ -163,3 +168,5 @@ describe("Trader Shim unit tests", async () => {
         })
     })
 })
+
+export {}
