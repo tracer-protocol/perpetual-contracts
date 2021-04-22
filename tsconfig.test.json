@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "./test-ts/**/*.ts",
+    "./types/**/*.ts"
+  ],
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}

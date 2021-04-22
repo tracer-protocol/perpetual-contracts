@@ -1,8 +1,21 @@
-const { BN, time } = require("@openzeppelin/test-helpers")
-const { assert } = require("chai")
-const { deployMultiTracers, setupContracts } = require("../lib/Setup")
-const TestToken = artifacts.require("TestToken");
-const InsurancePoolToken = artifacts.require("InsurancePoolToken");
+//@ts-ignore
+import { BN, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers"
+import { assert } from "chai"
+const truffleAssert = require('truffle-assertions');
+import {
+    TestTokenInstance,
+    TracerPerpetualsFactoryInstance,
+    OracleInstance,
+    GovInstance,
+    InsuranceInstance,
+    AccountInstance,
+    PricingInstance,
+    GasOracleInstance,
+    TracerPerpetualSwapsInstance,
+} from "../../types/truffle-contracts"
+import { TestToken, InsurancePoolToken } from "../artifacts"
+import { deployMultiTracers, setupContracts, setupContractsAndTracer } from "../lib/Setup"
+import { accounts, web3, configure } from "../configure"
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
@@ -15,20 +28,22 @@ describe("Insurance", async () => {
     const oneHour = 3600
     const twentyFourHours = 24 * oneHour
 
-    let tracerFactory
-    let gov
-    let tracerGovToken
-    let insurance
-    let account
-    let pricing
-    let gasPriceOracle
-    let tokens
-    let accounts
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let oracle: OracleInstance
+    let gov: GovInstance
+    let tracerGovToken: TestTokenInstance
+    let insurance: InsuranceInstance
+    let account: AccountInstance
+    let pricing: PricingInstance
+    let gasPriceOracle: GasOracleInstance
+    let tokens: TestTokenInstance[]
+    let tracers: TracerPerpetualSwapsInstance[]
+
     let now
-    let sevenDays
+    let sevenDays: any
 
     before(async () => {
-        accounts = await web3.eth.getAccounts();
+        await configure()
     })
 
     beforeEach(async () => {
@@ -343,3 +358,6 @@ describe("Insurance", async () => {
         })
     })
 })
+
+// because of https://stackoverflow.com/questions/40900791/cannot-redeclare-block-scoped-variable-in-unrelated-files
+export { }

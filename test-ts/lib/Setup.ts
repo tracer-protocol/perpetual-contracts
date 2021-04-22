@@ -1,22 +1,55 @@
-const { BN, time } = require("@openzeppelin/test-helpers")
-const { web3 } = require("@openzeppelin/test-helpers/src/setup")
-const Account = artifacts.require("Account");
-const GasOracle = artifacts.require("GasOracle");
-const Oracle = artifacts.require("Oracle");
-const Insurance = artifacts.require("Insurance");
-const Pricing = artifacts.require("Pricing");
-const Receipt = artifacts.require("Receipt");
-const TestToken = artifacts.require("TestToken");
-const TracerPerpetualSwaps = artifacts.require("TracerPerpetualSwaps");
-const TracerFactory = artifacts.require("TracerPerpetualsFactory");
-const DeployerV1 = artifacts.require("DeployerV1");
-const Gov = artifacts.require("Gov");
-const twoDays = 172800
-let accounts
+//@ts-ignore
+import { BN, constants, expectEvent, expectRevert, time } from "@openzeppelin/test-helpers"
+//@ts-ignore
+import { web3 } from "@openzeppelin/test-helpers/src/setup"
+import assert from 'assert';
+import truffleAssert from 'truffle-assertions'
 
-async function setupOracles() {
-    let oracle
-    let gasPriceOracle
+import {
+    ReceiptInstance,
+    DeployerV1Instance,
+    TestTokenInstance,
+    TracerPerpetualsFactoryInstance,
+    OracleInstance,
+    GovInstance,
+    InsuranceInstance,
+    AccountInstance,
+    PricingInstance,
+    GasOracleInstance,
+    TracerPerpetualSwapsInstance
+} from "../../types/truffle-contracts"
+import {
+    TracerPerpetualSwaps,
+    TracerPerpetualsFactory,
+    TestToken,
+    Oracle,
+    GasOracle,
+    Insurance,
+    Account,
+    Pricing,
+    DeployerV1,
+    Receipt,
+    Gov
+} from "../artifacts"
+
+//All prices in price ($) * 1000000
+const oneDollar = new BN("100000000")
+const onePercent = new BN("1")
+const oneHour = 3600
+const twentyFourHours = 24 * oneHour
+const threeDays = 259200
+const twoDays = 172800
+
+//Override default setup contracts
+interface TracerFactoryConstructor {
+    insuranceAddress: string
+    deployerAddress: string
+    govAddress: string
+}
+
+export async function setupOracles(): Promise<any> {
+    let oracle: OracleInstance
+    let gasPriceOracle: GasOracleInstance
 
     //Deploy oracle
     oracle = await Oracle.new()
@@ -37,8 +70,8 @@ async function setupOracles() {
     return { oracle, gasPriceOracle }
 }
 
-async function setupGovToken(accounts) {
-    let govToken
+export async function setupGovToken(accounts: Truffle.Accounts): Promise<any> {
+    let govToken: TestTokenInstance
 
     govToken = await TestToken.new(web3.utils.toWei("100000"))
 
@@ -50,8 +83,8 @@ async function setupGovToken(accounts) {
     return govToken
 }
 
-async function setupTestToken(accounts) {
-    let testToken
+export async function setupTestToken(accounts: Truffle.Accounts): Promise<any> {
+    let testToken: TestTokenInstance
 
     //Deploy a test token
     testToken = await TestToken.new(web3.utils.toWei("100000"))
@@ -64,51 +97,51 @@ async function setupTestToken(accounts) {
     return testToken
 }
 
-async function setupTokens(accounts) {
-    let testToken = await setupTestToken(accounts);
-    let govToken = await setupGovToken(accounts);
+export async function setupTokens(accounts: Truffle.Accounts): Promise<any> {
+    let testToken: TestTokenInstance = await setupTestToken(accounts);
+    let govToken: TestTokenInstance = await setupGovToken(accounts);
 
     return { testToken, govToken }
 }
 
-async function setupInsurance(govToken) {
+export async function setupInsurance(govToken: TestTokenInstance): Promise<any> {
     // Remember to call insurance.setAccountContract() after account has been made
     return (await Insurance.new(govToken.address))
 }
 
-async function setupInsuranceFull(accounts) {
-    let govToken = await setupGovToken(accounts);
+export async function setupInsuranceFull(accounts: Truffle.Accounts): Promise<any> {
+    let govToken: TestTokenInstance = await setupGovToken(accounts);
     let insurance = await setupInsurance(govToken);
     let account = await setupAccountFull(accounts);
     insurance.setAccountContract(account.address);
     return { insurance, account, govToken }
 }
 
-async function setupGov(govToken) {
+export async function setupGov(govToken: TestTokenInstance): Promise<any> {
     return (await Gov.new(govToken.address))
 }
 
-async function setupGovAndToken(accounts) {
+export async function setupGovAndToken(accounts: Truffle.Accounts): Promise<any> {
     const govToken = await setupGovToken(accounts)
     const gov = await setupGov(govToken)
     return { gov, govToken }
 }
 
-async function setupDeployer() {
+export async function setupDeployer(): Promise<any> {
     return (await DeployerV1.new())
 }
 
-async function setupPerpsFactory(
-    insurance,
-    deployer,
-    gov
-) {
-    let factory = await TracerFactory.new(insurance.address, deployer.address, gov.address)
-    await insurance.setFactory(factory.address)
-    return factory
+export async function setupPerpsFactory(
+    insurance: InsuranceInstance,
+    deployer: DeployerV1Instance,
+    gov: GovInstance
+): Promise<any> {
+    let perpsFactory = await TracerPerpetualsFactory.new(insurance.address, deployer.address, gov.address)
+    await insurance.setFactory(perpsFactory.address)
+    return perpsFactory
 }
 
-async function setupPerpsFactoryFull(accounts) {
+export async function setupPerpsFactoryFull(accounts: Truffle.Accounts): Promise<any> {
     const { insurance, account, govToken } = await setupInsuranceFull(accounts)
     const deployer = await setupDeployer();
     const gov = await setupGov(govToken);
@@ -117,21 +150,21 @@ async function setupPerpsFactoryFull(accounts) {
     return { perpsFactory, gov, deployer, account, insurance, govToken }
 }
 
-async function setupPricing(tracerFacAddress) {
+export async function setupPricing(tracerFacAddress: string): Promise<any> {
     return (await Pricing.new(tracerFacAddress));
 }
 
-async function setupAccount(
-    insuranceAddr,
-    gasPriceAddr,
-    factoryAddr,
-    pricingAddr,
-    govAddr
-) {
-    return (await Account.new(insuranceAddr, gasPriceAddr, factoryAddr, pricingAddr, govAddr))
+export async function setupAccount(
+    insuranceAddr: string,
+    gasPriceAddr: string,
+    perpsFactoryAddr: string,
+    pricingAddr: string,
+    govAddr: string
+): Promise<any> {
+    return (await Account.new(insuranceAddr, gasPriceAddr, perpsFactoryAddr, pricingAddr, govAddr))
 }
 
-async function setupAccountFull(accounts) {
+export async function setupAccountFull(accounts: Truffle.Accounts): Promise<any> {
     const { govToken } = await setupTokens(accounts);
     const insurance = await setupInsurance(govToken);
     const { gasPriceOracle } = await setupOracles();
@@ -142,24 +175,24 @@ async function setupAccountFull(accounts) {
     return await setupAccount(insurance.address, gasPriceOracle.address, perpsFactory.address, pricing.address, gov.address);
 }
 
-async function setupReceipt(account, govAddr) {
+export async function setupReceipt(account: AccountInstance, govAddr: string): Promise<any> {
     let receipt = await Receipt.new(account.address, new BN("1000000"), govAddr) // Just set unlimited max slippage for flexibility in tests
     await account.setReceiptContract(receipt.address)
     return receipt
 }
 
-async function setupContracts(accounts) {
-    let receipt
-    let deployer
-    let testToken
-    let perpsFactory
-    let oracle
-    let gov
-    let govToken
-    let insurance
-    let account
-    let pricing
-    let gasPriceOracle
+export async function setupContracts(accounts: Truffle.Accounts): Promise<any> {
+    let receipt: ReceiptInstance
+    let deployer: DeployerV1Instance
+    let testToken: TestTokenInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let oracle: OracleInstance
+    let gov: GovInstance
+    let govToken: TestTokenInstance
+    let insurance: InsuranceInstance
+    let account: AccountInstance
+    let pricing: PricingInstance
+    let gasPriceOracle: GasOracleInstance
 
     const oracles = await setupOracles()
     const tokens = await setupTokens(accounts)
@@ -177,9 +210,9 @@ async function setupContracts(accounts) {
     //Deploy gov
     gov = await setupGov(govToken);
 
-    //Deploy the tracer factory
-    perpsFactory = await setupFactory(insurance, deployer, gov)
-
+    //Deploy the tracer perpsFactory
+    perpsFactory = await setupPerpsFactory(insurance, deployer, gov)
+    
     //Deploy pricing contract
     pricing = await setupPricing(perpsFactory.address)
 
@@ -207,21 +240,20 @@ async function setupContracts(accounts) {
     }
 }
 
-
-async function setupContractsAndTracer(accounts) {
-    let receipt
-    let deployer
-    let testToken
-    let tracerFactory
-    let tracer
-    let oracle
-    let gov
-    let govToken
-    let insurance
-    let account
-    let pricing
-    let gasPriceOracle
-    let now
+export async function setupContractsAndTracer(accounts: Truffle.Accounts): Promise<any> {
+    let receipt: ReceiptInstance
+    let deployer: DeployerV1Instance
+    let testToken: TestTokenInstance
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let perps: TracerPerpetualSwapsInstance
+    let oracle: OracleInstance
+    let gov: GovInstance
+    let govToken: TestTokenInstance
+    let insurance: InsuranceInstance
+    let account: AccountInstance
+    let pricing: PricingInstance
+    let gasPriceOracle: GasOracleInstance
+    let now: any
 
     const contracts = await setupContracts(accounts)
     gov = contracts.gov
@@ -325,17 +357,17 @@ async function setupContractsAndTracer(accounts) {
     }
 }
 
-async function deployMultiTracers(
-    accounts,
-    tracerFactory,
-    gov,
-    govToken,
-    insurance,
-    oracle,
-    gasPriceOracle,
-    account,
-    pricing
-) {
+export async function deployMultiTracers(
+    accounts: Truffle.Accounts,
+    perpsFactory: TracerPerpetualsFactoryInstance,
+    gov: GovInstance,
+    govToken: TestTokenInstance,
+    insurance: InsuranceInstance,
+    oracle: OracleInstance,
+    gasPriceOracle: GasOracleInstance,
+    account: AccountInstance,
+    pricing: PricingInstance
+): Promise<any> {
     //Deploy a few test tokens and tracers
     let proposalNum = parseInt((await gov.proposalCounter()).toString());
     let tokens = []
@@ -401,25 +433,4 @@ async function deployMultiTracers(
 
     return { tracers, tokens }
 
-}
-
-module.exports = {
-    setupOracles,
-    setupGovToken,
-    setupTestToken,
-    setupTokens,
-    setupInsurance,
-    setupInsuranceFull,
-    setupGov,
-    setupGovAndToken,
-    setupDeployer,
-    setupPerpsFactory,
-    setupPerpsFactoryFull,
-    setupPricing,
-    setupInsurance,
-    setupInsuranceFull,
-    setupReceipt,
-    setupContracts,
-    setupContractsAndTracer,
-    deployMultiTracers
 }
