@@ -224,15 +224,18 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         // Use int256 for compatibility with baseMaxLeverage
         //int256 oneXLeverage = 10000;
         // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
+        // Where the x axis is how full the insurance pool is as a percentage,
+        // and the y axis is max leverage.
         // y = mx + b,
-        // where m = (INSURANCE_DELEVERAGING_CLIFF - 1)/(DELEVERAGING_CLIFF)
+        // where m = (x2 - x1) / (y2 - y1) = (baseMaxLeverage - 1)/(DELEVERAGING_CLIFF - 0)
         //       x = percentFull
         //       b = 1 (since 1 is the y-intercept)
+        // m was reached as that is the formula for calculating the gradient of a linear function
 
         // 1*10,000
         int256 one = PERCENT_PRECISION;
         int256 realMaxLeverage =
-            (baseMaxLeverage.sub(PERCENT_PRECISION))
+            (baseMaxLeverage.sub(one))
             .mul(PERCENT_PRECISION)
             .div(_tracer.INSURANCE_DELEVERAGING_CLIFF().mul(PERCENT_PRECISION))
             .mul(percentFull)
