@@ -66,7 +66,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _accountContract the address of the contract implementing the IAccount.sol interface
      * @param _pricingContract the address of the contract implementing the IPricing.sol interface
-     * @param _insuranceDeleveragingCliff the threshold for the insurance pool when deleveraging begins
+     * @param _insuranceDeleveragingCliff the upper threshold for the insurance pool when deleveraging begins
+     *                                    as a percentage of insurance pool holdings/target
      */
     constructor(
         bytes32 _marketId,

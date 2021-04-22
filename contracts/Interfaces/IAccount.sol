@@ -22,6 +22,8 @@ interface IAccount {
         uint256 currentFundingIndex
     ) external;
 
+    function realMaxLeverage(address market) external view returns(int256);
+
     function liquidate(
         int256 amount,
         address account,
@@ -66,8 +68,6 @@ interface IAccount {
         int256 gasPrice,
         address market
     ) external view returns (bool);
-
-    function realMaxLeverage(address market) external view returns(int256);
 
     function userMarginIsValid(address account, address market) external view returns (bool);
 

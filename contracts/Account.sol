@@ -67,44 +67,6 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice Adjust the max leverage as insurance pool slides from 100% of target to 0% of target
-     */
-    function realMaxLeverage(address market) public view override returns(int256) {
-        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
-        IInsurance insurance = IInsurance(insuranceContract);
-        int256 baseMaxLeverage = _tracer.maxLeverage();
-
-        int256 percentFull =
-            insurance.getPoolHoldings(market).toInt256()
-            .mul(PERCENT_PRECISION)
-            .div(insurance.getPoolTarget(market).toInt256()).mul(100);
-        int256 cliff = _tracer.INSURANCE_DELEVERAGING_CLIFF();
-
-        if (percentFull > cliff.mul(PERCENT_PRECISION)) {
-            return baseMaxLeverage;
-        }
-
-        // Use int256 for compatibility with baseMaxLeverage
-        //int256 oneXLeverage = 10000;
-        // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
-        // y = mx + b,
-        // where m = INSURANCE_DELEVERAGING_CLIFF - 1
-        //       x = percentFull
-        //       b = 1 (since 1 is the y-intercept)
-        // 1*10,000
-
-        int256 one = PERCENT_PRECISION;
-        int256 realMaxLeverage =
-            (baseMaxLeverage.sub(PERCENT_PRECISION))
-            .mul(PERCENT_PRECISION)
-            .div(_tracer.INSURANCE_DELEVERAGING_CLIFF().mul(PERCENT_PRECISION))
-            .mul(percentFull)
-            .add(PERCENT_PRECISION.mul(PERCENT_PRECISION));
-
-        return realMaxLeverage.div(PERCENT_PRECISION);
-    }
-
-    /**
      * @notice Allows am account to deposit on behalf of a user into a specific market
      * @param amount The amount of base tokens to be deposited into the Tracer Market account
      * @param market The address of the tracer market that the margin tokens will be deposited into
@@ -239,6 +201,44 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         accountBalance.lastUpdatedIndex = currentFundingIndex;
         require(userMarginIsValid(account, msg.sender), "ACT: Target under-margined");
         emit AccountSettled(account, accountBalance.base);
+    }
+
+    /**
+     * @notice Adjust the max leverage as insurance pool slides from 100% of target to 0% of target
+     */
+    function realMaxLeverage(address market) public view override returns(int256) {
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
+        IInsurance insurance = IInsurance(insuranceContract);
+        int256 baseMaxLeverage = _tracer.maxLeverage();
+
+        int256 percentFull =
+            insurance.getPoolHoldings(market).toInt256()
+            .mul(PERCENT_PRECISION)
+            .div(insurance.getPoolTarget(market).toInt256()).mul(100);
+        int256 cliff = _tracer.INSURANCE_DELEVERAGING_CLIFF();
+
+        if (percentFull > cliff.mul(PERCENT_PRECISION)) {
+            return baseMaxLeverage;
+        }
+
+        // Use int256 for compatibility with baseMaxLeverage
+        //int256 oneXLeverage = 10000;
+        // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, baseMaxLeverage)
+        // y = mx + b,
+        // where m = INSURANCE_DELEVERAGING_CLIFF - 1
+        //       x = percentFull
+        //       b = 1 (since 1 is the y-intercept)
+
+        // 1*10,000
+        int256 one = PERCENT_PRECISION;
+        int256 realMaxLeverage =
+            (baseMaxLeverage.sub(PERCENT_PRECISION))
+            .mul(PERCENT_PRECISION)
+            .div(_tracer.INSURANCE_DELEVERAGING_CLIFF().mul(PERCENT_PRECISION))
+            .mul(percentFull)
+            .add(PERCENT_PRECISION.mul(PERCENT_PRECISION));
+
+        return realMaxLeverage.div(PERCENT_PRECISION);
     }
 
     /**
