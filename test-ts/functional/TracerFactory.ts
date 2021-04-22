@@ -1,5 +1,8 @@
-const { assert } = require("chai")
-const { setupPerpsFactoryFull } = require("../lib/Setup")
+//@ts-ignore
+import { assert } from "chai"
+import { GovInstance, TracerPerpetualsFactoryInstance } from "../../types/truffle-contracts"
+import { setupPerpsFactoryFull } from "../lib/Setup"
+import { accounts, web3, configure } from "../configure"
 
 /**
  * Note: For all tests in this file, all admin functions are not called via the Governance system but
@@ -7,12 +10,16 @@ const { setupPerpsFactoryFull } = require("../lib/Setup")
  */
 describe("TracerFactory", async () => {
 
-    let factory
-    let gov
-    let accounts
+    let perpsFactory: TracerPerpetualsFactoryInstance
+    let gov: GovInstance
+    // let pricing: PricingInstance
+    // let insurance: InsuranceInstance
+    // let govToken: TestTokenInstance
+    // let oracle: OracleInstance
+    // let gasPriceOracle: GasOracleInstance
 
     before(async () => {
-        accounts = await web3.eth.getAccounts();
+        await configure()
     })
 
     beforeEach(async () => {
