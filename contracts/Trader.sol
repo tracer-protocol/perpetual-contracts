@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IDex.sol";
 import "./Interfaces/Types.sol";
-
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./DEX/SimpleDex.sol"; // needed to use default getters!
 
 /**
