@@ -15,6 +15,7 @@
     "dotenv": "^8.2.0",
     "eth-sig-util": "^2.5.3",
     "ethers": "^5.0.24",
+    "hardhat": "2.0.0",
     "solhint": "^3.3.2",
     "truffle-contract-size": "^2.0.0"
   },
@@ -24,7 +25,6 @@
     "arb-ethers-web3-bridge": "^0.7.3",
     "chai": "^4.2.0",
     "ganache-cli": "^6.12.0",
-    "hardhat": "2.0.0",
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-deploy": "^0.7.5",
     "mocha": "^8.2.0",
