@@ -16,6 +16,6 @@ jobs:
         with:
           node-version: "12.16"
       - run: yarn
-      - run: yarn test
+      - run: yes no | yarn test
         env:
           MAINNET_RPC: https://mainnet.infura.io/v3/0baed183ec2b45e3a5b6c1536a4a5bf0
