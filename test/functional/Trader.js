@@ -58,6 +58,14 @@ describe("Trader", async () => {
             await tracer.setUserPermissions(trader.address, true, { from: accounts[i] })
         }
 
+        // amount of gas that each trader will deposit initially
+        let gasAllowance = 10000000000;
+
+        // get each trader to deposit some gas
+        for (let i = 0; i < 6; i++) {
+            await trader.depositGas({ from: accounts[i], value: new web3.utils.BN(gasAllowance) });
+        }
+
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
     })
@@ -88,7 +96,7 @@ describe("Trader", async () => {
                 }
             ]
 
-            let signedTakes= await Promise.all(await signOrders(web3, takes, trader.address))
+            let signedTakes = await Promise.all(await signOrders(web3, takes, trader.address))
             let signedMakes = await Promise.all(await signOrders(web3, makes, trader.address))
 
             await account.deposit(web3.utils.toWei("500"), tracer.address)

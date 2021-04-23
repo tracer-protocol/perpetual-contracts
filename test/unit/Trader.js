@@ -14,6 +14,8 @@ describe("Trader Shim unit tests", async () => {
     let now
     let sevenDays
     let accounts
+    let noGasUser
+    let noGasMaker
 
     before(async () => {
         accounts = await web3.eth.getAccounts();
@@ -29,14 +31,35 @@ describe("Trader Shim unit tests", async () => {
         token = deployed.testToken
 
         //Get each user to "deposit" 100 tokens into the platform and approve the trader
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < 7; i++) {
             await tracer.setUserPermissions(trader.address, true, { from: accounts[i] })
             await token.approve(account.address, web3.utils.toWei("100000"))
             await account.deposit(web3.utils.toWei("10000"), tracer.address, { from: accounts[i] })
         }
 
+        // amount of gas that each trader will deposit initially
+        let gasAllowance = web3.utils.toWei("1");
+
+        // get each trader to deposit some gas
+        for (let i = 0; i < 7; i++) {
+            await trader.depositGas({ from: accounts[i], value: gasAllowance });
+        }
+
+        // this user has no gas
+        noGasUser = accounts[6];
+
         now = await time.latest()
         sevenDays = parseInt(now) + 604800 //7 days from now
+
+        noGasMaker = {
+            amount: "5000002200000000000",
+            price: "100000088",
+            side: false,
+            user: noGasUser,
+            expiration: sevenDays,
+            targetTracer: tracer.address,
+            nonce: 0,
+        };
 
         sampleMakers = [
             {
@@ -161,5 +184,20 @@ describe("Trader Shim unit tests", async () => {
                 assert.equal(await trader.nonces(accounts[2]), "2")
             });
         })
+
+        context("When a user has no gas deposited", () => {
+            it("reverts", async () => {
+                let makers = sampleMakers.slice(0, 1);
+                makers.push(noGasMaker);
+                let takers = sampleTakers;
+                let market = tracer.address;
+
+                /* sign orders for submission */
+                let signedMakers = await Promise.all(await signOrders(web3, makers, trader.address));
+                let signedTakers = await Promise.all(await signOrders(web3, takers, trader.address));
+
+                await expectRevert(trader.executeTrade(signedMakers, signedTakers, market), "TDR: Trader has insufficient gas");
+            });
+        });
     })
 })
