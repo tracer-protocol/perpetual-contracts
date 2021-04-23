@@ -1,12 +1,12 @@
 /* Support types for signing */
-export const domain = [
+const domain = [
     { name: "name", type: "string" },
     { name: "version", type: "string" },
     { name: "chainId", type: "uint256" },
     { name: "verifyingContract", type: "address" },
 ]
 
-export const limitOrder = [
+const limitOrder = [
     { name: "amount", type: "uint256" },
     { name: "price", type: "int256" },
     { name: "side", type: "bool" },
@@ -16,7 +16,7 @@ export const limitOrder = [
     { name: "nonce", type: "uint256" },
 ]
 
-export function domainData(trader_address: string) {
+function domainData(trader_address) {
     return {
         name: "Tracer Protocol",
         version: "1.0",
@@ -27,8 +27,7 @@ export function domainData(trader_address: string) {
 
 /* Helpers for signing */
 
-//@ts-ignore
-export const signOrder = async (web3, signingAccount, data, callback) => {
+const signOrder = async (web3, signingAccount, data, callback) => {
     const signer = web3.utils.toChecksumAddress(signingAccount)
     return new Promise((resolve, reject) => {
         web3.currentProvider.send(
@@ -37,7 +36,7 @@ export const signOrder = async (web3, signingAccount, data, callback) => {
                 params: [signer, data],
                 from: signer,
             },
-            //@ts-ignore
+
             async (err, result) => {
                 if (err) {
                     reject(err)
@@ -54,10 +53,8 @@ export const signOrder = async (web3, signingAccount, data, callback) => {
 
 
 //Process and sign orders
-//@ts-ignore
-export const signOrders = async (web3, orders, traderAddress) => {
+const signOrders = async (web3, orders, traderAddress) => {
     let _domainData = domainData(traderAddress)
-    //@ts-ignore
     return await orders.map(async (order) => {
         let type = {
             EIP712Domain: domain,
@@ -71,8 +68,7 @@ export const signOrders = async (web3, orders, traderAddress) => {
             types: type,
         }
 
-        //@ts-ignore
-        let signedData: [string, string, string] = await signOrder(web3, order.user, dataToSign)
+        let signedData = await signOrder(web3, order.user, dataToSign)
 
         return {
             order: order,
@@ -81,4 +77,12 @@ export const signOrders = async (web3, orders, traderAddress) => {
             sigV: signedData[2],
         }
     })
+}
+
+module.exports = {
+    domain,
+    limitOrder,
+    domainData,
+    signOrder,
+    signOrders
 }
