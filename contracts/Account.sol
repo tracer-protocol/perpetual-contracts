@@ -209,7 +209,10 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     function realMaxLeverage(address market) public view override returns(int256) {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         IInsurance insurance = IInsurance(insuranceContract);
-        int256 baseMaxLeverage = realMaxLeverage(market);
+        int256 baseMaxLeverage = _tracer.maxLeverage();
+        if (insurance.getPoolTarget(market) == 0) {
+            return baseMaxLeverage;
+        }
 
         int256 percentFull =
             insurance.getPoolHoldings(market).toInt256()
