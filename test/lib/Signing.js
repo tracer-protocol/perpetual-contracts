@@ -32,7 +32,7 @@ const signOrder = async (web3, signingAccount, data, callback) => {
     return new Promise((resolve, reject) => {
         web3.currentProvider.send(
             {
-                method: "eth_signTypedData",
+                method: "eth_signTypedData_v4",
                 params: [signer, data],
                 from: signer,
             },
