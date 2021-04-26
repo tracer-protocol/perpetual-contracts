@@ -178,7 +178,7 @@ async function setupContracts(accounts) {
     gov = await setupGov(govToken);
 
     //Deploy the tracer factory
-    perpsFactory = await setupFactory(insurance, deployer, gov)
+    perpsFactory = await setupPerpsFactory(insurance, deployer, gov)
 
     //Deploy pricing contract
     pricing = await setupPricing(perpsFactory.address)

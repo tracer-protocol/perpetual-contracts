@@ -127,7 +127,7 @@ describe("Gov: unit tests", async () => {
         it("uses an expected amount of gas", async () => {
             await govToken.approve(gov.address, constants.MAX_UINT256)
             const { receipt } = await gov.stake(ether("50"))
-            assert.isAtMost(receipt.gasUsed, 107000) //106500
+            assert.isAtMost(receipt.gasUsed, 112000)
         })
 
         it("uses an expected amount of gas for additional stakes", async () => {
@@ -310,7 +310,7 @@ describe("Gov: unit tests", async () => {
 
             it("uses an expected amount of gas", async () => {
                 const { receipt } = await gov.propose([accounts[0]], [sampleProposalData])
-                assert.isAtMost(receipt.gasUsed, 275000)
+                assert.isAtMost(receipt.gasUsed, 285000)
             })
 
             context("when delegating votes", () => {
@@ -412,7 +412,7 @@ describe("Gov: unit tests", async () => {
 
             it("uses an expected amount of gas", async () => {
                 const { receipt } = await gov.voteFor(proposalNum, ether("50"), { from: accounts[1] })
-                assert.isAtMost(receipt.gasUsed, 121000)
+                assert.isAtMost(receipt.gasUsed, 130000)
             })
         })
     })
@@ -516,7 +516,7 @@ describe("Gov: unit tests", async () => {
             await gov.stake(ether("50"))
             await gov.acceptDelegates({ from: accounts[1] })
             const { receipt } = await gov.delegate(accounts[1])
-            assert.isAtMost(receipt.gasUsed, 91500)
+            assert.isAtMost(receipt.gasUsed, 100000)
         })
     })
 
