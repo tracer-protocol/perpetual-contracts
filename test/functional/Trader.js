@@ -99,9 +99,9 @@ describe("Trader", async () => {
 
             //Check post trade positions
             //assert amount, filled
-            let order = await tracer.getOrder(1)
-            assert.equal(order[0].toString(), web3.utils.toWei("500").toString())
+            let order = await trader.getOrder(signedTakes[0])
             assert.equal(order[1].toString(), web3.utils.toWei("500").toString())
+            assert.equal(order[3].toString(), web3.utils.toWei("500").toString())
 
             //Check positions are updated
             let account1 = await account.getBalance(accounts[0], tracer.address)

@@ -27,7 +27,6 @@ interface Types {
         bool side; //true for long, false for short
         uint256 expiration;
         uint256 creation;
-        mapping(address => uint256) takers;
     }
 
     struct HourlyPrices {

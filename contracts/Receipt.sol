@@ -168,39 +168,43 @@ contract Receipt is IReceipt, Ownable {
         uint256 receiptId,
         address market
     ) public view returns (uint256, int256) {
-        Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
-        uint256 unitsSold;
-        int256 avgPrice;
-        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
-        for (uint256 i; i < orderIds.length; i++) {
-            uint256 orderId = orderIds[i];
-            (,
-                uint256 orderFilled,
-                int256 orderPrice,
-                bool orderSide,
-                address orderMaker,
-                uint256 creation
-            ) = _tracer.getOrder(orderId);
-            require(creation >= receipt.time, "REC: Order creation before liquidation");
-            if (orderMaker == receipt.liquidator) {
-                // Order was made by liquidator
-                if (orderSide != receipt.liquidationSide) {
-                    unitsSold = unitsSold + orderFilled;
-                    avgPrice = avgPrice + (orderPrice * orderFilled.toInt256());
-                }
-            } else if (orderSide == receipt.liquidationSide) {
-                // Check if a taker was the liquidator and if they were taking the opposite side to what they received
-                uint256 takerAmount = _tracer.getOrderTakerAmount(orderId, receipt.liquidator);
-                unitsSold = unitsSold + takerAmount;
-                avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
-            }
-        }
+        // Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
+        // uint256 unitsSold;
+        // int256 avgPrice;
+        // ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
+        // for (uint256 i; i < orderIds.length; i++) {
+        //     uint256 orderId = orderIds[i];
+        //     (,
+        //         uint256 orderFilled,
+        //         int256 orderPrice,
+        //         bool orderSide,
+        //         address orderMaker,
+        //         uint256 creation
+        //     ) = _tracer.getOrder(orderId);
+        //     require(creation >= receipt.time, "REC: Order creation before liquidation");
+        //     if (orderMaker == receipt.liquidator) {
+        //         // Order was made by liquidator
+        //         if (orderSide != receipt.liquidationSide) {
+        //             unitsSold = unitsSold + orderFilled;
+        //             avgPrice = avgPrice + (orderPrice * orderFilled.toInt256());
+        //         }
+        //     } else if (orderSide == receipt.liquidationSide) {
+        //         // Check if a taker was the liquidator and if they were taking the opposite side to what they received
+        //         uint256 takerAmount = _tracer.getOrderTakerAmount(orderId, receipt.liquidator);
+        //         unitsSold = unitsSold + takerAmount;
+        //         avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
+        //     }
+        // }
 
-        // Avoid divide by 0 if no orders sold
-        if (unitsSold == 0) {
-            return (0, 0);
-        }
-        return (unitsSold, avgPrice / unitsSold.toInt256());
+        // // Avoid divide by 0 if no orders sold
+        // if (unitsSold == 0) {
+        //     return (0, 0);
+        // }
+        // return (unitsSold, avgPrice / unitsSold.toInt256());
+        
+        // todo this is broken with the new orders logic. Will need to plan
+        // how this all looks
+        return (0, 0);
     }
 
     /**
