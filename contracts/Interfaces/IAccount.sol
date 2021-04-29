@@ -22,20 +22,6 @@ interface IAccount {
         uint256 currentFundingIndex
     ) external;
 
-    function liquidate(
-        int256 amount,
-        address account,
-        address market
-    ) external;
-
-    function claimReceipts(
-        uint256 escrowId,
-        uint256[] memory orderIds,
-        address market
-    ) external;
-
-    function claimEscrow(uint256 id) external;
-    
     function getBalance(address account, address market)
         external
         view

@@ -302,6 +302,38 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         }
     }
 
+    function updateAccountsOnLiquidation(
+        address liquidator,
+        address liquidatee,
+        int256 liquidatorBaseChange,
+        int256 liquidatorQuoteChange,
+        int256 liquidateeBaseChange,
+        int256 liquidateeQuoteChange,
+        uint256 amountToEscrow
+    ) external override onlyLiquidator {
+        // Limits the gas use when liquidating 
+        int256 gasPrice = IOracle(gasPriceOracle()).latestAnswer();
+        require(tx.gasprice <= uint256(gasPrice.abs()), "LIQ: GasPrice > FGasPrice");
+        // Update liquidators last updated gas price
+        Types.AccountBalance storage liquidatorBalance = balances[market][liquidator];
+        liquidatorBalance.lastUpdatedGasPrice = gasPrice;
+        liquidatorBalance.base = liquidatorBalance.base.add(liquidatorBaseChange).sub(amountToEscrow.toInt256());
+        liquidatorBalance.quote = liquidatorBalance.quote.add(liquidatorQuoteChange);
+
+        Types.AccountBalance storage liquidateeBalance = balances[market][liquidatee];
+        liquidateeBalance.base = liquidateeBalance.base.add(liquidateeBaseChange);
+        liquidateeBalance.quote = liquidateeBalance.quote.add(liquidateeQuoteChange);
+
+        // Checks if the liquidator is in a valid position to process the liquidation 
+        require(
+            userMarginIsValid(
+                liquidator,
+                market
+            ),
+            "TCR: Taker undermargin"
+        );
+    }
+
     /**
      * @notice settles an account. Compares current global rate with the users last updated rate
      *         Updates the accounts margin balance accordingly.
