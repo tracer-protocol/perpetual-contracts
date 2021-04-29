@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 library LibMath {
     uint256 private constant POSITIVE_INT256_MAX = 2**255 - 1;

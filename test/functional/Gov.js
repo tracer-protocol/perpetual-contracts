@@ -78,7 +78,7 @@ describe("Gov", async () => {
         it("Users cant withdraw more then their stake", async () => {
             await govToken.approve(gov.address, web3.utils.toWei("10"), { from: accounts[2] })
             await gov.stake(web3.utils.toWei("10"), { from: accounts[2] })
-            await expectRevert(gov.withdraw(web3.utils.toWei("11"), { from: accounts[2] }), "SafeMath96: subtraction underflow")
+            await expectRevert.unspecified(gov.withdraw(web3.utils.toWei("11"), { from: accounts[2] }))
         })
     })
 

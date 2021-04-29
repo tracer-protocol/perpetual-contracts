@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 interface ITracerPerpetualSwaps {
 
@@ -40,9 +40,9 @@ interface ITracerPerpetualSwaps {
 
     function maxLeverage() external view returns(int256);
 
-    function LIQUIDATION_GAS_COST() external pure returns(uint256);
+    function LIQUIDATION_GAS_COST() external view returns(uint256);
 
-    function FUNDING_RATE_SENSITIVITY() external pure returns(uint256);
+    function FUNDING_RATE_SENSITIVITY() external view returns(uint256);
 
     function currentHour() external view returns(uint8);
 

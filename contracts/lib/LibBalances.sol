@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma experimental ABIEncoderV2;
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "../Interfaces/Types.sol";
 
 library Balances {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
 
@@ -37,16 +33,16 @@ library Balances {
         uint256 feeRate
     ) internal pure returns (int256 _currentBase, int256 _currentQuote) {
         // Get base change and fee if present
-        int256 baseChange = (amount.toInt256().mul(price.abs())).div(priceMultiplier.toInt256());
-        int256 fee = (baseChange.mul(feeRate.toInt256())).div(priceMultiplier.toInt256());
+        int256 baseChange = (amount.toInt256() * price.abs()) / priceMultiplier.toInt256();
+        int256 fee = (baseChange * feeRate.toInt256()) / priceMultiplier.toInt256();
         if (side) {
             // LONG
-            currentQuote = currentQuote.add(amount.toInt256());
-            currentBase = currentBase.sub(baseChange.add(fee));
+            currentQuote = currentQuote + amount.toInt256();
+            currentBase = currentBase - baseChange + fee;
         } else {
             // SHORT
-            currentQuote = currentQuote.sub(amount.toInt256());
-            currentBase = currentBase.add(baseChange.sub(fee));
+            currentQuote = currentQuote - amount.toInt256();
+            currentBase = currentBase + baseChange - fee;
         }
 
         return (currentBase, currentQuote);
@@ -70,8 +66,8 @@ library Balances {
         int256 baseCorrectUnits = 0;
         int256 positionValue = 0;
 
-        baseCorrectUnits = base.abs().mul(priceMultiplier.toInt256().mul(MARGIN_MUL_FACTOR));
-        positionValue = position.abs().mul(price);
+        baseCorrectUnits = base.abs() * priceMultiplier.toInt256() * MARGIN_MUL_FACTOR;
+        positionValue = position.abs() * price;
 
         return (baseCorrectUnits, positionValue);
     }
@@ -91,7 +87,7 @@ library Balances {
         uint256 priceMultiplier
     ) internal pure returns (int256) {
         // quote * price - deposited
-        return (quote.abs().mul(price).div(priceMultiplier.toInt256())).sub(deposited.toInt256());
+        return ((quote.abs() * price) / priceMultiplier.toInt256()) - deposited.toInt256();
     }
 
     /**
@@ -110,7 +106,7 @@ library Balances {
         // (10^18 * 10^8 + 10^18 * 10^8) / 10^8
         // (10^26 + 10^26) / 10^8
         // 10^18
-        return ((base.mul(priceMultiplier.toInt256())).add(quote.mul(price))).div(priceMultiplier.toInt256());
+        return (((base * priceMultiplier.toInt256())) + quote * price) / priceMultiplier.toInt256();
     }
 
     /*
@@ -137,10 +133,10 @@ library Balances {
             return 0;
         }
         // LGC * 6 + notionalValue/maxLeverage
-        int256 lgc = liquidationGasCost.mul(6); // 10^18
+        int256 lgc = liquidationGasCost * 6; // 10^18
         // 10^26 * 10^4 / 10^4 / 10^8 = 10^18
-        int256 baseMinimum = notionalValue.mul(MARGIN_MUL_FACTOR).div(maxLeverage).div(priceMultiplier.toInt256());
-        return lgc.add(baseMinimum);
+        int256 baseMinimum = (notionalValue * MARGIN_MUL_FACTOR / maxLeverage) / priceMultiplier.toInt256();
+        return lgc + baseMinimum;
     }
 
     /**
@@ -158,7 +154,7 @@ library Balances {
     ) internal pure returns (int256) {
         int256 notionalValue = calcNotionalValue(quote, price);
         int256 margin = calcMargin(quote, price, base, priceMultiplier);
-        int256 LNV = notionalValue.sub(margin.mul(priceMultiplier.toInt256())).div(priceMultiplier.toInt256());
+        int256 LNV = (notionalValue - margin * priceMultiplier.toInt256()) / priceMultiplier.toInt256();
         if (LNV < 0) {
             LNV = 0;
         }
@@ -175,6 +171,6 @@ library Balances {
         int256 price
     ) internal pure returns (int256) {
         quote = quote.abs();
-        return quote.mul(price); // 10^18 * 10^8 = 10^26
+        return quote * price; // 10^18 * 10^8 = 10^26
     }
 }

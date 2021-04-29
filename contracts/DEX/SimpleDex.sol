@@ -1,9 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "../lib/LibMath.sol";
 import "../Interfaces/Types.sol";
 import "../Interfaces/IDex.sol";
@@ -13,8 +11,6 @@ import "../Interfaces/IDex.sol";
  * management checks.
  */
 contract SimpleDex is IDex {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
 
@@ -66,7 +62,7 @@ contract SimpleDex is IDex {
     )
         internal
         returns (
-            Types.Order memory,
+            Types.Order storage,
             uint256,
             uint256,
             address
@@ -74,18 +70,18 @@ contract SimpleDex is IDex {
     {
         //Fill or partially fill order
         Types.Order storage order = orders[orderId];
-        require(order.amount.sub(order.filled) > 0, "SDX: Order filled");
+        require(order.amount - order.filled > 0, "SDX: Order filled");
         /* solium-disable-next-line */
         require(block.timestamp < order.expiration, "SDX: Order expired");
 
         //Calculate the amount to fill
-        uint256 fillAmount = (amount > order.amount.sub(order.filled)) ? order.amount.sub(order.filled) : amount;
+        uint256 fillAmount = (amount > order.amount - order.filled) ? order.amount - order.filled : amount;
 
         //Update order
-        order.filled = order.filled.add(fillAmount);
-        order.takers[_taker] = order.takers[_taker].add(fillAmount);
+        order.filled = order.filled + fillAmount;
+        order.takers[_taker] = order.takers[_taker] + fillAmount;
 
-        uint256 amountOutstanding = order.amount.sub(order.filled);
+        uint256 amountOutstanding = order.amount - order.filled;
         return (order, fillAmount, amountOutstanding, order.maker);
     }
 
@@ -113,17 +109,17 @@ contract SimpleDex is IDex {
             block.timestamp < order2.expiration, "SDX: Order expired");
 
         // Calculate the amount to fill
-        uint256 order1Remaining = order1.amount.sub(order1.filled);
-        uint256 order2Remaining = order2.amount.sub(order2.filled);
+        uint256 order1Remaining = order1.amount - order1.filled;
+        uint256 order2Remaining = order2.amount - order2.filled;
 
         // fill amount is the minimum of order 1 and order 2
         uint256 fillAmount = order1Remaining > order2Remaining ? order2Remaining : order1Remaining;
 
         //Update orders
-        order1.filled = order1.filled.add(fillAmount);
-        order2.filled = order2.filled.add(fillAmount);
-        order1.takers[order2.maker] = order1.takers[order2.maker].add(fillAmount);
-        order2.takers[order1.maker] = order2.takers[order1.maker].add(fillAmount);
+        order1.filled = order1.filled + fillAmount;
+        order2.filled = order2.filled + fillAmount;
+        order1.takers[order2.maker] = order1.takers[order2.maker] + fillAmount;
+        order2.takers[order1.maker] = order2.takers[order1.maker] + fillAmount;
         return (fillAmount);
     }
 

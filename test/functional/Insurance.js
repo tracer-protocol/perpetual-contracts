@@ -164,7 +164,7 @@ describe("Insurance", async () => {
             let poolToken = await InsurancePoolToken.at(poolTokenAddr)
             await poolToken.withdrawFunds()
             let balanceAfter = await tracerGovToken.balanceOf(accounts[0])
-            assert.equal(balanceAfter.sub(balanceBefore).toString(), web3.utils.toWei("50").toString())
+            assert.equal((balanceAfter.sub(balanceBefore)).toString(), web3.utils.toWei("50").toString())
         })
 
         it("Stops users claiming a reward multiple times", async () => {
@@ -182,7 +182,7 @@ describe("Insurance", async () => {
             let balanceBefore = await tracerGovToken.balanceOf(accounts[0])
             await poolToken.withdrawFunds()
             let balanceAfter = await tracerGovToken.balanceOf(accounts[0])
-            assert.equal(balanceAfter.sub(balanceBefore).toString(), web3.utils.toWei("0").toString())
+            assert.equal((balanceAfter.sub(balanceBefore)).toString(), web3.utils.toWei("0").toString())
         })
 
         it("Transferring pool tokens claims any outstanding rewards", async () => {
@@ -200,7 +200,7 @@ describe("Insurance", async () => {
             await poolToken.transfer(accounts[0], web3.utils.toWei("50"))
             //Check balance has updated
             let balanceAfter = await tracerGovToken.balanceOf(accounts[0])
-            assert.equal(balanceAfter.sub(balanceBefore).toString(), web3.utils.toWei("50").toString())
+            assert.equal((balanceAfter.sub(balanceBefore)).toString(), web3.utils.toWei("50").toString())
         })
 
         it("Staking more and withdrawing claims rewards", async () => {
@@ -214,7 +214,7 @@ describe("Insurance", async () => {
             //Add to stake which will claim outstanding rewards first
             await insurance.stake(web3.utils.toWei("3"), tracers[0].address)
             let balanceAfter = await tracerGovToken.balanceOf(accounts[0])
-            assert.equal(balanceAfter.sub(balanceBefore).toString(), web3.utils.toWei("50").toString())
+            assert.equal((balanceAfter.sub(balanceBefore)).toString(), web3.utils.toWei("50").toString())
 
             //Add more rewards in
             await tracerGovToken.transfer(insurance.address, web3.utils.toWei("50"))
@@ -224,7 +224,7 @@ describe("Insurance", async () => {
             let balanceBeforeWithdraw = await tracerGovToken.balanceOf(accounts[0])
             await insurance.withdraw(web3.utils.toWei("8"), tracers[0].address)
             let balanceAfterWithdraw = await tracerGovToken.balanceOf(accounts[0])
-            assert.equal(balanceAfterWithdraw.sub(balanceBeforeWithdraw).toString(), web3.utils.toWei("50").toString())
+            assert.equal((balanceAfterWithdraw.sub(balanceBeforeWithdraw)).toString(), web3.utils.toWei("50").toString())
         })
     })
 
@@ -255,7 +255,7 @@ describe("Insurance", async () => {
         // = 0.000036523 --> including 1000000000 multiply factor
         // = 365
         let holdings = await insurance.getPoolHoldings(tracer.address)
-        let rate = Math.max(0, new BN("3652300").mul(target.sub(holdings)).div(lev))
+        let rate = Math.max(0, (new BN("3652300") * target - holdings) / lev)
         let actualRate = await insurance.getPoolFundingRate(tracer.address)
         assert.equal(rate.toString(), actualRate.toString())
     })
