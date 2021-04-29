@@ -70,7 +70,7 @@ describe("Unit tests: Insurance", async () => {
             await testToken.transfer(insurance.address, web3.utils.toWei("5"))
             await insurance.updatePoolAmount(tracer.address)
             let balanceAfter = await insurance.getPoolHoldings(tracer.address)
-            assert.strict(balanceAfter.sub(balanceBefore), web3.utils.toWei("5"))
+            assert.strict((balanceAfter.sub(balanceBefore)).toString(), web3.utils.toWei("5"))
         })
     })
 

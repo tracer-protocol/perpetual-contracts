@@ -525,7 +525,7 @@ describe("Tracer", async () => {
             assert.equal(liquidatorReceipt[2].toString(), accounts[1]) // liquidatee
             assert.equal(liquidatorReceipt[3].toString(), new BN("158000000")) // price
             assert.equal(liquidatorReceipt[5].toString(), web3.utils.toWei("204.3616").toString()) // escrowedAmount
-            assert.equal(liquidatorReceipt[6].sub(liquidatorReceipt[4]).toString(), new BN(900)) // releaseTime: 15 mins in secs
+            assert.equal((liquidatorReceipt[6] - liquidatorReceipt[4]).toString(), new BN(900)) // releaseTime: 15 mins in secs
         })
 
         it("Trader can claim escrowed funds after the 15 minute safety period", async () => {
@@ -563,7 +563,7 @@ describe("Tracer", async () => {
             let escrowReceipt = await receipt.getLiquidationReceipt(0)
             assert.equal(escrowReceipt[8], true)
             //Balance has increased by 183.5616 (Escrowed amount)
-            assert.equal(balanceAfter[0].sub(balanceBefore[0]).toString(), web3.utils.toWei("183.5616"))
+            assert.equal((balanceAfter[0] - balanceBefore[0]).toString(), web3.utils.toWei("183.5616"))
 
             //Will reject if they attempt to claim again
             await expectRevert(account.claimEscrow(0, { from: accounts[1] }), "ACTL: Already claimed")
@@ -616,9 +616,9 @@ describe("Tracer", async () => {
             let balanceAfter = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceAfter = await account.getBalance(accounts[1], tracer.address)
             //Refunded $5 of the escrowed amount, because that's how much was lost due to slippage
-            assert.equal(balanceAfter[0].sub(balanceBefore[0]).toString(), web3.utils.toWei("5"))
+            assert.equal((balanceAfter[0] - balanceBefore[0]).toString(), web3.utils.toWei("5"))
             //escrowedAmount - amountRefunded = 183.5616 - 5 = $178.5616 returned to trader
-            assert.equal(traderBalanceAfter[0].sub(traderBalanceBefore[0]).toString(), web3.utils.toWei("178.5616"))
+            assert.equal((traderBalanceAfter[0] - traderBalanceBefore[0]).toString(), web3.utils.toWei("178.5616"))
         })
 
         it("Appropriately caps the slippage", async () => {
@@ -638,7 +638,7 @@ describe("Tracer", async () => {
                 ["100"] // 1% * 10000
             )
             await gov.propose([receipt.address], [setMaxSlippage])
-            const proposalId = (await gov.proposalCounter()).sub(new BN("1"))
+            const proposalId = await gov.proposalCounter() - 1
             await time.increase(twoDays + 1)
             await gov.voteFor(proposalId, web3.utils.toWei("10"), { from: accounts[1] })
             await time.increase(twoDays + 1)
@@ -693,9 +693,9 @@ describe("Tracer", async () => {
             let balanceAfter = await account.getBalance(accounts[2], tracer.address)
             let traderBalanceAfter = await account.getBalance(accounts[1], tracer.address)
             //Refunded $5 of the escrowed amount, because that's how much was lost due to slippage
-            assert.equal(balanceAfter[0].sub(balanceBefore[0]).toString(), web3.utils.toWei("8"))
+            assert.equal((balanceAfter[0] - balanceBefore[0]).toString(), web3.utils.toWei("8"))
             //escrowedAmount - amountRefunded = 183.5616 - 8 = $175.5616 returned to trader
-            assert.equal(traderBalanceAfter[0].sub(traderBalanceBefore[0]).toString(), web3.utils.toWei("175.5616"))
+            assert.equal((traderBalanceAfter[0] - traderBalanceBefore[0]).toString(), web3.utils.toWei("175.5616"))
 
             // Set the max slippage back to a high number to ensure flexibility in all remaining tests
             const setMaxSlippageBack = web3.eth.abi.encodeFunctionCall(
@@ -712,7 +712,7 @@ describe("Tracer", async () => {
                 ["100000"] // 1000% * 10000
             )
             await gov.propose([receipt.address], [setMaxSlippage])
-            const nextProposalId = (await gov.proposalCounter()).sub(new BN("1"))
+            const nextProposalId = await gov.proposalCounter() - 1
             await time.increase(twoDays + 1)
             await gov.voteFor(nextProposalId, web3.utils.toWei("10"), { from: accounts[1] })
             await time.increase(twoDays + 1)

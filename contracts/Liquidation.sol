@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
@@ -17,8 +17,6 @@ import "./Interfaces/ITracerPerpetualsFactory.sol";
 * of the account for that contract.
 */
 contract Liquidation is ILiquidation, Ownable {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
 
@@ -42,6 +40,7 @@ contract Liquidation is ILiquidation, Ownable {
         maxSlippage = _maxSlippage;
         transferOwnership(gov);
     }
+
 
     /**
      * @notice Creates a liquidation receipt for a given trader
@@ -71,7 +70,7 @@ contract Liquidation is ILiquidation, Ownable {
             price,
             block.timestamp,
             escrowedAmount,
-            block.timestamp.add(releaseTime),
+            block.timestamp + releaseTime,
             amountLiquidated,
             false,
             liquidationSide,
@@ -95,14 +94,14 @@ contract Liquidation is ILiquidation, Ownable {
         address liquidator
     ) external override onlyAccount returns (uint256) {
         Types.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
-        require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
-        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
-        require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
+        require(receipt.liquidator == liquidator, "REC: Liquidator mismatch");
+        require(block.timestamp < receipt.releaseTime, "REC: claim time passed");
+        require(!receipt.liquidatorRefundClaimed, "REC: Already claimed");
         // Validate the escrowed order was fully sold
         (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
-            "LIQ: Unit mismatch"
+            "REC: Unit mismatch"
         );
 
         // Mark refund as claimed
@@ -118,38 +117,37 @@ contract Liquidation is ILiquidation, Ownable {
             return 0;
         } else {
             // Liquidator took a long position, and price dropped
-            int256 amountSoldFor = avgPrice.mul(unitsSold.toInt256()).div(priceMultiplier.toInt256());
-            int256 amountExpectedFor = (receipt.price).mul(unitsSold.toInt256()).div(priceMultiplier.toInt256());
+            int256 amountSoldFor = (avgPrice * unitsSold.toInt256()) / priceMultiplier.toInt256();
+            int256 amountExpectedFor = (receipt.price * unitsSold.toInt256()) / priceMultiplier.toInt256();
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
             uint256 amountToReturn = 0;
             int256 percentSlippage = 0;
             if (avgPrice < receipt.price && receipt.liquidationSide) {
-                amountToReturn = uint256(amountExpectedFor.sub(amountSoldFor));
+                amountToReturn = uint256(amountExpectedFor - amountSoldFor);
                 if (amountToReturn <= 0) {
                     return 0;
                 }
-                percentSlippage = amountToReturn.toInt256().mul(PERCENT_PRECISION).div(amountExpectedFor);
+                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
             } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
-                amountToReturn = uint256(amountSoldFor.sub(amountExpectedFor));
+                amountToReturn = uint256(amountSoldFor - amountExpectedFor);
                 if (amountToReturn <= 0) {
                     return 0;
                 }
-                percentSlippage = amountToReturn.toInt256().mul(PERCENT_PRECISION).div(amountExpectedFor);
+                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
             }
             if (percentSlippage > maxSlippage) {
-                amountToReturn = uint256(maxSlippage.mul(amountExpectedFor).div(PERCENT_PRECISION));
+                amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
             }
             if (amountToReturn > receipt.escrowedAmount) {
                 liquidationReceipts[escrowId].escrowedAmount = 0;
             } else {
-                liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount.sub(amountToReturn);
+                liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
             }
             return (amountToReturn);
         }
     }
-
     /**
      * @notice Used to claim funds owed to you through your receipt. 
      * @dev Marks escrowed funds as claimed and returns amount to return
@@ -158,9 +156,9 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256) {
         Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptID];
-        require(receipt.liquidatee == liquidatee, "LIQ: Liquidatee mismatch");
-        require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
-        require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
+        require(receipt.liquidatee == liquidatee, "REC: Liquidatee mismatch");
+        require(!receipt.escrowClaimed, "REC: Escrow claimed");
+        require(block.timestamp > receipt.releaseTime, "REC: Not released");
         liquidationReceipts[receiptID].escrowClaimed = true;
         return (receipt.escrowedAmount.toInt256());
     }
@@ -191,18 +189,18 @@ contract Liquidation is ILiquidation, Ownable {
                 address orderMaker,
                 uint256 creation
             ) = _tracer.getOrder(orderId);
-            require(creation >= receipt.time, "LIQ: Order creation before liquidation");
+            require(creation >= receipt.time, "REC: Order creation before liquidation");
             if (orderMaker == receipt.liquidator) {
                 // Order was made by liquidator
                 if (orderSide != receipt.liquidationSide) {
-                    unitsSold = unitsSold.add(orderFilled);
-                    avgPrice = avgPrice.add(orderPrice.mul(orderFilled.toInt256()));
+                    unitsSold = unitsSold + orderFilled;
+                    avgPrice = avgPrice + (orderPrice * orderFilled.toInt256());
                 }
             } else if (orderSide == receipt.liquidationSide) {
                 // Check if a taker was the liquidator and if they were taking the opposite side to what they received
                 uint256 takerAmount = _tracer.getOrderTakerAmount(orderId, receipt.liquidator);
-                unitsSold = unitsSold.add(takerAmount);
-                avgPrice = avgPrice.add(orderPrice.mul(takerAmount.toInt256()));
+                unitsSold = unitsSold + takerAmount;
+                avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
             }
         }
 
@@ -210,7 +208,7 @@ contract Liquidation is ILiquidation, Ownable {
         if (unitsSold == 0) {
             return (0, 0);
         }
-        return (unitsSold, avgPrice.div(unitsSold.toInt256()));
+        return (unitsSold, avgPrice / unitsSold.toInt256());
     }
 
     /**

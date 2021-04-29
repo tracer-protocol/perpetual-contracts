@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 import "./Interfaces/IOracle.sol";
 import "./lib/LibMath.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -13,8 +11,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *      estimate in USD.
  */
 contract GasOracle is IOracle, Ownable {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     IOracle public gasOracle;
     IOracle public priceOracle;
@@ -40,9 +36,9 @@ contract GasOracle is IOracle, Ownable {
 
         uint256 gasDecimals = gasOracle.decimals();
         uint256 priceDecimals = priceOracle.decimals();
-        uint256 divisionPower = ten**((gasDecimals.add(priceDecimals)).sub(gweiDividor));
+        uint256 divisionPower = ten**((gasDecimals + priceDecimals) - gweiDividor);
 
-        return gasOracle.latestAnswer().mul(priceOracle.latestAnswer()).div(divisionPower.toInt256());
+        return (gasOracle.latestAnswer() * priceOracle.latestAnswer()) / divisionPower.toInt256();
     }
 
     function isStale() external override view returns (bool) {

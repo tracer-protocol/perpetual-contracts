@@ -89,9 +89,8 @@ describe("Gov: unit tests", async () => {
         it("reverts if stake amount would overflow", async () => {
             await govToken.approve(gov.address, constants.MAX_UINT256)
             await gov.stake(ether("50"))
-            await expectRevert(
-                gov.stake(new BN("79228162514264337593543950335")), // MAX_UINT95 - 1
-                "SafeMath96: addition overflow"
+            await expectRevert.unspecified(
+                gov.stake(new BN("79228162514264337593543950335")) // MAX_UINT95 - 1
             )
         })
 
@@ -105,7 +104,7 @@ describe("Gov: unit tests", async () => {
             const stakedBefore = await await gov.totalStaked()
             await gov.stake(ether("50"))
             const stakedAfter = await gov.totalStaked()
-            assert.isTrue(stakedAfter.sub(stakedBefore).eq(ether("50")))
+            assert.isTrue((stakedAfter.sub(stakedBefore).eq(ether("50"))))
         })
 
         it("transfers the staked tokens to the Gov contract", async () => {
@@ -113,7 +112,7 @@ describe("Gov: unit tests", async () => {
             const stakedBefore = await govToken.balanceOf(gov.address)
             await gov.stake(ether("50"))
             const stakedAfter = await govToken.balanceOf(gov.address)
-            assert.isTrue(stakedAfter.sub(stakedBefore).eq(ether("50")))
+            assert.isTrue((stakedAfter.sub(stakedBefore).eq(ether("50"))))
         })
 
         it("updates the staked amount of the user", async () => {
@@ -121,7 +120,7 @@ describe("Gov: unit tests", async () => {
             const stakedBefore = await gov.getUserStaked(accounts[0])
             await gov.stake(ether("50"))
             const stakedAfter = await gov.getUserStaked(accounts[0])
-            assert.isTrue(stakedAfter.sub(stakedBefore).eq(ether("50")))
+            assert.isTrue((stakedAfter.sub(stakedBefore).eq(ether("50"))))
         })
 
         it("uses an expected amount of gas", async () => {
@@ -175,7 +174,7 @@ describe("Gov: unit tests", async () => {
             })
 
             it("reverts if withdrawing more than tokens staked", async () => {
-                await expectRevert(gov.withdraw(ether("51")), "SafeMath96: subtraction underflow")
+                await expectRevert.unspecified(gov.withdraw(ether("51")))
             })
 
             it("updates the staked amount of the user", async () => {

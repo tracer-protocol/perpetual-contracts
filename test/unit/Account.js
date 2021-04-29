@@ -29,7 +29,7 @@ describe("Unit tests: Account", async () => {
             await account.withdrawERC20Token(testToken.address, accounts[0], 123);
             assert.notStrictEqual(
                 await testToken.balanceOf(accounts[0]),
-                balanceAfter.add(new BN(123))
+                balanceAfter + new BN(123)
             )
         })
     })
