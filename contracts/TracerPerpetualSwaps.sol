@@ -26,6 +26,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
     IAccount public accountContract;
     IPricing public pricingContract;
     IInsurance public insuranceContract;
+    address public liquidationContract;
     uint256 public override feeRate;
 
     // Config variables
@@ -67,11 +68,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         address _gasPriceOracle,
         address _accountContract,
         address _pricingContract,
+        address _liquidationContract,
         int256 _maxLeverage,
         uint256 fundingRateSensitivity
     ) public Ownable() {
         accountContract = IAccount(_accountContract);
         pricingContract = IPricing(_pricingContract);
+        liquidationContract = _liquidationContract;
         tracerBaseToken = _tracerBaseToken;
         oracle = _oracle;
         gasPriceOracle = _gasPriceOracle;
@@ -304,17 +307,18 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         int256 liquidateeBaseChange,
         int256 liquidateeQuoteChange,
         uint256 amountToEscrow
-    ) external override onlyLiquidator {
+    ) external override onlyLiquidation {
         // Limits the gas use when liquidating 
+        /* TODO Add back functionality when account balance is stored in here
         int256 gasPrice = IOracle(gasPriceOracle()).latestAnswer();
         require(tx.gasprice <= uint256(gasPrice.abs()), "LIQ: GasPrice > FGasPrice");
         // Update liquidators last updated gas price
-        Types.AccountBalance storage liquidatorBalance = balances[market][liquidator];
+        Types.AccountBalance storage liquidatorBalance = balances[liquidator];
         liquidatorBalance.lastUpdatedGasPrice = gasPrice;
         liquidatorBalance.base = liquidatorBalance.base.add(liquidatorBaseChange).sub(amountToEscrow.toInt256());
         liquidatorBalance.quote = liquidatorBalance.quote.add(liquidatorQuoteChange);
 
-        Types.AccountBalance storage liquidateeBalance = balances[market][liquidatee];
+        Types.AccountBalance storage liquidateeBalance = balances[liquidatee];
         liquidateeBalance.base = liquidateeBalance.base.add(liquidateeBaseChange);
         liquidateeBalance.quote = liquidateeBalance.quote.add(liquidateeQuoteChange);
 
@@ -326,6 +330,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             ),
             "TCR: Taker undermargin"
         );
+        */
     }
 
     /**
@@ -534,6 +539,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
 
     modifier isPermissioned(address account) {
         require(msg.sender == account || tradePermissions[account][msg.sender], "TCR: No trade permission");
+        _;
+    }
+
+    modifier onlyLiquidation() {
+        require(msg.sender == liquidationContract, "TCR: Sender not liquidation contract");
         _;
     }
 }
