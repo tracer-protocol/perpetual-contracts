@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
@@ -11,18 +11,12 @@ import "./Interfaces/IAccount.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
 import "./DEX/SimpleDex.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, SafetyWithdraw {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
-    using SafeERC20 for IERC20;
 
     uint256 public override FUNDING_RATE_SENSITIVITY;
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
@@ -193,10 +187,10 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         // Calculate the amount to fill
         // _takeOrder is a function in the Decentralized Exchange (DEX) contract
         // fillAmount is how much of the order will be filled (its not necessarily amount);
-        (Types.Order memory order, uint256 fillAmount, uint256 amountOutstanding, address maker) = _takeOrder(orderId, amount, _taker);
+        (Types.Order storage order, uint256 fillAmount, uint256 amountOutstanding, address maker) = _takeOrder(orderId, amount, _taker);
         emit OrderFilled(orderId, amount, amountOutstanding, _taker, maker, marketId);
 
-        int256 baseChange = (fillAmount.toInt256().mul(order.price)).div(priceMultiplier.toInt256());
+        int256 baseChange = (fillAmount.toInt256() * order.price) / priceMultiplier.toInt256();
         require(baseChange > 0, "TCR: Margin change <= 0");
 
         // update account states
@@ -234,7 +228,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         address order1User = orders[order1].maker;
         address order2User = orders[order2].maker;
         bool order1Side = orders[order1].side;
-        int256 baseChange = (fillAmount.toInt256().mul(orderPrice)).div(priceMultiplier.toInt256());
+        int256 baseChange = (fillAmount.toInt256() * orderPrice) / priceMultiplier.toInt256();
 
         //Update account states
         updateAccounts(baseChange, fillAmount, order1Side, order1User, order2User);
@@ -272,13 +266,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             // short - base increased, quote decreased
             accountContract.updateAccountOnTrade(
                 baseChange,
-                neg1.mul(fillAmount.toInt256()),
+                neg1 * fillAmount.toInt256(),
                 user2,
                 address(this)
             );
             // long - base decreased, quote increased
             accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
+                neg1 * baseChange,
                 fillAmount.toInt256(),
                 user1,
                 address(this)
@@ -287,7 +281,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             // User 2 long, user 1 short
             // long - base decreased, quote increased
             accountContract.updateAccountOnTrade(
-                neg1.mul(baseChange),
+                neg1 * baseChange,
                 fillAmount.toInt256(),
                 user2,
                 address(this)
@@ -295,7 +289,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             // short - base increased, quote decreased
             accountContract.updateAccountOnTrade(
                 baseChange,
-                neg1.mul(fillAmount.toInt256()),
+                neg1 * fillAmount.toInt256(),
                 user1,
                 address(this)
             );
@@ -358,7 +352,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
      */
     function updateInternalRecords(int256 price) internal {
         IOracle ioracle = IOracle(oracle);
-        if (startLastHour <= block.timestamp.sub(1 hours)) {
+        if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
             int256 hourlyTracerPrice =
                     pricingContract.getHourlyAvgTracerPrice(currentHour, address(this));
@@ -386,7 +380,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             emit FundingRateUpdated(fundingRate, fundingRateValue);
             emit InsuranceFundingRateUpdated(insuranceFundingRate, insuranceFundingRateValue);
 
-            if (startLast24Hours <= block.timestamp.sub(24 hours)) {
+            if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
                 pricingContract.updateTimeValue(address(this));
                 startLast24Hours = block.timestamp;
@@ -417,7 +411,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             uint256
         )
     {
-        Types.Order memory order = orders[orderId];
+        Types.Order storage order = orders[orderId];
         return (order.amount, order.filled, order.price, order.side, order.maker, order.creation);
     }
 

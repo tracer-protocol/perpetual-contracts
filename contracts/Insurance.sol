@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IAccount.sol";
@@ -8,16 +8,10 @@ import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
-    using SafeERC20 for IERC20;
     using LibMath for uint256;
     using LibMath for int256;
 
@@ -62,7 +56,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 token = IERC20(pool.collateralAsset);
         require(supportedTracers[market], "INS: Tracer not supported");
 
-        token.safeTransferFrom(msg.sender, address(this), amount);
+        token.transferFrom(msg.sender, address(this), amount);
         // Update pool balances and user
         InsurancePoolToken poolToken = InsurancePoolToken(pool.token);
         uint256 tokensToMint;
@@ -74,12 +68,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             //          Pool tokens (the ones to be minted) / pool.amount (the collateral asset)
             // Note the difference between this and withdraw. Here we are calculating the amount of tokens
             // to mint, and `amount` is the amount to deposit.
-            uint256 tokensToCollatRatio = (poolToken.totalSupply()).mul(SAFE_TOKEN_MULTIPLY).div(pool.amount);
-            tokensToMint = tokensToCollatRatio.mul(amount).div(SAFE_TOKEN_MULTIPLY);
+            uint256 tokensToCollatRatio = (poolToken.totalSupply() * SAFE_TOKEN_MULTIPLY) / pool.amount;
+            tokensToMint = (tokensToCollatRatio * amount) / SAFE_TOKEN_MULTIPLY;
         }
         // Margin tokens become pool tokens
         poolToken.mint(msg.sender, tokensToMint);
-        pool.amount = pool.amount.add(amount);
+        pool.amount = pool.amount + amount;
         emit InsuranceDeposit(market, msg.sender, amount);
     }
 
@@ -102,13 +96,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         //             pool.amount (collateral asset) / pool tokens
         // Note the difference between this and stake. Here we are calculating the amount of tokens
         // to withdraw, and `amount` is the amount to burn.
-        uint256 collatToTokensRatio = pool.amount.mul(SAFE_TOKEN_MULTIPLY).div(poolToken.totalSupply());
-        uint256 tokensToSend = collatToTokensRatio.mul(amount).div(SAFE_TOKEN_MULTIPLY);
+        uint256 collatToTokensRatio = (pool.amount * SAFE_TOKEN_MULTIPLY) / poolToken.totalSupply();
+        uint256 tokensToSend = (collatToTokensRatio * amount) / SAFE_TOKEN_MULTIPLY;
 
         // Pool tokens become margin tokens
         poolToken.burn(msg.sender, amount);
-        token.safeTransfer(msg.sender, tokensToSend);
-        pool.amount = pool.amount.sub(tokensToSend);
+        token.transfer(msg.sender, tokensToSend);
+        pool.amount = pool.amount - tokensToSend;
         emit InsuranceWithdraw(market, msg.sender, tokensToSend);
     }
 
@@ -122,7 +116,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         (int256 base, , , , ) = account.getBalance(address(this), market);
         if (base > 0) {
             account.withdraw(uint(base), market);
-            pools[market].amount = pools[market].amount.add(uint(base));
+            pools[market].amount = pools[market].amount + uint(base);
         }
     }
 
@@ -240,7 +234,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function getPoolTarget(address market) public override view returns (uint256) {
         ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(pools[market].market);
-        int256 target = tracer.leveragedNotionalValue().div(100);
+        int256 target = tracer.leveragedNotionalValue() / 100;
 
         if (target > 0) {
             return uint256(target);
@@ -273,9 +267,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             return 0;
         }
 
-        int256 rate = (multiplyFactor.mul(getPoolTarget(market).sub(getPoolHoldings(market))).toInt256())
-
-            .div(levNotionalValue);
+        int256 rate = ((multiplyFactor * (getPoolTarget(market) - getPoolHoldings(market))).toInt256()) / levNotionalValue;
         if (rate < 0) {
             return 0;
         } else {

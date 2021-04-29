@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./Interfaces/IGov.sol";
 import "./lib/SafeMath96.sol";
 
 contract Gov is IGov {
-    using SafeERC20 for IERC20;
-    using SafeMath for uint256;
-    using SafeMath96 for uint96;
-
     IERC20 public immutable govToken;
     uint32 public warmUp; // time before voting can start
     uint32 public coolingOff; // cooling off period in hours
@@ -99,7 +93,7 @@ contract Gov is IGov {
      * @param account The user account address
      */
     function getStakedAndDelegated(address account) public view returns (uint96) {
-        return stakers[account].stakedAmount.add96(stakers[account].delegatedAmount);
+        return stakers[account].stakedAmount + stakers[account].delegatedAmount;
     }
 
     /**
@@ -110,14 +104,14 @@ contract Gov is IGov {
      */
     function stake(uint96 amount) external override {
         Stake storage staker = stakers[msg.sender];
-        staker.stakedAmount = staker.stakedAmount.add96(amount);
+        staker.stakedAmount = staker.stakedAmount + amount;
         address delegate = staker.delegate;
         if (delegate != address(0)) {
             // sender is already delegating. Update this delegation
-            stakers[delegate].delegatedAmount = stakers[delegate].delegatedAmount.add96(amount);
+            stakers[delegate].delegatedAmount = stakers[delegate].delegatedAmount + amount;
         }
-        totalStaked = totalStaked.add(amount);
-        govToken.safeTransferFrom(msg.sender, address(this), amount);
+        totalStaked = totalStaked + amount;
+        govToken.transferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -128,14 +122,14 @@ contract Gov is IGov {
     function withdraw(uint96 amount) external override {
         Stake storage staker = stakers[msg.sender];
         require(staker.lockedUntil < block.timestamp, "GOV: Tokens vote locked");
-        staker.stakedAmount = staker.stakedAmount.sub96(amount);
+        staker.stakedAmount = staker.stakedAmount - amount;
         address delegate = staker.delegate;
         if (delegate != address(0)) {
             // Delegatee's amount need to be reduced
-            stakers[delegate].delegatedAmount = stakers[staker.delegate].delegatedAmount.sub96(amount);
+            stakers[delegate].delegatedAmount = stakers[staker.delegate].delegatedAmount - amount;
         }
-        totalStaked = totalStaked.sub(amount);
-        govToken.safeTransfer(msg.sender, amount);
+        totalStaked = totalStaked - amount;
+        govToken.transfer(msg.sender, amount);
     }
 
     /**
@@ -163,8 +157,8 @@ contract Gov is IGov {
         require(staker.lockedUntil < block.timestamp, "GOVD: Vote locked");
         require(staker.delegatedAmount == 0, "GOVD: Already a delegate");
         staker.delegate = to;
-        staker.lockedUntil = block.timestamp.add(lockDuration);
-        stakers[to].delegatedAmount = stakers[to].delegatedAmount.add96(staker.stakedAmount);
+        staker.lockedUntil = block.timestamp + lockDuration;
+        stakers[to].delegatedAmount = stakers[to].delegatedAmount + staker.stakedAmount;
     }
 
     /**
@@ -174,9 +168,9 @@ contract Gov is IGov {
         Stake storage staker = stakers[msg.sender];
         require(staker.lockedUntil < block.timestamp, "GOVD: Vote locked");
         address delegate = staker.delegate;
-        stakers[delegate].delegatedAmount = stakers[delegate].delegatedAmount.sub96(staker.stakedAmount);
+        stakers[delegate].delegatedAmount = stakers[delegate].delegatedAmount - staker.stakedAmount;
         delete staker.delegate;
-        staker.lockedUntil = block.timestamp.add(lockDuration);
+        staker.lockedUntil = block.timestamp + lockDuration;
     }
 
     /**
@@ -195,7 +189,7 @@ contract Gov is IGov {
         require(targets.length != 0, "GOV: targets = 0");
         require(targets.length < maxProposalTargets, "GOV: Targets > max");
         require(targets.length == proposalData.length, "GOV: Targets != Datas");
-        stakers[msg.sender].lockedUntil = block.timestamp.add(lockDuration);
+        stakers[msg.sender].lockedUntil = block.timestamp + lockDuration;
 
         Proposal storage newProposal = proposals[proposalCounter];
         newProposal.targets = targets;
@@ -203,8 +197,8 @@ contract Gov is IGov {
         newProposal.proposer = msg.sender;
         newProposal.yes = getStakedAndDelegated(msg.sender);
         newProposal.no = 0;
-        newProposal.startTime = block.timestamp.add(warmUp);
-        newProposal.expiryTime = block.timestamp.add(uint256(proposalDuration).add(warmUp));
+        newProposal.startTime = block.timestamp + warmUp;
+        newProposal.expiryTime = block.timestamp + uint256(proposalDuration) + warmUp;
         newProposal.passTime = 0;
         newProposal.state = ProposalState.PROPOSED;
         emit ProposalCreated(proposalCounter);
@@ -220,7 +214,7 @@ contract Gov is IGov {
         Proposal storage proposal = proposals[proposalId];
         require(proposal.state == ProposalState.PASSED, "GOV: Proposal state != PASSED");
         require(
-            block.timestamp.sub(coolingOff) >= proposal.passTime,
+            block.timestamp - coolingOff >= proposal.passTime,
             "GOV: Cooling Off"
         );
         require(proposals[proposalId].expiryTime > block.timestamp, "GOV: Proposal expired");
@@ -251,26 +245,26 @@ contract Gov is IGov {
         require(proposal.proposer != msg.sender, "GOV: Proposer cant vote");
         require(proposal.state == ProposalState.PROPOSED, "GOV: Proposal note voteable");
         require(
-            proposal.stakerTokensVoted[msg.sender].add(amount) <= stakedAmount,
+            proposal.stakerTokensVoted[msg.sender] + amount <= stakedAmount,
             "GOV: Vote amount > staked amount"
         );
 
-        stakers[msg.sender].lockedUntil = block.timestamp.add(lockDuration);
-        proposal.stakerTokensVoted[msg.sender] = proposal.stakerTokensVoted[msg.sender].add(amount);
+        stakers[msg.sender].lockedUntil = block.timestamp + lockDuration;
+        proposal.stakerTokensVoted[msg.sender] = proposal.stakerTokensVoted[msg.sender] + amount;
 
         uint96 votes;
         if (userVote) {
-            votes = proposal.yes.add96(uint96(amount));
+            votes = proposal.yes + uint96(amount);
             proposal.yes = votes;
-            if (votes >= totalStaked.div(2)) {
+            if (votes >= totalStaked / 2) {
                 proposal.passTime = block.timestamp;
                 proposal.state = ProposalState.PASSED;
                 emit ProposalPassed(proposalId);
             }
         } else {
-            votes = proposal.no.add96(uint96(amount));
+            votes = proposal.no + uint96(amount);
             proposal.no = votes;
-            if (votes >= totalStaked.div(2)) {
+            if (votes >= totalStaked / 2) {
                 proposal.state = ProposalState.REJECTED;
                 emit ProposalRejected(proposalId);
             }

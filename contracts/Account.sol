@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IOracle.sol";
@@ -12,19 +12,12 @@ import "./lib/SafetyWithdraw.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Account is IAccount, Ownable, SafetyWithdraw {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
-    using SafeERC20 for IERC20;
-
     
     address public insuranceContract;
     address public gasPriceOracle;
@@ -97,8 +90,8 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         require(amount > 0, "ACT: Deposit Amount <= 0"); 
         Types.AccountBalance storage userBalance = balances[market][user];
         address tracerBaseToken = ITracerPerpetualSwaps(market).tracerBaseToken();
-        IERC20(tracerBaseToken).safeTransferFrom(depositer, address(this), amount);
-        userBalance.base = userBalance.base.add(amount.toInt256());
+        IERC20(tracerBaseToken).transferFrom(depositer, address(this), amount);
+        userBalance.base = userBalance.base + amount.toInt256();
         int256 originalLeverage = userBalance.totalLeveragedValue;
         
         _updateAccountLeverage(userBalance.quote,
@@ -108,7 +101,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             market,
             originalLeverage
         );
-        tvl[market] = tvl[market].add(amount);
+        tvl[market] = tvl[market] + amount;
         emit Deposit(user, amount, market);
     }
 
@@ -124,7 +117,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         Types.AccountBalance storage userBalance = balances[market][msg.sender];    
         require(
             marginIsValid(
-                userBalance.base.sub(amount.toInt256()), 
+                userBalance.base - amount.toInt256(), 
                 userBalance.quote,
                 pricing.fairPrices(market),
                 userBalance.lastUpdatedGasPrice,
@@ -133,13 +126,13 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             "ACT: Withdraw below valid Margin"
         );
         address tracerBaseToken = _tracer.tracerBaseToken();
-        IERC20(tracerBaseToken).safeTransfer(msg.sender, amount);
-        userBalance.base = userBalance.base.sub(amount.toInt256());
+        IERC20(tracerBaseToken).transfer(msg.sender, amount);
+        userBalance.base = userBalance.base - amount.toInt256();
         int256 originalLeverage = userBalance.totalLeveragedValue;
         _updateAccountLeverage(userBalance.quote, pricing.fairPrices(market), userBalance.base, msg.sender, market, originalLeverage);
         
         // Safemath will throw if tvl[market] < amount
-        tvl[market] = tvl[market].sub(amount);
+        tvl[market] = tvl[market] - amount;
         emit Withdraw(msg.sender, amount, market);
     }
 
@@ -171,28 +164,25 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         Types.AccountBalance storage insuranceBalance = balances[msg.sender][insuranceContract];
 
         // Calc the difference in funding rates, remove price multiply factor
-        int256 fundingDiff = currentGlobalRate.sub(currentUserRate);
+        int256 fundingDiff = currentGlobalRate - currentUserRate;
 
         // Update account, divide by 2x price multiplier to factor out price and funding rate scalar value
         // base - (fundingDiff * quote / (priceMultiplier * priceMultiplier))
-        accountBalance.base = accountBalance.base.sub(
-            fundingDiff.mul(accountBalance.quote).div((priceMultiplier.mul(priceMultiplier)).toInt256())
+        accountBalance.base = (accountBalance.base - 
+            fundingDiff * accountBalance.quote / ((priceMultiplier * priceMultiplier).toInt256())
         );
-
         // Update account gas price
         accountBalance.lastUpdatedGasPrice = gasPrice;
 
         if (accountBalance.totalLeveragedValue > 0) {
 
             // calc and pay insurance funding rate
-            int256 changeInInsuranceBalance = (currentInsuranceGlobalRate.sub(currentInsuranceUserRate)).mul(accountBalance.totalLeveragedValue).div(
-                insuranceMultiplyFactor
-            );
+            int256 changeInInsuranceBalance = ((currentInsuranceGlobalRate - currentInsuranceUserRate) * accountBalance.totalLeveragedValue) / insuranceMultiplyFactor;
 
             if (changeInInsuranceBalance > 0) {
                 // Only pay insurance fund if required
-                accountBalance.base = accountBalance.base.sub(changeInInsuranceBalance);
-                insuranceBalance.base = insuranceBalance.base.add(changeInInsuranceBalance);
+                accountBalance.base = accountBalance.base - changeInInsuranceBalance;
+                insuranceBalance.base = insuranceBalance.base + changeInInsuranceBalance;
                 // uint is safe since changeInInsuranceBalance > 0
             }
         }
@@ -253,7 +243,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
 
         // Escrow liquidator funds
         Types.AccountBalance memory liqBalance = balances[market][msg.sender];
-        balances[market][msg.sender].base = liqBalance.base.sub(amountToEscrow.toInt256());
+        balances[market][msg.sender].base = liqBalance.base - amountToEscrow.toInt256();
 
         
         // Limits the gas use when liquidating 
@@ -321,7 +311,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
                     IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance);
                 } else {
                     // attempt to drain the required balance taking into account the insurance balance in the account contract
-                    IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance.sub(uint256(insuranceBalance.base)));
+                    IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance - uint256(insuranceBalance.base));
                 }
                 if (insuranceBalance.base < amountWantedFromInsurance.toInt256()) { // Still not enough
                     amountTakenFromInsurance = uint(insuranceBalance.base);
@@ -333,11 +323,11 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             }
 
             balances[market][receiptLiquidator].base =
-                    liquidatorMargin.add((escrowedAmount.add(amountTakenFromInsurance).toInt256()));
+                    liquidatorMargin + ((escrowedAmount + amountTakenFromInsurance).toInt256());
             // Don't add any to liquidatee
         } else {
-            balances[market][receiptLiquidator].base = liquidatorMargin.add(amountToReturn.toInt256());
-            balances[market][receiptLiquidatee].base = liquidateeMargin.add(escrowedAmount.toInt256().sub(amountToReturn.toInt256()));
+            balances[market][receiptLiquidator].base = liquidatorMargin + amountToReturn.toInt256();
+            balances[market][receiptLiquidatee].base = liquidateeMargin + escrowedAmount.toInt256() - amountToReturn.toInt256();
         }
         emit ClaimedReceipts(msg.sender, market, orderIds);
     }
@@ -356,7 +346,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         // Update balance and mark as claimed
         int256 accountMargin = balances[receiptTracer][msg.sender].base;
         int256 amountToReturn = receipt.claimEscrow(receiptId, liquidatee);
-        balances[receiptTracer][msg.sender].base = accountMargin.add(amountToReturn);
+        balances[receiptTracer][msg.sender].base = accountMargin + amountToReturn;
         emit ClaimedEscrow(msg.sender, receiptTracer, receiptId);
     }
 
@@ -374,7 +364,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         address market
     ) internal view returns (uint256) {
         int256 minMargin = getUserMinMargin(liquidatee, market);
-        int256 amountToEscrow = currentUserMargin.sub(minMargin.sub(currentUserMargin));
+        int256 amountToEscrow = currentUserMargin - (minMargin - currentUserMargin);
         if (amountToEscrow < 0) {
             return 0;
         }
@@ -396,44 +386,31 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     ) internal {
         Types.AccountBalance storage userBalance = balances[market][liquidatee]; 
         Types.AccountBalance storage liqBalance = balances[market][liquidator];
+        int256 changeInBase = ((userBalance.base * ((amount * PERCENT_PRECISION) / userBalance.quote.abs())) / 
+                    PERCENT_PRECISION
+                );
         if (userBalance.base > 0) {
             // Add to the liquidators margin, they are taking on positive margin
-            liqBalance.base = liqBalance.base.add(
-                (userBalance.base.mul(amount.mul(PERCENT_PRECISION).div(userBalance.quote.abs()))).div(
-                    PERCENT_PRECISION
-                )
-            );
+            liqBalance.base = liqBalance.base + changeInBase;
 
             // Subtract from the liquidatees margin
-            userBalance.base = userBalance.base.sub(
-                userBalance.base.mul(amount.mul(PERCENT_PRECISION).div(userBalance.quote.abs())).div(
-                    PERCENT_PRECISION
-                )
-            );
+            userBalance.base = userBalance.base - changeInBase;
         } else {
             // Subtract from the liquidators margin, they are taking on negative margin
-            liqBalance.base = liqBalance.base.sub(
-                (userBalance.base.mul(amount.mul(PERCENT_PRECISION).div(userBalance.quote.abs()))).div(
-                    PERCENT_PRECISION
-                )
-            );
+            liqBalance.base = liqBalance.base - changeInBase;
 
             // Add this to the user balances margin
-            userBalance.base = userBalance.base.add(
-                userBalance.base.mul(amount.mul(PERCENT_PRECISION).div(userBalance.quote.abs())).div(
-                    PERCENT_PRECISION
-                )
-            );
+            userBalance.base = userBalance.base + changeInBase;
         }
 
         if (userBalance.quote > 0) {
             // Take from liquidatee, give to liquidator
-            liqBalance.quote = liqBalance.quote.add(amount);
-            userBalance.quote = userBalance.quote.sub(amount);
+            liqBalance.quote = liqBalance.quote + amount;
+            userBalance.quote = userBalance.quote - amount;
         } else {
             // Take from liquidator, give to liquidatee
-            liqBalance.quote = liqBalance.quote.sub(amount);
-            userBalance.quote = userBalance.quote.add(amount);
+            liqBalance.quote = liqBalance.quote - amount;
+            userBalance.quote = userBalance.quote + amount;
         }
     }
 
@@ -441,7 +418,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
      * @notice Updates the account state of a user given a specific tracer, in a trade event. Adds the 
      *         passed in margin and position changes to the current margin and position.
      * @dev Related to permissionedTakeOrder() in TracerPerpetualSwaps.sol 
-     * @param baseChange Is equal to: FillAmount.mul(uint256(order.price))).div(priceMultiplier).toInt256()
+     * @param baseChange Is equal to: FillAmount * uint256(order.price))) / priceMultiplier).toInt256()
      * @param quoteChange The amount of the order filled changed to be negative (e.g. if 100$ of the order is filled this would be -$100  )
      * @param accountAddress The address of the account to be updated 
      * @param market The address of the tracer market, used to target the tracer market where the update is relevant 
@@ -454,8 +431,8 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     ) external override onlyTracer(market) {
         Types.AccountBalance storage userBalance = balances[market][accountAddress];
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
-        userBalance.base = userBalance.base.add(baseChange);
-        userBalance.quote = userBalance.quote.add(quoteChange);
+        userBalance.base = userBalance.base + baseChange;
+        userBalance.quote = userBalance.quote + quoteChange;
         userBalance.lastUpdatedGasPrice = IOracle(_tracer.gasPriceOracle()).latestAnswer();
     }
 
@@ -527,13 +504,13 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         total contract leverage has decreased by the difference between the old leverage and zero
         (which is the old leveraged value)
         */
-        int256 accountDelta = accountNewLeveragedNotional.sub(accountOldLeveragedNotional);
+        int256 accountDelta = accountNewLeveragedNotional - accountOldLeveragedNotional;
         if (accountNewLeveragedNotional > 0 && accountOldLeveragedNotional >= 0) {
-            tracerLeveragedNotionalValue[market] = tracerLeveragedNotionalValue[market].add(accountDelta);
+            tracerLeveragedNotionalValue[market] = tracerLeveragedNotionalValue[market] + accountDelta;
         } else if (accountNewLeveragedNotional > 0 && accountOldLeveragedNotional < 0) {
-            tracerLeveragedNotionalValue[market] = tracerLeveragedNotionalValue[market].add(accountNewLeveragedNotional);
+            tracerLeveragedNotionalValue[market] = tracerLeveragedNotionalValue[market] + accountNewLeveragedNotional;
         } else if (accountNewLeveragedNotional <= 0 && accountDelta < 0 && accountOldLeveragedNotional > 0) {
-            tracerLeveragedNotionalValue[market] = tracerLeveragedNotionalValue[market].sub(accountOldLeveragedNotional);
+            tracerLeveragedNotionalValue[market] = tracerLeveragedNotionalValue[market] - accountOldLeveragedNotional;
         }
     }
    
@@ -581,7 +558,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
         address market
     ) public override view returns (bool) {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
-        int256 gasCost = gasPrice.mul(_tracer.LIQUIDATION_GAS_COST().toInt256());
+        int256 gasCost = gasPrice * _tracer.LIQUIDATION_GAS_COST().toInt256();
         int256 minMargin = Balances.calcMinMargin(quote, price, base, gasCost, _tracer.maxLeverage(), _tracer.priceMultiplier());
         int256 margin = Balances.calcMargin(quote, price, base, _tracer.priceMultiplier());
 
@@ -637,7 +614,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     function getUserNotionalValue(address account, address market) public override view returns (int256) {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         Types.AccountBalance memory accountBalance = balances[market][account];
-        return Balances.calcNotionalValue(accountBalance.quote, pricing.fairPrices(market)).div(_tracer.priceMultiplier().toInt256());
+        return Balances.calcNotionalValue(accountBalance.quote, pricing.fairPrices(market)) / _tracer.priceMultiplier().toInt256();
     }
 
     /**
@@ -655,7 +632,7 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             accountBalance.quote,
             pricing.fairPrices(market),
             accountBalance.base,
-            accountBalance.lastUpdatedGasPrice.mul(_tracer.LIQUIDATION_GAS_COST().toInt256()),
+            accountBalance.lastUpdatedGasPrice * _tracer.LIQUIDATION_GAS_COST().toInt256(),
             _tracer.maxLeverage(),
             _tracer.priceMultiplier()
         );

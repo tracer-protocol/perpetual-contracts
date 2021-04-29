@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
@@ -7,13 +7,9 @@ import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IOracle.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 
 contract Pricing is IPricing {
     uint256 private constant DIVIDE_PRECISION = 100000000; // 10^7
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using LibMath for uint256;
     using LibMath for int256;
 
@@ -68,14 +64,10 @@ contract Pricing is IPricing {
             pricing.hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the market price to a running total and increment number of trades
-            pricing.hourlyTracerPrices[currentHour].totalPrice = pricing.hourlyTracerPrices[currentHour].totalPrice.add(
-                marketPrice
-            );
+            pricing.hourlyTracerPrices[currentHour].totalPrice = pricing.hourlyTracerPrices[currentHour].totalPrice + marketPrice;
             pricing.hourlyTracerPrices[currentHour].numTrades = pricing.hourlyTracerPrices[currentHour].numTrades + 1;
             // As above but with oracle price
-            pricing.hourlyOraclePrices[currentHour].totalPrice = pricing.hourlyOraclePrices[currentHour].totalPrice.add(
-                oraclePrice
-            );
+            pricing.hourlyOraclePrices[currentHour].totalPrice = pricing.hourlyOraclePrices[currentHour].totalPrice + oraclePrice;
             pricing.hourlyOraclePrices[currentHour].numTrades = pricing.hourlyOraclePrices[currentHour].numTrades + 1;
         }
     }
@@ -95,19 +87,18 @@ contract Pricing is IPricing {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         int256 timeValue = timeValues[market];
         (int256 underlyingTWAP, int256 deriativeTWAP) = getTWAPs(market, _tracer.currentHour());
-        int256 newFundingRate = ((deriativeTWAP).sub(underlyingTWAP).sub(timeValue)).mul(
-            _tracer.FUNDING_RATE_SENSITIVITY().toInt256()
-        );
+        int256 newFundingRate = (deriativeTWAP - underlyingTWAP - timeValue) * 
+           (_tracer.FUNDING_RATE_SENSITIVITY().toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex[market] - 1;
 
         // Create variable with value of new funding rate value
         int256 currentFundingRateValue = getOnlyFundingRateValue(market, fundingIndex);
-        int256 fundingRateValue = currentFundingRateValue.add((newFundingRate.mul(oraclePrice)));
+        int256 fundingRateValue = currentFundingRateValue + (newFundingRate * oraclePrice);
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue = getOnlyInsuranceFundingRateValue(market, fundingIndex);
-        int256 IPoolFundingRateValue = currentInsuranceFundingRateValue.add(IPoolFundingRate);
+        int256 IPoolFundingRateValue = currentInsuranceFundingRateValue + IPoolFundingRate;
 
         // Call setter functions on calculated variables
         setFundingRate(market, oraclePrice, newFundingRate, fundingRateValue);
@@ -127,7 +118,7 @@ contract Pricing is IPricing {
         int256 timeValue = timeValues[market];
 
         // calculates fairPrice
-        return oraclePrice.sub(timeValue);
+        return oraclePrice - timeValue;
     }
 
     ////////////////////////////
@@ -140,7 +131,7 @@ contract Pricing is IPricing {
      */
     function updateTimeValue(address market) public override onlyTracer(market) {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices(market);
-        timeValues[market] = timeValues[market].add(avgPrice.toInt256().sub(oracleAvgPrice.toInt256()).div(90));
+        timeValues[market] = timeValues[market] + ((avgPrice.toInt256() - oracleAvgPrice.toInt256()) / 90);
     }
 
     /**
@@ -265,9 +256,9 @@ contract Pricing is IPricing {
         int256 derivativeSum = 0;
         uint256 derivativeInstances = 0;
         uint256 underlyingInstances = 0;
-        for (uint8 i = 0; i < 8; i++) {
+        for (int256 i = 0; i < 8; i++) {
             int256 timeWeight = 8 - i;
-            int256 j = int256(currentHour) - int256(i); // keep moving towards 0
+            int256 j = int256(currentHour) - i; // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
                 j = 23;
@@ -275,19 +266,19 @@ contract Pricing is IPricing {
             int256 derivativePrice = getHourlyAvgTracerPrice(uint256(j), market);
             int256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j), market);
             if (derivativePrice != 0) {
-                derivativeInstances = derivativeInstances.add(uint256(timeWeight));
-                derivativeSum = derivativeSum.add((timeWeight).mul(derivativePrice));
+                derivativeInstances = derivativeInstances + uint256(timeWeight);
+                derivativeSum = derivativeSum + (timeWeight * derivativePrice);
             }
             if (underlyingPrice != 0) {
-                underlyingInstances = underlyingInstances.add(uint256(timeWeight));
-                underlyingSum = underlyingSum.add((timeWeight).mul(underlyingPrice));
+                underlyingInstances = underlyingInstances + uint256(timeWeight);
+                underlyingSum = underlyingSum + (timeWeight * underlyingPrice);
             }
         }
         if (derivativeInstances == 0) {
             // Not enough market data yet
             return (0, 0);
         }
-        return (underlyingSum.div(underlyingInstances.toInt256()), derivativeSum.div(derivativeInstances.toInt256()));
+        return (underlyingSum / underlyingInstances.toInt256(), derivativeSum / derivativeInstances.toInt256());
     }
 
     /**
@@ -305,17 +296,16 @@ contract Pricing is IPricing {
             Types.HourlyPrices memory hourlyPrice = pricing.hourlyTracerPrices[i];
             Types.HourlyPrices memory oracleHourlyPrice = pricing.hourlyOraclePrices[i];
             if (hourlyPrice.numTrades != 0) {
-                runningTotal = runningTotal.add((uint256(hourlyPrice.totalPrice.abs())).div(hourlyPrice.numTrades));
+                runningTotal = runningTotal + (uint256(hourlyPrice.totalPrice.abs()) / hourlyPrice.numTrades);
                 numberOfHoursPresent = numberOfHoursPresent + 1;
             }
             if (oracleHourlyPrice.numTrades != 0) {
-                oracleRunningTotal = oracleRunningTotal.add(
-                    (uint256(oracleHourlyPrice.totalPrice.abs())).div(oracleHourlyPrice.numTrades)
-                );
+                oracleRunningTotal = oracleRunningTotal + 
+                    (uint256(oracleHourlyPrice.totalPrice.abs()) / oracleHourlyPrice.numTrades);
                 numberOfOracleHoursPresent = numberOfOracleHoursPresent + 1;
             }
         }
-        return (runningTotal.div(numberOfHoursPresent), oracleRunningTotal.div(numberOfOracleHoursPresent));
+        return (runningTotal / numberOfHoursPresent, oracleRunningTotal / numberOfOracleHoursPresent);
     }
 
     /**
@@ -340,7 +330,7 @@ contract Pricing is IPricing {
         if (hourly.numTrades == 0) {
             return 0;
         } else {
-            return hourly.totalPrice.div(hourly.numTrades.toInt256());
+            return hourly.totalPrice / hourly.numTrades.toInt256();
         }
     }
 
@@ -367,7 +357,7 @@ contract Pricing is IPricing {
         } else {
             /* On each trade, the oracle price is added to, so the average is
                (total / number of trades) */
-            return hourly.totalPrice.div(hourly.numTrades.toInt256());
+            return hourly.totalPrice / hourly.numTrades.toInt256();
         }
     }
 

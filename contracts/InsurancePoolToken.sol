@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.0;
 import "./lib/SafetyWithdraw.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 
 /**
 * The Tracer Insurance Pool Token is a minimal implementation of ERC2222
 * https://github.com/ethereum/EIPs/issues/2222
 */
 contract InsurancePoolToken is ERC20, Ownable, SafetyWithdraw {
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
-
     uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     address public immutable rewardToken;
     uint256 public rewardsPerToken;
@@ -54,14 +49,14 @@ contract InsurancePoolToken is ERC20, Ownable, SafetyWithdraw {
     */
     function depositFunds(uint256 amount) public {
         require(
-            ERC20(rewardToken).balanceOf(address(this)).sub(rewardsLocked) >= amount,
+            ERC20(rewardToken).balanceOf(address(this)) - rewardsLocked >= amount,
             "IPT: reward > holdings"
         );
-        uint256 updateRewardsPerToken = (amount.mul(SAFE_TOKEN_MULTIPLY)).div(totalSupply());
+        uint256 updateRewardsPerToken = (amount * SAFE_TOKEN_MULTIPLY) / totalSupply();
         // Update the running total of rewards per token
-        rewardsPerToken = rewardsPerToken.add(updateRewardsPerToken);
+        rewardsPerToken = rewardsPerToken + updateRewardsPerToken;
         // Lock these tokens to pay out to insurers
-        rewardsLocked = rewardsLocked.add(amount);
+        rewardsLocked = rewardsLocked + amount;
         emit FundsDistributed(msg.sender, amount);
     }
 
@@ -69,8 +64,8 @@ contract InsurancePoolToken is ERC20, Ownable, SafetyWithdraw {
     * @notice Returns the amount of funds (rewards) withdrawable by the sender 
     */
     function withdrawableFundsOf() external view returns (uint256) {
-        uint256 userRewardsPerToken = rewardsPerToken.sub(lastRewardsUpdate[msg.sender]);
-        uint256 rewards = userRewardsPerToken.mul(balanceOf(msg.sender)).div(SAFE_TOKEN_MULTIPLY);
+        uint256 userRewardsPerToken = rewardsPerToken - lastRewardsUpdate[msg.sender];
+        uint256 rewards = (userRewardsPerToken * balanceOf(msg.sender)) / SAFE_TOKEN_MULTIPLY;
         return rewards;
     }
 
@@ -82,13 +77,13 @@ contract InsurancePoolToken is ERC20, Ownable, SafetyWithdraw {
     * @notice withdraws all funds (rewards) for a user
     */
     function _withdrawFunds(address account) internal {
-        uint256 userRewardsPerToken = rewardsPerToken.sub(lastRewardsUpdate[account]);
+        uint256 userRewardsPerToken = rewardsPerToken - lastRewardsUpdate[account];
         if (userRewardsPerToken == 0) {
             return;
         }
-        uint256 rewards = userRewardsPerToken.mul(balanceOf(account)).div(SAFE_TOKEN_MULTIPLY);
+        uint256 rewards = (userRewardsPerToken * balanceOf(account)) / SAFE_TOKEN_MULTIPLY;
         // Unlock rewards
-        rewardsLocked = rewardsLocked.sub(rewards);
+        rewardsLocked = rewardsLocked - rewards;
         // Update the users last rewards update to be current time
         lastRewardsUpdate[account] = rewardsPerToken;
         // Pay user
