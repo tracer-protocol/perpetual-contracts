@@ -31,7 +31,7 @@ library LibLiquidation {
         if (amountToEscrow < 0) {
             return 0;
         }
-        return uint256(amountToEscrow);
+        return amountToEscrow;
     }
 
     /**

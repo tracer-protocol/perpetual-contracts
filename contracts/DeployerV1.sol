@@ -21,7 +21,8 @@ contract DeployerV1 is IDeployer {
             address _pricingContract,
             address _liquidationContract,
             int256 _maxLeverage,
-            uint256 _fundingRateSensitivity
+            uint256 _fundingRateSensitivity,
+            uint256 _feeRate
         ) = abi.decode(_data, (
             bytes32,
             address,
@@ -31,6 +32,7 @@ contract DeployerV1 is IDeployer {
             address,
             address,
             int256,
+            uint256,
             uint256
         ));
         TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
@@ -42,7 +44,8 @@ contract DeployerV1 is IDeployer {
             _pricingContract,
             _liquidationContract,
             _maxLeverage,
-            _fundingRateSensitivity
+            _fundingRateSensitivity,
+            _feeRate
         );
         tracer.transferOwnership(msg.sender);
         return address(tracer);
