@@ -21,7 +21,7 @@ contract TracerPerpetualSwaps is
 	using LibMath for uint256;
 	using LibMath for int256;
 
-	uint256 public override FUNDING_RATE_SENSITIVITY;
+	uint256 public override fundingRateSensitivity;
 	uint256 public constant override LIQUIDATION_GAS_COST = 63516;
 	uint256 public immutable override priceMultiplier;
 	address public immutable override tracerBaseToken;
@@ -42,9 +42,6 @@ contract TracerPerpetualSwaps is
 	uint256 internal startLastHour;
 	uint256 internal startLast24Hours;
 	uint8 public override currentHour;
-
-	// Account1 => account2 => whether account2 can trade on behalf of account1
-	mapping(address => mapping(address => bool)) public tradePermissions;
 
 	// Account State Variables
 	mapping(address => Types.AccountBalance) public balances;
@@ -79,7 +76,8 @@ contract TracerPerpetualSwaps is
 		address _pricingContract,
 		address _liquidationContract,
 		int256 _maxLeverage,
-		uint256 fundingRateSensitivity
+		uint256 fundingRateSensitivity,
+		uint256 _feeRate
 	) public Ownable() {
 		pricingContract = IPricing(_pricingContract);
 		liquidationContract = _liquidationContract;
@@ -89,9 +87,9 @@ contract TracerPerpetualSwaps is
 		marketId = _marketId;
 		IOracle ioracle = IOracle(oracle);
 		priceMultiplier = 10**uint256(ioracle.decimals());
-		feeRate = 0;
+		feeRate = _feeRate;
 		maxLeverage = _maxLeverage;
-		FUNDING_RATE_SENSITIVITY = fundingRateSensitivity;
+		fundingRateSensitivity = fundingRateSensitivity;
 
 		// Start average prices from deployment
 		startLastHour = block.timestamp;
@@ -103,15 +101,15 @@ contract TracerPerpetualSwaps is
 	 * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
 	 * @param amount The amount of base tokens to be deposited into the Tracer Market account
 	 */
-	function deposit(uint256 amount) public {
-		require(amount > 0, "ACT: Deposit Amount <= 0 ");
+	function deposit(uint256 amount) external {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
 		IERC20(tracerBaseToken).transferFrom(msg.sender, address(this), amount);
-		userBalance.base = userBalance.base + amount.toInt256();
 
-		_updateAccountLeverage(
-			msg.sender
-		);
+		// update user state
+		userBalance.base = userBalance.base + amount.toInt256();
+		_updateAccountLeverage(msg.sender);
+
+		// update market TVL
 		tvl = tvl + amount;
 		emit Deposit(msg.sender, amount);
 	}
@@ -123,26 +121,26 @@ contract TracerPerpetualSwaps is
 	 */
 	function withdraw(uint256 amount) external {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
+		int256 newBase = userBalance.base - amount.toInt256();
 		require(
 			marginIsValid(
-				userBalance.base - amount.toInt256(), //todo unsafe cast
+				newBase,
 				userBalance.quote,
 				pricingContract.fairPrices(address(this)),
-				userBalance.lastUpdatedGasPrice,
-				address(this)
+				userBalance.lastUpdatedGasPrice
 			),
-			"ACT: Withdraw below valid Margin "
+			"TCR: Withdraw below valid Margin "
 		);
 
-		IERC20(tracerBaseToken).transfer(msg.sender, amount);
-		userBalance.base = userBalance.base - amount.toInt256();
-		int256 originalLeverage = userBalance.totalLeveragedValue;
-		_updateAccountLeverage(
-			msg.sender
-		);
+		// update user state
+		userBalance.base = newBase;
+		_updateAccountLeverage(msg.sender);
 
 		// Safemath will throw if tvl[market] < amount
 		tvl = tvl - amount;
+
+		// perform transfer
+		IERC20(tracerBaseToken).transfer(msg.sender, amount);
 		emit Withdraw(msg.sender, amount);
 	}
 
@@ -179,8 +177,8 @@ contract TracerPerpetualSwaps is
 		uint256 fillAmount
 	) public override {
 		// perform compatibility checks
+		// todo order validation can be in the Tracer Lib
 		require(order1.price == order2.price, "TCR: Price mismatch ");
-		int256 orderPrice = order1.price;
 
 		// Ensure orders are for opposite sides
 		require(order1.side != order2.side, "TCR: Same side ");
@@ -197,115 +195,71 @@ contract TracerPerpetualSwaps is
 			"TCR: Order already filled "
 		);
 
-		address order1User = order1.maker;
-		address order2User = order2.maker;
-		bool order1Side = order1.side;
-		int256 baseChange =
-			(fillAmount.toInt256() * orderPrice) / priceMultiplier.toInt256();
-
 		// update account states
-		updateAccounts(
-			baseChange,
-			fillAmount,
-			order1Side,
-			order1User,
-			order2User
-		);
+		executeTrade(order1, order2, fillAmount);
 
-        // update leverage
-        _updateAccountLeverage(order1User);
-        _updateAccountLeverage(order2User);
+		// update leverage
+		_updateAccountLeverage(order1.maker);
+		_updateAccountLeverage(order2.maker);
 
-		// Settle accounts
-		settle(order1User);
-		settle(order2User);
+		// settle accounts
+		settle(order1.maker);
+		settle(order2.maker);
 
 		// Update internal trade state
-		updateInternalRecords(orderPrice);
+		// note: price has already been validated here, so order 1 price can be used
+		updateInternalRecords(order1.price);
 
 		// Ensures that you are in a position to take the trade
 		require(
-			userMarginIsValid(order1User, address(this)) &&
-				userMarginIsValid(order2User, address(this)),
+			userMarginIsValid(order1.maker) &&
+				userMarginIsValid(order2.maker),
 			"TCR: Margin Invalid post trade "
 		);
 	}
 
 	/**
-	 * @notice Updates account states of two accounts given a change in base, an amount of positions filled and
-	 *         the side of the first account listed.
-	 * @dev relies on the account contarct to perform actual state update for a trade.
+	 * @notice Updates account states of two accounts given two orders that are being executed
 	 */
-	function updateAccounts(
-		int256 baseChange,
-		uint256 fillAmount,
-		bool user1Side,
-		address user1,
-		address user2
+	function executeTrade(
+		Types.Order memory order1,
+		Types.Order memory order2,
+		uint256 fillAmount
 	) internal {
+		int256 _fillAmount = fillAmount.toInt256();
+		int256 baseChange =
+			(_fillAmount * order1.price) / priceMultiplier.toInt256();
+
 		//Update account states
-		int256 neg1 = -1;
+		Types.AccountBalance storage account1 = balances[order1.maker];
+		Types.AccountBalance storage account2 = balances[order2.maker];
 
-		if (user1Side) {
-			// User 1 long, user 2 short
-			// short - base increased, quote decreased
-			_updateAccountOnTrade(
-				baseChange,
-				neg1 * fillAmount.toInt256(),
-				user2
-			);
-			// long - base decreased, quote increased
-			_updateAccountOnTrade(
-				neg1 * baseChange,
-				fillAmount.toInt256(),
-				user1
-			);
+		if (order1.side) {
+			// user 1 is long. Increase quote, decrease base
+			account1.base = account1.base - baseChange;
+			account1.quote = account1.quote + _fillAmount;
+
+			// user 2 is short. Increase base, decrease quote
+			account2.base = account2.base + baseChange;
+			account2.quote = account2.quote - _fillAmount;
 		} else {
-			// User 2 long, user 1 short
-			// long - base decreased, quote increased
-			_updateAccountOnTrade(
-				neg1 * baseChange,
-				fillAmount.toInt256(),
-				user2
-			);
-			// short - base increased, quote decreased
-			_updateAccountOnTrade(
-				baseChange,
-				neg1 * fillAmount.toInt256(),
-				user1
-			);
-		}
-	}
+			// user 1 is short. Increase base, decrease quote
+			account1.base = account1.base + baseChange;
+			account1.quote = account1.quote - _fillAmount;
 
-	/**
-	 * @notice Updates the account state of a user given a specific tracer, in a trade event. Adds the
-	 *         passed in margin and position changes to the current margin and position.
-	 * @dev Related to permissionedTakeOrder() in TracerPerpetualSwaps.sol
-	 * @param baseChange Is equal to: FillAmount * uint256(order.price))) / priceMultiplier).toInt256()
-	 * @param quoteChange The amount of the order filled changed to be negative (e.g. if 100$ of the order is filled this would be -$100  )
-	 * @param account The address of the account to be updated
-	 */
-	function _updateAccountOnTrade(
-		int256 baseChange,
-		int256 quoteChange,
-		address account
-	) internal {
-		Types.AccountBalance storage userBalance = balances[account];
-		userBalance.base = userBalance.base + baseChange;
-		userBalance.quote = userBalance.quote + quoteChange;
-		userBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
-			.latestAnswer();
+			// user 2 is long. Increase quote, decrease base
+			account2.base = account2.base - baseChange;
+			account2.quote = account2.quote + _fillAmount;
+		}
 	}
 
 	/**
 	 * @notice internal function for updating leverage. Called within the Account contract. Also
 	 *         updates the total leveraged notional value for the tracer market itself.
 	 */
-	function _updateAccountLeverage(
-		address account
-	) internal {
-        Types.AccountBalance memory userBalance = balances[account];
-        int256 originalLeverage = userBalance.totalLeveragedValue;
+	function _updateAccountLeverage(address account) internal {
+		Types.AccountBalance memory userBalance = balances[account];
+		int256 originalLeverage = userBalance.totalLeveragedValue;
 		int256 newLeverage =
 			Balances.newCalcLeveragedNotionalValue(
 				userBalance.quote,
@@ -319,7 +273,7 @@ contract TracerPerpetualSwaps is
 		_updateTracerLeverage(newLeverage, originalLeverage);
 	}
 
-	// todo this can probably be a library function?
+	// todo these calcs can be in a library function
 	/**
 	 * @notice Updates the global leverage value given an accounts new leveraged value and old leveraged value
 	 * @param accountNewLeveragedNotional The future notional value of the account
@@ -378,26 +332,36 @@ contract TracerPerpetualSwaps is
 		uint256 amountToEscrow
 	) external onlyLiquidation {
 		// Limits the gas use when liquidating
-        int256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
-        require(tx.gasprice <= uint256(gasPrice.abs()), "LIQ: GasPrice > FGasPrice");
-        // Update liquidators last updated gas price
-        Types.AccountBalance storage liquidatorBalance = balances[liquidator];
+		int256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
+		require(
+			tx.gasprice <= uint256(gasPrice.abs()),
+			"TCR: GasPrice > FGasPrice"
+		);
+		// Update liquidators last updated gas price
+		Types.AccountBalance storage liquidatorBalance = balances[liquidator];
+		Types.AccountBalance storage liquidateeBalance = balances[liquidatee];
+
+        // update liquidators balance
         liquidatorBalance.lastUpdatedGasPrice = gasPrice;
-        liquidatorBalance.base = liquidatorBalance.base + liquidatorBaseChange - amountToEscrow.toInt256();
-        liquidatorBalance.quote = liquidatorBalance.quote + liquidatorQuoteChange;
+		liquidatorBalance.base =
+			liquidatorBalance.base +
+			liquidatorBaseChange -
+			amountToEscrow.toInt256();
+		liquidatorBalance.quote =
+			liquidatorBalance.quote +
+			liquidatorQuoteChange;
 
-        Types.AccountBalance storage liquidateeBalance = balances[liquidatee];
-        liquidateeBalance.base = liquidateeBalance.base + liquidateeBaseChange;
-        liquidateeBalance.quote = liquidateeBalance.quote + liquidateeQuoteChange;
+        // update liquidatee balance
+		liquidateeBalance.base = liquidateeBalance.base + liquidateeBaseChange;
+		liquidateeBalance.quote =
+			liquidateeBalance.quote +
+			liquidateeQuoteChange;
 
-        // Checks if the liquidator is in a valid position to process the liquidation 
-        require(
-            userMarginIsValid(
-                liquidator,
-                address(this)
-            ),
-            "TCR: Taker undermargin"
-        );
+		// Checks if the liquidator is in a valid position to process the liquidation
+		require(
+			userMarginIsValid(liquidator),
+			"TCR: Taker undermargin"
+		);
 	}
 
 	/**
@@ -447,9 +411,11 @@ contract TracerPerpetualSwaps is
 			Types.AccountBalance storage insuranceBalance =
 				balances[address(insuranceContract)];
 
+            // todo pretty much all of the below should be in a library
+
 			// Calc the difference in funding rates, remove price multiply factor
 			int256 fundingDiff = currentGlobalRate - currentUserRate;
-
+            
 			// Update account, divide by 2x price multiplier to factor out price and funding rate scalar value
 			// base - (fundingDiff * quote / (priceMultiplier * priceMultiplier))
 			accountBalance.base = (accountBalance.base -
@@ -482,13 +448,15 @@ contract TracerPerpetualSwaps is
 			accountBalance.lastUpdatedIndex = pricingContract
 				.currentFundingIndex(address(this));
 			require(
-				userMarginIsValid(account, msg.sender),
-				"ACT: Target under-margined "
+				userMarginIsValid(account),
+				"TCR: Target under-margined "
 			);
 			emit Settled(account, accountBalance.base);
 		}
 	}
 
+    // todo most of this logic should be in pricing. Tracer should simply
+    // call pricing and let it handle if state needs to be updated
 	/**
 	 * @notice Updates the internal records for pricing, funding rate and interest
 	 * @param price The price to be used to update the internal records, this is the price that a trade occurred at
@@ -570,22 +538,21 @@ contract TracerPerpetualSwaps is
 		}
 	}
 
+    // todo this function should be in a lib
 	/**
 	 * @notice Checks the validity of a potential margin given the necessary parameters
 	 * @param base The base value to be assessed (positive or negative)
 	 * @param quote The accounts quote units
 	 * @param price The market price of the quote asset
 	 * @param gasPrice The gas price
-	 * @param market The relevant tracer market
 	 * @return a bool representing the validity of a margin
 	 */
 	function marginIsValid(
 		int256 base,
 		int256 quote,
-		int256 price,
-		int256 gasPrice,
-		address market
+		int256 gasPrice
 	) public view returns (bool) {
+        int256 price = pricingContract.fairPrices(address(this));
 		int256 gasCost = gasPrice * LIQUIDATION_GAS_COST.toInt256();
 		int256 minMargin =
 			Balances.calcMinMargin(
@@ -614,10 +581,9 @@ contract TracerPerpetualSwaps is
 	/**
 	 * @notice Checks if a given accounts margin is valid
 	 * @param account The address of the account whose margin is to be checked
-	 * @param market The address of the tracer market of whose margin is to be checked
 	 * @return true if the margin is valid or false otherwise
 	 */
-	function userMarginIsValid(address account, address market)
+	function userMarginIsValid(address account)
 		public
 		view
 		returns (bool)
@@ -627,24 +593,8 @@ contract TracerPerpetualSwaps is
 			marginIsValid(
 				accountBalance.base,
 				accountBalance.quote,
-				pricingContract.fairPrices(market),
-				accountBalance.lastUpdatedGasPrice,
-				market
+				accountBalance.lastUpdatedGasPrice
 			);
-	}
-
-	/**
-	 * @notice Sets the execution permissions for a specific address. This gives this address permission to
-	 *         open and close orders on behalf of the users account.
-	 * @dev No limit is enforced on amount spendable by permissioned users.
-	 * @param account the address of the account to have execution permissions set.
-	 * @param permission the permissions for this account to be set, true for giving permission, false to remove
-	 */
-	function setUserPermissions(address account, bool permission)
-		public
-		override
-	{
-		tradePermissions[msg.sender][account] = permission;
 	}
 
 	// --------------------- //
@@ -680,7 +630,7 @@ contract TracerPerpetualSwaps is
 		override
 		onlyOwner
 	{
-		FUNDING_RATE_SENSITIVITY = _fundingRateSensitivity;
+		fundingRateSensitivity = _fundingRateSensitivity;
 	}
 
 	function transferOwnership(address newOwner)
@@ -689,14 +639,6 @@ contract TracerPerpetualSwaps is
 		onlyOwner
 	{
 		super.transferOwnership(newOwner);
-	}
-
-	modifier isPermissioned(address account) {
-		require(
-			msg.sender == account || tradePermissions[account][msg.sender],
-			"TCR: No trade permission "
-		);
-		_;
 	}
 
 	modifier onlyLiquidation() {
