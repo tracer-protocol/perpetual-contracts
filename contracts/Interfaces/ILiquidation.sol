@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 import "./Types.sol";
 
-interface IReceipt {
+interface ILiquidation {
     function submitLiquidation(
         address market,
         address liquidator,
@@ -40,6 +40,20 @@ interface IReceipt {
             bool,
             bool
         );
+
+    function liquidate(
+        int256 amount, 
+        address account,
+        address market
+    ) external;
+
+    function claimReceipts(
+        uint256 receiptID,
+        uint256[] memory orderIds,
+        address market
+    ) external;
+
+    function claimEscrow(uint256 receiptId) external;
 
     function currentLiquidationId() external view returns(uint256);
 
