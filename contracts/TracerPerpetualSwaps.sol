@@ -76,7 +76,7 @@ contract TracerPerpetualSwaps is
 		address _pricingContract,
 		address _liquidationContract,
 		int256 _maxLeverage,
-		uint256 fundingRateSensitivity,
+		uint256 _fundingRateSensitivity,
 		uint256 _feeRate
 	) public Ownable() {
 		pricingContract = IPricing(_pricingContract);
@@ -126,7 +126,6 @@ contract TracerPerpetualSwaps is
 			marginIsValid(
 				newBase,
 				userBalance.quote,
-				pricingContract.fairPrices(address(this)),
 				userBalance.lastUpdatedGasPrice
 			),
 			"TCR: Withdraw below valid Margin "
@@ -543,7 +542,6 @@ contract TracerPerpetualSwaps is
 	 * @notice Checks the validity of a potential margin given the necessary parameters
 	 * @param base The base value to be assessed (positive or negative)
 	 * @param quote The accounts quote units
-	 * @param price The market price of the quote asset
 	 * @param gasPrice The gas price
 	 * @return a bool representing the validity of a margin
 	 */
@@ -596,10 +594,6 @@ contract TracerPerpetualSwaps is
 				accountBalance.lastUpdatedGasPrice
 			);
 	}
-
-	// --------------------- //
-	//  GOVERNANCE FUNCTIONS //
-	// --------------------- //
 
 	function setInsuranceContract(address insurance) public override onlyOwner {
 		insuranceContract = IInsurance(insurance);
