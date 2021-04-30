@@ -28,19 +28,9 @@ interface ITracerPerpetualSwaps {
 
     function currentHour() external view returns(uint8);
 
-    function tracerGetBalance(address account) external view returns(
-        int256 margin,
-        int256 position,
-        int256 totalLeveragedValue,
-        int256 lastUpdatedGasPrice,
-        uint256 lastUpdatedIndex
-    );
-
     function setUserPermissions(address account, bool permission) external;
 
     function setInsuranceContract(address insurance) external;
-
-    function setAccountContract(address account) external;
 
     function setPricingContract(address pricing) external;
 
