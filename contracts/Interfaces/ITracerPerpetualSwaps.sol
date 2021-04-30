@@ -24,23 +24,11 @@ interface ITracerPerpetualSwaps {
 
     function LIQUIDATION_GAS_COST() external view returns(uint256);
 
-    function FUNDING_RATE_SENSITIVITY() external view returns(uint256);
+    function fundingRateSensitivity() external view returns(uint256);
 
     function currentHour() external view returns(uint8);
 
-    function tracerGetBalance(address account) external view returns(
-        int256 margin,
-        int256 position,
-        int256 totalLeveragedValue,
-        int256 lastUpdatedGasPrice,
-        uint256 lastUpdatedIndex
-    );
-
-    function setUserPermissions(address account, bool permission) external;
-
     function setInsuranceContract(address insurance) external;
-
-    function setAccountContract(address account) external;
 
     function setPricingContract(address pricing) external;
 

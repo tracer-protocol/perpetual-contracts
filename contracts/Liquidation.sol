@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
@@ -278,8 +276,8 @@ contract Liquidation is ILiquidation, Ownable {
            LibBalances.calcMinMargin(quote1, price, base1, gasCost, tracer.maxLeverage(), priceMultiplier);
 
         require(
-            margin < minMargin
-            "LIQ: Account above margin "
+            margin < minMargin,
+            "LIQ: Account above margin"
         );
         require(amount <= quote1.abs(), "LIQ: Liquidate Amount > Position");
 
@@ -416,7 +414,6 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Updates both the trader and liquidators account on a liquidation event.
      * @param liquidateeBalance The balance of the account being liquidated
      * @param liquidatorBalance The balance of the account calling liquidate
-     * @param liquidatee The address of the account to be liquidated 
      * @param amount The amount that is to be liquidated from the position 
      * @param market The address of the relevant Tracer market for this liquidation 
      */
@@ -429,7 +426,7 @@ contract Liquidation is ILiquidation, Ownable {
         int256 liquidatorBaseChange,
         int256 liquidatorQuoteChange,
         int256 liquidateeBaseChange,
-        int256 liquidateeQuoteChange,
+        int256 liquidateeQuoteChange
     ) {
         int256 liquidatorBaseChange;
         int256 liquidatorQuoteChange;
