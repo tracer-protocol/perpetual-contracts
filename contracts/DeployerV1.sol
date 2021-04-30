@@ -19,11 +19,13 @@ contract DeployerV1 is IDeployer {
             address _gasPriceOracle,
             address _accountContract,
             address _pricingContract,
+            address _liquidationContract,
             int256 _maxLeverage,
             uint256 _fundingRateSensitivity,
             uint256 _feeRate
         ) = abi.decode(_data, (
             bytes32,
+            address,
             address,
             address,
             address,
@@ -40,6 +42,7 @@ contract DeployerV1 is IDeployer {
             _gasPriceOracle,
             _accountContract,
             _pricingContract,
+            _liquidationContract,
             _maxLeverage,
             _fundingRateSensitivity,
             _feeRate
