@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./lib/LibLiquidation.sol";
+import "./lib/LibBalances.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
+import "./Interfaces/IOracle.sol";
+import "./Interfaces/IPricing.sol";
 
 /**
 * Each call enforces that the contract calling the account is only updating the balance
@@ -24,16 +24,29 @@ contract Liquidation is ILiquidation, Ownable {
     int256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
     IAccount public accounts;
+    IPricing public pricing;
     ITracerPerpetualsFactory public perpsFactory;
     ITracerPerpetualSwaps public tracer;
 
     // Receipt ID => LiquidationReceipt
-    mapping(uint256 => Types.LiquidationReceipt) internal liquidationReceipts;
+    mapping(uint256 => LibLiquidation.LiquidationReceipt) internal liquidationReceipts;
     // Factor to keep precision in percent calculations
     int256 private constant PERCENT_PRECISION = 10000;
 
+    event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
+    event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
+    event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
+
     // On contract deployment set the account contract. 
-    constructor(address _tracer, address accountContract, address _perpsFactory, int256 _maxSlippage, address gov) public {
+    constructor(
+        address _pricing,
+        address _tracer,
+        address accountContract,
+        address _perpsFactory,
+        int256 _maxSlippage,
+        address gov
+    ) public {
+        pricing = IPricing(_pricing);
         accounts = IAccount(accountContract);
         perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         tracer = ITracerPerpetualSwaps(_tracer);
@@ -62,8 +75,8 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 escrowedAmount,
         int256 amountLiquidated,
         bool liquidationSide
-    ) external override onlyAccount {
-        liquidationReceipts[currentLiquidationId] = Types.LiquidationReceipt(
+    ) public override onlyAccount {
+        liquidationReceipts[currentLiquidationId] = LibLiquidation.LiquidationReceipt(
             market,
             liquidator,
             liquidatee,
@@ -93,15 +106,15 @@ contract Liquidation is ILiquidation, Ownable {
         address market,
         address liquidator
     ) external override onlyAccount returns (uint256) {
-        Types.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
-        require(receipt.liquidator == liquidator, "REC: Liquidator mismatch");
-        require(block.timestamp < receipt.releaseTime, "REC: claim time passed");
-        require(!receipt.liquidatorRefundClaimed, "REC: Already claimed");
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
+        require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
+        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         // Validate the escrowed order was fully sold
         (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
-            "REC: Unit mismatch"
+            "LIQ: Unit mismatch"
         );
 
         // Mark refund as claimed
@@ -148,6 +161,7 @@ contract Liquidation is ILiquidation, Ownable {
             return (amountToReturn);
         }
     }
+
     /**
      * @notice Used to claim funds owed to you through your receipt. 
      * @dev Marks escrowed funds as claimed and returns amount to return
@@ -155,10 +169,10 @@ contract Liquidation is ILiquidation, Ownable {
      * @param liquidatee The address of the account that is getting liquidated (the liquidatee)
      */
     function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256) {
-        Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptID];
-        require(receipt.liquidatee == liquidatee, "REC: Liquidatee mismatch");
-        require(!receipt.escrowClaimed, "REC: Escrow claimed");
-        require(block.timestamp > receipt.releaseTime, "REC: Not released");
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptID];
+        require(receipt.liquidatee == liquidatee, "LIQ: Liquidatee mismatch");
+        require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
+        require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
         liquidationReceipts[receiptID].escrowClaimed = true;
         return (receipt.escrowedAmount.toInt256());
     }
@@ -176,7 +190,7 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 receiptId,
         address market
     ) public view returns (uint256, int256) {
-        Types.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
@@ -189,7 +203,7 @@ contract Liquidation is ILiquidation, Ownable {
                 address orderMaker,
                 uint256 creation
             ) = _tracer.getOrder(orderId);
-            require(creation >= receipt.time, "REC: Order creation before liquidation");
+            require(creation >= receipt.time, "LIQ: Order creation before liquidation");
             if (orderMaker == receipt.liquidator) {
                 // Order was made by liquidator
                 if (orderSide != receipt.liquidationSide) {
@@ -233,7 +247,7 @@ contract Liquidation is ILiquidation, Ownable {
             bool
         )
     {
-        Types.LiquidationReceipt memory _receipt = liquidationReceipts[id];
+        LibLiquidation.LiquidationReceipt memory _receipt = liquidationReceipts[id];
         return (
             _receipt.tracer,
             _receipt.liquidator,
@@ -247,6 +261,64 @@ contract Liquidation is ILiquidation, Ownable {
             _receipt.liquidationSide,
             _receipt.liquidatorRefundClaimed
         );
+    }
+
+
+    function verifyAndSubmitLiquidation(
+        int256 quote,
+        int256 price,
+        int256 base,
+        int256 amount,
+        uint256 priceMultiplier,
+        int256 gasPrice,
+        address account,
+        address market
+    ) internal returns (uint256) {
+        int256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST().toInt256();
+        int256 minMargin =
+            Balances.calcMinMargin(quote, price, base, gasCost, tracer.maxLeverage(), priceMultiplier);
+
+        require(
+            Balances.calcMargin(quote, price, base, priceMultiplier) < minMargin,
+            "LIQ: Account above margin"
+        );
+        require(amount <= quote.abs(), "LIQ: Liquidate Amount > Position");
+
+        // calc funds to liquidate and move to Escrow
+        uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
+            minMargin,
+            Balances.calcMargin(quote, price, base, priceMultiplier)
+        );
+
+        // create a liquidation receipt
+        bool side = quote < 0 ? false : true;
+        submitLiquidation(
+            market,
+            msg.sender,
+            account,
+            price,
+            amountToEscrow,
+            amount,
+            side
+        );
+        return amountToEscrow;
+        return 0;
+    }
+
+    function calcLiquidationBalanceChanges(
+        int256 liquidatedBase, int256 liquidatedQuote, address liquidator, int256 amount, address market
+    ) internal view returns (
+            int256 liquidatorBaseChange,
+            int256 liquidatorQuoteChange,
+            int256 liquidateeBaseChange,
+            int256 liquidateeQuoteChange
+    ) {
+
+        /* Liquidator's balance */
+        (, int256 liquidatorQuote, , ,) = accounts.getBalance(liquidator, market);
+        
+        // Calculates what the updated state of both accounts will be if the liquidation is fully processed
+        return LibLiquidation.liquidationBalanceChanges(liquidatedBase, liquidatedQuote, liquidatorQuote, amount);
     }
 
     /**
@@ -263,70 +335,52 @@ contract Liquidation is ILiquidation, Ownable {
     ) external override isValidTracer(market) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
 
-        int256 price = pricing.fairPrices(market);
+        /* Liquidated account's balance */
         (
-            int256 base1,
-            int256 quote1,
-            int256 totalLeveragedValue,
-            int256 lastUpdatedGasPrice,
+            int256 liquidatedBase,
+            int256 liquidatedQuote,
+            ,
+            int256 liquidatedGasPrice,
 
         ) = accounts.getBalance(account, market);
-        uint256 priceMultiplier = tracer.priceMultiplier();
-        int256 margin = LibBalances.calcMargin(quote1, price, base1, priceMultiplier);
-        int256 gasCost = lastUpdatedGasPrice.mul(tracer.LIQUIDATION_GAS_COST().toInt256());
-        int256 minMargin =
-           LibBalances.calcMinMargin(quote1, price, base1, gasCost, tracer.maxLeverage(), priceMultiplier);
 
+        uint256 amountToEscrow = verifyAndSubmitLiquidation(
+            liquidatedQuote,
+            pricing.fairPrices(market),
+            liquidatedBase,
+            amount,
+            tracer.priceMultiplier(),
+            liquidatedGasPrice,
+            account,
+            market
+        );
+        
+        // Limits the gas use when liquidating 
         require(
-            margin < minMargin
-            "LIQ: Account above margin "
-        );
-        require(amount <= quote1.abs(), "LIQ: Liquidate Amount > Position");
-
-        // calc funds to liquidate and move to Escrow
-        uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            minMargin,
-            currentMargin
+            tx.gasprice <= uint256(IOracle(ITracerPerpetualSwaps(market).gasPriceOracle()).latestAnswer().abs()),
+            "LIQ: GasPrice > FGasPrice"
         );
 
-
-        // Calculates what the updated state of both accounts will be if the liquidation is fully processed
         (
             int256 liquidatorBaseChange,
             int256 liquidatorQuoteChange,
             int256 liquidateeBaseChange,
             int256 liquidateeQuoteChange
-        ) = liquidationBalanceChanges(msg.sender, account, amount, market);
+        ) = calcLiquidationBalanceChanges(
+            liquidatedBase, liquidatedQuote, msg.sender, amount, market
+        );
 
-        // create a liquidation receipt
-        bool side = quote1 < 0 ? false : true;
-        submitLiquidation(
-            market,
+        tracer.updateAccountsOnLiquidation(
             msg.sender,
             account,
-            price,
-            amountToEscrow,
-            amount,
-            side
-        );
-        
-        // Limits the gas use when liquidating 
-        int256 gasPrice = IOracle(ITracerPerpetualSwaps(market).gasPriceOracle()).latestAnswer();
-        require(tx.gasprice <= uint256(gasPrice.abs()), "LIQ: GasPrice > FGasPrice");
-
-        // Checks if the liquidator is in a valid position to process the liquidation 
-        require(
-            marginIsValid(
-                liqBalance.base,
-                liqBalance.quote,
-                price,
-                gasPrice,
-                market
-            ),
-            "LIQ: Taker undermargin"
+            liquidatorBaseChange,
+            liquidatorQuoteChange,
+            liquidateeBaseChange,
+            liquidateeQuoteChange,
+            amountToEscrow
         );
 
-        emit Liquidate(account, msg.sender, amount, side, market, receipt.currentLiquidationId() - 1);
+        emit Liquidate(account, msg.sender, amount, (liquidatedQuote < 0 ? false : true), market, currentLiquidationId - 1);
     }
 
     /**
@@ -342,6 +396,7 @@ contract Liquidation is ILiquidation, Ownable {
         address market
     ) public override {
         // Claim the receipts from the escrow system, get back amount to return
+        /*
         (, address receiptLiquidator, address receiptLiquidatee, , , uint256 escrowedAmount, , , , ,) = receipt 
             .getLiquidationReceipt(receiptID);
         int256 liquidatorMargin = balances[market][receiptLiquidator].base;
@@ -349,6 +404,7 @@ contract Liquidation is ILiquidation, Ownable {
         ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
         uint256 amountToReturn = receipt.claimReceipts(receiptID, orderIds, tracer.priceMultiplier(), market, msg.sender);
 
+         */
         /* 
          * If there was not enough escrowed, we want to call the insurance pool to help out.
          * First, check the margin of the insurance Account. If this is enough, just drain from there.
@@ -357,6 +413,7 @@ contract Liquidation is ILiquidation, Ownable {
          * If the margin still does not have enough after calling drainPool, we are not able to fully
          * claim the receipt, only up to the amount the insurance pool allows for.
          */
+        /* 
         if (amountToReturn > escrowedAmount) { // Need to cover some loses with the insurance contract
             // Amount needed from insurance
             uint256 amountWantedFromInsurance = amountToReturn - escrowedAmount;
@@ -392,6 +449,7 @@ contract Liquidation is ILiquidation, Ownable {
             balances[market][receiptLiquidatee].base = liquidateeMargin.add(escrowedAmount.toInt256().sub(amountToReturn.toInt256()));
         }
         emit ClaimedReceipts(msg.sender, market, orderIds);
+        */
     }
 
     /**
@@ -400,6 +458,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimEscrow(uint256 receiptId) public override {
         // Get receipt
+        /* TODO awaiting account + tracer merge
         (address receiptTracer, , address liquidatee , , , , uint256 releaseTime, ,bool escrowClaimed , ,) = receipt.getLiquidationReceipt(receiptId);
         require(liquidatee == msg.sender, "LIQ: Not Entitled");
         require(!escrowClaimed, "LIQ: Already claimed");
@@ -410,73 +469,7 @@ contract Liquidation is ILiquidation, Ownable {
         int256 amountToReturn = receipt.claimEscrow(receiptId, liquidatee);
         balances[receiptTracer][msg.sender].base = accountMargin.add(amountToReturn);
         emit ClaimedEscrow(msg.sender, receiptTracer, receiptId);
-    }
-
-    /**
-     * @notice Updates both the trader and liquidators account on a liquidation event.
-     * @param liquidateeBalance The balance of the account being liquidated
-     * @param liquidatorBalance The balance of the account calling liquidate
-     * @param liquidatee The address of the account to be liquidated 
-     * @param amount The amount that is to be liquidated from the position 
-     * @param market The address of the relevant Tracer market for this liquidation 
-     */
-    function liquidationBalanceChanges(
-        Types.AccountBalance memory liquidateeBalance,
-        Types.AccountBalance memory liquidatorBalance,
-        int256 amount,
-        address market
-    ) internal returns (
-        int256 liquidatorBaseChange,
-        int256 liquidatorQuoteChange,
-        int256 liquidateeBaseChange,
-        int256 liquidateeQuoteChange,
-    ) {
-        int256 liquidatorBaseChange;
-        int256 liquidatorQuoteChange;
-        int256 liquidateeBaseChange;
-        int256 liquidateeQuoteChange;
-
-        if (liquidateeBalance.base > 0) {
-            // Add to the liquidators margin, they are taking on positive margin
-            liquidatorBaseChange = 
-                liqudiatorBalance.base.mul(amount.mul(PERCENT_PRECISION).div(liqudiatorBalance.quote.abs())).div(
-                    PERCENT_PRECISION
-                );
-
-            // Subtract from the liquidatees margin
-            liquidateeBaseChange = 
-                liqudiatorBalance.base.mul(amount.mul(PERCENT_PRECISION).div(liqudiatorBalance.quote.abs())).div(
-                    PERCENT_PRECISION
-                ).mul(-1);
-        } else {
-            // Subtract from the liquidators margin, they are taking on negative margin
-            liquidatorBaseChange = 
-                liqudiatorBalance.base.mul(amount.mul(PERCENT_PRECISION).div(liqudiatorBalance.quote.abs())).div(
-                    PERCENT_PRECISION
-                ).mul(-1);
-
-            // Add this to the user balances margin
-            liquidateeBaseChange = 
-                liqudiatorBalance.base.mul(amount.mul(PERCENT_PRECISION).div(liqudiatorBalance.quote.abs())).div(
-                    PERCENT_PRECISION
-                );
-        }
-
-        if (liqudiatorBalance.quote > 0) {
-            // Take from liquidatee, give to liquidator
-            liquidatorQuoteChange = amount;
-            liquidateeQuoteChange = amount.mul(-1);
-        } else {
-            // Take from liquidator, give to liquidatee
-            liquidatorQuoteChange = amount.mul(-1);
-            liquidateeQuoteChange = amount;
-        }
-        return(
-            liquidatorBaseChange,
-            liquidatorQuoteChange,
-            liquidateeBaseChange,
-            liquidateeQuoteChange
-        );
+        */
     }
 
     /**

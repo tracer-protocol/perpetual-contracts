@@ -395,13 +395,13 @@ This error appears because you are trying to call a function that is accessible 
 
 <h2>Receipt Error Codes (Abbreviations)</h2>
 
-REC: Receipt Error 
+LIQ: Liquidation Error 
 ***
-<center><h2>Receipt Errors:</h2></center>
+<center><h2>Liquidation Errors:</h2></enter>
 
 ***
 
-    REC: Liquidator mismatch
+    LIQ: Liquidator mismatch
 This error appears because the liquidator address provided as an argument does not match the address of the liquidator named on the receipt. They must be the same 
 
     Relevant Function:
@@ -412,7 +412,7 @@ This error appears because the liquidator address provided as an argument does n
         address liquidator
     ) external override onlyAccount returns (uint256)
 ***
-    REC: claim time passed
+    LIQ: claim time passed
 This error appears because you are attempting to claim a receipt that has not been released yet. Wait until after the release time
 
     Relevant Function:
@@ -423,7 +423,7 @@ This error appears because you are attempting to claim a receipt that has not be
         address liquidator
     ) external override onlyAccount returns (uint256)
 ***
-    REC: Already claimed
+    LIQ: Already claimed
 This error appears because you are attempting to claim a receipt that has already been claimed. You cannot claim a receipt twice. 
 
     Relevant Function:
@@ -437,7 +437,7 @@ This error appears because you are attempting to claim a receipt that has alread
 ****
 
 
-    REC: Unit mismatch
+    LIQ: Unit mismatch
 This error appears because the amount of liquidated units sold off does not match up with the amount that was supposed to be liquidated. (I.e. the wrong number of OrderIDs have been provided). 
 
     Relevant Function:
@@ -448,25 +448,25 @@ This error appears because the amount of liquidated units sold off does not matc
         address liquidator
     ) external override onlyAccount returns (uint256)
 ***
-    REC: Liquidatee mismatch
+    LIQ: Liquidatee mismatch
 This error appears because the liquidate address supplied to the function does not match the liquidate listed on the receipt relevant to this ESCROW. 
 
     Relevant Function:
     function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256)
 ***
-    REC: Escrow claimed
+    LIQ: Escrow claimed
 This error appears because you are attempting to claim escrow that has been previously claimed. You cannot reclaim the escrow relevant to the same receipt more than once. 
 
     Relevant Function:
     function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256)
 ***
-    REC: Not released
+    LIQ: Not released
 This error appears because the escrow you are trying to claim has not yet been released. Refer to the release time on your receipt to find when you can claim this escrow 
 
     Relevant Function:
     function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256)
 ***
-    REC: Order creation before liquidation
+    LIQ: Order creation before liquidation
 This error appears because the orders that you are claiming the receipt for slippage against were created before the liquidation receipt was created. You can only claim receipts on orders that were made with the position acquired from the liquidation.
 
     Relevant Function:
@@ -478,7 +478,7 @@ This error appears because the orders that you are claiming the receipt for slip
         address liquidator
     ) external override onlyAccount returns (uint256);
 ***
-    REC: Only accounts
+    LIQ: Only accounts
 This error appears because you are attempting to call a function that only an account contract can call 
 
     Relevant modifier:

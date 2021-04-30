@@ -4,7 +4,6 @@ pragma experimental ABIEncoderV2;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IAccount.sol";
-import "./Interfaces/IReceipt.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
@@ -21,7 +20,6 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     
     address public insuranceContract;
     address public gasPriceOracle;
-    IReceipt public receipt;
     ITracerPerpetualsFactory public perpsFactory;
     IPricing public pricing;
     int256 private constant PERCENT_PRECISION = 10000; // Factor to keep precision in percent calcs
@@ -41,9 +39,6 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
     event Deposit(address indexed user, uint256 indexed amount, address indexed market);
     event Withdraw(address indexed user, uint256 indexed amount, address indexed market);
     event AccountSettled(address indexed account, int256 margin);
-    event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
-    event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
-    event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
 
     constructor(
         address _insuranceContract,
@@ -415,13 +410,6 @@ contract Account is IAccount, Ownable, SafetyWithdraw {
             _tracer.maxLeverage(),
             _tracer.priceMultiplier()
         );
-    }
-
-    /**
-     * @param newReceiptContract The new instance of Receipt.sol
-     */
-    function setReceiptContract(address newReceiptContract) public override onlyOwner() {
-        receipt = IReceipt(newReceiptContract);
     }
 
     /**

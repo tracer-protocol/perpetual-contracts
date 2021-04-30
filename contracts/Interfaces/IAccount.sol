@@ -65,8 +65,6 @@ interface IAccount {
 
     function tvl(address market) external view returns(uint256);
 
-    function setReceiptContract(address newReceiptContract) external;
-
     function setInsuranceContract(address newInsuranceContract) external;
 
     function setGasPriceOracle(address newGasPriceOracle) external;

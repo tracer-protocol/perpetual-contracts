@@ -25,7 +25,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         address market;
         address collateralAsset;
         uint256 amount; // amount of underlying collateral in pool
-        uint256 rewardsPerToken; // rewards redeemable per pool token
         address token; // tokenized holdings of pool - not necessarily 1 to 1 with underlying
         mapping(address => uint256) userDebt; // record of user debt to the pool
         mapping(address => uint256) lastRewardsUpdate;
@@ -100,7 +99,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 tokensToSend = (collatToTokensRatio * amount) / SAFE_TOKEN_MULTIPLY;
 
         // Pool tokens become margin tokens
-        poolToken.burn(msg.sender, amount);
+        poolToken.burnFrom(msg.sender, amount);
         token.transfer(msg.sender, tokensToSend);
         pool.amount = pool.amount - tokensToSend;
         emit InsuranceWithdraw(market, msg.sender, tokensToSend);
@@ -159,27 +158,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice Deposits rewards (TCR tokens) into a given pool
-     * @dev Transfers TCR tokens to the poolToken address, and calls depositFunds in pool token contract
-     * @param amount the amount of TCR tokens to deposit
-     * @param market the address of the tracer contract whose pool is to be rewarded
-     */
-    function reward(uint256 amount, address market) external override onlyOwner() {
-        IERC20 tracer = IERC20(TCRTokenAddress);
-        require(
-            tracer.balanceOf(address(this)) >= amount,
-            "INS: amount > rewards"
-        );
-
-        // Get pool token and give it the funds to distribute
-        InsurancePoolToken poolToken = InsurancePoolToken(pools[market].token);
-        tracer.transfer(address(poolToken), amount);
-        // Deposit the fund to token holders
-        poolToken.depositFunds(amount);
-        emit InsurancePoolRewarded(market, amount);
-    }
-
-    /**
      * @notice Adds a new tracer market to be insured.
      * @dev Creates a new InsurancePoolToken and StakePool, adding them to pools and setting
      *      this tracer to be supported
@@ -190,12 +168,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         require(perpsFactory.validTracers(market), "INS: pool not deployed by perpsFactory");
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         // Deploy token for the pool
-        InsurancePoolToken token = new InsurancePoolToken("Tracer Pool Token", "TPT", TCRTokenAddress);
+        InsurancePoolToken token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         StakePool storage pool = pools[market];
         pool.market = market;
         pool.collateralAsset = _tracer.tracerBaseToken();
         pool.amount = 0;
-        pool.rewardsPerToken = 0;
         pool.token = address(token);
         supportedTracers[market] = true;
         emit InsurancePoolDeployed(market, _tracer.tracerBaseToken());
@@ -209,14 +186,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     function getPoolUserBalance(address market, address user) public override view returns (uint256) {
         require (supportedTracers[market], "INS: Market not supported");
         return InsurancePoolToken(pools[market].token).balanceOf(user);
-    }
-
-    /**
-     * @notice Gets the amount of rewards per pool token for a given insurance pool
-     * @param market the market of the insurance pool to get the rewards for
-     */
-    function getRewardsPerToken(address market) external override view returns (uint256) {
-        return InsurancePoolToken(pools[market].token).rewardsPerToken();
     }
 
     /**

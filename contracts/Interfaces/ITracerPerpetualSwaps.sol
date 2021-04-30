@@ -18,6 +18,16 @@ interface ITracerPerpetualSwaps {
         address maker
     ) external returns (uint256);
 
+    function updateAccountsOnLiquidation(
+        address liquidator,
+        address liquidatee,
+        int256 liquidatorBaseChange,
+        int256 liquidatorQuoteChange,
+        int256 liquidateeBaseChange,
+        int256 liquidateeQuoteChange,
+        uint256 amountToEscrow
+    ) external;
+
     function takeOrder(uint256 orderId, uint256 amount) external;
 
     function permissionedTakeOrder(uint256 orderId, uint256 amount, address taker) external;
