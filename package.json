@@ -9,7 +9,7 @@
   "dependencies": {
     "@nomiclabs/hardhat-truffle5": "^2.0.0",
     "@nomiclabs/hardhat-web3": "^2.0.0",
-    "@openzeppelin/contracts": "^4.0.0",
+    "@openzeppelin/contracts": "^4.1.0",
     "@openzeppelin/contracts-upgradeable": "^4.0.0",
     "@openzeppelin/truffle-upgrades": "^1.5.2",
     "dotenv": "^8.2.0",

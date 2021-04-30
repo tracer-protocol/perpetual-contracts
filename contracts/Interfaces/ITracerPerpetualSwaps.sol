@@ -4,6 +4,16 @@ import "./Types.sol";
 
 interface ITracerPerpetualSwaps {
 
+    function updateAccountsOnLiquidation(
+        address liquidator,
+        address liquidatee,
+        int256 liquidatorBaseChange,
+        int256 liquidatorQuoteChange,
+        int256 liquidateeBaseChange,
+        int256 liquidateeQuoteChange,
+        uint256 amountToEscrow
+    ) external;
+
     function settle(address account) external;
 
     function tracerBaseToken() external view returns (address);

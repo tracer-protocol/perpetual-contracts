@@ -7,8 +7,6 @@ interface IInsurance {
 
     function withdraw(uint256 amount, address market) external;
 
-    function reward(uint256 amount, address market) external;
-
     function updatePoolAmount(address market) external;
 
     function drainPool(address market, uint256 amount) external;
@@ -16,8 +14,6 @@ interface IInsurance {
     function deployInsurancePool(address market) external;
 
     function getPoolUserBalance(address market, address user) external view returns (uint256);
-
-    function getRewardsPerToken(address market) external view returns (uint256);
 
     function getPoolToken(address market) external view returns (address);
 
