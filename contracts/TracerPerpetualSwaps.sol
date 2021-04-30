@@ -205,7 +205,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         int256 liquidateeBaseChange,
         int256 liquidateeQuoteChange,
         uint256 amountToEscrow
-    ) external override onlyLiquidation {
+    ) external onlyLiquidation {
         // Limits the gas use when liquidating 
         /* TODO Add back functionality when account balance is stored in here
         int256 gasPrice = IOracle(gasPriceOracle()).latestAnswer();
