@@ -89,7 +89,7 @@ contract TracerPerpetualSwaps is
 		priceMultiplier = 10**uint256(ioracle.decimals());
 		feeRate = _feeRate;
 		maxLeverage = _maxLeverage;
-		fundingRateSensitivity = fundingRateSensitivity;
+		fundingRateSensitivity = _fundingRateSensitivity;
 
 		// Start average prices from deployment
 		startLastHour = block.timestamp;
@@ -194,16 +194,16 @@ contract TracerPerpetualSwaps is
 			"TCR: Order already filled "
 		);
 
+		// settle accounts
+		settle(order1.maker);
+		settle(order2.maker);
+
 		// update account states
 		executeTrade(order1, order2, fillAmount);
 
 		// update leverage
 		_updateAccountLeverage(order1.maker);
 		_updateAccountLeverage(order2.maker);
-
-		// settle accounts
-		settle(order1.maker);
-		settle(order2.maker);
 
 		// Update internal trade state
 		// note: price has already been validated here, so order 1 price can be used
