@@ -40,6 +40,9 @@ jobs:
         steps:
             - uses: actions/checkout@v1
 
+            - name: Install dependencies
+              run: yarn install
+
             - name: Run Prettier
               run: yarn run prettier --check .
 
