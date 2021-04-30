@@ -46,5 +46,3 @@ jobs:
             - name: Run Prettier
               run: yarn run lint
 
-            - name: Run Solhint
-              run: yarn run solhint:ci | grep problems | cut -f1 -d' ' | test
