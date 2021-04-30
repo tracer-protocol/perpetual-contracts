@@ -1,22 +1,8 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
+import "./Types.sol";
 
 interface ITracerPerpetualSwaps {
-
-    function makeOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        uint256 expiration
-    ) external returns (uint256);
-
-    function permissionedMakeOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        uint256 expiration,
-        address maker
-    ) external returns (uint256);
 
     function updateAccountsOnLiquidation(
         address liquidator,
@@ -27,10 +13,6 @@ interface ITracerPerpetualSwaps {
         int256 liquidateeQuoteChange,
         uint256 amountToEscrow
     ) external;
-
-    function takeOrder(uint256 orderId, uint256 amount) external;
-
-    function permissionedTakeOrder(uint256 orderId, uint256 amount, address taker) external;
 
     function settle(address account) external;
 
@@ -55,10 +37,6 @@ interface ITracerPerpetualSwaps {
     function FUNDING_RATE_SENSITIVITY() external view returns(uint256);
 
     function currentHour() external view returns(uint8);
-
-    function getOrder(uint orderId) external view returns(uint256, uint256, int256, bool, address, uint256);
-
-    function getOrderTakerAmount(uint256 orderId, address taker) external view returns(uint256);
 
     function tracerGetBalance(address account) external view returns(
         int256 margin,
@@ -90,5 +68,5 @@ interface ITracerPerpetualSwaps {
 
     function initializePricing() external;
 
-    function matchOrders(uint order1, uint order2) external;
+    function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
 }
