@@ -15,9 +15,11 @@
         "dotenv": "^8.2.0",
         "eth-sig-util": "^2.5.3",
         "ethers": "^5.0.24",
+        "hardhat-prettier": "^0.0.1",
+        "prettier": "^2.2.1",
+        "prettier-plugin-solidity": "^1.0.0-beta.10",
         "solhint": "^3.3.2",
-        "truffle-contract-size": "^2.0.0",
-        "prettier": "^2.2.1"
+        "truffle-contract-size": "^2.0.0"
     },
     "devDependencies": {
         "@openzeppelin/test-helpers": "^0.5.10",
@@ -44,7 +46,7 @@
         "test:unit": "npx hardhat test test/unit/*.js",
         "compile": "npx hardhat compile",
         "ganache": "ganache-cli -l 8500000",
-        "lint": "prettier --check .",
+        "lint": "prettier --check . && yarn hardhat check",
         "lint:fix": "prettier ./**/*.ts --write",
         "clean": "npm-run-all -p clean:artifacts clean:cache",
         "clean:artifacts": "rimraf ./artifacts/",
