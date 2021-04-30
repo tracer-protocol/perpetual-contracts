@@ -24,11 +24,9 @@ interface ITracerPerpetualSwaps {
 
     function LIQUIDATION_GAS_COST() external view returns(uint256);
 
-    function FUNDING_RATE_SENSITIVITY() external view returns(uint256);
+    function fundingRateSensitivity() external view returns(uint256);
 
     function currentHour() external view returns(uint8);
-
-    function setUserPermissions(address account, bool permission) external;
 
     function setInsuranceContract(address insurance) external;
 
