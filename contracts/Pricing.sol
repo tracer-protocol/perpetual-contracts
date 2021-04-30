@@ -88,7 +88,7 @@ contract Pricing is IPricing {
         int256 timeValue = timeValues[market];
         (int256 underlyingTWAP, int256 deriativeTWAP) = getTWAPs(market, _tracer.currentHour());
         int256 newFundingRate = (deriativeTWAP - underlyingTWAP - timeValue) * 
-           (_tracer.FUNDING_RATE_SENSITIVITY().toInt256());
+           (_tracer.fundingRateSensitivity().toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex[market] - 1;
 

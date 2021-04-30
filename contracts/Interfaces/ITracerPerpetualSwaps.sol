@@ -38,6 +38,8 @@ interface ITracerPerpetualSwaps {
 
     function currentHour() external view returns(uint8);
 
+    function getBalance(address account) external view returns (Types.AccountBalance memory);
+
     function setInsuranceContract(address insurance) external;
 
     function setPricingContract(address pricing) external;

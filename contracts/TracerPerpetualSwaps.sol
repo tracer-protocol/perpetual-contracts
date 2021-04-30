@@ -329,7 +329,7 @@ contract TracerPerpetualSwaps is
 		int256 liquidateeBaseChange,
 		int256 liquidateeQuoteChange,
 		uint256 amountToEscrow
-	) external onlyLiquidation {
+	) external override onlyLiquidation {
 		// Limits the gas use when liquidating
 		int256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
 		require(
@@ -594,6 +594,10 @@ contract TracerPerpetualSwaps is
 				accountBalance.lastUpdatedGasPrice
 			);
 	}
+
+    function getBalance(address account) public view override returns (Types.AccountBalance memory) {
+        return balances[account];
+    }
 
 	function setInsuranceContract(address insurance) public override onlyOwner {
 		insuranceContract = IInsurance(insurance);
