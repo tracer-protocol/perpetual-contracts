@@ -6,17 +6,17 @@ module.exports = async (hre) => {
     const { deployer } = await getNamedAccounts();
 
     // deploy mock gov token
-    const govToken = await deploy('TestToken', {
+    const govToken = await deploy("TestToken", {
         args: [web3.utils.toWei("100000")],
         from: deployer,
         log: true,
     });
 
     // deploy governance module
-    const gov = await deploy('Gov', {
+    const gov = await deploy("Gov", {
         args: [govToken.address],
         from: deployer,
         log: true,
     });
 };
-module.exports.tags = ['GovAndToken'];
+module.exports.tags = ["GovAndToken"];

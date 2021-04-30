@@ -1,6 +1,6 @@
 require("@nomiclabs/hardhat-truffle5");
-require('hardhat-contract-sizer')
-require('hardhat-deploy');
+require("hardhat-contract-sizer");
+require("hardhat-deploy");
 
 module.exports = {
     solidity: {
@@ -8,13 +8,13 @@ module.exports = {
         settings: {
             optimizer: {
                 enabled: true,
-                runs: 1000
-            }
-        }
+                runs: 1000,
+            },
+        },
     },
     networks: {
         hardhat: {
-            blockGasLimit: 12450000
+            blockGasLimit: 12450000,
         },
     },
     namedAccounts: {
@@ -24,5 +24,5 @@ module.exports = {
         alphaSort: true,
         runOnCompile: true,
         disambiguatePaths: false,
-    }
+    },
 };

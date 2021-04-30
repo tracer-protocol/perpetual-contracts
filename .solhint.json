@@ -1,9 +1,8 @@
 {
-  "extends": "solhint:recommended",
+    "extends": "solhint:recommended",
     "rules": {
-      "avoid-throw": "off",
-      "compiler-version": "off",
-      "constructor-syntax": "error"
+        "avoid-throw": "off",
+        "compiler-version": "off",
+        "constructor-syntax": "error"
     }
 }
-

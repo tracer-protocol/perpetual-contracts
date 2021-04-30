@@ -11,10 +11,10 @@ async function main() {
     await deployments.fixture(["FullDeploy"]);
 
     // get the deployed gov token and send it out
-    let govToken = await deployments.get('TestToken');
-    govToken = await TestToken.at(govToken.address)
+    let govToken = await deployments.get("TestToken");
+    govToken = await TestToken.at(govToken.address);
     for (var i = 0; i < 6; i++) {
-        await govToken.transfer(accounts[i], web3.utils.toWei("200"))
+        await govToken.transfer(accounts[i], web3.utils.toWei("200"));
     }
 }
 
@@ -22,8 +22,7 @@ async function main() {
 // and properly handle errors.
 main()
     .then(() => process.exit(0))
-    .catch(error => {
+    .catch((error) => {
         console.error(error);
         process.exit(1);
     });
-
