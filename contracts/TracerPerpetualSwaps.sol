@@ -10,11 +10,10 @@ import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IAccount.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
-import "./DEX/SimpleDex.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, SafetyWithdraw {
+contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw {
     using LibMath for uint256;
     using LibMath for int256;
 
@@ -104,133 +103,32 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         pricingInitialized = true;
     }
 
-    /**
-     * @notice Places an on chain order, fillable by any part on chain
-     * @dev passes data to permissionedMakeOrder.
-     * @param amount the amount of Tracers to buy
-     * @param price the price at which someone can purchase (or "fill") 1 tracer of this order
-     * @param side the side of the order. True for long, false for short.
-     * @param expiration the expiry time for this order
-     * @return (orderCounter - 1)
-     */
-    function makeOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        uint256 expiration
-    ) public override returns (uint256) {
-        return permissionedMakeOrder(amount, price, side, expiration, msg.sender);
-    }
-
-    /**
-     * @notice Places an on chain order via a permissioned contract, fillable by any part on chain.
-     * @param amount the amount of Tracers to buy
-     * @param price the price in dollars to buy the tracer at
-     * @param side the side of the order. True for long, false for short.
-     * @param expiration the expiry time for this order
-     * @param maker the makers address for this order to be associated with
-     */
-    function permissionedMakeOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        uint256 expiration,
-        address maker
-    ) public override isPermissioned(maker) returns (uint256) {
-        {
-            // Validate in its own context to help stack
-            (int256 base, int256 quote, , , ) = accountContract.getBalance(maker, address(this));
-
-            // Check base will hold up after trade
-            (int256 baseAfterTrade, int256 quoteAfterTrade) = Balances.safeCalcTradeMargin(
-                base,
-                quote,
-                amount,
-                price,
-                side,
-                priceMultiplier,
-                feeRate
-            );
-            uint256 gasCost = uint256(IOracle(gasPriceOracle).latestAnswer()); // We multiply by LIQUIDATION_GAS_COST in Account.marginIsValid
-            // Validates margin, will throw if margin is invalid
-            require(
-                accountContract.marginIsValid(baseAfterTrade, quoteAfterTrade, price, gasCost.toInt256(), address(this)),
-                "TCR: Invalid margin"
-            );
-        }
-
-        // This make order function happens in the DEX (decentralized exchange)
-        uint256 orderCounter = _makeOrder(amount, price, side, expiration, maker);
-        emit OrderMade(orderCounter, amount, price, maker, side, marketId);
-        return orderCounter;
-    }
-
-    /**
-     * @notice Takes an on chain order, you can specify the amount of the order you wish to will.
-     * @param orderId the ID of the order to be filled. Emitted in the makeOrder function
-     * @param amount the amount of tokens you wish to fill
-     */
-    function takeOrder(uint256 orderId, uint256 amount) public override {
-        return permissionedTakeOrder(orderId, amount, msg.sender);
-    }
-
-    /**
-     * @notice Takes an on chain order via a permissioned contract, in whole or in part. Order is executed at the makers
-     *         defined price.
-     * @param orderId the ID of the order to be filled. Emitted in the makeOrder function
-     * @param amount the amount of the order to fill.
-     * @param _taker the address of the taker which this order is associated with
-     */
-    function permissionedTakeOrder(
-        uint256 orderId,
-        uint256 amount,
-        address _taker
-    ) public override isPermissioned(_taker) {
-
-        // Calculate the amount to fill
-        // _takeOrder is a function in the Decentralized Exchange (DEX) contract
-        // fillAmount is how much of the order will be filled (its not necessarily amount);
-        (Types.Order storage order, uint256 fillAmount, uint256 amountOutstanding, address maker) = _takeOrder(orderId, amount, _taker);
-        emit OrderFilled(orderId, amount, amountOutstanding, _taker, maker, marketId);
-
-        int256 baseChange = (fillAmount.toInt256() * order.price) / priceMultiplier.toInt256();
-        require(baseChange > 0, "TCR: Margin change <= 0");
-
-        // update account states
-        updateAccounts(baseChange, fillAmount, order.side, order.maker, _taker);
-        
-        // Update leverage
-        accountContract.updateAccountLeverage(_taker, address(this));
-        accountContract.updateAccountLeverage(order.maker, address(this));
-        
-        // Settle accounts
-        settle(_taker);
-        settle(order.maker);
-
-        // Update internal trade state
-        updateInternalRecords(order.price);
-
-        // Ensures that you are in a position to take the trade
-        require(
-            accountContract.userMarginIsValid(_taker, address(this)) &&
-                accountContract.userMarginIsValid(order.maker, address(this)),
-            "TCR: Margin Invalid post trade"
-        );
-    }
-
+    // TODO: Once whitelisting of trading interfaces is implemented this should
+    // only be called by a whitelisted interface
     /**
     * @notice Match two orders that exist on chain against each other
-    * @param order1 the first order that exists on chain
-    * @param order2 the second order that exists on chain
+    * @param order1 the first order
+    * @param order2 the second order
+    * @param fillAmount the amount to be filled as sent by the trader
     */
-    function matchOrders(uint order1, uint order2) public override {
-        // perform compatibility checks (price, side) and calc fill amount
-        uint256 fillAmount = _matchOrder(order1, order2);
+    function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) public override {
+        // perform compatibility checks
+        require(order1.price == order2.price, "TCR: Price mismatch");
+        int256 orderPrice = order1.price;
 
-        int256 orderPrice = orders[order1].price;
-        address order1User = orders[order1].maker;
-        address order2User = orders[order2].maker;
-        bool order1Side = orders[order1].side;
+        // Ensure orders are for opposite sides
+        require(order1.side != order2.side, "TCR: Same side");
+        
+        /* solium-disable-next-line */
+        require(block.timestamp < order1.expiration &&
+            block.timestamp < order2.expiration, "TCR: Order expired");
+
+        require(order1.filled < order1.amount && order2.filled < order2.amount,
+            "TCR: Order already filled");
+
+        address order1User = order1.maker;
+        address order2User = order2.maker;
+        bool order1Side = order1.side;
         int256 baseChange = (fillAmount.toInt256() * orderPrice) / priceMultiplier.toInt256();
 
         //Update account states
@@ -307,7 +205,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
         int256 liquidateeBaseChange,
         int256 liquidateeQuoteChange,
         uint256 amountToEscrow
-    ) external override onlyLiquidation {
+    ) external onlyLiquidation {
         // Limits the gas use when liquidating 
         /* TODO Add back functionality when account balance is stored in here
         int256 gasPrice = IOracle(gasPriceOracle()).latestAnswer();
@@ -428,38 +326,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, SimpleDex, Ownable, Safe
             // Update old pricing entry
             pricingContract.updatePrice(price, ioracle.latestAnswer(), false, address(this));
         }
-    }
-
-    /**
-     * @notice gets a order placed on chain
-     * @return the order amount, amount filled, price and the side of an order
-     * @param orderId The ID number of a placed order
-     */
-    function getOrder(uint256 orderId)
-        external
-        override
-        view
-        returns (
-            uint256,
-            uint256,
-            int256,
-            bool,
-            address,
-            uint256
-        )
-    {
-        Types.Order storage order = orders[orderId];
-        return (order.amount, order.filled, order.price, order.side, order.maker, order.creation);
-    }
-
-    /**
-     * @notice gets the amount taken by a taker against an order
-     * @param orderId The ID number of the order
-     * @param taker The address of the taker account
-     */
-    function getOrderTakerAmount(uint256 orderId, address taker) external override view returns (uint256) {
-        Types.Order storage order = orders[orderId];
-        return (order.takers[taker]);
     }
 
     /**
