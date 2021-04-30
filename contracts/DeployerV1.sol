@@ -17,7 +17,6 @@ contract DeployerV1 is IDeployer {
             address _tracerBaseToken,
             address _oracle,
             address _gasPriceOracle,
-            address _accountContract,
             address _pricingContract,
             address _liquidationContract,
             int256 _maxLeverage,
@@ -25,7 +24,6 @@ contract DeployerV1 is IDeployer {
             uint256 _feeRate
         ) = abi.decode(_data, (
             bytes32,
-            address,
             address,
             address,
             address,
@@ -40,7 +38,6 @@ contract DeployerV1 is IDeployer {
             _tracerBaseToken,
             _oracle,
             _gasPriceOracle,
-            _accountContract,
             _pricingContract,
             _liquidationContract,
             _maxLeverage,
