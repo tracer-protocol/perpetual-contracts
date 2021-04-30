@@ -72,17 +72,17 @@ contract Pricing is IPricing {
     /**
      * @notice Updates the funding rate and the insurance funding rate
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
-     * @param IPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
+     * @param iPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
      */
     function updateFundingRate(
         int256 oraclePrice,
-        int256 IPoolFundingRate
+        int256 iPoolFundingRate
     ) public override onlyTracer {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
         (int256 underlyingTWAP, int256 deriativeTWAP) = getTWAPs(_tracer.currentHour());
         int256 newFundingRate = (deriativeTWAP - underlyingTWAP - timeValue) * 
-           (_tracer.FUNDING_RATE_SENSITIVITY().toInt256());
+           (_tracer.fundingRateSensitivity().toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex - 1;
 
@@ -92,11 +92,11 @@ contract Pricing is IPricing {
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue = getOnlyInsuranceFundingRateValue(fundingIndex);
-        int256 IPoolFundingRateValue = currentInsuranceFundingRateValue + IPoolFundingRate;
+        int256 IPoolFundingRateValue = currentInsuranceFundingRateValue + iPoolFundingRate;
 
         // Call setter functions on calculated variables
         setFundingRate(oraclePrice, newFundingRate, fundingRateValue);
-        setInsuranceFundingRate(oraclePrice, IPoolFundingRate, IPoolFundingRateValue);
+        setInsuranceFundingRate(oraclePrice, iPoolFundingRate, IPoolFundingRateValue);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
     }
@@ -120,7 +120,6 @@ contract Pricing is IPricing {
 
     /**
      * @notice Calculates and then updates the time Value for a tracer market
-     * @param market The address of the Tracer market that is to be updated
      */
     function updateTimeValue() public override onlyTracer {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
