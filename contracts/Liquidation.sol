@@ -23,7 +23,6 @@ contract Liquidation is ILiquidation, Ownable {
     uint256 public override currentLiquidationId;
     int256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
-    IAccount public accounts;
     IPricing public pricing;
     ITracerPerpetualsFactory public perpsFactory;
     ITracerPerpetualSwaps public tracer;
@@ -47,7 +46,6 @@ contract Liquidation is ILiquidation, Ownable {
         address gov
     ) public {
         pricing = IPricing(_pricing);
-        accounts = IAccount(accountContract);
         perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         tracer = ITracerPerpetualSwaps(_tracer);
         maxSlippage = _maxSlippage;
@@ -75,7 +73,7 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 escrowedAmount,
         int256 amountLiquidated,
         bool liquidationSide
-    ) public override onlyAccount {
+    ) public override onlyTracer {
         liquidationReceipts[currentLiquidationId] = LibLiquidation.LiquidationReceipt(
             market,
             liquidator,
@@ -105,13 +103,13 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 priceMultiplier,
         address market,
         address liquidator
-    ) external override onlyAccount returns (uint256) {
+    ) external override onlyTracer returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
         require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
         require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId, market);
+        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -168,7 +166,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptID the id of the receipt from which escrow is being claimed from
      * @param liquidatee The address of the account that is getting liquidated (the liquidatee)
      */
-    function claimEscrow(uint256 receiptID, address liquidatee) public override onlyAccount returns (int256) {
+    function claimEscrow(uint256 receiptID, address liquidatee) public override onlyTracer returns (int256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptID];
         require(receipt.liquidatee == liquidatee, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
@@ -183,17 +181,15 @@ contract Liquidation is ILiquidation, Ownable {
      *         given multiple order
      * @param orderIds a list of order ids for which the units sold is being calculated from
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
-     * @param market the address of the tracer that the orders and receipt belongs too.
     */
     function calcUnitsSold(
         uint256[] memory orderIds,
-        uint256 receiptId,
-        address market
+        uint256 receiptId
     ) public view returns (uint256, int256) {
+        /*
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
-        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
         for (uint256 i; i < orderIds.length; i++) {
             uint256 orderId = orderIds[i];
             (,
@@ -202,7 +198,7 @@ contract Liquidation is ILiquidation, Ownable {
                 bool orderSide,
                 address orderMaker,
                 uint256 creation
-            ) = _tracer.getOrder(orderId);
+            ) = tracer.getOrder(orderId);
             require(creation >= receipt.time, "LIQ: Order creation before liquidation");
             if (orderMaker == receipt.liquidator) {
                 // Order was made by liquidator
@@ -212,7 +208,7 @@ contract Liquidation is ILiquidation, Ownable {
                 }
             } else if (orderSide == receipt.liquidationSide) {
                 // Check if a taker was the liquidator and if they were taking the opposite side to what they received
-                uint256 takerAmount = _tracer.getOrderTakerAmount(orderId, receipt.liquidator);
+                uint256 takerAmount = tracer.getOrderTakerAmount(orderId, receipt.liquidator);
                 unitsSold = unitsSold + takerAmount;
                 avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
             }
@@ -223,6 +219,8 @@ contract Liquidation is ILiquidation, Ownable {
             return (0, 0);
         }
         return (unitsSold, avgPrice / unitsSold.toInt256());
+        */
+        return (0, 0);
     }
 
     /**
@@ -315,10 +313,10 @@ contract Liquidation is ILiquidation, Ownable {
     ) {
 
         /* Liquidator's balance */
-        (, int256 liquidatorQuote, , ,) = accounts.getBalance(liquidator, market);
+        Types.AccountBalance memory liquidatorBalance = tracer.getBalance(liquidator);
         
         // Calculates what the updated state of both accounts will be if the liquidation is fully processed
-        return LibLiquidation.liquidationBalanceChanges(liquidatedBase, liquidatedQuote, liquidatorQuote, amount);
+        return LibLiquidation.liquidationBalanceChanges(liquidatedBase, liquidatedQuote, liquidatorBalance.quote, amount);
     }
 
     /**
@@ -336,21 +334,15 @@ contract Liquidation is ILiquidation, Ownable {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
 
         /* Liquidated account's balance */
-        (
-            int256 liquidatedBase,
-            int256 liquidatedQuote,
-            ,
-            int256 liquidatedGasPrice,
-
-        ) = accounts.getBalance(account, market);
+        Types.AccountBalance memory liquidatedBalance = tracer.getBalance(account);
 
         uint256 amountToEscrow = verifyAndSubmitLiquidation(
-            liquidatedQuote,
+            liquidatedBalance.quote,
             pricing.fairPrices(market),
-            liquidatedBase,
+            liquidatedBalance.base,
             amount,
             tracer.priceMultiplier(),
-            liquidatedGasPrice,
+            liquidatedBalance.lastUpdatedGasPrice,
             account,
             market
         );
@@ -367,7 +359,7 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeBaseChange,
             int256 liquidateeQuoteChange
         ) = calcLiquidationBalanceChanges(
-            liquidatedBase, liquidatedQuote, msg.sender, amount, market
+            liquidatedBalance.base, liquidatedBalance.quote, msg.sender, amount, market
         );
 
         tracer.updateAccountsOnLiquidation(
@@ -380,7 +372,7 @@ contract Liquidation is ILiquidation, Ownable {
             amountToEscrow
         );
 
-        emit Liquidate(account, msg.sender, amount, (liquidatedQuote < 0 ? false : true), market, currentLiquidationId - 1);
+        emit Liquidate(account, msg.sender, amount, (liquidatedBalance.quote < 0 ? false : true), market, currentLiquidationId - 1);
     }
 
     /**
@@ -484,8 +476,8 @@ contract Liquidation is ILiquidation, Ownable {
         maxSlippage = _maxSlippage;
     }
 
-    modifier onlyAccount() {
-        require(msg.sender == address(accounts), "LIQ: Only accounts");
+    modifier onlyTracer() {
+        require(msg.sender == address(tracer), "LIQ: Caller not Tracer market");
         _;
     }
 

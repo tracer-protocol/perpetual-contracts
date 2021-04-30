@@ -551,6 +551,10 @@ contract TracerPerpetualSwaps is
 			);
 	}
 
+    function getBalance(address account) public view override returns (Types.AccountBalance memory) {
+        return balances[account];
+    }
+
 	function setInsuranceContract(address insurance) public override onlyOwner {
 		insuranceContract = IInsurance(insurance);
 	}
