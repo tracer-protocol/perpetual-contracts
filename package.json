@@ -49,7 +49,8 @@
         "clean": "npm-run-all -p clean:artifacts clean:cache",
         "clean:artifacts": "rimraf ./artifacts/",
         "clean:cache": "rimraf ./cache/",
-        "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol"
+        "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol",
+        "solhint:ci": "./node_modules/.bin/solhint -f unix contracts/**/*.sol"
     },
     "repository": {
         "type": "git"
