@@ -338,7 +338,7 @@ contract Liquidation is ILiquidation, Ownable {
 
         uint256 amountToEscrow = verifyAndSubmitLiquidation(
             liquidatedBalance.quote,
-            pricing.fairPrices(market),
+            pricing.fairPrice(),
             liquidatedBalance.base,
             amount,
             tracer.priceMultiplier(),

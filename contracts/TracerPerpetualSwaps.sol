@@ -150,15 +150,10 @@ contract TracerPerpetualSwaps is
 		require(!pricingInitialized, "TCR: Pricing already set ");
 		// Set first funding rates to 0 and current time
 		int256 oracleLatestPrice = IOracle(oracle).latestAnswer();
-		pricingContract.setFundingRate(address(this), oracleLatestPrice, 0, 0);
-		pricingContract.setInsuranceFundingRate(
-			address(this),
-			oracleLatestPrice,
-			0,
-			0
-		);
+		pricingContract.setFundingRate(oracleLatestPrice, 0, 0);
+		pricingContract.setInsuranceFundingRate(oracleLatestPrice, 0, 0);
 
-		pricingContract.incrementFundingIndex(address(this));
+		pricingContract.incrementFundingIndex();
 		pricingInitialized = true;
 	}
 
@@ -211,8 +206,7 @@ contract TracerPerpetualSwaps is
 
 		// Ensures that you are in a position to take the trade
 		require(
-			userMarginIsValid(order1.maker) &&
-				userMarginIsValid(order2.maker),
+			userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
 			"TCR: Margin Invalid post trade "
 		);
 	}
@@ -262,7 +256,7 @@ contract TracerPerpetualSwaps is
 		int256 newLeverage =
 			Balances.newCalcLeveragedNotionalValue(
 				userBalance.quote,
-				pricingContract.fairPrices(address(this)),
+				pricingContract.fairPrice(),
 				userBalance.base,
 				priceMultiplier
 			);
@@ -340,8 +334,8 @@ contract TracerPerpetualSwaps is
 		Types.AccountBalance storage liquidatorBalance = balances[liquidator];
 		Types.AccountBalance storage liquidateeBalance = balances[liquidatee];
 
-        // update liquidators balance
-        liquidatorBalance.lastUpdatedGasPrice = gasPrice;
+		// update liquidators balance
+		liquidatorBalance.lastUpdatedGasPrice = gasPrice;
 		liquidatorBalance.base =
 			liquidatorBalance.base +
 			liquidatorBaseChange -
@@ -350,17 +344,14 @@ contract TracerPerpetualSwaps is
 			liquidatorBalance.quote +
 			liquidatorQuoteChange;
 
-        // update liquidatee balance
+		// update liquidatee balance
 		liquidateeBalance.base = liquidateeBalance.base + liquidateeBaseChange;
 		liquidateeBalance.quote =
 			liquidateeBalance.quote +
 			liquidateeQuoteChange;
 
 		// Checks if the liquidator is in a valid position to process the liquidation
-		require(
-			userMarginIsValid(liquidator),
-			"TCR: Taker undermargin"
-		);
+		require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
 	}
 
 	/**
@@ -375,7 +366,7 @@ contract TracerPerpetualSwaps is
 		// Get account and global last updated indexes
 		uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
 		uint256 currentGlobalFundingIndex =
-			pricingContract.currentFundingIndex(address(this));
+			pricingContract.currentFundingIndex();
 
 		// Only settle account if its last updated index was before the current global index
 		if (accountLastUpdatedIndex < currentGlobalFundingIndex) {
@@ -386,22 +377,16 @@ contract TracerPerpetualSwaps is
             */
 			(, , , int256 currentGlobalRate) =
 				pricingContract.getFundingRate(
-					address(this),
-					pricingContract.currentFundingIndex(address(this)) - 1
+					pricingContract.currentFundingIndex() - 1
 				);
 			(, , , int256 currentUserRate) =
-				pricingContract.getFundingRate(
-					address(this),
-					accountLastUpdatedIndex
-				);
+				pricingContract.getFundingRate(accountLastUpdatedIndex);
 			(, , , int256 currentInsuranceGlobalRate) =
 				pricingContract.getInsuranceFundingRate(
-					address(this),
-					pricingContract.currentFundingIndex(address(this)) - 1
+					pricingContract.currentFundingIndex() - 1
 				);
 			(, , , int256 currentInsuranceUserRate) =
 				pricingContract.getInsuranceFundingRate(
-					address(this),
 					accountLastUpdatedIndex
 				);
 
@@ -410,11 +395,11 @@ contract TracerPerpetualSwaps is
 			Types.AccountBalance storage insuranceBalance =
 				balances[address(insuranceContract)];
 
-            // todo pretty much all of the below should be in a library
+			// todo pretty much all of the below should be in a library
 
 			// Calc the difference in funding rates, remove price multiply factor
 			int256 fundingDiff = currentGlobalRate - currentUserRate;
-            
+
 			// Update account, divide by 2x price multiplier to factor out price and funding rate scalar value
 			// base - (fundingDiff * quote / (priceMultiplier * priceMultiplier))
 			accountBalance.base = (accountBalance.base -
@@ -445,17 +430,14 @@ contract TracerPerpetualSwaps is
 
 			// Update account index
 			accountBalance.lastUpdatedIndex = pricingContract
-				.currentFundingIndex(address(this));
-			require(
-				userMarginIsValid(account),
-				"TCR: Target under-margined "
-			);
+				.currentFundingIndex();
+			require(userMarginIsValid(account), "TCR: Target under-margined ");
 			emit Settled(account, accountBalance.base);
 		}
 	}
 
-    // todo most of this logic should be in pricing. Tracer should simply
-    // call pricing and let it handle if state needs to be updated
+	// todo most of this logic should be in pricing. Tracer should simply
+	// call pricing and let it handle if state needs to be updated
 	/**
 	 * @notice Updates the internal records for pricing, funding rate and interest
 	 * @param price The price to be used to update the internal records, this is the price that a trade occurred at
@@ -466,10 +448,7 @@ contract TracerPerpetualSwaps is
 		if (startLastHour <= block.timestamp - 1 hours) {
 			// emit the old hourly average
 			int256 hourlyTracerPrice =
-				pricingContract.getHourlyAvgTracerPrice(
-					currentHour,
-					address(this)
-				);
+				pricingContract.getHourlyAvgTracerPrice(currentHour);
 			emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
 			// Update the price to a new entry and funding rate every hour
@@ -480,39 +459,25 @@ contract TracerPerpetualSwaps is
 				currentHour = currentHour + 1;
 			}
 			// Update pricing and funding rate states
-			pricingContract.updatePrice(
-				price,
-				ioracle.latestAnswer(),
-				true,
-				address(this)
-			);
+			pricingContract.updatePrice(price, ioracle.latestAnswer(), true);
 			int256 poolFundingRate =
 				insuranceContract.getPoolFundingRate(address(this)).toInt256();
 
 			pricingContract.updateFundingRate(
-				address(this),
 				ioracle.latestAnswer(),
 				poolFundingRate
 			);
 
 			// Gather variables and emit events
-			uint256 currentFundingIndex =
-				pricingContract.currentFundingIndex(address(this));
+			uint256 currentFundingIndex = pricingContract.currentFundingIndex();
 			(, , int256 fundingRate, int256 fundingRateValue) =
-				pricingContract.getFundingRate(
-					address(this),
-					currentFundingIndex
-				);
+				pricingContract.getFundingRate(currentFundingIndex);
 			(
 				,
 				,
 				int256 insuranceFundingRate,
 				int256 insuranceFundingRateValue
-			) =
-				pricingContract.getInsuranceFundingRate(
-					address(this),
-					currentFundingIndex
-				);
+			) = pricingContract.getInsuranceFundingRate(currentFundingIndex);
 			emit FundingRateUpdated(fundingRate, fundingRateValue);
 			emit InsuranceFundingRateUpdated(
 				insuranceFundingRate,
@@ -521,23 +486,18 @@ contract TracerPerpetualSwaps is
 
 			if (startLast24Hours <= block.timestamp - 24 hours) {
 				// Update the interest rate every 24 hours
-				pricingContract.updateTimeValue(address(this));
+				pricingContract.updateTimeValue();
 				startLast24Hours = block.timestamp;
 			}
 
 			startLastHour = block.timestamp;
 		} else {
 			// Update old pricing entry
-			pricingContract.updatePrice(
-				price,
-				ioracle.latestAnswer(),
-				false,
-				address(this)
-			);
+			pricingContract.updatePrice(price, ioracle.latestAnswer(), false);
 		}
 	}
 
-    // todo this function should be in a lib
+	// todo this function should be in a lib
 	/**
 	 * @notice Checks the validity of a potential margin given the necessary parameters
 	 * @param base The base value to be assessed (positive or negative)
@@ -550,7 +510,7 @@ contract TracerPerpetualSwaps is
 		int256 quote,
 		int256 gasPrice
 	) public view returns (bool) {
-        int256 price = pricingContract.fairPrices(address(this));
+		int256 price = pricingContract.fairPrice();
 		int256 gasCost = gasPrice * LIQUIDATION_GAS_COST.toInt256();
 		int256 minMargin =
 			Balances.calcMinMargin(
@@ -581,11 +541,7 @@ contract TracerPerpetualSwaps is
 	 * @param account The address of the account whose margin is to be checked
 	 * @return true if the margin is valid or false otherwise
 	 */
-	function userMarginIsValid(address account)
-		public
-		view
-		returns (bool)
-	{
+	function userMarginIsValid(address account) public view returns (bool) {
 		Types.AccountBalance memory accountBalance = balances[account];
 		return
 			marginIsValid(
