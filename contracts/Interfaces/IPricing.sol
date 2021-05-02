@@ -41,4 +41,6 @@ interface IPricing {
     function getHourlyAvgTracerPrice(uint256 hour) external view returns (int256);
 
     function getHourlyAvgOraclePrice(uint256 hour) external view returns (int256);
+
+    function recordTrade(int256 tradePrice, uint256 tradeVolume) external;
 }
