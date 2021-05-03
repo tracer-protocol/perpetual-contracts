@@ -23,10 +23,10 @@ contract TracerPerpetualSwaps is
 
 	uint256 public override fundingRateSensitivity;
 	uint256 public constant override LIQUIDATION_GAS_COST = 63516;
+	// todo ensure these are fine being immutable
 	uint256 public immutable override priceMultiplier;
 	address public immutable override tracerBaseToken;
 	bytes32 public immutable override marketId;
-	IAccount public accountContract;
 	IPricing public pricingContract;
 	IInsurance public insuranceContract;
 	address public liquidationContract;
@@ -66,16 +66,17 @@ contract TracerPerpetualSwaps is
 		address _liquidationContract,
 		int256 _maxLeverage,
 		uint256 _fundingRateSensitivity,
-		uint256 _feeRate
+		uint256 _feeRate,
+		uint256 _oracleDecimals
 	) public Ownable() {
 		pricingContract = IPricing(_pricingContract);
+		// dont convert to interface as we don't need to interact
+		// with the contract
 		liquidationContract = _liquidationContract;
 		tracerBaseToken = _tracerBaseToken;
 		gasPriceOracle = _gasPriceOracle;
 		marketId = _marketId;
-		// todo pull oracle from insurance here
-		//priceMultiplier = 10**uint256(ioracle.decimals());
-		priceMultiplier = 10**8;
+		priceMultiplier = 10**uint256(_oracleDecimals);
 		feeRate = _feeRate;
 		maxLeverage = _maxLeverage;
 		fundingRateSensitivity = _fundingRateSensitivity;
