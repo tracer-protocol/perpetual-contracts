@@ -61,10 +61,10 @@ contract Pricing is IPricing {
         int256 oracleLatestPrice = oracle.latestAnswer();
         setFundingRate(oracleLatestPrice, 0, 0);
         setInsuranceFundingRate(oracleLatestPrice, 0, 0);
-        incrementFundingIndex();
+        // increment funding index
+        currentFundingIndex = currentFundingIndex + 1;
     }
 
-    // todo this performs a similar action to update internal records, compare to that
     /**
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
@@ -122,7 +122,7 @@ contract Pricing is IPricing {
         int256 marketPrice,
         int256 oraclePrice,
         bool newRecord
-    ) public override onlyTracer {
+    ) internal{
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
@@ -157,9 +157,7 @@ contract Pricing is IPricing {
      * @param iPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
      */
     function updateFundingRate(int256 oraclePrice, int256 iPoolFundingRate)
-        public
-        override
-        onlyTracer
+        internal
     {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
@@ -172,13 +170,12 @@ contract Pricing is IPricing {
         uint256 fundingIndex = currentFundingIndex - 1;
 
         // Create variable with value of new funding rate value
-        int256 currentFundingRateValue = getOnlyFundingRateValue(fundingIndex);
+        int256 currentFundingRateValue = fundingRates[fundingIndex].fundingRateValue;
         int256 fundingRateValue =
             currentFundingRateValue + (newFundingRate * oraclePrice);
 
         // as above but with insurance funding rate value
-        int256 currentInsuranceFundingRateValue =
-            getOnlyInsuranceFundingRateValue(fundingIndex);
+        int256 currentInsuranceFundingRateValue = insuranceFundingRates[fundingIndex].fundingRateValue;
         int256 iPoolFundingRateValue =
             currentInsuranceFundingRateValue + iPoolFundingRate;
 
@@ -214,7 +211,7 @@ contract Pricing is IPricing {
     /**
      * @notice Calculates and then updates the time Value for a tracer market
      */
-    function updateTimeValue() public override onlyTracer {
+    function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         timeValue =
             timeValue +
@@ -222,7 +219,7 @@ contract Pricing is IPricing {
     }
 
     /**
-     * @notice Sets the values of the fundingRate struct for a particular Tracer Marker
+     * @notice Sets the values of the fundingRate struct
      * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The funding Rate of the Tracer, calculated by updateFundingRate
      * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
@@ -231,7 +228,7 @@ contract Pricing is IPricing {
         int256 marketPrice,
         int256 fundingRate,
         int256 fundingRateValue
-    ) public override onlyTracer {
+    ) internal {
         fundingRates[currentFundingIndex] = Types.FundingRate(
             block.timestamp,
             marketPrice,
@@ -250,20 +247,13 @@ contract Pricing is IPricing {
         int256 marketPrice,
         int256 fundingRate,
         int256 fundingRateValue
-    ) public override onlyTracer {
+    ) internal {
         insuranceFundingRates[currentFundingIndex] = Types.FundingRate(
             block.timestamp,
             marketPrice,
             fundingRate,
             fundingRateValue
         );
-    }
-
-    /**
-     * @notice Increments the funding index of a particular tracer by 1
-     */
-    function incrementFundingIndex() public override onlyTracer {
-        currentFundingIndex = currentFundingIndex + 1;
     }
 
     // todo by using public variables lots of these can be removed
@@ -290,29 +280,6 @@ contract Pricing is IPricing {
         );
     }
 
-    /**
-     * @return only the funding rate from a fundingRate struct
-     */
-    function getOnlyFundingRate(uint256 index)
-        public
-        view
-        override
-        returns (int256)
-    {
-        return fundingRates[index].fundingRate;
-    }
-
-    /**
-     * @return only the funding rate Value from a fundingRate struct
-     */
-    function getOnlyFundingRateValue(uint256 index)
-        public
-        view
-        override
-        returns (int256)
-    {
-        return fundingRates[index].fundingRateValue;
-    }
 
     /**
      * @return all of the vairbales in the funding rate struct (insurance rate) from a particular tracer market
@@ -338,23 +305,11 @@ contract Pricing is IPricing {
     }
 
     /**
-     * @return only the funding rate value from a fundingRate struct
-     */
-    function getOnlyInsuranceFundingRateValue(uint256 index)
-        public
-        view
-        override
-        returns (int256)
-    {
-        return insuranceFundingRates[index].fundingRateValue;
-    }
-
-    /**
      * @notice Gets an 8 hour time weighted avg price for a given tracer, at a particular hour. More recent prices are weighted more heavily.
-     * @param currentHour An integer representing what hour we are in in the day (0-24)
+     * @param hour An integer representing what hour of the day to collect from (0-24)
      * @return the time weighted average price for both the oraclePrice (derivative price) and the Tracer Price
      */
-    function getTWAPs(uint256 currentHour)
+    function getTWAPs(uint256 hour)
         public
         view
         override
@@ -366,7 +321,7 @@ contract Pricing is IPricing {
         uint256 underlyingInstances = 0;
         for (int256 i = 0; i < 8; i++) {
             int256 timeWeight = 8 - i;
-            int256 j = int256(currentHour) - i; // keep moving towards 0
+            int256 j = int256(hour) - i; // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
                 j = 23;
