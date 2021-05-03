@@ -33,7 +33,6 @@ contract TracerPerpetualSwaps is
 	uint256 public override feeRate;
 
 	// Config variables
-	address public override oracle;
 	address public override gasPriceOracle;
 	int256 public override maxLeverage; // The maximum ratio of notionalValue to margin
 
@@ -52,14 +51,16 @@ contract TracerPerpetualSwaps is
 	 *         will be able to purchase and trade tracers after this deployment.
 	 * @param _marketId the id of the market, given as BASE/QUOTE
 	 * @param _tracerBaseToken the address of the token used for margin accounts (i.e. The margin token)
-	 * @param _oracle the address of the contract implementing the tracer oracle interface
 	 * @param _gasPriceOracle the address of the contract implementing gas price oracle
 	 * @param _pricingContract the address of the contract implementing the IPricing.sol interface
+	 * @param _liquidationContract the contract that manages liquidations for this market
+	 * @param _maxLeverage the max leverage of the market. Min margin is derived from this
+	 * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
+	 * @param _feeRate the fee to be taken on trades in this market
 	 */
 	constructor(
 		bytes32 _marketId,
 		address _tracerBaseToken,
-		address _oracle,
 		address _gasPriceOracle,
 		address _pricingContract,
 		address _liquidationContract,
@@ -70,11 +71,11 @@ contract TracerPerpetualSwaps is
 		pricingContract = IPricing(_pricingContract);
 		liquidationContract = _liquidationContract;
 		tracerBaseToken = _tracerBaseToken;
-		oracle = _oracle;
 		gasPriceOracle = _gasPriceOracle;
 		marketId = _marketId;
-		IOracle ioracle = IOracle(oracle);
-		priceMultiplier = 10**uint256(ioracle.decimals());
+		// todo pull oracle from insurance here
+		//priceMultiplier = 10**uint256(ioracle.decimals());
+		priceMultiplier = 10**8;
 		feeRate = _feeRate;
 		maxLeverage = _maxLeverage;
 		fundingRateSensitivity = _fundingRateSensitivity;
@@ -470,10 +471,6 @@ contract TracerPerpetualSwaps is
 
 	function setPricingContract(address pricing) public override onlyOwner {
 		pricingContract = IPricing(pricing);
-	}
-
-	function setOracle(address _oracle) public override onlyOwner {
-		oracle = _oracle;
 	}
 
 	function setGasOracle(address _gasOracle) public override onlyOwner {

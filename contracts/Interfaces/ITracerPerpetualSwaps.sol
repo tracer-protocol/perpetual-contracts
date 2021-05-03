@@ -22,8 +22,6 @@ interface ITracerPerpetualSwaps {
 
     function leveragedNotionalValue() external view returns(int256);
 
-    function oracle() external view returns(address);
-
     function gasPriceOracle() external view returns(address);
 
     function priceMultiplier() external view returns(uint256);
@@ -41,8 +39,6 @@ interface ITracerPerpetualSwaps {
     function setInsuranceContract(address insurance) external;
 
     function setPricingContract(address pricing) external;
-
-    function setOracle(address _oracle) external;
 
     function setGasOracle(address _gasOracle) external;
 

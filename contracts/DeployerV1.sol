@@ -15,7 +15,6 @@ contract DeployerV1 is IDeployer {
         (
             bytes32 _tracerId,
             address _tracerBaseToken,
-            address _oracle,
             address _gasPriceOracle,
             address _pricingContract,
             address _liquidationContract,
@@ -28,7 +27,6 @@ contract DeployerV1 is IDeployer {
             address,
             address,
             address,
-            address,
             int256,
             uint256,
             uint256
@@ -36,7 +34,6 @@ contract DeployerV1 is IDeployer {
         TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
             _tracerId,
             _tracerBaseToken,
-            _oracle,
             _gasPriceOracle,
             _pricingContract,
             _liquidationContract,
