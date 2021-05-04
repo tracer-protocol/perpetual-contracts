@@ -183,7 +183,16 @@ contract Trader is ITrader {
             (keccak256(
                 abi.encode(
                     order.maker,
-                    order.amount, order.price, order.side, order.maker, order.expiration)));
+                    order.amount,
+                    order.price,
+                    order.filled,
+                    order.side,
+                    order.expiration,
+                    order.creation,
+                    order.targetTracer
+                )
+            )
+        );
     }
 
     /**
