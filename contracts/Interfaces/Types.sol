@@ -26,6 +26,7 @@ interface Types {
         bool side; //true for long, false for short
         uint256 expiration;
         uint256 creation;
+        address targetTracer;
     }
 
     struct HourlyPrices {
@@ -38,18 +39,9 @@ interface Types {
         Types.HourlyPrices[24] hourlyOraclePrices;
     }
 
-    struct LimitOrder {
-        uint256 amount;
-        int256 price;
-        bool side;
-        address user;
-        uint256 expiration;
-        address targetTracer;
-        uint256 nonce;
-    }
-
     struct SignedLimitOrder {
-        LimitOrder order;
+        Order order;
+        uint256 nonce;
         bytes32 sigR;
         bytes32 sigS;
         uint8 sigV;

@@ -39,7 +39,6 @@ contract Liquidation is ILiquidation, Ownable {
     constructor(
         address _pricing,
         address _tracer,
-        address accountContract,
         address _perpsFactory,
         int256 _maxSlippage,
         address gov
@@ -108,7 +107,8 @@ contract Liquidation is ILiquidation, Ownable {
         require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId);
+        // TODO fix calcUnitsSold
+        (uint256 unitsSold, int256 avgPrice) = (0, 0); // calcUnitsSold(orderIds, escrowId);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -178,37 +178,40 @@ contract Liquidation is ILiquidation, Ownable {
     /**
      * @notice Calculates the number of units sold and the average price of those units by a trader
      *         given multiple order
-     * @param orderIds a list of order ids for which the units sold is being calculated from
+     * @param orders a list of orders for which the units sold is being calculated from
+     * @param traderContract The trader contract with which the orders were made
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
     */
     function calcUnitsSold(
-        uint256[] memory orderIds,
+        Types.Order[] memory orders,
+        address traderContract,
         uint256 receiptId
     ) public view returns (uint256, int256) {
         /*
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
-        for (uint256 i; i < orderIds.length; i++) {
-            uint256 orderId = orderIds[i];
+        for (uint256 i; i < orders.length; i++) {
+            Types.Order memory order = ITrader(traderContract).getOrder(orders[i]);
             (,
                 uint256 orderFilled,
                 int256 orderPrice,
                 bool orderSide,
                 address orderMaker,
                 uint256 creation
-            ) = tracer.getOrder(orderId);
-            require(creation >= receipt.time, "LIQ: Order creation before liquidation");
-            if (orderMaker == receipt.liquidator) {
+            ) = trader.getOrder(orderId);
+            require(order.creation >= receipt.time, "LIQ: Order creation before liquidation");
+            if (order.orderMaker == receipt.liquidator) {
                 // Order was made by liquidator
-                if (orderSide != receipt.liquidationSide) {
-                    unitsSold = unitsSold + orderFilled;
-                    avgPrice = avgPrice + (orderPrice * orderFilled.toInt256());
+                if (order.orderSide != receipt.liquidationSide) {
+                    unitsSold = unitsSold + order.orderFilled;
+                    avgPrice = avgPrice + (order.orderPrice * order.orderFilled.toInt256());
                 }
-            } else if (orderSide == receipt.liquidationSide) {
+            } else if (order.orderTaker == receipt.liquidator) {
                 // Check if a taker was the liquidator and if they were taking the opposite side to what they received
                 uint256 takerAmount = tracer.getOrderTakerAmount(orderId, receipt.liquidator);
-                unitsSold = unitsSold + takerAmount;
+                if (order.orderSide != receipt.liquidationSide) {
+                    unitsSold = unitsSold + takerAmount;
                 avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
             }
         }
@@ -219,7 +222,7 @@ contract Liquidation is ILiquidation, Ownable {
         }
         return (unitsSold, avgPrice / unitsSold.toInt256());
         */
-        return (0, 0);
+        return (0,0);
     }
 
     /**
