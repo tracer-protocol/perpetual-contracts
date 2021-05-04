@@ -48,6 +48,9 @@ contract TracerPerpetualSwaps is
 	uint256 public tvl;
 	int256 public override leveragedNotionalValue;
 
+	// Trading interfaces whitelist
+	mapping(address => bool) tradingWhitelist;
+
 	event FeeReceiverUpdated(address receiver);
 	event HourlyPriceUpdated(int256 price, uint256 currentHour);
 	event FundingRateUpdated(int256 fundingRate, int256 fundingRateValue);
@@ -169,7 +172,7 @@ contract TracerPerpetualSwaps is
 		Types.Order memory order1,
 		Types.Order memory order2,
 		uint256 fillAmount
-	) public override {
+	) public override onlyWhitelisted {
 		// perform compatibility checks
 		// todo order validation can be in the Tracer Lib
 		require(order1.price == order2.price, "TCR: Price mismatch ");
@@ -595,10 +598,28 @@ contract TracerPerpetualSwaps is
 		super.transferOwnership(newOwner);
 	}
 
+	/**
+	* @notice allows the owner of a market to set the whitelisting of a trading interface address
+	* @dev a permissioned interface may call the matchOrders function.
+	* @param tradingContract the contract to have its whitelisting permissions set
+	* @param whitelisted the permission of the contract. If true this contract make call makeOrder
+	*/
+	function setWhitelist(address tradingContract, bool whitelisted) external onlyOwner {
+		tradingWhitelist[tradingContract] = whitelisted;
+	}
+
 	modifier onlyLiquidation() {
 		require(
 			msg.sender == liquidationContract,
 			"TCR: Sender not liquidation contract "
+		);
+		_;
+	}
+
+	modifier onlyWhitelisted() {
+		require(
+			tradingWhitelist[msg.sender],
+			"TCR: Contract not whitelisted"
 		);
 		_;
 	}
