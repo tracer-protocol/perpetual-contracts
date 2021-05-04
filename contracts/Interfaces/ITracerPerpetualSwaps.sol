@@ -22,8 +22,6 @@ interface ITracerPerpetualSwaps {
 
     function leveragedNotionalValue() external view returns(int256);
 
-    function oracle() external view returns(address);
-
     function gasPriceOracle() external view returns(address);
 
     function priceMultiplier() external view returns(uint256);
@@ -36,15 +34,11 @@ interface ITracerPerpetualSwaps {
 
     function fundingRateSensitivity() external view returns(uint256);
 
-    function currentHour() external view returns(uint8);
-
     function getBalance(address account) external view returns (Types.AccountBalance memory);
 
     function setInsuranceContract(address insurance) external;
 
     function setPricingContract(address pricing) external;
-
-    function setOracle(address _oracle) external;
 
     function setGasOracle(address _gasOracle) external;
 
@@ -55,8 +49,6 @@ interface ITracerPerpetualSwaps {
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
 
     function transferOwnership(address newOwner) external;
-
-    function initializePricing() external;
 
     function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
 }
