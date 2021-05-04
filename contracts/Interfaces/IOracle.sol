@@ -8,7 +8,5 @@ interface IOracle {
     function isStale() external view returns (bool);
 
     function decimals() external view returns (uint8);
-
-    function setDecimals(uint8 _decimals) external;
 }
 

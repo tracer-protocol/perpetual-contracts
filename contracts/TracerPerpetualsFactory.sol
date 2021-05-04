@@ -75,7 +75,6 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
         // Perform admin operations on the tracer to finalise linking
         tracer.setInsuranceContract(insurance);
-        tracer.initializePricing();
 
         // Ownership either to the deployer or the DAO
         tracer.transferOwnership(tracerOwner);
