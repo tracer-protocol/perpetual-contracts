@@ -91,4 +91,50 @@ library LibLiquidation {
             liquidateeQuoteChange
         );
     }
+
+    function calculateSlippage(
+        uint256 unitsSold,
+        uint256 escrowId,
+        uint256 priceMultiplier,
+        int256 maxSlippage,
+        int256 avgPrice,
+        LibLiquidation.LiquidationReceipt memory receipt
+    ) internal pure returns (uint256) {
+
+        // Check price slippage and update account states
+        if (
+            avgPrice == receipt.price || // No price change
+            (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
+            (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
+        ) {
+            // No slippage
+            return 0;
+        } else {
+            // Liquidator took a long position, and price dropped
+            int256 amountSoldFor = (avgPrice * unitsSold.toInt256()) / priceMultiplier.toInt256();
+            int256 amountExpectedFor = (receipt.price * unitsSold.toInt256()) / priceMultiplier.toInt256();
+
+            // The difference in how much was expected vs how much liquidator actually got.
+            // i.e. The amount lost by liquidator
+            uint256 amountToReturn = 0;
+            int256 percentSlippage = 0;
+            if (avgPrice < receipt.price && receipt.liquidationSide) {
+                amountToReturn = uint256(amountExpectedFor - amountSoldFor);
+                if (amountToReturn <= 0) {
+                    return 0;
+                }
+                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
+            } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
+                amountToReturn = uint256(amountSoldFor - amountExpectedFor);
+                if (amountToReturn <= 0) {
+                    return 0;
+                }
+                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
+            }
+            if (percentSlippage > maxSlippage) {
+                amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
+            }
+            return (amountToReturn);
+        }
+    }
 }

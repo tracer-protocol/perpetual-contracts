@@ -18,9 +18,10 @@ interface ILiquidation {
 
     function claimReceipts(
         uint256 escrowId,
-        uint256[] memory orderIds,
+        Types.Order[] memory orders,
         uint256 priceMultiplier,
         address market,
+        address traderContract,
         address liquidator
     ) external returns (uint256);
 

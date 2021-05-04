@@ -93,15 +93,17 @@ contract Liquidation is ILiquidation, Ownable {
     /**
      * @notice Marks receipts as claimed and returns the refund amount
      * @param escrowId the id of the receipt created during the liquidation event
-     * @param orderIds the ids of the orders selling the liquidated positions
-     * @param market the address of the tracer contract the liquidation occurred on.
-     * @param liquidator the account who executed the liquidation.
+     * @param orders the orders that sell the liquidated positions
+     * @param market the address of the tracer contract the liquidation occurred on
+     * @param traderContract the address of the trader contract the selling orders were made by
+     * @param liquidator the account who executed the liquidation
      */
     function claimReceipts(
         uint256 escrowId,
-        uint256[] memory orderIds,
+        Types.Order[] memory orders,
         uint256 priceMultiplier,
         address market,
+        address traderContract,
         address liquidator
     ) external override onlyTracer returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
@@ -115,49 +117,30 @@ contract Liquidation is ILiquidation, Ownable {
             "LIQ: Unit mismatch"
         );
 
+        require(
+            ITracerPerpetualSwaps(market).tradingWhitelist(traderContract),
+            "LIQ: Trader is not whitelisted"
+        );
+
         // Mark refund as claimed
         liquidationReceipts[escrowId].liquidatorRefundClaimed = true;
 
-        // Check price slippage and update account states
-        if (
-            avgPrice == receipt.price || // No price change
-            (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
-            (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
-        ) {
-            // No slippage
-            return 0;
-        } else {
-            // Liquidator took a long position, and price dropped
-            int256 amountSoldFor = (avgPrice * unitsSold.toInt256()) / priceMultiplier.toInt256();
-            int256 amountExpectedFor = (receipt.price * unitsSold.toInt256()) / priceMultiplier.toInt256();
+        uint256 amountToReturn =
+            LibLiquidation.calculateSlippage(
+                unitsSold,
+                escrowId,
+                priceMultiplier,
+                maxSlippage,
+                avgPrice,
+                receipt
+            );
 
-            // The difference in how much was expected vs how much liquidator actually got.
-            // i.e. The amount lost by liquidator
-            uint256 amountToReturn = 0;
-            int256 percentSlippage = 0;
-            if (avgPrice < receipt.price && receipt.liquidationSide) {
-                amountToReturn = uint256(amountExpectedFor - amountSoldFor);
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
-            } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
-                amountToReturn = uint256(amountSoldFor - amountExpectedFor);
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
-            }
-            if (percentSlippage > maxSlippage) {
-                amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
-            }
-            if (amountToReturn > receipt.escrowedAmount) {
-                liquidationReceipts[escrowId].escrowedAmount = 0;
-            } else {
-                liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
-            }
-            return (amountToReturn);
+        if (amountToReturn > receipt.escrowedAmount) {
+            liquidationReceipts[escrowId].escrowedAmount = 0;
+        } else {
+            liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
         }
+        return amountToReturn;
     }
 
     /**
