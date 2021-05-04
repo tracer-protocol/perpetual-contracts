@@ -21,7 +21,7 @@ contract Trader is ITrader {
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation)"
+            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation,address targetTracer)"
         );
 
     uint256 public override constant chainId = 1337; // Changes per chain
@@ -140,6 +140,7 @@ contract Trader is ITrader {
             newOrder.side = signedOrder.order.side;
             newOrder.expiration = signedOrder.order.expiration;
             newOrder.creation = block.timestamp;
+            newOrder.targetTracer = market;
         }
 
         return orders[orderHash];
