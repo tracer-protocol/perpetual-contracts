@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./Interfaces/IOracle.sol";
-import "./lib/LibMath.sol";
+import "../Interfaces/IOracle.sol";
+import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -17,7 +17,7 @@ contract GasOracle is IOracle, Ownable {
     int256 public usdToGas;
     uint8 public override decimals = 8; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
 
-    constructor(address _priceOracle, address _gasOracle) public {
+    constructor(address _priceOracle, address _gasOracle) {
         gasOracle = IOracle(_gasOracle); /* Gas cost oracle */
         priceOracle = IOracle(_priceOracle); /* Base/ETH oracle */
     }
@@ -41,8 +41,11 @@ contract GasOracle is IOracle, Ownable {
         return (gasOracle.latestAnswer() * priceOracle.latestAnswer()) / divisionPower.toInt256();
     }
 
+    /**
+    * @notice returns if either feed is stale
+    */
     function isStale() external override view returns (bool) {
-        return false;
+        return (gasOracle.isStale() || priceOracle.isStale());
     }
 
     /**
@@ -60,7 +63,7 @@ contract GasOracle is IOracle, Ownable {
         priceOracle = IOracle(_priceOracle);
     }
 
-    function setDecimals(uint8 _decimals) external override {
+    function setDecimals(uint8 _decimals) external {
         decimals = _decimals;
     }
 }
