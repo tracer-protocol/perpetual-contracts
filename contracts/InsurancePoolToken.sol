@@ -8,7 +8,7 @@ contract InsurancePoolToken is ERC20, Ownable, ERC20Burnable {
     constructor(
         string memory name,
         string memory symbol
-    ) public ERC20(name, symbol) {
+    ) ERC20(name, symbol) {
     }
 
     function mint(address to, uint256 amount) external onlyOwner() {

@@ -18,6 +18,8 @@ interface ITracerPerpetualSwaps {
 
     function tracerBaseToken() external view returns (address);
 
+    function liquidationContract() external view returns (address);
+
     function marketId() external view returns(bytes32);
 
     function leveragedNotionalValue() external view returns(int256);
@@ -57,6 +59,10 @@ interface ITracerPerpetualSwaps {
     function transferOwnership(address newOwner) external;
 
     function initializePricing() external;
+
+    function deposit(uint256 amount) external;
+
+    function withdraw(uint256 amount) external;
 
     function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
 }
