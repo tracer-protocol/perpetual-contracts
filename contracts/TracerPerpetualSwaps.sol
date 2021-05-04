@@ -31,6 +31,9 @@ contract TracerPerpetualSwaps is
 	IInsurance public insuranceContract;
 	address public liquidationContract;
 	uint256 public override feeRate;
+	int256 public constant FEE_MULTIPLIER = 1000000; // 0.01% fee = 0.0001 = 100
+    uint256 public fees;
+    address public feeReceiver;
 
 	// Config variables
 	address public override gasPriceOracle;
@@ -202,23 +205,31 @@ contract TracerPerpetualSwaps is
 		Types.AccountBalance storage account1 = balances[order1.maker];
 		Types.AccountBalance storage account2 = balances[order2.maker];
 
+		// Calculate fee; add fee in base, and take out equivalent % in quote
+        int256 fee = (baseChange * feeRate.toInt256()) / FEE_MULTIPLIER;
+		int256 quoteFee = (_fillAmount * feeRate.toInt256()) / FEE_MULTIPLIER;
+        require(fee >= 0, "Invalid fee");
+
 		if (order1.side) {
 			// user 1 is long. Increase quote, decrease base
 			account1.base = account1.base - baseChange;
-			account1.quote = account1.quote + _fillAmount;
+			account1.quote = account1.quote + _fillAmount - quoteFee;
 
 			// user 2 is short. Increase base, decrease quote
 			account2.base = account2.base + baseChange;
-			account2.quote = account2.quote - _fillAmount;
+			account2.quote = account2.quote - _fillAmount + quoteFee;
 		} else {
 			// user 1 is short. Increase base, decrease quote
 			account1.base = account1.base + baseChange;
-			account1.quote = account1.quote - _fillAmount;
+			account1.quote = account1.quote - _fillAmount + quoteFee;
 
 			// user 2 is long. Increase quote, decrease base
 			account2.base = account2.base - baseChange;
-			account2.quote = account2.quote + _fillAmount;
+			account2.quote = account2.quote + _fillAmount - quoteFee;
 		}
+
+        // Add fee into fees
+        fees = fees + uint(fee * 2);
 	}
 
 	/**
@@ -480,6 +491,18 @@ contract TracerPerpetualSwaps is
 	function setGasOracle(address _gasOracle) public override onlyOwner {
 		gasPriceOracle = _gasOracle;
 	}
+
+    function setFeeReceiver(address receiver) public override onlyOwner {
+        feeReceiver = receiver;
+        emit FeeReceiverUpdated(receiver);
+    }
+
+    function withdrawFee() public override {
+		require(feeReceiver == msg.sender);
+        fees = 0;
+        // Withdraw from the account
+        IERC20(tracerBaseToken).transfer(feeReceiver, fees);
+    }
 
 	function setFeeRate(uint256 _feeRate) public override onlyOwner {
 		feeRate = _feeRate;
