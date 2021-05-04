@@ -5,11 +5,12 @@ pragma experimental ABIEncoderV2;
 import './Interfaces/ITracerPerpetualSwaps.sol';
 import './Interfaces/IDex.sol';
 import './Interfaces/Types.sol';
+import './Interfaces/ITrader.sol';
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader {
+contract Trader is ITrader {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = 'Tracer Protocol';
@@ -18,13 +19,13 @@ contract Trader {
         keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
 
     // EIP712 Types
-    bytes32 private constant LIMIT_ORDER_TYPE =
+    bytes32 private constant ORDER_TYPE =
         keccak256(
-            'LimitOrder(uint256 amount,int256 price,bool side,address user,uint256 expiration,address targetTracer,uint256 nonce)'
+            'Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation,address targetTracer,address[] fillers,uint256[] fillAmounts)'
         );
 
-    uint256 constant chainId = 1337; // Changes per chain
-    bytes32 public immutable EIP712_DOMAIN;
+    uint256 public override constant chainId = 1337; // Changes per chain
+    bytes32 public override immutable EIP712_DOMAIN;
 
     // Trader => nonce
     mapping(address => uint256) public nonces; // Prevents replay attacks
@@ -59,7 +60,7 @@ contract Trader {
         Types.SignedLimitOrder[] memory makers,
         Types.SignedLimitOrder[] memory takers,
         address market
-    ) external {
+    ) external override {
         require(makers.length == takers.length, 'TDR: Lengths differ');
 
         // safe as we've already bounds checked the array lengths
@@ -73,8 +74,8 @@ contract Trader {
             Types.Order storage makeOrder = grabOrder(makers, i, market);
             Types.Order storage takeOrder = grabOrder(takers, i, market);
 
-            address maker = makers[i].order.user;
-            address taker = takers[i].order.user;
+            address maker = makers[i].order.maker;
+            address taker = takers[i].order.maker;
 
             // calc fill amount
             uint256 makeRemaining = makeOrder.amount - makeOrder.filled;
@@ -88,6 +89,12 @@ contract Trader {
             // update order state
             makeOrder.filled = makeOrder.filled + fillAmount;
             takeOrder.filled = takeOrder.filled + fillAmount;
+
+            makeOrder.fillers.push(taker);
+            makeOrder.fillAmounts.push(fillAmount);
+
+            takeOrder.fillers.push(maker);
+            takeOrder.fillAmounts.push(fillAmount);
 
             // increment nonce if filled
             bool completeMaker = makeOrder.filled == makeOrder.amount;
@@ -122,21 +129,20 @@ contract Trader {
         Types.SignedLimitOrder memory signedOrder = signedOrders[index];
 
         // verify signature and nonce
-        verify(signedOrder.order.user, signedOrder.order, signedOrder.sigR, signedOrder.sigS, signedOrder.sigV);
+        verify(signedOrder.order.maker, signedOrder);
 
         bytes32 orderHash = hashOrder(signedOrder.order);
         // check if order exists on chain, if not, create it
         if (orders[orderHash].maker == address(0)) {
             // store this order to keep track of state
-            orders[orderHash] = Types.Order(
-                signedOrder.order.user, //maker
-                signedOrder.order.amount, //amount
-                signedOrder.order.price, //price
-                0, //filled
-                signedOrder.order.side, //side
-                signedOrder.order.expiration, //expiration
-                block.timestamp //creation
-            );
+            Types.Order storage newOrder = orders[orderHash];
+            newOrder.maker = signedOrder.order.maker; //maker
+            newOrder.amount = signedOrder.order.amount; //amount
+            newOrder.price = signedOrder.order.price; //price
+            newOrder.filled = 0; //filled
+            newOrder.side = signedOrder.order.side; //side
+            newOrder.expiration = signedOrder.order.expiration; //expiration
+            newOrder.creation = block.timestamp; //creation
         }
 
         return orders[orderHash];
@@ -147,7 +153,7 @@ contract Trader {
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
-    function hashOrder(Types.LimitOrder memory order) public view returns (bytes32) {
+    function hashOrder(Types.Order memory order) public view override returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(
@@ -155,14 +161,17 @@ contract Trader {
                     EIP712_DOMAIN,
                     keccak256(
                         abi.encode(
-                            LIMIT_ORDER_TYPE,
+                            ORDER_TYPE,
+                            order.maker,
                             order.amount,
                             order.price,
+                            order.filled,
                             order.side,
-                            order.user,
                             order.expiration,
+                            order.creation,
                             order.targetTracer,
-                            order.nonce
+                            order.fillers,
+                            order.fillAmounts
                         )
                     )
                 )
@@ -174,36 +183,37 @@ contract Trader {
      * @param order the limit order being hashed
      * @return a simple hash as used by the simple dex to store order ids
      */
-    function hashOrderForDex(Types.LimitOrder memory order) public view returns (bytes32) {
-        return (keccak256(abi.encode(order.amount, order.price, order.side, order.user, order.expiration)));
+    function hashOrderForDex(Types.Order memory order) public view override returns (bytes32) {
+        return 
+            (keccak256(
+                abi.encode(
+                    order.maker,
+                    order.amount, order.price, order.side, order.maker, order.expiration)));
     }
 
     /**
      * @notice Gets the EIP712 domain hash of the contract
      */
-    function getDomain() external view returns (bytes32) {
+    function getDomain() external view override returns (bytes32) {
         return EIP712_DOMAIN;
     }
 
     /**
      * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
      * @param signer The signer who is being verified against the order
-     * @param order The unsigned order to verify the signature of
-     * @param sigR R component of the signature
-     * @param sigS S component of the signature
-     * @param sigV V component of the signature
+     * @param signedOrder The signed order to verify the signature of
      * @return true is signer has signed the order as given by the signature components
      *         and if the nonce of the order is correct else false.
      */
     function verify(
         address signer,
-        Types.LimitOrder memory order,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
-    ) public view returns (bool) {
-        require(verifySignature(signer, order, sigR, sigS, sigV), "TDR: Signature verification failed");
-        require(verifyNonce(order), "TDR: Incorrect nonce");
+        Types.SignedLimitOrder memory signedOrder
+    ) public view override returns (bool) {
+        require(
+            verifySignature(signer, signedOrder.order, signedOrder.sigR, signedOrder.sigS, signedOrder.sigV),
+            "TDR: Signature verification failed"
+        );
+        require(verifyNonce(signedOrder), "TDR: Incorrect nonce");
         return true;
     }
 
@@ -218,23 +228,23 @@ contract Trader {
      */
     function verifySignature(
         address signer,
-        Types.LimitOrder memory order,
+        Types.Order memory order,
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
-    ) public view returns (bool) {
+    ) public view override returns (bool) {
         return signer == ecrecover(hashOrder(order), sigV, sigR, sigS);
     }
 
     /**
      * @notice Verifies that the nonce of a order is the current user nonce
-     * @param order The order being verified
+     * @param signedOrder The order being verified
      */
-    function verifyNonce(Types.LimitOrder memory order) public view returns (bool) {
-        return order.nonce == nonces[order.user];
+    function verifyNonce(Types.SignedLimitOrder memory signedOrder) public view override returns (bool) {
+        return signedOrder.nonce == nonces[signedOrder.order.maker];
     }
 
-    function getOrder(Types.SignedLimitOrder memory order) public view returns (Types.Order memory) {
-        return orders[hashOrder(order.order)];
+    function getOrder(Types.Order memory order) public view override returns (Types.Order memory) {
+        return orders[hashOrder(order)];
     }
 }
