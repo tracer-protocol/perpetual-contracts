@@ -18,9 +18,7 @@ contract OracleAdapter is IOracle, Ownable {
     int256 public scaler;
 
     constructor(address _oracle) {
-        oracle = IOracle(_oracle);
-        // scaler can be used to keep all feed responses in units of 10^18
-        scaler = int256(10**(MAX_DECIMALS - oracle.decimals()));
+        setOracle(_oracle);
     }
 
     /**
@@ -51,11 +49,20 @@ contract OracleAdapter is IOracle, Ownable {
 
     /**
     * @notice Change the upstream feed address.
+    */
+    function changeOracle(address newOracle) public onlyOwner {
+        setOracle(newOracle);
+    }
+
+    /**
+    * @notice sets the upstream oracle
     * @dev resets the scalar value to ensure WAD values are always returned 
     */
-    function changeUpstreamOracle(address newOracle) external onlyOwner {
+    function setOracle(address newOracle) internal {
         oracle = IOracle(newOracle);
         // reset the scaler for consistency
-        scaler = int256(10**(MAX_DECIMALS - oracle.decimals()));
+        uint8 _decimals = oracle.decimals();
+        require(_decimals <= MAX_DECIMALS, "COA: too many decimals");
+        scaler = int256(10**(MAX_DECIMALS - _decimals));        
     }
 }
