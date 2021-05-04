@@ -76,7 +76,6 @@ contract Pricing is IPricing {
         uint256 tradeVolume
     ) external override onlyTracer {
         int256 currentOraclePrice = oracle.latestAnswer();
-        // todo the pricing should need the oracle, not the tracer market?
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
             int256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
