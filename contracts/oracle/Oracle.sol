@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./Interfaces/IOracle.sol";
+import "../Interfaces/IOracle.sol";
 
 /**
  * @dev The following is a sample Oracle Implementation for a Tracer Oracle.
@@ -27,7 +27,7 @@ contract Oracle is IOracle {
         price = _price;
     }
 
-    function setDecimals(uint8 _decimals) external override {
+    function setDecimals(uint8 _decimals) external {
         decimals = _decimals;
     }
 }
