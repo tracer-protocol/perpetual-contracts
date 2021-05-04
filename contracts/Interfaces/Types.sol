@@ -27,7 +27,6 @@ interface Types {
         bool side; //true for long, false for short
         uint256 expiration;
         uint256 creation;
-        mapping(address => uint256) takers;
     }
 
     struct HourlyPrices {
@@ -38,20 +37,6 @@ interface Types {
     struct PricingMetrics {
         Types.HourlyPrices[24] hourlyTracerPrices;
         Types.HourlyPrices[24] hourlyOraclePrices;
-    }
-
-    struct LiquidationReceipt {
-        address tracer;
-        address liquidator;
-        address liquidatee;
-        int256 price;
-        uint256 time;
-        uint256 escrowedAmount;
-        uint256 releaseTime;
-        int256 amountLiquidated;
-        bool escrowClaimed;
-        bool liquidationSide;
-        bool liquidatorRefundClaimed;
     }
 
     struct LimitOrder {

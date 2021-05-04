@@ -15,31 +15,34 @@ contract DeployerV1 is IDeployer {
         (
             bytes32 _tracerId,
             address _tracerBaseToken,
-            address _oracle,
             address _gasPriceOracle,
-            address _accountContract,
             address _pricingContract,
+            address _liquidationContract,
             int256 _maxLeverage,
-            uint256 _fundingRateSensitivity
+            uint256 _fundingRateSensitivity,
+            uint256 _feeRate,
+            uint256 _oracleDecimals
         ) = abi.decode(_data, (
             bytes32,
             address,
             address,
             address,
             address,
-            address,
             int256,
+            uint256,
+            uint256,
             uint256
         ));
         TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
             _tracerId,
             _tracerBaseToken,
-            _oracle,
             _gasPriceOracle,
-            _accountContract,
             _pricingContract,
+            _liquidationContract,
             _maxLeverage,
-            _fundingRateSensitivity
+            _fundingRateSensitivity,
+            _feeRate,
+            _oracleDecimals
         );
         tracer.transferOwnership(msg.sender);
         return address(tracer);

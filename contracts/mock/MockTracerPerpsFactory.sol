@@ -67,9 +67,6 @@ contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
 
         tracerCounter++;
 
-        //Perform admin operations on the tracer to finalise linking
-        // tracer.setInsuranceContract(insurance);
-        tracer.initializePricing();
         emit TracerDeployed(marketId, market);
     }
 

@@ -5,7 +5,7 @@ import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
+import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
 
 contract Pricing is IPricing {
@@ -13,29 +13,101 @@ contract Pricing is IPricing {
     using LibMath for uint256;
     using LibMath for int256;
 
-    ITracerPerpetualsFactory public perpsFactory;
+    address public tracer;
+    IInsurance public insurance;
+    IOracle public oracle;
 
-    // Tracer market => pricing metrics
-    mapping(address => Types.PricingMetrics) internal prices;
+    // pricing metrics
+    Types.PricingMetrics internal price;
 
-    // Tracer market => funding index => funding rate
-    mapping(address => mapping(uint256 => Types.FundingRate)) public fundingRates;
+    // funding index => funding rate
+    mapping(uint256 => Types.FundingRate) public fundingRates;
 
-    // Tracer market => funding index => insurance funding rate
-    mapping(address => mapping(uint256 => Types.FundingRate)) public insuranceFundingRates;
+    // funding index => insurance funding rate
+    mapping(uint256 => Types.FundingRate) public insuranceFundingRates;
 
-    // Tracer market => market's time value
-    mapping(address => int256) public override timeValues;
+    // market's time value
+    int256 public override timeValue;
 
-    // Tracer market => funding index
-    mapping(address => uint256) public override currentFundingIndex;
+    // funding index
+    uint256 public override currentFundingIndex;
+
+    // timing variables
+    uint256 internal startLastHour;
+    uint256 internal startLast24Hours;
+    uint8 public currentHour;
+
+    event HourlyPriceUpdated(int256 price, uint256 currentHour);
+    event FundingRateUpdated(int256 fundingRate, int256 fundingRateValue);
+    event InsuranceFundingRateUpdated(
+        int256 insuranceFundingRate,
+        int256 insuranceFundingRateValue
+    );
 
     /**
      * @dev Set tracer perps factory
-     * @param _perpsFactory The address of the tracer perpsFactory
+     * @param _tracer The address of the tracer this pricing contract links too
      */
-    constructor(address _perpsFactory) public {
-        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
+    constructor(
+        address _tracer,
+        address _insurance,
+        address _oracle
+    ) {
+        tracer = _tracer;
+        insurance = IInsurance(_insurance);
+        oracle = IOracle(_oracle);
+
+        // initialise funding rate, similar to what was done in trace perp
+        int256 oracleLatestPrice = oracle.latestAnswer();
+        setFundingRate(oracleLatestPrice, 0, 0);
+        setInsuranceFundingRate(oracleLatestPrice, 0, 0);
+        // increment funding index
+        currentFundingIndex = currentFundingIndex + 1;
+    }
+
+    /**
+     * @notice Updates pricing information given a trade of a certain volume at
+     *         a set price
+     * @param tradePrice the price the trade executed at
+     * @param tradeVolume the volume of the order
+     */
+    function recordTrade(
+        int256 tradePrice,
+        uint256 tradeVolume
+    ) external override onlyTracer {
+        int256 currentOraclePrice = oracle.latestAnswer();
+        if (startLastHour <= block.timestamp - 1 hours) {
+            // emit the old hourly average
+            int256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
+            emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
+
+            // Update the price to a new entry and funding rate every hour
+            // Check current hour and loop around if need be
+            if (currentHour == 23) {
+                currentHour = 0;
+            } else {
+                currentHour = currentHour + 1;
+            }
+            // Update pricing and funding rate states
+            updatePrice(tradePrice, currentOraclePrice, true);
+
+            // todo contract needs to take in the insurance pool
+            int256 poolFundingRate =
+                insurance.getPoolFundingRate(address(this)).toInt256();
+
+            updateFundingRate(currentOraclePrice, poolFundingRate);
+
+            if (startLast24Hours <= block.timestamp - 24 hours) {
+                // Update the interest rate every 24 hours
+                updateTimeValue();
+                startLast24Hours = block.timestamp;
+            }
+
+            startLastHour = block.timestamp;
+        } else {
+            // Update old pricing entry
+            updatePrice(tradePrice, currentOraclePrice, false);
+        }
     }
 
     /**
@@ -44,79 +116,89 @@ contract Pricing is IPricing {
      * @param marketPrice The price that a tracer was bought at, returned by the TracerPerpetualSwaps.sol contract when an order is filled
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
      * @param newRecord Bool that decides if a new hourly record should be started (true) or if a current hour should be updated (false)
-     * @param market The address of the Tracer being updated
      */
     function updatePrice(
         int256 marketPrice,
         int256 oraclePrice,
-        bool newRecord,
-        address market
-    ) public override onlyTracer(market) {
-        uint256 currentHour = ITracerPerpetualSwaps(market).currentHour();
+        bool newRecord
+    ) internal{
         // Price records entries updated every hour
-        Types.PricingMetrics storage pricing = prices[market];
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
-            Types.HourlyPrices memory newHourly = Types.HourlyPrices(marketPrice, 1);
-            pricing.hourlyTracerPrices[currentHour] = newHourly;
+            Types.HourlyPrices memory newHourly =
+                Types.HourlyPrices(marketPrice, 1);
+            price.hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Types.HourlyPrices memory oracleHour = Types.HourlyPrices(oraclePrice, 1);
-            pricing.hourlyOraclePrices[currentHour] = oracleHour;
+            Types.HourlyPrices memory oracleHour =
+                Types.HourlyPrices(oraclePrice, 1);
+            price.hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the market price to a running total and increment number of trades
-            pricing.hourlyTracerPrices[currentHour].totalPrice = pricing.hourlyTracerPrices[currentHour].totalPrice + marketPrice;
-            pricing.hourlyTracerPrices[currentHour].numTrades = pricing.hourlyTracerPrices[currentHour].numTrades + 1;
+            price.hourlyTracerPrices[currentHour].totalPrice =
+                price.hourlyTracerPrices[currentHour].totalPrice +
+                marketPrice;
+            price.hourlyTracerPrices[currentHour].numTrades =
+                price.hourlyTracerPrices[currentHour].numTrades +
+                1;
             // As above but with oracle price
-            pricing.hourlyOraclePrices[currentHour].totalPrice = pricing.hourlyOraclePrices[currentHour].totalPrice + oraclePrice;
-            pricing.hourlyOraclePrices[currentHour].numTrades = pricing.hourlyOraclePrices[currentHour].numTrades + 1;
+            price.hourlyOraclePrices[currentHour].totalPrice =
+                price.hourlyOraclePrices[currentHour].totalPrice +
+                oraclePrice;
+            price.hourlyOraclePrices[currentHour].numTrades =
+                price.hourlyOraclePrices[currentHour].numTrades +
+                1;
         }
     }
 
     /**
      * @notice Updates the funding rate and the insurance funding rate
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
-     * @param IPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
-     * @param market The address of the Tracer being updated
+     * @param iPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
      */
-    function updateFundingRate(
-        address market,
-        int256 oraclePrice,
-        int256 IPoolFundingRate
-    ) public override onlyTracer(market) {
+    function updateFundingRate(int256 oraclePrice, int256 iPoolFundingRate)
+        internal
+    {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
-        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
-        int256 timeValue = timeValues[market];
-        (int256 underlyingTWAP, int256 deriativeTWAP) = getTWAPs(market, _tracer.currentHour());
-        int256 newFundingRate = (deriativeTWAP - underlyingTWAP - timeValue) * 
-           (_tracer.FUNDING_RATE_SENSITIVITY().toInt256());
+        ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
+        (int256 underlyingTWAP, int256 deriativeTWAP) =
+            getTWAPs(currentHour);
+        int256 newFundingRate =
+            (deriativeTWAP - underlyingTWAP - timeValue) *
+                (_tracer.fundingRateSensitivity().toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
-        uint256 fundingIndex = currentFundingIndex[market] - 1;
+        uint256 fundingIndex = currentFundingIndex - 1;
 
         // Create variable with value of new funding rate value
-        int256 currentFundingRateValue = getOnlyFundingRateValue(market, fundingIndex);
-        int256 fundingRateValue = currentFundingRateValue + (newFundingRate * oraclePrice);
+        int256 currentFundingRateValue = fundingRates[fundingIndex].fundingRateValue;
+        int256 fundingRateValue =
+            currentFundingRateValue + (newFundingRate * oraclePrice);
 
         // as above but with insurance funding rate value
-        int256 currentInsuranceFundingRateValue = getOnlyInsuranceFundingRateValue(market, fundingIndex);
-        int256 IPoolFundingRateValue = currentInsuranceFundingRateValue + IPoolFundingRate;
+        int256 currentInsuranceFundingRateValue = insuranceFundingRates[fundingIndex].fundingRateValue;
+        int256 iPoolFundingRateValue =
+            currentInsuranceFundingRateValue + iPoolFundingRate;
 
         // Call setter functions on calculated variables
-        setFundingRate(market, oraclePrice, newFundingRate, fundingRateValue);
-        setInsuranceFundingRate(market, oraclePrice, IPoolFundingRate, IPoolFundingRateValue);
-        incrementFundingIndex(market);
+        setFundingRate(oraclePrice, newFundingRate, fundingRateValue);
+        emit FundingRateUpdated(newFundingRate, fundingRateValue);
+        setInsuranceFundingRate(
+            oraclePrice,
+            iPoolFundingRate,
+            iPoolFundingRateValue
+        );
+        emit InsuranceFundingRateUpdated(
+            iPoolFundingRate,
+            iPoolFundingRateValue
+        );
+        // increment funding index
+        currentFundingIndex = currentFundingIndex + 1;
     }
 
     /**
      * @notice Given the address of a tracer market this function will get the current fair price for that market
-     * @param market The address of the tracer market where you want the fair price
      */
-    function fairPrices(address market) public override view validTracer(market) returns(int256) {
-        // grab all necessary variable from helper functions
-        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
-
-        int256 oraclePrice = IOracle(tracer.oracle()).latestAnswer();
-        int256 timeValue = timeValues[market];
-
+    function fairPrice() public view override returns (int256) {
+        int256 oraclePrice = oracle.latestAnswer();
         // calculates fairPrice
         return oraclePrice - timeValue;
     }
@@ -127,27 +209,26 @@ contract Pricing is IPricing {
 
     /**
      * @notice Calculates and then updates the time Value for a tracer market
-     * @param market The address of the Tracer market that is to be updated
      */
-    function updateTimeValue(address market) public override onlyTracer(market) {
-        (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices(market);
-        timeValues[market] = timeValues[market] + ((avgPrice.toInt256() - oracleAvgPrice.toInt256()) / 90);
+    function updateTimeValue() internal {
+        (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
+        timeValue =
+            timeValue +
+            ((avgPrice.toInt256() - oracleAvgPrice.toInt256()) / 90);
     }
 
     /**
-     * @notice Sets the values of the fundingRate struct for a particular Tracer Marker
-     * @param market The address of the Tracer market that"s fundingRate is to be updated
+     * @notice Sets the values of the fundingRate struct
      * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The funding Rate of the Tracer, calculated by updateFundingRate
      * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
      */
     function setFundingRate(
-        address market,
         int256 marketPrice,
         int256 fundingRate,
         int256 fundingRateValue
-    ) public override onlyTracer(market) {
-        fundingRates[market][currentFundingIndex[market]] = Types.FundingRate(
+    ) internal {
+        fundingRates[currentFundingIndex] = Types.FundingRate(
             block.timestamp,
             marketPrice,
             fundingRate,
@@ -157,18 +238,16 @@ contract Pricing is IPricing {
 
     /**
      * @notice Sets the values of the fundingRate struct for a particular Tracer Marker
-     * @param market The address of the Tracer market that"s fundingRate is to be updated
      * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The insurance funding Rate of the Tracer, calculated by updateFundingRate
      * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
      */
     function setInsuranceFundingRate(
-        address market,
         int256 marketPrice,
         int256 fundingRate,
         int256 fundingRateValue
-    ) public override onlyTracer(market) {
-        insuranceFundingRates[market][currentFundingIndex[market]] = Types.FundingRate(
+    ) internal {
+        insuranceFundingRates[currentFundingIndex] = Types.FundingRate(
             block.timestamp,
             marketPrice,
             fundingRate,
@@ -176,25 +255,14 @@ contract Pricing is IPricing {
         );
     }
 
-    /**
-     * @notice Increments the funding index of a particular tracer by 1
-     * @param market The address of the Tracer market that"s fundingindex is to be updated
-     */
-    function incrementFundingIndex(address market) public override onlyTracer(market) {
-        currentFundingIndex[market] = currentFundingIndex[market] + 1;
-    }
-
-    //////////////////////
-    ///GETTER FUNCTIONS///
-    //////////////////////
-
+    // todo by using public variables lots of these can be removed
     /**
      * @return each variable of the fundingRate struct of a particular tracer at a particular funding rate index
      */
-    function getFundingRate(address market, uint256 index)
+    function getFundingRate(uint256 index)
         public
-        override
         view
+        override
         returns (
             uint256,
             int256,
@@ -202,31 +270,23 @@ contract Pricing is IPricing {
             int256
         )
     {
-        Types.FundingRate memory fundingRate = fundingRates[market][index];
-        return (fundingRate.recordTime, fundingRate.recordPrice, fundingRate.fundingRate, fundingRate.fundingRateValue);
+        Types.FundingRate memory fundingRate = fundingRates[index];
+        return (
+            fundingRate.recordTime,
+            fundingRate.recordPrice,
+            fundingRate.fundingRate,
+            fundingRate.fundingRateValue
+        );
     }
 
-    /**
-     * @return only the funding rate from a fundingRate struct
-     */
-    function getOnlyFundingRate(address market, uint index) public override view returns (int256) {
-        return fundingRates[market][index].fundingRate;
-    }
-
-    /**
-     * @return only the funding rate Value from a fundingRate struct
-     */
-     function getOnlyFundingRateValue(address market, uint index) public override view returns (int256) {
-        return fundingRates[market][index].fundingRateValue;
-    }
 
     /**
      * @return all of the vairbales in the funding rate struct (insurance rate) from a particular tracer market
      */
-    function getInsuranceFundingRate(address market, uint256 index)
+    function getInsuranceFundingRate(uint256 index)
         public
-        override
         view
+        override
         returns (
             uint256,
             int256,
@@ -234,37 +294,39 @@ contract Pricing is IPricing {
             int256
         )
     {
-        Types.FundingRate memory fundingRate = insuranceFundingRates[market][index];
-        return (fundingRate.recordTime, fundingRate.recordPrice, fundingRate.fundingRate, fundingRate.fundingRateValue);
-    }
-
-    /**
-     * @return only the funding rate value from a fundingRate struct
-     */
-    function getOnlyInsuranceFundingRateValue(address market, uint index) public override view returns(int256) {
-        return insuranceFundingRates[market][index].fundingRateValue;
+        Types.FundingRate memory fundingRate = insuranceFundingRates[index];
+        return (
+            fundingRate.recordTime,
+            fundingRate.recordPrice,
+            fundingRate.fundingRate,
+            fundingRate.fundingRateValue
+        );
     }
 
     /**
      * @notice Gets an 8 hour time weighted avg price for a given tracer, at a particular hour. More recent prices are weighted more heavily.
-     * @param market The address of a tracer market
-     * @param currentHour An integer representing what hour we are in in the day (0-24)
+     * @param hour An integer representing what hour of the day to collect from (0-24)
      * @return the time weighted average price for both the oraclePrice (derivative price) and the Tracer Price
      */
-    function getTWAPs(address market, uint256 currentHour) public override view returns (int256, int256) {
+    function getTWAPs(uint256 hour)
+        public
+        view
+        override
+        returns (int256, int256)
+    {
         int256 underlyingSum = 0;
         int256 derivativeSum = 0;
         uint256 derivativeInstances = 0;
         uint256 underlyingInstances = 0;
         for (int256 i = 0; i < 8; i++) {
             int256 timeWeight = 8 - i;
-            int256 j = int256(currentHour) - i; // keep moving towards 0
+            int256 j = int256(hour) - i; // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
                 j = 23;
             }
-            int256 derivativePrice = getHourlyAvgTracerPrice(uint256(j), market);
-            int256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j), market);
+            int256 derivativePrice = getHourlyAvgTracerPrice(uint256(j));
+            int256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j));
             if (derivativePrice != 0) {
                 derivativeInstances = derivativeInstances + uint256(timeWeight);
                 derivativeSum = derivativeSum + (timeWeight * derivativePrice);
@@ -278,44 +340,60 @@ contract Pricing is IPricing {
             // Not enough market data yet
             return (0, 0);
         }
-        return (underlyingSum / underlyingInstances.toInt256(), derivativeSum / derivativeInstances.toInt256());
+        return (
+            underlyingSum / underlyingInstances.toInt256(),
+            derivativeSum / derivativeInstances.toInt256()
+        );
     }
 
     /**
      * @notice Gets a 24 hour tracer and oracle price for a given tracer market
-     * @param market The address of the Tracer market that is to be averaged
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
-    function get24HourPrices(address market) public override view returns (uint256, uint256) {
-        Types.PricingMetrics memory pricing = prices[market];
+    function get24HourPrices() public view override returns (uint256, uint256) {
+        Types.PricingMetrics memory pricing = price;
         uint256 runningTotal = 0;
         uint256 oracleRunningTotal = 0;
         uint8 numberOfHoursPresent = 0;
         uint8 numberOfOracleHoursPresent = 0;
         for (uint8 i = 0; i < 23; i++) {
-            Types.HourlyPrices memory hourlyPrice = pricing.hourlyTracerPrices[i];
-            Types.HourlyPrices memory oracleHourlyPrice = pricing.hourlyOraclePrices[i];
+            Types.HourlyPrices memory hourlyPrice =
+                pricing.hourlyTracerPrices[i];
+            Types.HourlyPrices memory oracleHourlyPrice =
+                pricing.hourlyOraclePrices[i];
             if (hourlyPrice.numTrades != 0) {
-                runningTotal = runningTotal + (uint256(hourlyPrice.totalPrice.abs()) / hourlyPrice.numTrades);
+                runningTotal =
+                    runningTotal +
+                    (uint256(hourlyPrice.totalPrice.abs()) /
+                        hourlyPrice.numTrades);
                 numberOfHoursPresent = numberOfHoursPresent + 1;
             }
             if (oracleHourlyPrice.numTrades != 0) {
-                oracleRunningTotal = oracleRunningTotal + 
-                    (uint256(oracleHourlyPrice.totalPrice.abs()) / oracleHourlyPrice.numTrades);
+                oracleRunningTotal =
+                    oracleRunningTotal +
+                    (uint256(oracleHourlyPrice.totalPrice.abs()) /
+                        oracleHourlyPrice.numTrades);
                 numberOfOracleHoursPresent = numberOfOracleHoursPresent + 1;
             }
         }
-        return (runningTotal / numberOfHoursPresent, oracleRunningTotal / numberOfOracleHoursPresent);
+        return (
+            runningTotal / numberOfHoursPresent,
+            oracleRunningTotal / numberOfOracleHoursPresent
+        );
     }
 
     /**
      * @notice Gets the average tracer price for a given market during a certain hour
      * @param hour The hour of which you want the hourly average Price
-     * @param market The address of the Tracer whose price data is wanted
      * @return the average price of the tracer for a particular hour
      */
-    function getHourlyAvgTracerPrice(uint256 hour, address market) public override view returns (int256) {
-        Types.PricingMetrics memory pricing = prices[market];
+    function getHourlyAvgTracerPrice(uint256 hour)
+        public
+        view
+        override
+        returns (int256)
+    {
+        Types.PricingMetrics memory pricing = price;
         Types.HourlyPrices memory hourly;
 
         /* bounds check the provided hour (note that the cast is safe due to
@@ -337,10 +415,14 @@ contract Pricing is IPricing {
     /**
      * @notice Gets the average oracle price for a given market during a certain hour
      * @param hour The hour of which you want the hourly average Price
-     * @param market Which tracer market's data to query
      */
-    function getHourlyAvgOraclePrice(uint256 hour, address market) public override view returns (int256) {
-        Types.PricingMetrics memory pricing = prices[market];
+    function getHourlyAvgOraclePrice(uint256 hour)
+        public
+        view
+        override
+        returns (int256)
+    {
+        Types.PricingMetrics memory pricing = price;
         Types.HourlyPrices memory hourly;
 
         /* bounds check the provided hour (note that the cast is safe due to
@@ -364,16 +446,8 @@ contract Pricing is IPricing {
     /**
      * @dev Used when only valid tracers are allowed
      */
-    modifier onlyTracer(address market) {
-        require(msg.sender == market && perpsFactory.validTracers(market), "PRC: Only Tracer");
-        _;
-    }
-
-    /**
-     * @dev Used when only valid tracers are allowed
-     */
-    modifier validTracer(address market) {
-        require(perpsFactory.validTracers(market), "PRC: Only Tracer");
+    modifier onlyTracer() {
+        require(msg.sender == tracer, "PRC: Only Tracer");
         _;
     }
 }

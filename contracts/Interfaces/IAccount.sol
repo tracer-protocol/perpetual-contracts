@@ -22,20 +22,6 @@ interface IAccount {
         uint256 currentFundingIndex
     ) external;
 
-    function liquidate(
-        int256 amount,
-        address account,
-        address market
-    ) external;
-
-    function claimReceipts(
-        uint256 escrowId,
-        uint256[] memory orderIds,
-        address market
-    ) external;
-
-    function claimEscrow(uint256 id) external;
-    
     function getBalance(address account, address market)
         external
         view
@@ -78,8 +64,6 @@ interface IAccount {
     function tracerLeveragedNotionalValue(address market) external view returns(int256);
 
     function tvl(address market) external view returns(uint256);
-
-    function setReceiptContract(address newReceiptContract) external;
 
     function setInsuranceContract(address newInsuranceContract) external;
 
