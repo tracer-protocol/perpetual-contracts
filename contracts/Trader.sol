@@ -139,13 +139,13 @@ contract Trader is ITrader {
         if (orders[orderHash].maker == address(0)) {
             // store this order to keep track of state
             Types.Order storage newOrder = orders[orderHash];
-            newOrder.maker = signedOrder.order.maker; //maker
-            newOrder.amount = signedOrder.order.amount; //amount
-            newOrder.price = signedOrder.order.price; //price
-            newOrder.filled = 0; //filled
-            newOrder.side = signedOrder.order.side; //side
-            newOrder.expiration = signedOrder.order.expiration; //expiration
-            newOrder.creation = block.timestamp; //creation
+            newOrder.maker = signedOrder.order.maker;
+            newOrder.amount = signedOrder.order.amount;
+            newOrder.price = signedOrder.order.price;
+            newOrder.filled = 0;
+            newOrder.side = signedOrder.order.side;
+            newOrder.expiration = signedOrder.order.expiration;
+            newOrder.creation = block.timestamp;
         }
 
         return orders[orderHash];
@@ -247,6 +247,10 @@ contract Trader is ITrader {
         return signedOrder.nonce == nonces[signedOrder.order.maker];
     }
 
+    /**
+     * @return An order that has been previously created in contract, given a user-supplied order
+     * @dev Useful for checking to see if a supplied order has actually been created
+     */
     function getOrder(Types.Order memory order) public view override returns (Types.Order memory) {
         return orders[hashOrder(order)];
     }
