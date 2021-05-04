@@ -28,8 +28,6 @@ interface Types {
         uint256 expiration;
         uint256 creation;
         address targetTracer;
-        address[] fillers;
-        uint256[] fillAmounts;
     }
 
     struct HourlyPrices {

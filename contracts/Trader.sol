@@ -21,7 +21,7 @@ contract Trader is ITrader {
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation,address targetTracer,address[] fillers,uint256[] fillAmounts)"
+            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation)"
         );
 
     uint256 public override constant chainId = 1337; // Changes per chain
@@ -92,12 +92,6 @@ contract Trader is ITrader {
             // update order state
             makeOrder.filled = makeOrder.filled + fillAmount;
             takeOrder.filled = takeOrder.filled + fillAmount;
-
-            makeOrder.fillers.push(taker);
-            makeOrder.fillAmounts.push(fillAmount);
-
-            takeOrder.fillers.push(maker);
-            takeOrder.fillAmounts.push(fillAmount);
 
             // increment nonce if filled
             bool completeMaker = makeOrder.filled == makeOrder.amount;
@@ -172,9 +166,7 @@ contract Trader is ITrader {
                             order.side,
                             order.expiration,
                             order.creation,
-                            order.targetTracer,
-                            order.fillers,
-                            order.fillAmounts
+                            order.targetTracer
                         )
                     )
                 )
