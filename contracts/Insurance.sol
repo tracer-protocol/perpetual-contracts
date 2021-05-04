@@ -51,6 +51,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         collateralToken.transferFrom(msg.sender, address(this), amount);
         
         // Update pool balances and user
+        this.updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
         uint256 tokensToMint;
         
@@ -79,6 +80,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     function withdraw(uint256 amount) external override {
         require(amount > 0, "INS: amount <= 0");
 
+        this.updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
 
@@ -102,8 +104,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
 
     /**
-     * @notice Internally updates a given tracer's pool amount according to the Account contract
-     * @dev Withdraws from tracer in account, and adds amount to the pool's amount field
+     * @notice Internally updates a given tracer's pool amount according to the tracer contract
+     * @dev Withdraws from tracer, and adds amount to the pool's amount field. 
      */
     function updatePoolAmount() external override {
         int256 base = (tracer.getBalance(address(this))).base;
@@ -114,7 +116,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice Deposits some of the insurance pool's amount into the account contract
+     * @notice Deposits some of the insurance pool's amount into the tracer contract
      * @dev If amount is greater than the insurance pool's balance, deposit total balance.
      *      This was done because in such an emergency situation, we want to recover as much as possible
      * @param amount The desired amount to take from the insurance pool
