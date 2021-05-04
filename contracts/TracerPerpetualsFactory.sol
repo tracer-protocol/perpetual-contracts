@@ -70,7 +70,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         tracersByIndex[tracerCounter] = market;
         
         // Instantiate Insurance contract for tracer
-        insurance = address(new Insurance(address(market)));
+        insurance = address(new Insurance(address(market), address(this)));
         tracerCounter++;
 
         // Perform admin operations on the tracer to finalise linking

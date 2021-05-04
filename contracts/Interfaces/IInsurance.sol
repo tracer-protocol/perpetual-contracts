@@ -13,15 +13,11 @@ interface IInsurance {
 
     function getPoolUserBalance(address user) external view returns (uint256);
 
-    function getPoolToken() external view returns (address);
-
     function getPoolTarget() external view returns (uint256);
 
     function getPoolFundingRate() external view returns (uint256);
 
     function poolNeedsFunding() external view returns (bool);
-
-    function setFactory(address perpsFactory) external;
 
     function INSURANCE_MUL_FACTOR() external view returns (int256);
     

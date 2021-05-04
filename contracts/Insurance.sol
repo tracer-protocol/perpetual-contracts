@@ -28,7 +28,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
-    constructor(address _tracer) {
+    constructor(address _tracer, address _perpsFactory) {
+        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         require(perpsFactory.validTracers(_tracer), "Pool not deployed by perpsFactory");
  
         tracer = ITracerPerpetualSwaps(_tracer);
@@ -37,7 +38,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         collateralAsset = tracer.tracerBaseToken();
         poolAmount = 0;
 
-        // emit InsurancePoolDeployed(_tracer, tracer.tracerBaseToken());
+        emit InsurancePoolDeployed(_tracer, tracer.tracerBaseToken());
     }
 
     /**
@@ -46,13 +47,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param amount the amount of tokens to stake
      */
     function stake(uint256 amount) external override {
-        require(perpsFactory.validTracers(address(tracer)), "Pool not deployed by perpsFactory");
-
         IERC20 collateralToken = IERC20(collateralAsset);
         collateralToken.transferFrom(msg.sender, address(this), amount);
+        
         // Update pool balances and user
         InsurancePoolToken poolToken = InsurancePoolToken(token);
         uint256 tokensToMint;
+        
         if (poolToken.totalSupply() == 0) {
             // Mint at 1:1 ratio if no users in the pool
             tokensToMint = amount;
@@ -155,13 +156,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice Gets the token address representing pool ownership for a given pool
-     */
-    function getPoolToken() external override view returns (address) {
-        return token;
-    }
-
-    /**
      * @notice Gets the target fund amount for a given insurance pool
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
@@ -200,14 +194,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function poolNeedsFunding() external override view returns (bool) {
         return getPoolTarget() > poolAmount;
-    }
-
-    /**
-     * @notice sets the address of the Tracer perpetual swaps factory
-     * @param _perpsFactory the new address of the factory
-     */
-    function setFactory(address _perpsFactory) external override onlyOwner {
-        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
     }
 
     modifier onlyLiquidation() {
