@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import './Interfaces/ITracerPerpetualSwaps.sol';
-import './Interfaces/IDex.sol';
-import './Interfaces/Types.sol';
-import './Interfaces/ITrader.sol';
+import "./Interfaces/ITracerPerpetualSwaps.sol";
+import "./Interfaces/IDex.sol";
+import "./Interfaces/Types.sol";
+import "./Interfaces/ITrader.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -13,15 +13,15 @@ import './Interfaces/ITrader.sol';
 contract Trader is ITrader {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
-    string private constant EIP712_DOMAIN_NAME = 'Tracer Protocol';
-    string private constant EIP712_DOMAIN_VERSION = '1.0';
+    string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
+    string private constant EIP712_DOMAIN_VERSION = "1.0";
     bytes32 private constant EIP712_DOMAIN_SEPERATOR =
-        keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            'Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation,address targetTracer,address[] fillers,uint256[] fillAmounts)'
+            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation,address targetTracer,address[] fillers,uint256[] fillAmounts)"
         );
 
     uint256 public override constant chainId = 1337; // Changes per chain
@@ -61,18 +61,21 @@ contract Trader is ITrader {
         Types.SignedLimitOrder[] memory takers,
         address market
     ) external override {
-        require(makers.length == takers.length, 'TDR: Lengths differ');
+        require(makers.length == takers.length, "TDR: Lengths differ");
 
         // safe as we've already bounds checked the array lengths
         uint256 n = makers.length;
 
-        require(n > 0, 'TDR: Received empty arrays');
+        require(n > 0, "TDR: Received empty arrays");
 
         for (uint256 i = 0; i < n; i++) {
             // retrieve orders and verify their signatures
             // if the order does not exist, it is created here
             Types.Order storage makeOrder = grabOrder(makers, i, market);
             Types.Order storage takeOrder = grabOrder(takers, i, market);
+
+            require(makeOrder.targetTracer == market, "TDR: makeOrder market != supplied market");
+            require(takeOrder.targetTracer == market, "TDR: takeOrder market != supplied market");
 
             address maker = makers[i].order.maker;
             address taker = takers[i].order.maker;
@@ -124,7 +127,7 @@ contract Trader is ITrader {
         uint256 index,
         address market
     ) internal returns (Types.Order storage) {
-        require(index <= signedOrders.length, 'TDR: Out of bounds access');
+        require(index <= signedOrders.length, "TDR: Out of bounds access");
 
         Types.SignedLimitOrder memory signedOrder = signedOrders[index];
 
