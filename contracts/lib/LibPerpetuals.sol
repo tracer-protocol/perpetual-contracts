@@ -6,3 +6,13 @@ enum Side {
     Short
 }
 
+struct Order {
+    address maker;
+    uint256 price;
+    uint256 amount;
+    uint256 filled;
+    Side side;
+    uint256 expires;
+    uint256 created;
+}
+
