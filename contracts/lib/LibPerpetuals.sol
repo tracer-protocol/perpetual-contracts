@@ -28,3 +28,8 @@ struct LimitOrder {
     uint256 nonce;
 }
 
+struct SignedLimitOrder {
+    LimitOrder order;
+    Signature signature;
+}
+
