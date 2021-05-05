@@ -116,7 +116,7 @@ contract Liquidation is ILiquidation, Ownable {
         // Validate the escrowed order was fully sold
         (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
         require(
-            unitsSold == uint256(receipt.amountLiquidated.abs()),
+            unitsSold <= uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
         );
 
