@@ -22,3 +22,9 @@ struct Signature {
     uint8 v;
 }
 
+struct LimitOrder {
+    Order order;
+    address market;
+    uint256 nonce;
+}
+
