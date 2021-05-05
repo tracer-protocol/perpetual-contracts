@@ -31,6 +31,8 @@ interface IInsurance {
 
     function setAccountContract(address accountContract) external;
 
+    function setLiquidationContract(address liquidationContract) external;
+
     function INSURANCE_MUL_FACTOR() external view returns (int256);
     
 }
