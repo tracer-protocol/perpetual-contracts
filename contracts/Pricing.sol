@@ -93,7 +93,7 @@ contract Pricing is IPricing {
 
             // todo contract needs to take in the insurance pool
             int256 poolFundingRate =
-                insurance.getPoolFundingRate(address(this)).toInt256();
+                insurance.getPoolFundingRate().toInt256();
 
             updateFundingRate(currentOraclePrice, poolFundingRate);
 

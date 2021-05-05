@@ -26,6 +26,8 @@ interface ITracerPerpetualSwaps {
 
     function tracerBaseToken() external view returns (address);
 
+    function liquidationContract() external view returns (address);
+    
     function tradingWhitelist(address trader) external returns (bool);
 
     function marketId() external view returns(bytes32);
@@ -59,6 +61,10 @@ interface ITracerPerpetualSwaps {
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
 
     function transferOwnership(address newOwner) external;
+
+    function deposit(uint256 amount) external;
+
+    function withdraw(uint256 amount) external;
 
     function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
 }

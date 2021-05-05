@@ -29,7 +29,7 @@ contract TracerPerpetualSwaps is
 	bytes32 public immutable override marketId;
 	IPricing public pricingContract;
 	IInsurance public insuranceContract;
-	address public liquidationContract;
+	address public override liquidationContract;
 	uint256 public override feeRate;
 
 	// Config variables
@@ -90,7 +90,7 @@ contract TracerPerpetualSwaps is
 	 * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
 	 * @param amount The amount of base tokens to be deposited into the Tracer Market account
 	 */
-	function deposit(uint256 amount) external {
+	function deposit(uint256 amount) external override {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
 		IERC20(tracerBaseToken).transferFrom(msg.sender, address(this), amount);
 
@@ -108,7 +108,7 @@ contract TracerPerpetualSwaps is
 	 * @dev Ensures that the users margin percent is valid after withdraw
 	 * @param amount The amount of margin tokens to be withdrawn from the tracer market account
 	 */
-	function withdraw(uint256 amount) external {
+	function withdraw(uint256 amount) external override {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
 		int256 newBase = userBalance.base - amount.toInt256();
 		require(
