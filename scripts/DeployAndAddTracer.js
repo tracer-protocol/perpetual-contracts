@@ -22,7 +22,8 @@ async function main() {
     let maxLeverage = new BN("125000").toString();
     let gov = await deployments.get('Gov');
     let govToken = await deployments.get('TestToken');
-    let factory = await deployments.get("TracerFactory")
+    let factory = await deployments.get("TracerPerpetualsFactory")
+    let trader = await deployments.get("Trader")
     gov = await Gov.at(gov.address)
     govToken = await TestToken.at(govToken.address)
     factory = await TracerFactory.at(factory.address)
@@ -52,6 +53,10 @@ async function main() {
 
     await factory.deployTracer(deployTracerData)
     let tracerAddr = await factory.tracersByIndex(0)
+    console.log(`Factory Deplpoyed: ${factory.address}`)
+    console.log(`Account Deplpoyed: ${account.address}`)
+    console.log(`Pricing Deplpoyed: ${pricing.address}`)
+    console.log(`Trader Deplpoyed: ${trader.address}`)
     console.log(`Tracer Deplpoyed: ${tracerAddr}`)
     console.log(`Margin Token Deplpoyed: ${token.address}`)
 }
