@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
-pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/LibMath.sol";
 import "./lib/LibLiquidation.sol";
 import "./lib/LibBalances.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/IAccount.sol";
+import "./Interfaces/ITrader.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IOracle.sol";
@@ -35,16 +35,16 @@ contract Liquidation is ILiquidation, Ownable {
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
     event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
+    event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
 
     // On contract deployment set the account contract. 
     constructor(
         address _pricing,
         address _tracer,
-        address accountContract,
         address _perpsFactory,
         int256 _maxSlippage,
         address gov
-    ) public {
+    ) {
         pricing = IPricing(_pricing);
         perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         tracer = ITracerPerpetualSwaps(_tracer);
@@ -93,23 +93,31 @@ contract Liquidation is ILiquidation, Ownable {
     /**
      * @notice Marks receipts as claimed and returns the refund amount
      * @param escrowId the id of the receipt created during the liquidation event
-     * @param orderIds the ids of the orders selling the liquidated positions
-     * @param market the address of the tracer contract the liquidation occurred on.
-     * @param liquidator the account who executed the liquidation.
+     * @param orders the orders that sell the liquidated positions
+     * @param priceMultiplier the oracle price multiplier
+     * @param market the address of the tracer contract the liquidation occurred on
+     * @param traderContract the address of the trader contract the selling orders were made by
+     * @param liquidator the account who executed the liquidation
      */
     function claimReceipts(
         uint256 escrowId,
-        uint256[] memory orderIds,
+        Types.Order[] memory orders,
         uint256 priceMultiplier,
         address market,
+        address traderContract,
         address liquidator
     ) external override onlyTracer returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
         require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
         require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
+        require(
+            ITracerPerpetualSwaps(market).tradingWhitelist(traderContract),
+            "LIQ: Trader is not whitelisted"
+        );
+
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orderIds, escrowId);
+        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -118,46 +126,22 @@ contract Liquidation is ILiquidation, Ownable {
         // Mark refund as claimed
         liquidationReceipts[escrowId].liquidatorRefundClaimed = true;
 
-        // Check price slippage and update account states
-        if (
-            avgPrice == receipt.price || // No price change
-            (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
-            (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
-        ) {
-            // No slippage
-            return 0;
-        } else {
-            // Liquidator took a long position, and price dropped
-            int256 amountSoldFor = (avgPrice * unitsSold.toInt256()) / priceMultiplier.toInt256();
-            int256 amountExpectedFor = (receipt.price * unitsSold.toInt256()) / priceMultiplier.toInt256();
+        uint256 amountToReturn =
+            LibLiquidation.calculateSlippage(
+                unitsSold,
+                escrowId,
+                priceMultiplier,
+                maxSlippage,
+                avgPrice,
+                receipt
+            );
 
-            // The difference in how much was expected vs how much liquidator actually got.
-            // i.e. The amount lost by liquidator
-            uint256 amountToReturn = 0;
-            int256 percentSlippage = 0;
-            if (avgPrice < receipt.price && receipt.liquidationSide) {
-                amountToReturn = uint256(amountExpectedFor - amountSoldFor);
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
-            } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
-                amountToReturn = uint256(amountSoldFor - amountExpectedFor);
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
-            }
-            if (percentSlippage > maxSlippage) {
-                amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
-            }
-            if (amountToReturn > receipt.escrowedAmount) {
-                liquidationReceipts[escrowId].escrowedAmount = 0;
-            } else {
-                liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
-            }
-            return (amountToReturn);
+        if (amountToReturn > receipt.escrowedAmount) {
+            liquidationReceipts[escrowId].escrowedAmount = 0;
+        } else {
+            liquidationReceipts[escrowId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
         }
+        return amountToReturn;
     }
 
     /**
@@ -179,39 +163,35 @@ contract Liquidation is ILiquidation, Ownable {
     /**
      * @notice Calculates the number of units sold and the average price of those units by a trader
      *         given multiple order
-     * @param orderIds a list of order ids for which the units sold is being calculated from
+     * @param orders a list of orders for which the units sold is being calculated from
+     * @param traderContract The trader contract with which the orders were made
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
     */
     function calcUnitsSold(
-        uint256[] memory orderIds,
+        Types.Order[] memory orders,
+        address traderContract,
         uint256 receiptId
-    ) public view returns (uint256, int256) {
-        /*
+    ) public override returns (uint256, int256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
-        for (uint256 i; i < orderIds.length; i++) {
-            uint256 orderId = orderIds[i];
-            (,
-                uint256 orderFilled,
-                int256 orderPrice,
-                bool orderSide,
-                address orderMaker,
-                uint256 creation
-            ) = tracer.getOrder(orderId);
-            require(creation >= receipt.time, "LIQ: Order creation before liquidation");
-            if (orderMaker == receipt.liquidator) {
-                // Order was made by liquidator
-                if (orderSide != receipt.liquidationSide) {
-                    unitsSold = unitsSold + orderFilled;
-                    avgPrice = avgPrice + (orderPrice * orderFilled.toInt256());
-                }
-            } else if (orderSide == receipt.liquidationSide) {
-                // Check if a taker was the liquidator and if they were taking the opposite side to what they received
-                uint256 takerAmount = tracer.getOrderTakerAmount(orderId, receipt.liquidator);
-                unitsSold = unitsSold + takerAmount;
-                avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
+        for (uint256 i; i < orders.length; i++) {
+            Types.Order memory order = ITrader(traderContract).getOrder(orders[i]);
+            if (
+                order.creation < receipt.time // Order made before receipt
+                || order.maker != receipt.liquidator // Order made by someone who isn't liquidator
+                || order.side == receipt.liquidationSide // Order is in same direction as liquidation
+                /* Order should be the opposite to the position acquired on liquidation */
+            ) {
+                emit InvalidClaimOrder(receiptId, receipt.liquidator);
+                continue;
             }
+
+            /* order.creation >= receipt.time
+             * && order.maker == receipt.liquidator
+             * && order.side != receipt.liquidationSide */
+            unitsSold = unitsSold + order.filled;
+            avgPrice = avgPrice + (order.price * order.filled.toInt256());
         }
 
         // Avoid divide by 0 if no orders sold
@@ -219,8 +199,6 @@ contract Liquidation is ILiquidation, Ownable {
             return (0, 0);
         }
         return (unitsSold, avgPrice / unitsSold.toInt256());
-        */
-        return (0, 0);
     }
 
     /**

@@ -42,7 +42,7 @@ contract TracerPerpetualSwaps is
 	int256 public override leveragedNotionalValue;
 
 	// Trading interfaces whitelist
-	mapping(address => bool) tradingWhitelist;
+	mapping(address => bool) public override tradingWhitelist;
 
 	event FeeReceiverUpdated(address receiver);
 	event Deposit(address indexed user, uint256 indexed amount);
@@ -132,8 +132,6 @@ contract TracerPerpetualSwaps is
 		emit Withdraw(msg.sender, amount);
 	}
 
-	// TODO: Once whitelisting of trading interfaces is implemented this should
-	// only be called by a whitelisted interface
 	/**
 	 * @notice Match two orders that exist on chain against each other
 	 * @param order1 the first order
