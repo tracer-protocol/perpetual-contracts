@@ -71,7 +71,7 @@ contract TracerPerpetualSwaps is
 		uint256 _fundingRateSensitivity,
 		uint256 _feeRate,
 		uint256 _oracleDecimals
-	) public Ownable() {
+	) Ownable() {
 		pricingContract = IPricing(_pricingContract);
 		// dont convert to interface as we don't need to interact
 		// with the contract
@@ -325,6 +325,22 @@ contract TracerPerpetualSwaps is
 
 		// Checks if the liquidator is in a valid position to process the liquidation
 		require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
+	}
+
+	function updateAccountsOnReceiptClaim(
+		address claimant,
+		int256 amountToGiveToClaimant,
+		address liquidatee,
+		int256 amountToGiveToLiquidatee,
+		int256 amountToTakeFromInsurance
+	) external override onlyLiquidation {
+		address insuranceAddr = address(insuranceContract);
+		balances[insuranceAddr].base = balances[insuranceAddr].base - amountToTakeFromInsurance;
+        balances[claimant].base =
+            balances[claimant].base + amountToGiveToClaimant;
+        balances[liquidatee].base =
+            balances[liquidatee].base + amountToGiveToLiquidatee;
+		require(balances[insuranceAddr].base > 0, "TCR: Insurance not adequately funded");
 	}
 
 	/**

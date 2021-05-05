@@ -11,6 +11,7 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IPricing.sol";
+import "./Interfaces/IInsurance.sol";
 
 /**
 * Each call enforces that the contract calling the account is only updating the balance
@@ -24,15 +25,15 @@ contract Liquidation is ILiquidation, Ownable {
     int256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
     IPricing public pricing;
-    ITracerPerpetualsFactory public perpsFactory;
     ITracerPerpetualSwaps public tracer;
+    address public insuranceContract;
 
     // Receipt ID => LiquidationReceipt
-    mapping(uint256 => LibLiquidation.LiquidationReceipt) internal liquidationReceipts;
+    mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
     // Factor to keep precision in percent calculations
     int256 private constant PERCENT_PRECISION = 10000;
 
-    event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
+    event ClaimedReceipts(address indexed liquidator, address indexed market, uint256 receiptId);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
     event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
     event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
@@ -41,13 +42,13 @@ contract Liquidation is ILiquidation, Ownable {
     constructor(
         address _pricing,
         address _tracer,
-        address _perpsFactory,
+        address _insuranceContract,
         int256 _maxSlippage,
         address gov
     ) {
         pricing = IPricing(_pricing);
-        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         tracer = ITracerPerpetualSwaps(_tracer);
+        insuranceContract = _insuranceContract;
         maxSlippage = _maxSlippage;
         transferOwnership(gov);
     }
@@ -55,7 +56,6 @@ contract Liquidation is ILiquidation, Ownable {
 
     /**
      * @notice Creates a liquidation receipt for a given trader
-     * @param market the Tracer that this receipt belongs too
      * @param liquidator the account executing the liquidation
      * @param liquidatee the account being liquidated
      * @param price the price at which this liquidation event occurred 
@@ -66,16 +66,15 @@ contract Liquidation is ILiquidation, Ownable {
      *                        false for short.
      */
     function submitLiquidation(
-        address market,
         address liquidator,
         address liquidatee,
         int256 price,
         uint256 escrowedAmount,
         int256 amountLiquidated,
         bool liquidationSide
-    ) public override onlyTracer {
+    ) internal {
         liquidationReceipts[currentLiquidationId] = LibLiquidation.LiquidationReceipt(
-            market,
+            address(tracer),
             liquidator,
             liquidatee,
             price,
@@ -95,24 +94,22 @@ contract Liquidation is ILiquidation, Ownable {
      * @param escrowId the id of the receipt created during the liquidation event
      * @param orders the orders that sell the liquidated positions
      * @param priceMultiplier the oracle price multiplier
-     * @param market the address of the tracer contract the liquidation occurred on
      * @param traderContract the address of the trader contract the selling orders were made by
      * @param liquidator the account who executed the liquidation
      */
-    function claimReceipts(
+    function calcAmountToReturn(
         uint256 escrowId,
         Types.Order[] memory orders,
         uint256 priceMultiplier,
-        address market,
         address traderContract,
         address liquidator
-    ) external override onlyTracer returns (uint256) {
+    ) public override returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
         require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
         require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         require(
-            ITracerPerpetualSwaps(market).tradingWhitelist(traderContract),
+            tracer.tradingWhitelist(traderContract),
             "LIQ: Trader is not whitelisted"
         );
 
@@ -129,7 +126,6 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 amountToReturn =
             LibLiquidation.calculateSlippage(
                 unitsSold,
-                escrowId,
                 priceMultiplier,
                 maxSlippage,
                 avgPrice,
@@ -147,15 +143,15 @@ contract Liquidation is ILiquidation, Ownable {
     /**
      * @notice Used to claim funds owed to you through your receipt. 
      * @dev Marks escrowed funds as claimed and returns amount to return
-     * @param receiptID the id of the receipt from which escrow is being claimed from
+     * @param receiptId the id of the receipt from which escrow is being claimed from
      * @param liquidatee The address of the account that is getting liquidated (the liquidatee)
      */
-    function claimEscrow(uint256 receiptID, address liquidatee) public override onlyTracer returns (int256) {
-        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptID];
+    function claimEscrow(uint256 receiptId, address liquidatee) public override onlyTracer returns (int256) {
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(receipt.liquidatee == liquidatee, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
-        liquidationReceipts[receiptID].escrowClaimed = true;
+        liquidationReceipts[receiptId].escrowClaimed = true;
         return (receipt.escrowedAmount.toInt256());
     }
     
@@ -247,8 +243,7 @@ contract Liquidation is ILiquidation, Ownable {
         int256 amount,
         uint256 priceMultiplier,
         int256 gasPrice,
-        address account,
-        address market
+        address account
     ) internal returns (uint256) {
         int256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST().toInt256();
         int256 minMargin =
@@ -269,7 +264,6 @@ contract Liquidation is ILiquidation, Ownable {
         // create a liquidation receipt
         bool side = quote < 0 ? false : true;
         submitLiquidation(
-            market,
             msg.sender,
             account,
             price,
@@ -278,11 +272,10 @@ contract Liquidation is ILiquidation, Ownable {
             side
         );
         return amountToEscrow;
-        return 0;
     }
 
     function calcLiquidationBalanceChanges(
-        int256 liquidatedBase, int256 liquidatedQuote, address liquidator, int256 amount, address market
+        int256 liquidatedBase, int256 liquidatedQuote, address liquidator, int256 amount
     ) internal view returns (
             int256 liquidatorBaseChange,
             int256 liquidatorQuoteChange,
@@ -302,13 +295,11 @@ contract Liquidation is ILiquidation, Ownable {
      *         Generates a liquidation receipt for the liquidator to use should they need a refund.
      * @param amount The amount of tokens to be liquidated 
      * @param account The account that is to be liquidated. 
-     * @param market The Tracer market in which this margin account will be liquidated.
      */
     function liquidate(
         int256 amount, 
-        address account,
-        address market
-    ) external override isValidTracer(market) {
+        address account
+    ) external override {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
 
         /* Liquidated account's balance */
@@ -321,13 +312,12 @@ contract Liquidation is ILiquidation, Ownable {
             amount,
             tracer.priceMultiplier(),
             liquidatedBalance.lastUpdatedGasPrice,
-            account,
-            market
+            account
         );
         
         // Limits the gas use when liquidating 
         require(
-            tx.gasprice <= uint256(IOracle(ITracerPerpetualSwaps(market).gasPriceOracle()).latestAnswer().abs()),
+            tx.gasprice <= uint256(IOracle(tracer.gasPriceOracle()).latestAnswer().abs()),
             "LIQ: GasPrice > FGasPrice"
         );
 
@@ -337,7 +327,7 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeBaseChange,
             int256 liquidateeQuoteChange
         ) = calcLiquidationBalanceChanges(
-            liquidatedBalance.base, liquidatedBalance.quote, msg.sender, amount, market
+            liquidatedBalance.base, liquidatedBalance.quote, msg.sender, amount
         );
 
         tracer.updateAccountsOnLiquidation(
@@ -350,31 +340,36 @@ contract Liquidation is ILiquidation, Ownable {
             amountToEscrow
         );
 
-        emit Liquidate(account, msg.sender, amount, (liquidatedBalance.quote < 0 ? false : true), market, currentLiquidationId - 1);
+        emit Liquidate(account, msg.sender, amount, (liquidatedBalance.quote < 0 ? false : true), address(tracer), currentLiquidationId - 1);
     }
 
     /**
      * @notice Allows a liquidator to submit a single liquidation receipt and multiple order ids. If the
      *         liquidator experienced slippage, will refund them a proportional amount of their deposit.
-     * @param receiptID Used to identify the receipt that will be claimed
-     * @param orderIds The IDs of the orders contained in the liquidation, these are emitted when an order is made
-     * @param market The address of the tracer market where the liquidation and receipt originated
+     * @param receiptId Used to identify the receipt that will be claimed
+     * @param orders The orders that sold the liquidated position
      */
     function claimReceipts(
-        uint256 receiptID,
-        uint256[] memory orderIds,
-        address market
-    ) public override {
+        uint256 receiptId,
+        Types.Order[] memory orders,
+        address traderContract
+    ) external override {
         // Claim the receipts from the escrow system, get back amount to return
-        /*
-        (, address receiptLiquidator, address receiptLiquidatee, , , uint256 escrowedAmount, , , , ,) = receipt 
-            .getLiquidationReceipt(receiptID);
-        int256 liquidatorMargin = balances[market][receiptLiquidator].base;
-        int256 liquidateeMargin = balances[market][receiptLiquidatee].base;
-        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
-        uint256 amountToReturn = receipt.claimReceipts(receiptID, orderIds, tracer.priceMultiplier(), market, msg.sender);
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
+        uint256 amountToReturn =
+            calcAmountToReturn(
+                receiptId,
+                orders,
+                tracer.priceMultiplier(),
+                traderContract,
+                msg.sender
+            );
 
-         */
+        // Keep track of how much was actually taken out of insurance
+        uint256 amountTakenFromInsurance;
+        uint256 amountToGiveToClaimant;
+        uint256 amountToGiveToLiquidatee;
+
         /* 
          * If there was not enough escrowed, we want to call the insurance pool to help out.
          * First, check the margin of the insurance Account. If this is enough, just drain from there.
@@ -383,43 +378,53 @@ contract Liquidation is ILiquidation, Ownable {
          * If the margin still does not have enough after calling drainPool, we are not able to fully
          * claim the receipt, only up to the amount the insurance pool allows for.
          */
-        /* 
-        if (amountToReturn > escrowedAmount) { // Need to cover some loses with the insurance contract
+        if (amountToReturn > receipt.escrowedAmount) { // Need to cover some loses with the insurance contract
             // Amount needed from insurance
-            uint256 amountWantedFromInsurance = amountToReturn - escrowedAmount;
-            // Keep track of how much was actually taken out of insurance
-            uint256 amountTakenFromInsurance = 0;
+            uint256 amountWantedFromInsurance = amountToReturn - receipt.escrowedAmount;
 
-            Types.AccountBalance storage insuranceBalance = balances[market][insuranceContract];
+            Types.AccountBalance memory insuranceBalance = tracer.getBalance(insuranceContract);
             if (insuranceBalance.base >= amountWantedFromInsurance.toInt256()) { // We don't need to drain insurance contract
-                insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
+                // insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else { // insuranceBalance.base < amountWantedFromInsurance
                 if (insuranceBalance.base <= 0) {
                     // attempt to drain entire balance that is needed from the pool
-                    IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance);
+                    IInsurance(insuranceContract)
+                        .drainPool(
+                            address(tracer),
+                            amountWantedFromInsurance
+                        );
                 } else {
                     // attempt to drain the required balance taking into account the insurance balance in the account contract
-                    IInsurance(insuranceContract).drainPool(market, amountWantedFromInsurance.sub(uint256(insuranceBalance.base)));
+                    IInsurance(insuranceContract)
+                        .drainPool(
+                            address(tracer),
+                            amountWantedFromInsurance - uint256(insuranceBalance.base)
+                        );
                 }
                 if (insuranceBalance.base < amountWantedFromInsurance.toInt256()) { // Still not enough
                     amountTakenFromInsurance = uint(insuranceBalance.base);
-                    insuranceBalance.base = 0;
+                    // insuranceBalance.base = 0;
                 } else { // insuranceBalance.base >= amountWantedFromInsurance
-                    insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
+                    // insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }
             }
 
-            balances[market][receiptLiquidator].base =
-                    liquidatorMargin.add((escrowedAmount.add(amountTakenFromInsurance).toInt256()));
+            amountToGiveToClaimant = receipt.escrowedAmount + amountTakenFromInsurance;
             // Don't add any to liquidatee
         } else {
-            balances[market][receiptLiquidator].base = liquidatorMargin.add(amountToReturn.toInt256());
-            balances[market][receiptLiquidatee].base = liquidateeMargin.add(escrowedAmount.toInt256().sub(amountToReturn.toInt256()));
+            amountToGiveToClaimant = amountToReturn;
+            amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
         }
-        emit ClaimedReceipts(msg.sender, market, orderIds);
-        */
+        tracer.updateAccountsOnReceiptClaim(
+            receipt.liquidator,
+            amountToGiveToClaimant.toInt256(),
+            receipt.liquidatee,
+            amountToGiveToLiquidatee.toInt256(),
+            amountTakenFromInsurance.toInt256()
+        );
+        emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
     }
 
     /**
@@ -456,15 +461,6 @@ contract Liquidation is ILiquidation, Ownable {
 
     modifier onlyTracer() {
         require(msg.sender == address(tracer), "LIQ: Caller not Tracer market");
-        _;
-    }
-
-    /**
-     * @dev Checks if that passed address is a valid tracer address (i.e. is part of a perpsFactory)
-     * @param market The Tracer market to check
-     */
-    modifier isValidTracer(address market) {
-        require(perpsFactory.validTracers(market), "ACT: Target not valid tracer");
         _;
     }
 }

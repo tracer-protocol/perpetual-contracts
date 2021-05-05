@@ -126,7 +126,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param market The Tracer market whose insurance pool will be drained
      * @param amount The desired amount to take from the insurance pool
      */
-    function drainPool(address market, uint256 amount) external override onlyAccount() {
+    function drainPool(
+        address market,
+        uint256 amount
+    ) external override onlyAccount() {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
 
         uint256 poolAmount = pools[market].amount;

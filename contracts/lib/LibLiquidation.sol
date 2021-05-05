@@ -93,7 +93,6 @@ library LibLiquidation {
 
     function calculateSlippage(
         uint256 unitsSold,
-        uint256 escrowId,
         uint256 priceMultiplier,
         int256 maxSlippage,
         int256 avgPrice,
