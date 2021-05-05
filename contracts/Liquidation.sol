@@ -391,14 +391,12 @@ contract Liquidation is ILiquidation, Ownable {
                     // attempt to drain entire balance that is needed from the pool
                     IInsurance(insuranceContract)
                         .drainPool(
-                            address(tracer),
                             amountWantedFromInsurance
                         );
                 } else {
                     // attempt to drain the required balance taking into account the insurance balance in the account contract
                     IInsurance(insuranceContract)
                         .drainPool(
-                            address(tracer),
                             amountWantedFromInsurance - uint256(insuranceBalance.base)
                         );
                 }

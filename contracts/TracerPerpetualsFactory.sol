@@ -27,7 +27,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address _insurance,
         address _deployer,
         address _governance
-    ) public {
+    ) {
         setInsuranceContract(_insurance);
         setDeployerContract(_deployer);
         transferOwnership(_governance);

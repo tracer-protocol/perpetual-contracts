@@ -35,7 +35,7 @@ contract Trader is ITrader {
     event Verify(address sig);
     event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address targetTracer);
 
-    constructor() public {
+    constructor() {
         // Construct the EIP712 Domain
         EIP712_DOMAIN = keccak256(
             abi.encode(
@@ -178,7 +178,7 @@ contract Trader is ITrader {
      * @param order the limit order being hashed
      * @return a simple hash as used by the simple dex to store order ids
      */
-    function hashOrderForDex(Types.Order memory order) public view override returns (bytes32) {
+    function hashOrderForDex(Types.Order memory order) public pure override returns (bytes32) {
         return 
             (keccak256(
                 abi.encode(
