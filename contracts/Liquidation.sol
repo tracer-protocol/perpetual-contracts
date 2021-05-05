@@ -94,6 +94,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Marks receipts as claimed and returns the refund amount
      * @param escrowId the id of the receipt created during the liquidation event
      * @param orders the orders that sell the liquidated positions
+     * @param priceMultiplier the oracle price multiplier
      * @param market the address of the tracer contract the liquidation occurred on
      * @param traderContract the address of the trader contract the selling orders were made by
      * @param liquidator the account who executed the liquidation
@@ -110,17 +111,16 @@ contract Liquidation is ILiquidation, Ownable {
         require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
         require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
+        require(
+            ITracerPerpetualSwaps(market).tradingWhitelist(traderContract),
+            "LIQ: Trader is not whitelisted"
+        );
+
         // Validate the escrowed order was fully sold
-        // TODO fix calcUnitsSold
         (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
-        );
-
-        require(
-            ITracerPerpetualSwaps(market).tradingWhitelist(traderContract),
-            "LIQ: Trader is not whitelisted"
         );
 
         // Mark refund as claimed
