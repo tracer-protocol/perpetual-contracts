@@ -3,33 +3,21 @@ pragma solidity ^0.8.0;
 
 interface IInsurance {
 
-    function stake(uint256 amount, address market) external;
+    function stake(uint256 amount) external;
 
-    function withdraw(uint256 amount, address market) external;
+    function withdraw(uint256 amount) external;
 
-    function updatePoolAmount(address market) external;
+    function updatePoolAmount() external;
 
-    function drainPool(address market, uint256 amount) external;
+    function drainPool(uint256 amount) external;
 
-    function deployInsurancePool(address market) external;
+    function getPoolUserBalance(address user) external view returns (uint256);
 
-    function getPoolUserBalance(address market, address user) external view returns (uint256);
+    function getPoolTarget() external view returns (uint256);
 
-    function getPoolToken(address market) external view returns (address);
+    function getPoolFundingRate() external view returns (uint256);
 
-    function getPoolTarget(address market) external view returns (uint256);
-
-    function getPoolHoldings(address market) external view returns (uint256);
-
-    function getPoolFundingRate(address market) external view returns (uint256);
-
-    function poolNeedsFunding(address market) external view returns (bool);
-
-    function isInsured(address market) external view returns (bool);
-
-    function setFactory(address perpsFactory) external;
-
-    function setAccountContract(address accountContract) external;
+    function poolNeedsFunding() external view returns (bool);
 
     function INSURANCE_MUL_FACTOR() external view returns (int256);
     
