@@ -6,6 +6,7 @@ import "./lib/LibLiquidation.sol";
 import "./lib/LibBalances.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/IAccount.sol";
+import "./Interfaces/ITrader.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IOracle.sol";
@@ -34,6 +35,7 @@ contract Liquidation is ILiquidation, Ownable {
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256[] ids);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 id);
     event Liquidate(address indexed account, address indexed liquidator, int256 liquidationAmount, bool side, address indexed market, uint liquidationId);
+    event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
 
     // On contract deployment set the account contract. 
     constructor(
@@ -42,7 +44,7 @@ contract Liquidation is ILiquidation, Ownable {
         address _perpsFactory,
         int256 _maxSlippage,
         address gov
-    ) public {
+    ) {
         pricing = IPricing(_pricing);
         perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         tracer = ITracerPerpetualSwaps(_tracer);
@@ -110,7 +112,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         // Validate the escrowed order was fully sold
         // TODO fix calcUnitsSold
-        (uint256 unitsSold, int256 avgPrice) = (0, 0); // calcUnitsSold(orderIds, escrowId);
+        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
         require(
             unitsSold == uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -169,34 +171,27 @@ contract Liquidation is ILiquidation, Ownable {
         Types.Order[] memory orders,
         address traderContract,
         uint256 receiptId
-    ) public view returns (uint256, int256) {
-        /*
+    ) public override returns (uint256, int256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         int256 avgPrice;
         for (uint256 i; i < orders.length; i++) {
             Types.Order memory order = ITrader(traderContract).getOrder(orders[i]);
-            (,
-                uint256 orderFilled,
-                int256 orderPrice,
-                bool orderSide,
-                address orderMaker,
-                uint256 creation
-            ) = trader.getOrder(orderId);
-            require(order.creation >= receipt.time, "LIQ: Order creation before liquidation");
-            if (order.orderMaker == receipt.liquidator) {
-                // Order was made by liquidator
-                if (order.orderSide != receipt.liquidationSide) {
-                    unitsSold = unitsSold + order.orderFilled;
-                    avgPrice = avgPrice + (order.orderPrice * order.orderFilled.toInt256());
-                }
-            } else if (order.orderTaker == receipt.liquidator) {
-                // Check if a taker was the liquidator and if they were taking the opposite side to what they received
-                uint256 takerAmount = tracer.getOrderTakerAmount(orderId, receipt.liquidator);
-                if (order.orderSide != receipt.liquidationSide) {
-                    unitsSold = unitsSold + takerAmount;
-                avgPrice = avgPrice + (orderPrice * takerAmount.toInt256());
+            if (
+                order.creation < receipt.time // Order made before receipt
+                || order.maker != receipt.liquidator // Order made by someone who isn't liquidator
+                || order.side == receipt.liquidationSide // Order is in same direction as liquidation
+                /* Order should be the opposite to the position acquired on liquidation */
+            ) {
+                emit InvalidClaimOrder(receiptId, receipt.liquidator);
+                continue;
             }
+
+            /* order.creation >= receipt.time
+             * && order.maker == receipt.liquidator
+             * && order.side != receipt.liquidationSide */
+            unitsSold = unitsSold + order.filled;
+            avgPrice = avgPrice + (order.price * order.filled.toInt256());
         }
 
         // Avoid divide by 0 if no orders sold
@@ -204,8 +199,6 @@ contract Liquidation is ILiquidation, Ownable {
             return (0, 0);
         }
         return (unitsSold, avgPrice / unitsSold.toInt256());
-        */
-        return (0,0);
     }
 
     /**
