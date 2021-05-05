@@ -20,6 +20,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     address public immutable TCRTokenAddress;
     IAccount public account;
     ITracerPerpetualsFactory public perpsFactory;
+    address public liquidation;
 
     struct StakePool { 
         address market;
@@ -129,7 +130,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     function drainPool(
         address market,
         uint256 amount
-    ) external override onlyAccount() {
+    ) external override onlyLiquidation() {
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(market);
 
         uint256 poolAmount = pools[market].amount;
@@ -280,10 +281,17 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
+     * @notice sets the address of the liquidation contract (Liquidation.sol)
+     */
+    function setLiquidationContract(address liquidationContract) external override onlyOwner {
+        liquidation = liquidationContract;
+    }
+
+    /**
      * @notice Checks if msg.sender is the account contract
      */
-    modifier onlyAccount() {
-        require(msg.sender == address(account), "INS: sender is not account");
+    modifier onlyLiquidation() {
+        require(msg.sender == liquidation, "INS: sender is not Liquidation contract");
         _;
     }
 }
