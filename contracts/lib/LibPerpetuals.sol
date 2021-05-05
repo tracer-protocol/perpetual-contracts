@@ -16,3 +16,9 @@ struct Order {
     uint256 created;
 }
 
+struct Signature {
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+}
+
