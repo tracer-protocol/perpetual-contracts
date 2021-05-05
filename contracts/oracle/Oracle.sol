@@ -19,7 +19,7 @@ contract Oracle is IOracle {
         return price;
     }
 
-    function isStale() external override view returns (bool) {
+    function isStale() external override pure returns (bool) {
         return false;
     }
 

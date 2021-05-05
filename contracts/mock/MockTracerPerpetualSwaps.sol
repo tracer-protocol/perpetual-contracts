@@ -26,7 +26,7 @@ contract MockTracerPerpetualSwaps {
         address maker,
         uint256 takerAmount,
         uint256 priceMul
-    ) public {
+    ) {
         _amount = amount;
         _filled = filled;
         _price = price;
