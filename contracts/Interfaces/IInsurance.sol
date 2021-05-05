@@ -19,6 +19,8 @@ interface IInsurance {
 
     function poolNeedsFunding() external view returns (bool);
 
+    function setLiquidationContract(address liquidationContract) external;
+
     function INSURANCE_MUL_FACTOR() external view returns (int256);
     
 }
