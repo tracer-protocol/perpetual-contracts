@@ -16,22 +16,5 @@ library Perpetuals {
         uint256 expires;
         uint256 created;
     }
-    
-    struct Signature {
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-    }
-    
-    struct LimitOrder {
-        Order order;
-        address market;
-        uint256 nonce;
-    }
-    
-    struct SignedLimitOrder {
-        LimitOrder order;
-        Signature signature;
-    }
 }
 
