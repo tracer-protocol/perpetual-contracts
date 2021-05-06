@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/IDex.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
+
+import "./lib/LibPerpetuals.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -20,7 +21,7 @@ contract Trader is ITrader {
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 creation,address targetTracer)"
+            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expires,uint256 created,address market)"
         );
 
     uint256 public override constant chainId = 1337; // Changes per chain
@@ -30,12 +31,13 @@ contract Trader is ITrader {
     mapping(address => uint256) public nonces; // Prevents replay attacks
 
     // Order hash to memory
-    mapping(bytes32 => Types.Order) public orders;
+    mapping(bytes32 => Perpetuals.Order) public orders;
+    mapping(bytes32 => uint256) public filled;
 
     event Verify(address sig);
-    event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address targetTracer);
+    event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expires, address market);
 
-    constructor() public {
+    constructor() {
         // Construct the EIP712 Domain
         EIP712_DOMAIN = keccak256(
             abi.encode(
@@ -46,6 +48,12 @@ contract Trader is ITrader {
                 address(this)
             )
         );
+    }
+
+    function filledAmount(
+        Perpetuals.Order memory order
+    ) external view override returns (uint256) {
+        return filled[Perpetuals.orderId(order)];
     }
 
     /**
@@ -70,18 +78,21 @@ contract Trader is ITrader {
         for (uint256 i = 0; i < n; i++) {
             // retrieve orders and verify their signatures
             // if the order does not exist, it is created here
-            Types.Order storage makeOrder = grabOrder(makers, i, market);
-            Types.Order storage takeOrder = grabOrder(takers, i, market);
+            Perpetuals.Order storage makeOrder = grabOrder(makers, i, market);
+            Perpetuals.Order storage takeOrder = grabOrder(takers, i, market);
 
-            require(makeOrder.targetTracer == market, "TDR: makeOrder market != supplied market");
-            require(takeOrder.targetTracer == market, "TDR: takeOrder market != supplied market");
+            require(makeOrder.market == market, "TDR: makeOrder market != supplied market");
+            require(takeOrder.market == market, "TDR: takeOrder market != supplied market");
 
             address maker = makers[i].order.maker;
             address taker = takers[i].order.maker;
 
+            uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
+            uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
+
             // calc fill amount
-            uint256 makeRemaining = makeOrder.amount - makeOrder.filled;
-            uint256 takeRemaining = takeOrder.amount - takeOrder.filled;
+            uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
+            uint256 takeRemaining = takeOrder.amount - takeOrderFilled;
             // fill amount is the minimum of order 1 and order 2
             uint256 fillAmount = makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
 
@@ -89,12 +100,12 @@ contract Trader is ITrader {
             ITracerPerpetualSwaps(market).matchOrders(makeOrder, takeOrder, fillAmount);
 
             // update order state
-            makeOrder.filled = makeOrder.filled + fillAmount;
-            takeOrder.filled = takeOrder.filled + fillAmount;
+            filled[Perpetuals.orderId(makeOrder)] = makeOrderFilled + fillAmount;
+            filled[Perpetuals.orderId(takeOrder)] = takeOrderFilled + fillAmount;
 
             // increment nonce if filled
-            bool completeMaker = makeOrder.filled == makeOrder.amount;
-            bool completeTaker = takeOrder.filled == takeOrder.amount;
+            bool completeMaker = filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
+            bool completeTaker = filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
 
             // check if we need to increment maker's nonce
             if (completeMaker) {
@@ -119,7 +130,7 @@ contract Trader is ITrader {
         Types.SignedLimitOrder[] memory signedOrders,
         uint256 index,
         address market
-    ) internal returns (Types.Order storage) {
+    ) internal returns (Perpetuals.Order storage) {
         require(index <= signedOrders.length, "TDR: Out of bounds access");
 
         Types.SignedLimitOrder memory signedOrder = signedOrders[index];
@@ -131,15 +142,14 @@ contract Trader is ITrader {
         // check if order exists on chain, if not, create it
         if (orders[orderHash].maker == address(0)) {
             // store this order to keep track of state
-            Types.Order storage newOrder = orders[orderHash];
+            Perpetuals.Order storage newOrder = orders[orderHash];
             newOrder.maker = signedOrder.order.maker;
             newOrder.amount = signedOrder.order.amount;
             newOrder.price = signedOrder.order.price;
-            newOrder.filled = 0;
             newOrder.side = signedOrder.order.side;
-            newOrder.expiration = signedOrder.order.expiration;
-            newOrder.creation = block.timestamp;
-            newOrder.targetTracer = market;
+            newOrder.expires = signedOrder.order.expires;
+            newOrder.created = block.timestamp;
+            newOrder.market = market;
         }
 
         return orders[orderHash];
@@ -150,7 +160,7 @@ contract Trader is ITrader {
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
-    function hashOrder(Types.Order memory order) public view override returns (bytes32) {
+    function hashOrder(Perpetuals.Order memory order) public view override returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(
@@ -162,37 +172,14 @@ contract Trader is ITrader {
                             order.maker,
                             order.amount,
                             order.price,
-                            order.filled,
                             order.side,
-                            order.expiration,
-                            order.creation,
-                            order.targetTracer
+                            order.expires,
+                            order.created,
+                            order.market
                         )
                     )
                 )
             );
-    }
-
-    /**
-     * @notice hashes a limit order type
-     * @param order the limit order being hashed
-     * @return a simple hash as used by the simple dex to store order ids
-     */
-    function hashOrderForDex(Types.Order memory order) public view override returns (bytes32) {
-        return 
-            (keccak256(
-                abi.encode(
-                    order.maker,
-                    order.amount,
-                    order.price,
-                    order.filled,
-                    order.side,
-                    order.expiration,
-                    order.creation,
-                    order.targetTracer
-                )
-            )
-        );
     }
 
     /**
@@ -232,7 +219,7 @@ contract Trader is ITrader {
      */
     function verifySignature(
         address signer,
-        Types.Order memory order,
+        Perpetuals.Order memory order,
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
@@ -252,7 +239,7 @@ contract Trader is ITrader {
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Types.Order memory order) public view override returns (Types.Order memory) {
+    function getOrder(Perpetuals.Order memory order) public view override returns (Perpetuals.Order memory) {
         return orders[hashOrder(order)];
     }
 }

@@ -25,7 +25,7 @@ library LibLiquidation {
     function calcEscrowLiquidationAmount(
         int256 minMargin,
         int256 currentMargin
-    ) internal pure returns (uint256) {
+    ) public pure returns (uint256) {
         int256 amountToEscrow = currentMargin - (minMargin - currentMargin);
         if (amountToEscrow < 0) {
             return 0;
@@ -93,7 +93,6 @@ library LibLiquidation {
 
     function calculateSlippage(
         uint256 unitsSold,
-        uint256 escrowId,
         uint256 priceMultiplier,
         int256 maxSlippage,
         int256 avgPrice,

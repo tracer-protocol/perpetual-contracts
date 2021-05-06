@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 import "./Types.sol";
+import "../lib/LibPerpetuals.sol";
 
 interface ITracerPerpetualSwaps {
 
@@ -13,6 +14,14 @@ interface ITracerPerpetualSwaps {
         int256 liquidateeQuoteChange,
         uint256 amountToEscrow
     ) external;
+
+	function updateAccountsOnReceiptClaim(
+		address claimant,
+		int256 amountToGiveToClaimant,
+		address liquidatee,
+		int256 amountToGiveToLiquidatee,
+		int256 amountToTakeFromInsurance
+	) external;
 
     function settle(address account) external;
 
@@ -58,5 +67,5 @@ interface ITracerPerpetualSwaps {
 
     function withdraw(uint256 amount) external;
 
-    function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
+    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2, uint256 fillAmount) external;
 }

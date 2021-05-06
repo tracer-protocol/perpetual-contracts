@@ -201,7 +201,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     modifier onlyLiquidation() {
 		require(
 			msg.sender == tracer.liquidationContract(),
-			"TCR: Sender not liquidation contract"
+			"INS: sender is not Liquidation contract"
 		);
 		_;
 	}
