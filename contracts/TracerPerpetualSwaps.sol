@@ -147,27 +147,12 @@ contract TracerPerpetualSwaps is
 		Perpetuals.Order memory order2,
 		uint256 fillAmount
 	) public override onlyWhitelisted {
-		// perform compatibility checks
-		// todo order validation can be in the Tracer Lib
-		require(order1.price == order2.price, "TCR: Price mismatch ");
-
-		// Ensure orders are for opposite sides
-		require(order1.side != order2.side, "TCR: Same side ");
-
-		/* solium-disable-next-line */
-		require(
-			block.timestamp < order1.expires &&
-				block.timestamp < order2.expires,
-			"TCR: Order expired "
-		);
-
         uint256 filled1 = filled[Perpetuals.orderId(order1)];
         uint256 filled2 = filled[Perpetuals.orderId(order2)];
 
-		require(
-			filled1 < order1.amount && filled2 < order2.amount,
-			"TCR: Order already filled "
-		);
+        // guard
+        require(Perpetuals.canMatch(order1, filled1, order2, filled2),
+            "TCR: Orders cannot be matched");
 
 		// settle accounts
 		settle(order1.maker);
