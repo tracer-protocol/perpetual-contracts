@@ -104,8 +104,8 @@ contract Trader is ITrader {
             filled[Perpetuals.orderId(takeOrder)] = takeOrderFilled + fillAmount;
 
             // increment nonce if filled
-            bool completeMaker = makeOrderFilled == makeOrder.amount;
-            bool completeTaker = takeOrderFilled == takeOrder.amount;
+            bool completeMaker = filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
+            bool completeTaker = filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
 
             // check if we need to increment maker's nonce
             if (completeMaker) {
