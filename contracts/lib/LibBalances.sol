@@ -47,13 +47,19 @@ library Balances {
     }
 
     function leveragedNotionalValue(
-        Position position,
+        Position calldata position,
         uint256 price
     ) public pure returns (uint256) {
         uint256 notionalValue = netValue(position, price);
         int256 marginValue = margin(position, price);
 
-        return notionalValue - margin;
+        int256 signedNotionalValue = LibMath.toInt256(notionalValue);
+
+        if (signedNotionalValue - marginValue < 0) {
+            return 0;
+        } else {
+            return uint256(signedNotionalValue - marginValue);
+        }
     }
 }
 
