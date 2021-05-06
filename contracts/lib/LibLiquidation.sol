@@ -25,7 +25,7 @@ library LibLiquidation {
     function calcEscrowLiquidationAmount(
         int256 minMargin,
         int256 currentMargin
-    ) internal pure returns (uint256) {
+    ) public pure returns (uint256) {
         int256 amountToEscrow = currentMargin - (minMargin - currentMargin);
         if (amountToEscrow < 0) {
             return 0;

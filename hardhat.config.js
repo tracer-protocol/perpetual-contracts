@@ -1,4 +1,4 @@
-require("@nomiclabs/hardhat-truffle5");
+require("@nomiclabs/hardhat-waffle");
 require('hardhat-contract-sizer')
 require('hardhat-deploy');
 

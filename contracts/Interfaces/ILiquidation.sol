@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 import "./Types.sol";
+import "../lib/LibPerpetuals.sol";
+import "../lib/LibLiquidation.sol";
 
 interface ILiquidation {
 
@@ -8,14 +10,14 @@ interface ILiquidation {
 
     function calcAmountToReturn(
         uint256 escrowId,
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         uint256 priceMultiplier,
         address traderContract,
         address liquidator
     ) external returns (uint256);
 
     function calcUnitsSold(
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         address traderContract,
         uint256 receiptId
     ) external returns (uint256, int256);
@@ -23,19 +25,7 @@ interface ILiquidation {
     function getLiquidationReceipt(uint256 id)
         external
         view
-        returns (
-            address,
-            address,
-            address,
-            int256,
-            uint256,
-            uint256,
-            uint256,
-            int256,
-            bool,
-            bool,
-            bool
-        );
+        returns (LibLiquidation.LiquidationReceipt memory);
 
     function liquidate(
         int256 amount, 
@@ -44,7 +34,7 @@ interface ILiquidation {
 
     function claimReceipts(
         uint256 receiptId,
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         address traderContract
     ) external;
 

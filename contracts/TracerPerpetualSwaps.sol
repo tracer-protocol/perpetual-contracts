@@ -5,6 +5,7 @@ import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
 import { Balances } from "./lib/LibBalances.sol";
 import { Types } from "./Interfaces/Types.sol";
+import "./lib/LibPerpetuals.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IAccount.sol";
@@ -40,6 +41,9 @@ contract TracerPerpetualSwaps is
 	mapping(address => Types.AccountBalance) public balances;
 	uint256 public tvl;
 	int256 public override leveragedNotionalValue;
+
+    // Order state
+    mapping (bytes32 => uint256) filled;
 
 	// Trading interfaces whitelist
 	mapping(address => bool) public override tradingWhitelist;
@@ -139,28 +143,16 @@ contract TracerPerpetualSwaps is
 	 * @param fillAmount the amount to be filled as sent by the trader
 	 */
 	function matchOrders(
-		Types.Order memory order1,
-		Types.Order memory order2,
+		Perpetuals.Order memory order1,
+		Perpetuals.Order memory order2,
 		uint256 fillAmount
 	) public override onlyWhitelisted {
-		// perform compatibility checks
-		// todo order validation can be in the Tracer Lib
-		require(order1.price == order2.price, "TCR: Price mismatch ");
+        uint256 filled1 = filled[Perpetuals.orderId(order1)];
+        uint256 filled2 = filled[Perpetuals.orderId(order2)];
 
-		// Ensure orders are for opposite sides
-		require(order1.side != order2.side, "TCR: Same side ");
-
-		/* solium-disable-next-line */
-		require(
-			block.timestamp < order1.expiration &&
-				block.timestamp < order2.expiration,
-			"TCR: Order expired "
-		);
-
-		require(
-			order1.filled < order1.amount && order2.filled < order2.amount,
-			"TCR: Order already filled "
-		);
+        // guard
+        require(Perpetuals.canMatch(order1, filled1, order2, filled2),
+            "TCR: Orders cannot be matched");
 
 		// settle accounts
 		settle(order1.maker);
@@ -188,8 +180,8 @@ contract TracerPerpetualSwaps is
 	 * @notice Updates account states of two accounts given two orders that are being executed
 	 */
 	function executeTrade(
-		Types.Order memory order1,
-		Types.Order memory order2,
+		Perpetuals.Order memory order1,
+		Perpetuals.Order memory order2,
 		uint256 fillAmount
 	) internal {
 		int256 _fillAmount = fillAmount.toInt256();
@@ -200,7 +192,8 @@ contract TracerPerpetualSwaps is
 		Types.AccountBalance storage account1 = balances[order1.maker];
 		Types.AccountBalance storage account2 = balances[order2.maker];
 
-		if (order1.side) {
+        /* TODO: handle every enum arm! */
+		if (order1.side == Perpetuals.Side.Long) {
 			// user 1 is long. Increase quote, decrease base
 			account1.base = account1.base - baseChange;
 			account1.quote = account1.quote + _fillAmount;
