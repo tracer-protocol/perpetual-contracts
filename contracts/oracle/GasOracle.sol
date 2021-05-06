@@ -46,16 +46,16 @@ contract GasOracle is IOracle, Ownable {
     /**
      * @notice Manually set the new ratio of USD/Gas
      */
-    function setUsdToGas(int256 _price) public {
+    function setUsdToGas(uint256 _price) public {
         usdToGas = _price;
     }
 
     function setGasOracle(address _gasOracle) public onlyOwner {
-        gasOracle = IOracle(_gasOracle);
+        gasOracle = IChainlinkOracle(_gasOracle);
     }
 
     function setPriceOracle(address _priceOracle) public onlyOwner {
-        priceOracle = IOracle(_priceOracle);
+        priceOracle = IChainlinkOracle(_priceOracle);
     }
 
     function setDecimals(uint8 _decimals) external {
