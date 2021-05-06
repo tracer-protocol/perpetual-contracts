@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../Interfaces/IOracle.sol";
+import "../Interfaces/IChainlinkOracle.sol";
 import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -13,9 +14,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract OracleAdapter is IOracle, Ownable {
     using LibMath for uint256;
-    IOracle public oracle;
+    IChainlinkOracle public oracle;
     uint256 private constant MAX_DECIMALS = 18;
-    int256 public scaler;
+    uint256 public scaler;
 
     constructor(address _oracle) {
         setOracle(_oracle);
@@ -25,12 +26,8 @@ contract OracleAdapter is IOracle, Ownable {
      * @notice Gets the latest anwser from the oracle
      * @dev converts the price to a WAD price before returning
      */
-    function latestAnswer() external override view returns (int256) {
-        return toWad(oracle.latestAnswer());
-    }
-
-    function isStale() external override view returns (bool) {
-        return oracle.isStale();
+    function latestAnswer() external override view returns (uint256) {
+        return toWad(uint(oracle.latestAnswer()));
     }
 
     function decimals() external override pure returns(uint8) {
@@ -43,7 +40,7 @@ contract OracleAdapter is IOracle, Ownable {
     *      and allows oracles to have their decimals changed withou affecting
     *      the market itself
     */
-    function toWad(int256 raw) internal view returns(int256) {
+    function toWad(uint256 raw) internal view returns(uint256) {
         return raw * scaler;
     }
 
@@ -59,10 +56,10 @@ contract OracleAdapter is IOracle, Ownable {
     * @dev resets the scalar value to ensure WAD values are always returned 
     */
     function setOracle(address newOracle) internal {
-        oracle = IOracle(newOracle);
+        oracle = IChainlinkOracle(newOracle);
         // reset the scaler for consistency
         uint8 _decimals = oracle.decimals();
         require(_decimals <= MAX_DECIMALS, "COA: too many decimals");
-        scaler = int256(10**(MAX_DECIMALS - _decimals));        
+        scaler = uint(10**(MAX_DECIMALS - _decimals));        
     }
 }

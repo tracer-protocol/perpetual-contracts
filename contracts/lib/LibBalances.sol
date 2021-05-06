@@ -8,7 +8,7 @@ library Balances {
     using LibMath for uint256;
     using LibMath for int256;
 
-    int256 private constant MARGIN_MUL_FACTOR = 10000; // Factor to keep precision in base calcs
+    uint256 private constant MARGIN_MUL_FACTOR = 10000; // Factor to keep precision in base calcs
     uint256 private constant FEED_UNIT_DIVIDER = 10e7; // used to normalise gas feed prices for base calcs
 
     /**
@@ -26,13 +26,13 @@ library Balances {
         int256 currentBase,
         int256 currentQuote,
         uint256 amount,
-        int256 price,
+        uint256 price,
         bool side,
         uint256 priceMultiplier,
         uint256 feeRate
     ) internal pure returns (int256 _currentBase, int256 _currentQuote) {
         // Get base change and fee if present
-        int256 baseChange = (amount.toInt256() * price.abs()) / priceMultiplier.toInt256();
+        int256 baseChange = ((amount * price) / priceMultiplier).toInt256();
         int256 fee = (baseChange * feeRate.toInt256()) / priceMultiplier.toInt256();
         if (side) {
             // LONG
@@ -59,34 +59,17 @@ library Balances {
     function calcMarginPositionValue(
         int256 base,
         int256 position,
-        int256 price,
+        uint256 price,
         uint256 priceMultiplier
     ) internal pure returns (int256 _baseCorrectUnits, int256 _positionValue) {
         int256 baseCorrectUnits = 0;
         int256 positionValue = 0;
 
-        baseCorrectUnits = base.abs() * priceMultiplier.toInt256() * MARGIN_MUL_FACTOR;
-        positionValue = position.abs() * price;
+        // todo it appears both of the below params can be uints?
+        baseCorrectUnits = base.abs() * priceMultiplier.toInt256() * MARGIN_MUL_FACTOR.toInt256();
+        positionValue = position.abs() * price.toInt256();
 
         return (baseCorrectUnits, positionValue);
-    }
-
-    /**
-     * @dev deprecated
-     * @notice Calculates an accounts leveraged notional value
-     * @param quote the quote assets of a user
-     * @param deposited the amount of funds a user has deposited
-     * @param price the fair rice for which the value is being calculated at
-     * @param priceMultiplier the multiplier value used for the price being referenced
-     */
-    function calcLeveragedNotionalValue(
-        int256 quote,
-        int256 price,
-        uint256 deposited,
-        uint256 priceMultiplier
-    ) internal pure returns (int256) {
-        // quote * price - deposited
-        return ((quote.abs() * price) / priceMultiplier.toInt256()) - deposited.toInt256();
     }
 
     /**
@@ -98,14 +81,14 @@ library Balances {
      */
     function calcMargin(
         int256 quote,
-        int256 price,
+        uint256 price,
         int256 base,
         uint256 priceMultiplier
     ) internal pure returns (int256) {
         // (10^18 * 10^8 + 10^18 * 10^8) / 10^8
         // (10^26 + 10^26) / 10^8
         // 10^18
-        return (((base * priceMultiplier.toInt256())) + quote * price) / priceMultiplier.toInt256();
+        return (((base * priceMultiplier.toInt256())) + quote * price.toInt256()) / priceMultiplier.toInt256();
     }
 
     /*
@@ -116,25 +99,27 @@ library Balances {
      * @param liquidationGasCost The cost to perform a liquidation
      * @param maxLeverage The maximum ratio of notional value/margin
      */
+     // todo can min margin be negative?
     function calcMinMargin(
         int256 quote, // 10^18
-        int256 price, // 10^8
+        uint256 price, // 10^8
         int256 base,  // 10^18
-        int256 liquidationGasCost, // USD/GAS 10^18
-        int256 maxLeverage,
+        uint256 liquidationGasCost, // USD/GAS 10^18
+        uint256 maxLeverage,
         uint256 priceMultiplier
-    ) internal pure returns (int256) {
-        int256 leveragedNotionalValue = newCalcLeveragedNotionalValue(quote, price, base, priceMultiplier);
-        int256 notionalValue = calcNotionalValue(quote, price);
+    ) internal pure returns (uint256) {
+        uint256 leveragedNotionalValue = newCalcLeveragedNotionalValue(quote, price, base, priceMultiplier);
+        uint256 notionalValue = calcNotionalValue(quote, price);
 
-        if (leveragedNotionalValue <= 0 && quote >= 0) {
+        if (leveragedNotionalValue == 0 && quote >= 0) {
             // Over collateralised
             return 0;
         }
         // LGC * 6 + notionalValue/maxLeverage
-        int256 lgc = liquidationGasCost * 6; // 10^18
+        uint256 lgc = liquidationGasCost * 6; // 10^18
         // 10^26 * 10^4 / 10^4 / 10^8 = 10^18
-        int256 baseMinimum = (notionalValue * MARGIN_MUL_FACTOR / maxLeverage) / priceMultiplier.toInt256();
+        // todo CASTING CHECK
+        uint256 baseMinimum = (notionalValue * MARGIN_MUL_FACTOR / maxLeverage) / priceMultiplier;
         return lgc + baseMinimum;
     }
 
@@ -147,16 +132,17 @@ library Balances {
      */
     function newCalcLeveragedNotionalValue(
         int256 quote, // 10^18
-        int256 price, // 10^8
+        uint256 price, // 10^8
         int256 base, // 10^18
         uint256 priceMultiplier // 10^8
-    ) internal pure returns (int256) {
-        int256 notionalValue = calcNotionalValue(quote, price);
+    ) internal pure returns (uint256) {
+        uint256 notionalValue = calcNotionalValue(quote, price);
         int256 margin = calcMargin(quote, price, base, priceMultiplier);
-        int256 LNV = (notionalValue - margin * priceMultiplier.toInt256()) / priceMultiplier.toInt256();
-        if (LNV < 0) {
-            LNV = 0;
-        }
+        // todo margin should be greater than minMargin for valid positions.
+        // ensure this is safe
+        uint256 _margin = margin > 0 ? uint(margin) : uint(0);
+        // todo CASTING CHECK
+        uint256 LNV = (notionalValue - _margin * priceMultiplier) / priceMultiplier;
         return LNV;
     }
 
@@ -167,9 +153,10 @@ library Balances {
      */
     function calcNotionalValue(
         int256 quote,
-        int256 price
-    ) internal pure returns (int256) {
-        quote = quote.abs();
-        return quote * price; // 10^18 * 10^8 = 10^26
+        uint256 price
+    ) internal pure returns (uint256) {
+        // todo CASTING CHECK
+        uint256 _quote = uint256(quote.abs());
+        return _quote * price; // 10^18 * 10^8 = 10^26
     }
 }

@@ -18,7 +18,7 @@ contract DeployerV1 is IDeployer {
             address _gasPriceOracle,
             address _pricingContract,
             address _liquidationContract,
-            int256 _maxLeverage,
+            uint256 _maxLeverage,
             uint256 _fundingRateSensitivity,
             uint256 _feeRate,
             uint256 _oracleDecimals
@@ -28,7 +28,7 @@ contract DeployerV1 is IDeployer {
             address,
             address,
             address,
-            int256,
+            uint256,
             uint256,
             uint256,
             uint256

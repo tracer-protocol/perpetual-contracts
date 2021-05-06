@@ -187,7 +187,7 @@ contract Liquidation is ILiquidation, Ownable {
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + order.filled;
-            avgPrice = avgPrice + (order.price * order.filled.toInt256());
+            avgPrice = avgPrice + (order.price * order.filled).toInt256();
         }
 
         // Avoid divide by 0 if no orders sold
@@ -238,19 +238,21 @@ contract Liquidation is ILiquidation, Ownable {
 
     function verifyAndSubmitLiquidation(
         int256 quote,
-        int256 price,
+        uint256 price,
         int256 base,
         int256 amount,
         uint256 priceMultiplier,
         int256 gasPrice,
         address account
     ) internal returns (uint256) {
-        int256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST().toInt256();
-        int256 minMargin =
+        uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
+        uint256 minMargin =
             Balances.calcMinMargin(quote, price, base, gasCost, tracer.maxLeverage(), priceMultiplier);
 
+        int256 currentMargin = Balances.calcMargin(quote, price, base, priceMultiplier);
+        // todo CASTING CHECK
         require(
-            Balances.calcMargin(quote, price, base, priceMultiplier) < minMargin,
+            currentMargin <= 0 || uint256(currentMargin) < minMargin,
             "LIQ: Account above margin"
         );
         require(amount <= quote.abs(), "LIQ: Liquidate Amount > Position");

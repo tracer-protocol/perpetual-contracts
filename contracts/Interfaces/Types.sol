@@ -6,14 +6,14 @@ interface Types {
     struct AccountBalance {
         int256 base; // The amount of units in the base asset
         int256 quote; // The amount of units in the quote asset
-        int256 totalLeveragedValue;
+        uint256 totalLeveragedValue;
         uint256 lastUpdatedIndex;
-        int256 lastUpdatedGasPrice;
+        uint256 lastUpdatedGasPrice;
     }
 
     struct FundingRate {
         uint256 recordTime;
-        int256 recordPrice;
+        uint256 recordPrice;
         int256 fundingRate; //positive value = longs pay shorts
         int256 fundingRateValue; //previous rate + (time diff * price * rate)
     }
@@ -21,7 +21,7 @@ interface Types {
     struct Order {
         address maker;
         uint256 amount;
-        int256 price;
+        uint256 price;
         uint256 filled;
         bool side; //true for long, false for short
         uint256 expiration;
@@ -30,7 +30,7 @@ interface Types {
     }
 
     struct HourlyPrices {
-        int256 totalPrice;
+        uint256 totalPrice;
         uint256 numTrades;
     }
 

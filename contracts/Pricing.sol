@@ -37,7 +37,7 @@ contract Pricing is IPricing {
     uint256 internal startLast24Hours;
     uint8 public currentHour;
 
-    event HourlyPriceUpdated(int256 price, uint256 currentHour);
+    event HourlyPriceUpdated(uint256 price, uint256 currentHour);
     event FundingRateUpdated(int256 fundingRate, int256 fundingRateValue);
     event InsuranceFundingRateUpdated(
         int256 insuranceFundingRate,
@@ -58,7 +58,7 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
 
         // initialise funding rate, similar to what was done in trace perp
-        int256 oracleLatestPrice = oracle.latestAnswer();
+        uint256 oracleLatestPrice = oracle.latestAnswer();
         setFundingRate(oracleLatestPrice, 0, 0);
         setInsuranceFundingRate(oracleLatestPrice, 0, 0);
         // increment funding index
@@ -72,13 +72,13 @@ contract Pricing is IPricing {
      * @param tradeVolume the volume of the order
      */
     function recordTrade(
-        int256 tradePrice,
+        uint256 tradePrice,
         uint256 tradeVolume
     ) external override onlyTracer {
-        int256 currentOraclePrice = oracle.latestAnswer();
+        uint256 currentOraclePrice = oracle.latestAnswer();
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
-            int256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
+            uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
             // Update the price to a new entry and funding rate every hour
@@ -118,8 +118,8 @@ contract Pricing is IPricing {
      * @param newRecord Bool that decides if a new hourly record should be started (true) or if a current hour should be updated (false)
      */
     function updatePrice(
-        int256 marketPrice,
-        int256 oraclePrice,
+        uint256 marketPrice,
+        uint256 oraclePrice,
         bool newRecord
     ) internal{
         // Price records entries updated every hour
@@ -155,15 +155,15 @@ contract Pricing is IPricing {
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
      * @param iPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
      */
-    function updateFundingRate(int256 oraclePrice, int256 iPoolFundingRate)
+    function updateFundingRate(uint256 oraclePrice, int256 iPoolFundingRate)
         internal
     {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
-        (int256 underlyingTWAP, int256 deriativeTWAP) =
+        (uint256 underlyingTWAP, uint256 deriativeTWAP) =
             getTWAPs(currentHour);
         int256 newFundingRate =
-            (deriativeTWAP - underlyingTWAP - timeValue) *
+            (deriativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue) *
                 (_tracer.fundingRateSensitivity().toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex - 1;
@@ -171,7 +171,7 @@ contract Pricing is IPricing {
         // Create variable with value of new funding rate value
         int256 currentFundingRateValue = fundingRates[fundingIndex].fundingRateValue;
         int256 fundingRateValue =
-            currentFundingRateValue + (newFundingRate * oraclePrice);
+            currentFundingRateValue + (newFundingRate * oraclePrice.toInt256());
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue = insuranceFundingRates[fundingIndex].fundingRateValue;
@@ -197,10 +197,11 @@ contract Pricing is IPricing {
     /**
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
-    function fairPrice() public view override returns (int256) {
-        int256 oraclePrice = oracle.latestAnswer();
+    function fairPrice() public view override returns (uint256) {
+        uint256 oraclePrice = oracle.latestAnswer();
         // calculates fairPrice
-        return oraclePrice - timeValue;
+        // todo this can probably be optimised
+        return uint256((oraclePrice.toInt256() - timeValue).abs());
     }
 
     ////////////////////////////
@@ -224,7 +225,7 @@ contract Pricing is IPricing {
      * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
      */
     function setFundingRate(
-        int256 marketPrice,
+        uint256 marketPrice,
         int256 fundingRate,
         int256 fundingRateValue
     ) internal {
@@ -243,7 +244,7 @@ contract Pricing is IPricing {
      * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
      */
     function setInsuranceFundingRate(
-        int256 marketPrice,
+        uint256 marketPrice,
         int256 fundingRate,
         int256 fundingRateValue
     ) internal {
@@ -265,7 +266,7 @@ contract Pricing is IPricing {
         override
         returns (
             uint256,
-            int256,
+            uint256,
             int256,
             int256
         )
@@ -289,7 +290,7 @@ contract Pricing is IPricing {
         override
         returns (
             uint256,
-            int256,
+            uint256,
             int256,
             int256
         )
@@ -312,21 +313,21 @@ contract Pricing is IPricing {
         public
         view
         override
-        returns (int256, int256)
+        returns (uint256, uint256)
     {
-        int256 underlyingSum = 0;
-        int256 derivativeSum = 0;
+        uint256 underlyingSum = 0;
+        uint256 derivativeSum = 0;
         uint256 derivativeInstances = 0;
         uint256 underlyingInstances = 0;
-        for (int256 i = 0; i < 8; i++) {
-            int256 timeWeight = 8 - i;
-            int256 j = int256(hour) - i; // keep moving towards 0
+        for (uint256 i = 0; i < 8; i++) {
+            uint256 timeWeight = 8 - i;
+            uint256 j = hour - i; // keep moving towards 0
             // loop back around list if required
             if (j < 0) {
                 j = 23;
             }
-            int256 derivativePrice = getHourlyAvgTracerPrice(uint256(j));
-            int256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j));
+            uint256 derivativePrice = getHourlyAvgTracerPrice(uint256(j));
+            uint256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j));
             if (derivativePrice != 0) {
                 derivativeInstances = derivativeInstances + uint256(timeWeight);
                 derivativeSum = derivativeSum + (timeWeight * derivativePrice);
@@ -341,8 +342,8 @@ contract Pricing is IPricing {
             return (0, 0);
         }
         return (
-            underlyingSum / underlyingInstances.toInt256(),
-            derivativeSum / derivativeInstances.toInt256()
+            underlyingSum / underlyingInstances,
+            derivativeSum / derivativeInstances
         );
     }
 
@@ -364,14 +365,14 @@ contract Pricing is IPricing {
             if (hourlyPrice.numTrades != 0) {
                 runningTotal =
                     runningTotal +
-                    (uint256(hourlyPrice.totalPrice.abs()) /
+                    (uint256(hourlyPrice.totalPrice) /
                         hourlyPrice.numTrades);
                 numberOfHoursPresent = numberOfHoursPresent + 1;
             }
             if (oracleHourlyPrice.numTrades != 0) {
                 oracleRunningTotal =
                     oracleRunningTotal +
-                    (uint256(oracleHourlyPrice.totalPrice.abs()) /
+                    (uint256(oracleHourlyPrice.totalPrice) /
                         oracleHourlyPrice.numTrades);
                 numberOfOracleHoursPresent = numberOfOracleHoursPresent + 1;
             }
@@ -391,7 +392,7 @@ contract Pricing is IPricing {
         public
         view
         override
-        returns (int256)
+        returns (uint256)
     {
         Types.PricingMetrics memory pricing = price;
         Types.HourlyPrices memory hourly;
@@ -408,7 +409,7 @@ contract Pricing is IPricing {
         if (hourly.numTrades == 0) {
             return 0;
         } else {
-            return hourly.totalPrice / hourly.numTrades.toInt256();
+            return hourly.totalPrice / hourly.numTrades;
         }
     }
 
@@ -420,7 +421,7 @@ contract Pricing is IPricing {
         public
         view
         override
-        returns (int256)
+        returns (uint256)
     {
         Types.PricingMetrics memory pricing = price;
         Types.HourlyPrices memory hourly;
@@ -439,7 +440,7 @@ contract Pricing is IPricing {
         } else {
             /* On each trade, the oracle price is added to, so the average is
                (total / number of trades) */
-            return hourly.totalPrice / hourly.numTrades.toInt256();
+            return hourly.totalPrice / hourly.numTrades;
         }
     }
 
