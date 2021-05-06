@@ -22,7 +22,7 @@ contract Liquidation is ILiquidation, Ownable {
     using LibMath for int256;
 
     uint256 public override currentLiquidationId;
-    int256 public override maxSlippage;
+    uint256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
     IPricing public pricing;
     ITracerPerpetualSwaps public tracer;
@@ -43,7 +43,7 @@ contract Liquidation is ILiquidation, Ownable {
         address _pricing,
         address _tracer,
         address _insuranceContract,
-        int256 _maxSlippage,
+        uint256 _maxSlippage,
         address gov
     ) {
         pricing = IPricing(_pricing);
@@ -68,7 +68,7 @@ contract Liquidation is ILiquidation, Ownable {
     function submitLiquidation(
         address liquidator,
         address liquidatee,
-        int256 price,
+        uint256 price,
         uint256 escrowedAmount,
         int256 amountLiquidated,
         bool liquidationSide
@@ -114,7 +114,7 @@ contract Liquidation is ILiquidation, Ownable {
         );
 
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
+        (uint256 unitsSold, uint256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
         require(
             unitsSold <= uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -167,10 +167,10 @@ contract Liquidation is ILiquidation, Ownable {
         Types.Order[] memory orders,
         address traderContract,
         uint256 receiptId
-    ) public override returns (uint256, int256) {
+    ) public override returns (uint256, uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
-        int256 avgPrice;
+        uint256 avgPrice;
         for (uint256 i; i < orders.length; i++) {
             Types.Order memory order = ITrader(traderContract).getOrder(orders[i]);
             if (
@@ -187,14 +187,14 @@ contract Liquidation is ILiquidation, Ownable {
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + order.filled;
-            avgPrice = avgPrice + (order.price * order.filled).toInt256();
+            avgPrice = avgPrice + (order.price * order.filled);
         }
 
         // Avoid divide by 0 if no orders sold
         if (unitsSold == 0) {
             return (0, 0);
         }
-        return (unitsSold, avgPrice / unitsSold.toInt256());
+        return (unitsSold, avgPrice / unitsSold);
     }
 
     /**
@@ -209,7 +209,7 @@ contract Liquidation is ILiquidation, Ownable {
             address,
             address,
             address,
-            int256,
+            uint256,
             uint256,
             uint256,
             uint256,
@@ -242,7 +242,7 @@ contract Liquidation is ILiquidation, Ownable {
         int256 base,
         int256 amount,
         uint256 priceMultiplier,
-        int256 gasPrice,
+        uint256 gasPrice,
         address account
     ) internal returns (uint256) {
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
@@ -319,7 +319,7 @@ contract Liquidation is ILiquidation, Ownable {
         
         // Limits the gas use when liquidating 
         require(
-            tx.gasprice <= uint256(IOracle(tracer.gasPriceOracle()).latestAnswer().abs()),
+            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
             "LIQ: GasPrice > FGasPrice"
         );
 
@@ -455,7 +455,7 @@ contract Liquidation is ILiquidation, Ownable {
         releaseTime = _releaseTime;
     }
 
-    function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
+    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
         maxSlippage = _maxSlippage;
     }
 

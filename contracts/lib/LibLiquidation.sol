@@ -6,13 +6,13 @@ import "./LibMath.sol";
 library LibLiquidation {
     using LibMath for uint256;
     using LibMath for int256;
-    int256 private constant PERCENT_PRECISION = 10000;
+    uint256 private constant PERCENT_PRECISION = 10000;
 
     struct LiquidationReceipt {
         address tracer;
         address liquidator;
         address liquidatee;
-        int256 price;
+        uint256 price;
         uint256 time;
         uint256 escrowedAmount;
         uint256 releaseTime;
@@ -23,10 +23,10 @@ library LibLiquidation {
     }
 
     function calcEscrowLiquidationAmount(
-        int256 minMargin,
+        uint256 minMargin,
         int256 currentMargin
     ) internal pure returns (uint256) {
-        int256 amountToEscrow = currentMargin - (minMargin - currentMargin);
+        int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
         if (amountToEscrow < 0) {
             return 0;
         }
@@ -94,8 +94,8 @@ library LibLiquidation {
     function calculateSlippage(
         uint256 unitsSold,
         uint256 priceMultiplier,
-        int256 maxSlippage,
-        int256 avgPrice,
+        uint256 maxSlippage,
+        uint256 avgPrice,
         LibLiquidation.LiquidationReceipt memory receipt
     ) internal pure returns (uint256) {
 
@@ -109,25 +109,26 @@ library LibLiquidation {
             return 0;
         } else {
             // Liquidator took a long position, and price dropped
-            int256 amountSoldFor = (avgPrice * unitsSold.toInt256()) / priceMultiplier.toInt256();
-            int256 amountExpectedFor = (receipt.price * unitsSold.toInt256()) / priceMultiplier.toInt256();
+            // todo CASTING CHECK
+            uint256 amountSoldFor = (avgPrice * unitsSold) / priceMultiplier;
+            uint256 amountExpectedFor = (receipt.price * unitsSold) / priceMultiplier;
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
             uint256 amountToReturn = 0;
-            int256 percentSlippage = 0;
+            uint256 percentSlippage = 0;
             if (avgPrice < receipt.price && receipt.liquidationSide) {
                 amountToReturn = uint256(amountExpectedFor - amountSoldFor);
                 if (amountToReturn <= 0) {
                     return 0;
                 }
-                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
+                percentSlippage = (amountToReturn * PERCENT_PRECISION) / amountExpectedFor;
             } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
                 amountToReturn = uint256(amountSoldFor - amountExpectedFor);
                 if (amountToReturn <= 0) {
                     return 0;
                 }
-                percentSlippage = (amountToReturn.toInt256() * PERCENT_PRECISION) / amountExpectedFor;
+                percentSlippage = (amountToReturn * PERCENT_PRECISION) / amountExpectedFor;
             }
             if (percentSlippage > maxSlippage) {
                 amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
