@@ -183,7 +183,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
     */
     function calcUnitsSold(
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         address traderContract,
         uint256 receiptId
     ) public view returns (uint256, int256) {
@@ -192,7 +192,7 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 unitsSold;
         int256 avgPrice;
         for (uint256 i; i < orders.length; i++) {
-            Types.Order memory order = ITrader(traderContract).getOrder(orders[i]);
+            Perpetuals.Order memory order = ITrader(traderContract).getOrder(orders[i]);
             (,
                 uint256 orderFilled,
                 int256 orderPrice,

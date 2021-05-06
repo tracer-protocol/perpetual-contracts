@@ -12,9 +12,7 @@ interface ITrader {
         address market
     ) external;
 
-    function hashOrder(Types.Order memory order) external view returns (bytes32);
-
-    function hashOrderForDex(Types.Order memory order) external view returns (bytes32);
+    function hashOrder(Perpetuals.Order memory order) external view returns (bytes32);
 
     function getDomain() external view returns (bytes32);
 
@@ -25,7 +23,7 @@ interface ITrader {
 
     function verifySignature(
         address signer,
-        Types.Order memory order,
+        Perpetuals.Order memory order,
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
@@ -33,5 +31,5 @@ interface ITrader {
 
     function verifyNonce(Types.SignedLimitOrder memory order) external view returns (bool);
 
-    function getOrder(Types.Order memory order) external view returns (Types.Order memory);
+    function getOrder(Perpetuals.Order memory order) external view returns (Perpetuals.Order memory);
 }

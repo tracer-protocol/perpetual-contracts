@@ -52,5 +52,5 @@ interface ITracerPerpetualSwaps {
 
     function transferOwnership(address newOwner) external;
 
-    function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
+    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2, uint256 fillAmount) external;
 }
