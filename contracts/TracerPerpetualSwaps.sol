@@ -107,7 +107,8 @@ contract TracerPerpetualSwaps is
 		_updateAccountLeverage(msg.sender);
 
 		// update market TVL
-		// this cast is safe since amount > 0 on deposit
+		// this cast is safe since amount > 0 on deposit and tokenToWad simply
+		// multiplies the amount up to a WAD value
 		tvl = tvl + uint(amountToUpdate);
 		emit Deposit(msg.sender, amount);
 	}
