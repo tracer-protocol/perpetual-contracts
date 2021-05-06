@@ -25,5 +25,25 @@ library Balances {
         /* cast is safe due to semantics of `abs` */
         return uint256(position.quote.abs()) * price;
     }
+
+    function margin(
+        Position calldata position,
+        uint256 price
+    ) public pure returns (int256) {
+        /*
+         * A cast *must* occur somewhere here in order for this to type check.
+         *
+         * After you've convinced yourself of this, the next intellectual jump
+         * that needs to be made is *what* to cast. We can't cast `base` as it's
+         * allowed to be negative. We can't cast `quote` as it's allowed to be
+         * negative. Thus, by elimination, the only thing we're left with is
+         * `price`.
+         *
+         * `price` has type `uint256` (i.e., it's unsigned). Thus, our below
+         * cast **will** throw iff. `price >= type(int256).max()`.
+         */
+        int256 signedPrice = LibMath.toInt256(price);
+        return position.quote + position.base * signedPrice;
+    }
 }
 
