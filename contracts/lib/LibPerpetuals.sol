@@ -17,7 +17,7 @@ library Perpetuals {
         uint256 created;
     }
 
-    function orderId(Order calldata order) public returns (bytes32) {
+    function orderId(Order calldata order) public pure returns (bytes32) {
         return keccak256(abi.encode(order));
     }
 
@@ -26,7 +26,7 @@ library Perpetuals {
         uint256 aFilled,
         Order calldata b,
         uint256 bFilled
-    ) public returns (bool) {
+    ) public view returns (bool) {
         uint256 currentTime = block.timestamp;
 
         /* predicates */

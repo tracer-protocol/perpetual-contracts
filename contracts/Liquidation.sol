@@ -22,7 +22,7 @@ contract Liquidation is ILiquidation, Ownable {
     using LibMath for int256;
 
     uint256 public override currentLiquidationId;
-    int256 public override maxSlippage;
+    uint256 public override maxSlippage;
     uint256 releaseTime = 15 minutes;
     IPricing public pricing;
     ITracerPerpetualSwaps public tracer;
@@ -43,7 +43,7 @@ contract Liquidation is ILiquidation, Ownable {
         address _pricing,
         address _tracer,
         address _insuranceContract,
-        int256 _maxSlippage,
+        uint256 _maxSlippage,
         address gov
     ) {
         pricing = IPricing(_pricing);
@@ -68,7 +68,7 @@ contract Liquidation is ILiquidation, Ownable {
     function submitLiquidation(
         address liquidator,
         address liquidatee,
-        int256 price,
+        uint256 price,
         uint256 escrowedAmount,
         int256 amountLiquidated,
         bool liquidationSide
@@ -114,7 +114,7 @@ contract Liquidation is ILiquidation, Ownable {
         );
 
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, int256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
+        (uint256 unitsSold, uint256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
         require(
             unitsSold <= uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -167,16 +167,17 @@ contract Liquidation is ILiquidation, Ownable {
         Perpetuals.Order[] memory orders,
         address traderContract,
         uint256 receiptId
-    ) public override returns (uint256, int256) {
+    ) public override returns (uint256, uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
-        int256 avgPrice;
+        uint256 avgPrice;
         for (uint256 i; i < orders.length; i++) {
             Perpetuals.Order memory order = ITrader(traderContract).getOrder(orders[i]);
             if (
                 order.created < receipt.time // Order made before receipt
                 || order.maker != receipt.liquidator // Order made by someone who isn't liquidator
-                || order.side == receipt.liquidationSide // Order is in same direction as liquidation
+                // todo alter liquidations side to be a Side type, then re add this comparison
+                // || order.side == receipt.liquidationSide // Order is in same direction as liquidation
                 /* Order should be the opposite to the position acquired on liquidation */
             ) {
                 emit InvalidClaimOrder(receiptId, receipt.liquidator);
@@ -189,14 +190,14 @@ contract Liquidation is ILiquidation, Ownable {
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + orderFilled;
-            avgPrice = avgPrice + (order.price * orderFilled.toInt256());
+            avgPrice = avgPrice + (order.price * orderFilled);
         }
 
         // Avoid divide by 0 if no orders sold
         if (unitsSold == 0) {
             return (0, 0);
         }
-        return (unitsSold, avgPrice / unitsSold.toInt256());
+        return (unitsSold, avgPrice / unitsSold);
     }
 
     /**
@@ -215,19 +216,21 @@ contract Liquidation is ILiquidation, Ownable {
 
     function verifyAndSubmitLiquidation(
         int256 quote,
-        int256 price,
+        uint256 price,
         int256 base,
         int256 amount,
         uint256 priceMultiplier,
-        int256 gasPrice,
+        uint256 gasPrice,
         address account
     ) internal returns (uint256) {
-        int256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST().toInt256();
-        int256 minMargin =
+        uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
+        uint256 minMargin =
             Balances.calcMinMargin(quote, price, base, gasCost, tracer.maxLeverage(), priceMultiplier);
 
+        int256 currentMargin = Balances.calcMargin(quote, price, base, priceMultiplier);
+        // todo CASTING CHECK
         require(
-            Balances.calcMargin(quote, price, base, priceMultiplier) < minMargin,
+            currentMargin <= 0 || uint256(currentMargin) < minMargin,
             "LIQ: Account above margin"
         );
         require(amount <= quote.abs(), "LIQ: Liquidate Amount > Position");
@@ -294,7 +297,7 @@ contract Liquidation is ILiquidation, Ownable {
         
         // Limits the gas use when liquidating 
         require(
-            tx.gasprice <= uint256(IOracle(tracer.gasPriceOracle()).latestAnswer().abs()),
+            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
             "LIQ: GasPrice > FGasPrice"
         );
 
@@ -430,7 +433,7 @@ contract Liquidation is ILiquidation, Ownable {
         releaseTime = _releaseTime;
     }
 
-    function setMaxSlippage(int256 _maxSlippage) public override onlyOwner() {
+    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
         maxSlippage = _maxSlippage;
     }
 
