@@ -35,7 +35,7 @@ contract TracerPerpetualSwaps is
 
 	// Config variables
 	address public override gasPriceOracle;
-	int256 public override maxLeverage; // The maximum ratio of notionalValue to margin
+	uint256 public override maxLeverage; // The maximum ratio of notionalValue to margin
 
 	// Account State Variables
 	mapping(address => Types.AccountBalance) public balances;
@@ -71,7 +71,7 @@ contract TracerPerpetualSwaps is
 		address _gasPriceOracle,
 		address _pricingContract,
 		address _liquidationContract,
-		int256 _maxLeverage,
+		uint256 _maxLeverage,
 		uint256 _fundingRateSensitivity,
 		uint256 _feeRate,
 		uint256 _oracleDecimals
@@ -185,8 +185,9 @@ contract TracerPerpetualSwaps is
 		uint256 fillAmount
 	) internal {
 		int256 _fillAmount = fillAmount.toInt256();
+		// todo evaluate how safe this cast is
 		int256 baseChange =
-			(_fillAmount * order1.price) / priceMultiplier.toInt256();
+			((fillAmount * order1.price) / priceMultiplier).toInt256();
 
 		//Update account states
 		Types.AccountBalance storage account1 = balances[order1.maker];
@@ -218,8 +219,8 @@ contract TracerPerpetualSwaps is
 	 */
 	function _updateAccountLeverage(address account) internal {
 		Types.AccountBalance memory userBalance = balances[account];
-		int256 originalLeverage = userBalance.totalLeveragedValue;
-		int256 newLeverage =
+		uint256 originalLeverage = userBalance.totalLeveragedValue;
+		uint256 newLeverage =
 			Balances.newCalcLeveragedNotionalValue(
 				userBalance.quote,
 				pricingContract.fairPrice(),
@@ -239,8 +240,8 @@ contract TracerPerpetualSwaps is
 	 * @param accountOldLeveragedNotional The stored notional value of the account
 	 */
 	function _updateTracerLeverage(
-		int256 accountNewLeveragedNotional,
-		int256 accountOldLeveragedNotional
+		uint256 accountNewLeveragedNotional,
+		uint256 accountOldLeveragedNotional
 	) internal {
 		/*
         Update notional value
@@ -258,26 +259,29 @@ contract TracerPerpetualSwaps is
         total contract leverage has decreased by the difference between the old leverage and zero
         (which is the old leveraged value)
         */
-		int256 accountDelta =
-			accountNewLeveragedNotional - accountOldLeveragedNotional;
+
+		// todo CASTING CHECK
+		int256 _newLeverage = accountNewLeveragedNotional.toInt256();
+		int256 _oldLeverage = accountOldLeveragedNotional.toInt256();
+		int256 accountDelta = _newLeverage - _oldLeverage;
 		if (
-			accountNewLeveragedNotional > 0 && accountOldLeveragedNotional >= 0
+			_newLeverage > 0 && _oldLeverage >= 0
 		) {
 			leveragedNotionalValue = leveragedNotionalValue + accountDelta;
 		} else if (
-			accountNewLeveragedNotional > 0 && accountOldLeveragedNotional < 0
+			_newLeverage > 0 && _oldLeverage < 0
 		) {
 			leveragedNotionalValue =
 				leveragedNotionalValue +
-				accountNewLeveragedNotional;
+				_newLeverage;
 		} else if (
-			accountNewLeveragedNotional <= 0 &&
+			_newLeverage <= 0 &&
 			accountDelta < 0 &&
-			accountOldLeveragedNotional > 0
+			_oldLeverage > 0
 		) {
 			leveragedNotionalValue =
 				leveragedNotionalValue -
-				accountOldLeveragedNotional;
+				_oldLeverage;
 		}
 	}
 
@@ -291,9 +295,9 @@ contract TracerPerpetualSwaps is
 		uint256 amountToEscrow
 	) external override onlyLiquidation {
 		// Limits the gas use when liquidating
-		int256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
+		uint256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
 		require(
-			tx.gasprice <= uint256(gasPrice.abs()),
+			tx.gasprice <= gasPrice,
 			"TCR: GasPrice > FGasPrice"
 		);
 		// Update liquidators last updated gas price
@@ -393,9 +397,10 @@ contract TracerPerpetualSwaps is
 
 			if (accountBalance.totalLeveragedValue > 0) {
 				// calc and pay insurance funding rate
+				// todo CASTING CHECK
 				int256 changeInInsuranceBalance =
 					((currentInsuranceGlobalRate - currentInsuranceUserRate) *
-						accountBalance.totalLeveragedValue) /
+						accountBalance.totalLeveragedValue.toInt256()) /
 						insuranceContract.INSURANCE_MUL_FACTOR();
 
 				if (changeInInsuranceBalance > 0) {
@@ -429,11 +434,11 @@ contract TracerPerpetualSwaps is
 	function marginIsValid(
 		int256 base,
 		int256 quote,
-		int256 gasPrice
+		uint256 gasPrice
 	) public view returns (bool) {
-		int256 price = pricingContract.fairPrice();
-		int256 gasCost = gasPrice * LIQUIDATION_GAS_COST.toInt256();
-		int256 minMargin =
+		uint256 price = pricingContract.fairPrice();
+		uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
+		uint256 minMargin =
 			Balances.calcMinMargin(
 				quote,
 				price,
@@ -454,7 +459,8 @@ contract TracerPerpetualSwaps is
 			return true;
 		}
 
-		return margin > minMargin;
+		// todo CASTING CHECK
+		return margin > minMargin.toInt256();
 	}
 
 	/**
@@ -492,7 +498,7 @@ contract TracerPerpetualSwaps is
 		feeRate = _feeRate;
 	}
 
-	function setMaxLeverage(int256 _maxLeverage) public override onlyOwner {
+	function setMaxLeverage(uint256 _maxLeverage) public override onlyOwner {
 		maxLeverage = _maxLeverage;
 	}
 
