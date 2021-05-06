@@ -10,6 +10,7 @@ library Balances {
 
     int256 private constant MARGIN_MUL_FACTOR = 10000; // Factor to keep precision in base calcs
     uint256 private constant FEED_UNIT_DIVIDER = 10e7; // used to normalise gas feed prices for base calcs
+    uint256 private constant MAX_DECIMALS = 18;
 
     /**
      * @notice Calculates the new base and position given trade details. Assumes the entire trade will execute
@@ -171,5 +172,23 @@ library Balances {
     ) internal pure returns (int256) {
         quote = quote.abs();
         return quote * price; // 10^18 * 10^8 = 10^26
+    }
+
+    /**
+    * @notice converts a raw token amount to its WAD representation. Used for tokens
+    * that don't have 18 decimal places
+    */
+    function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
+        int scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
+        return amount.toInt256() * scaler;
+    }
+
+    /**
+    * @notice converts a wad token amount to its raw representation.
+    */
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
+        require(wadAmount >= 0, "LBS: wadAmount<0");
+        int scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
+        return uint(wadAmount / scaler);
     }
 }

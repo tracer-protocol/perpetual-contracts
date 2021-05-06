@@ -27,6 +27,8 @@ interface ITracerPerpetualSwaps {
 
     function tracerBaseToken() external view returns (address);
 
+    function baseTokenDecimals() external view returns (uint256);
+
     function liquidationContract() external view returns (address);
     
     function tradingWhitelist(address trader) external returns (bool);
