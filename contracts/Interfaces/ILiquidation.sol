@@ -20,7 +20,7 @@ interface ILiquidation {
         Perpetuals.Order[] memory orders,
         address traderContract,
         uint256 receiptId
-    ) external returns (uint256, int256);
+    ) external returns (uint256, uint256);
 
     function getLiquidationReceipt(uint256 id)
         external
@@ -42,7 +42,7 @@ interface ILiquidation {
 
     function currentLiquidationId() external view returns(uint256);
 
-    function maxSlippage() external view returns(int256);
+    function maxSlippage() external view returns(uint256);
 
-    function setMaxSlippage(int256 _maxSlippage) external;
+    function setMaxSlippage(uint256 _maxSlippage) external;
 }
