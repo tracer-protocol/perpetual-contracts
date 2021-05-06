@@ -99,7 +99,6 @@ library Balances {
      * @param liquidationGasCost The cost to perform a liquidation
      * @param maxLeverage The maximum ratio of notional value/margin
      */
-     // todo can min margin be negative?
     function calcMinMargin(
         int256 quote, // 10^18
         uint256 price, // 10^8
