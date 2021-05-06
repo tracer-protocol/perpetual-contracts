@@ -45,7 +45,7 @@ library LibLiquidation {
         int256 liquidatedQuote,
         int256 liquidatorQuote,
         int256 amount
-    ) internal pure returns (
+    ) public pure returns (
         int256 _liquidatorBaseChange,
         int256 _liquidatorQuoteChange,
         int256 _liquidateeBaseChange,
@@ -97,7 +97,7 @@ library LibLiquidation {
         int256 maxSlippage,
         int256 avgPrice,
         LibLiquidation.LiquidationReceipt memory receipt
-    ) internal pure returns (uint256) {
+    ) public pure returns (uint256) {
 
         // Check price slippage and update account states
         if (
