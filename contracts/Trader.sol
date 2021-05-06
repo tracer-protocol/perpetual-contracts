@@ -50,6 +50,12 @@ contract Trader is ITrader {
         );
     }
 
+    function filledAmount(
+        Perpetuals.Order memory order
+    ) external view override returns (uint256) {
+        return filled[Perpetuals.orderId(order)];
+    }
+
     /**
      * @notice Batch executes maker and taker orders against a given market. Currently matching works
      *         by matching orders 1 to 1

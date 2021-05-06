@@ -17,7 +17,7 @@ library Perpetuals {
         uint256 created;
     }
 
-    function orderId(Order calldata order) returns (bytes32) {
+    function orderId(Order calldata order) public returns (bytes32) {
         return keccak256(abi.encode(order));
     }
 }

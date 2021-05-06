@@ -32,4 +32,6 @@ interface ITrader {
     function verifyNonce(Types.SignedLimitOrder memory order) external view returns (bool);
 
     function getOrder(Perpetuals.Order memory order) external view returns (Perpetuals.Order memory);
+
+    function filledAmount(Perpetuals.Order memory order) external view returns (uint256);
 }
