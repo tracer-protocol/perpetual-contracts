@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
+import "../lib/LibPerpetuals.sol";
+
 interface Types {
 
     struct AccountBalance {
@@ -18,17 +20,6 @@ interface Types {
         int256 fundingRateValue; //previous rate + (time diff * price * rate)
     }
 
-    struct Order {
-        address maker;
-        uint256 amount;
-        uint256 price;
-        uint256 filled;
-        bool side; //true for long, false for short
-        uint256 expiration;
-        uint256 creation;
-        address targetTracer;
-    }
-
     struct HourlyPrices {
         uint256 totalPrice;
         uint256 numTrades;
@@ -40,7 +31,7 @@ interface Types {
     }
 
     struct SignedLimitOrder {
-        Order order;
+        Perpetuals.Order order;
         uint256 nonce;
         bytes32 sigR;
         bytes32 sigS;

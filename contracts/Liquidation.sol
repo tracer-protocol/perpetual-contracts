@@ -99,7 +99,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function calcAmountToReturn(
         uint256 escrowId,
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         uint256 priceMultiplier,
         address traderContract,
         address liquidator
@@ -164,7 +164,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
     */
     function calcUnitsSold(
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         address traderContract,
         uint256 receiptId
     ) public override returns (uint256, uint256) {
@@ -172,22 +172,25 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 unitsSold;
         uint256 avgPrice;
         for (uint256 i; i < orders.length; i++) {
-            Types.Order memory order = ITrader(traderContract).getOrder(orders[i]);
+            Perpetuals.Order memory order = ITrader(traderContract).getOrder(orders[i]);
             if (
-                order.creation < receipt.time // Order made before receipt
+                order.created < receipt.time // Order made before receipt
                 || order.maker != receipt.liquidator // Order made by someone who isn't liquidator
-                || order.side == receipt.liquidationSide // Order is in same direction as liquidation
+                // todo alter liquidations side to be a Side type, then re add this comparison
+                // || order.side == receipt.liquidationSide // Order is in same direction as liquidation
                 /* Order should be the opposite to the position acquired on liquidation */
             ) {
                 emit InvalidClaimOrder(receiptId, receipt.liquidator);
                 continue;
             }
 
-            /* order.creation >= receipt.time
+            uint256 orderFilled = ITrader(traderContract).filledAmount(order);
+
+            /* order.created >= receipt.time
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
-            unitsSold = unitsSold + order.filled;
-            avgPrice = avgPrice + (order.price * order.filled);
+            unitsSold = unitsSold + orderFilled;
+            avgPrice = avgPrice + (order.price * orderFilled);
         }
 
         // Avoid divide by 0 if no orders sold
@@ -328,7 +331,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimReceipts(
         uint256 receiptId,
-        Types.Order[] memory orders,
+        Perpetuals.Order[] memory orders,
         address traderContract
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
