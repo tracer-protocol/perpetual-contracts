@@ -45,5 +45,15 @@ library Balances {
         int256 signedPrice = LibMath.toInt256(price);
         return position.quote + position.base * signedPrice;
     }
+
+    function leveragedNotionalValue(
+        Position position,
+        uint256 price
+    ) public pure returns (uint256) {
+        uint256 notionalValue = netValue(position, price);
+        int256 marginValue = margin(position, price);
+
+        return notionalValue - margin;
+    }
 }
 
