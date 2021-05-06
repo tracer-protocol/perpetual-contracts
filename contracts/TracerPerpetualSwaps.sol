@@ -95,7 +95,8 @@ contract TracerPerpetualSwaps is
 	/**
 	 * @notice Allows a user to deposit into their margin account
 	 * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
-	 * @param amount The amount of base tokens to be deposited into the Tracer Market account
+	 * @param amount The amount of base tokens to be deposited into the Tracer Market account. This amount
+	 * should be given with the correct decimal units of the token
 	 */
 	function deposit(uint256 amount) external override {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
@@ -116,7 +117,8 @@ contract TracerPerpetualSwaps is
 	/**
 	 * @notice Allows a user to withdraw from their margin account
 	 * @dev Ensures that the users margin percent is valid after withdraw
-	 * @param amount The amount of margin tokens to be withdrawn from the tracer market account
+	 * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
+	 * should be given in WAD format
 	 */
 	function withdraw(uint256 amount) external override {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
