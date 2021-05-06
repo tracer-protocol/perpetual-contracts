@@ -61,5 +61,24 @@ library Balances {
             return uint256(signedNotionalValue - marginValue);
         }
     }
+
+    function minimumMargin(
+        Position calldata position,
+        uint256 price,
+        uint256 liquidationCost,
+        uint256 maximumLeverage
+    ) public pure returns (uint256) {
+        uint256 leveragedNotionalValue = leveragedNotionalValue(
+            position,
+            price
+        );
+        uint256 notionalValue = netValue(position, price);
+
+        uint256 liquidationGasCost = liquidationCost * 6;
+        
+        uint256 minimumBase = notionalValue / maximumLeverage;
+
+        return liquidationGasCost + minimumBase;
+    }
 }
 
