@@ -68,10 +68,6 @@ library Balances {
         uint256 liquidationCost,
         uint256 maximumLeverage
     ) public pure returns (uint256) {
-        uint256 leveragedNotionalValue = leveragedNotionalValue(
-            position,
-            price
-        );
         uint256 notionalValue = netValue(position, price);
 
         uint256 liquidationGasCost = liquidationCost * 6;
@@ -79,6 +75,34 @@ library Balances {
         uint256 minimumBase = notionalValue / maximumLeverage;
 
         return liquidationGasCost + minimumBase;
+    }
+
+    function applyTrade(
+        Position calldata position,
+        Trade calldata trade,
+        uint256 feeRate
+    ) public pure returns (Position memory) {
+        int256 signedAmount = LibMath.toInt256(trade.amount);
+        int256 signedPrice = LibMath.toInt256(trade.price);
+        int256 signedFeeRate = LibMath.toInt256(feeRate);
+
+        int256 baseChange = signedAmount * signedPrice;
+        int256 fee = baseChange * signedFeeRate;
+
+        int256 newBase = 0;
+        int256 newQuote = 0;
+
+        if (trade.side == Perpetuals.Side.Long) {
+            newQuote = position.quote + signedAmount;
+            newBase = position.base - baseChange + fee;
+        } else if (trade.side == Perpetuals.Side.Short) {
+            newQuote = position.quote - signedAmount;
+            newBase = position.base + baseChange - fee;
+        }
+
+        Position memory newPosition = Position(newBase, newQuote);
+
+        return newPosition;
     }
 }
 
