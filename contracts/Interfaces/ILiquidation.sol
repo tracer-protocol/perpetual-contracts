@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 import "./Types.sol";
+import "../lib/LibLiquidation.sol";
 
 interface ILiquidation {
 
@@ -23,19 +24,7 @@ interface ILiquidation {
     function getLiquidationReceipt(uint256 id)
         external
         view
-        returns (
-            address,
-            address,
-            address,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            int256,
-            bool,
-            bool,
-            bool
-        );
+        returns (LibLiquidation.LiquidationReceipt memory);
 
     function liquidate(
         int256 amount, 

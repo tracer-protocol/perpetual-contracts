@@ -205,34 +205,9 @@ contract Liquidation is ILiquidation, Ownable {
         external
         override
         view
-        returns (
-            address,
-            address,
-            address,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            int256,
-            bool,
-            bool,
-            bool
-        )
+        returns (LibLiquidation.LiquidationReceipt memory)
     {
-        LibLiquidation.LiquidationReceipt memory _receipt = liquidationReceipts[id];
-        return (
-            _receipt.tracer,
-            _receipt.liquidator,
-            _receipt.liquidatee,
-            _receipt.price,
-            _receipt.time,
-            _receipt.escrowedAmount,
-            _receipt.releaseTime,
-            _receipt.amountLiquidated,
-            _receipt.escrowClaimed,
-            _receipt.liquidationSide,
-            _receipt.liquidatorRefundClaimed
-        );
+        return liquidationReceipts[id];
     }
 
 
