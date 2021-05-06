@@ -21,7 +21,7 @@ contract Trader is ITrader {
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expiration,uint256 created,address market)"
+            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expires,uint256 created,address market)"
         );
 
     uint256 public override constant chainId = 1337; // Changes per chain
@@ -35,7 +35,7 @@ contract Trader is ITrader {
     mapping(bytes32 => uint256) public filled;
 
     event Verify(address sig);
-    event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address market);
+    event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expires, address market);
 
     constructor() {
         // Construct the EIP712 Domain
