@@ -173,8 +173,7 @@ library Balances {
     * @notice converts a wad token amount to its raw representation.
     */
     function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
-        require(wadAmount >= 0, "LBS: wadAmount<0");
-        int scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
+        uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
         return uint(wadAmount / scaler);
     }
 }
