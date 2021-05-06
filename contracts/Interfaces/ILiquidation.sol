@@ -3,25 +3,22 @@ pragma solidity ^0.8.0;
 import "./Types.sol";
 
 interface ILiquidation {
-    function submitLiquidation(
-        address market,
-        address liquidator,
-        address liquidatee,
-        int256 price,
-        uint256 escrowedAmount,
-        int256 amountLiquidated,
-        bool liquidationSide
-    ) external;
 
     function claimEscrow(uint256 id, address trader) external returns (int256);
 
-    function claimReceipts(
+    function calcAmountToReturn(
         uint256 escrowId,
-        uint256[] memory orderIds,
+        Types.Order[] memory orders,
         uint256 priceMultiplier,
-        address market,
+        address traderContract,
         address liquidator
     ) external returns (uint256);
+
+    function calcUnitsSold(
+        Types.Order[] memory orders,
+        address traderContract,
+        uint256 receiptId
+    ) external returns (uint256, int256);
 
     function getLiquidationReceipt(uint256 id)
         external
@@ -42,14 +39,13 @@ interface ILiquidation {
 
     function liquidate(
         int256 amount, 
-        address account,
-        address market
+        address account
     ) external;
 
     function claimReceipts(
-        uint256 receiptID,
-        uint256[] memory orderIds,
-        address market
+        uint256 receiptId,
+        Types.Order[] memory orders,
+        address traderContract
     ) external;
 
     function claimEscrow(uint256 receiptId) external;

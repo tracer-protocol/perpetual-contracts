@@ -8,7 +8,6 @@ import "../Interfaces/IDeployer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
-
     uint256 public tracerCounter;
     address public insurance;
     address public deployer;
@@ -19,47 +18,32 @@ contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
 
     event TracerDeployed(bytes32 marketId, address market);
 
-    constructor(
-        address _insurance,
-        address _deployer,
-        address _governance
-    ) public {
+    constructor(address _insurance, address _deployer) {
         setInsuranceContract(_insurance);
         setDeployerContract(_deployer);
     }
 
     /**
-    * @notice Allows the factory to absorb already deployed Tracers. This lets a third 
-    *         party deploy tracers and propose they become part of the factory.
-    * @dev reverts if the address being passed in as the tracer does not implement the tracer hash function
-    */
-    function deployTracer(
-        bytes calldata _data
-    ) external {
- 
-    }
+     * @notice Allows the factory to absorb already deployed Tracers. This lets a third
+     *         party deploy tracers and propose they become part of the factory.
+     * @dev reverts if the address being passed in as the tracer does not implement the tracer hash function
+     */
+    function deployTracer(bytes calldata _data) external {}
 
-
-   /**
+    /**
      * @notice Allows the factory to deploy tracer markets.
      * @dev reverts if the market ID already exists.
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
-    function deployTracerAndApprove(
-        bytes calldata _data
-    ) external  {
-
-    }
+    function deployTracerAndApprove(bytes calldata _data) external {}
 
     /**
      * @notice Allows for deploying a tracer without calling Deployer.deploy()
      * @param market The address for the new mock market
      * @dev useful for testing when you want to call functions with onlyTracer() modifier
      */
-    function mockDeployTracer(
-        address market
-    ) external {
-        ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
+    function mockDeployTracer(address market) external {
+        // ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
         // bytes32 marketId = tracer.marketId();
         bytes32 marketId = bytes32("TEST/USD");
         validTracers[market] = true;
@@ -93,5 +77,4 @@ contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
     function setApproved(address market, bool value) public override {
         daoApproved[market] = value;
     }
-
 }

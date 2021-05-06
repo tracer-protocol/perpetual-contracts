@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IDeployer.sol";
+import "./Insurance.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
@@ -27,7 +27,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address _insurance,
         address _deployer,
         address _governance
-    ) public {
+    ) {
         setInsuranceContract(_insurance);
         setDeployerContract(_deployer);
         transferOwnership(_governance);
@@ -68,8 +68,9 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
         validTracers[market] = true;
         tracersByIndex[tracerCounter] = market;
-
-        IInsurance(insurance).deployInsurancePool(market);
+        
+        // Instantiate Insurance contract for tracer
+        insurance = address(new Insurance(address(market), address(this)));
         tracerCounter++;
 
         // Perform admin operations on the tracer to finalise linking

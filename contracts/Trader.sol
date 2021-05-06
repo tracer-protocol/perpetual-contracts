@@ -37,7 +37,7 @@ contract Trader is ITrader {
     event Verify(address sig);
     event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expiration, address market);
 
-    constructor() public {
+    constructor() {
         // Construct the EIP712 Domain
         EIP712_DOMAIN = keccak256(
             abi.encode(

@@ -14,10 +14,20 @@ interface ITracerPerpetualSwaps {
         uint256 amountToEscrow
     ) external;
 
+	function updateAccountsOnReceiptClaim(
+		address claimant,
+		int256 amountToGiveToClaimant,
+		address liquidatee,
+		int256 amountToGiveToLiquidatee,
+		int256 amountToTakeFromInsurance
+	) external;
+
     function settle(address account) external;
 
     function tracerBaseToken() external view returns (address);
 
+    function liquidationContract() external view returns (address);
+    
     function tradingWhitelist(address trader) external returns (bool);
 
     function marketId() external view returns(bytes32);
@@ -52,5 +62,9 @@ interface ITracerPerpetualSwaps {
 
     function transferOwnership(address newOwner) external;
 
-    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2, uint256 fillAmount) external;
+    function deposit(uint256 amount) external;
+
+    function withdraw(uint256 amount) external;
+
+    function matchOrders(Types.Order memory order1, Types.Order memory order2, uint256 fillAmount) external;
 }
