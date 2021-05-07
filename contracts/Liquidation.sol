@@ -223,22 +223,21 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 gasPrice,
         address account
     ) internal returns (uint256) {
+        Balances.Position memory pos = Balances.Position(base, quote);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
-        uint256 minMargin =
-            Balances.calcMinMargin(quote, price, base, gasCost, tracer.maxLeverage(), priceMultiplier);
 
-        int256 currentMargin = Balances.calcMargin(quote, price, base, priceMultiplier);
+        int256 currentMargin = Balances.margin(pos, price);
         // todo CASTING CHECK
         require(
-            currentMargin <= 0 || uint256(currentMargin) < minMargin,
+            currentMargin <= 0 || uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
             "LIQ: Account above margin"
         );
         require(amount <= quote.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            minMargin,
-            Balances.calcMargin(quote, price, base, priceMultiplier)
+            Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+            currentMargin
         );
 
         // create a liquidation receipt
