@@ -123,8 +123,7 @@ contract Liquidation is ILiquidation, Ownable {
         // Mark refund as claimed
         liquidationReceipts[escrowId].liquidatorRefundClaimed = true;
 
-        uint256 amountToReturn = 0;
-        /*
+        uint256 amountToReturn =
             LibLiquidation.calculateSlippage(
                 unitsSold,
                 priceMultiplier,
@@ -132,7 +131,6 @@ contract Liquidation is ILiquidation, Ownable {
                 avgPrice,
                 receipt
             );
-            */
 
         if (amountToReturn > receipt.escrowedAmount) {
             liquidationReceipts[escrowId].escrowedAmount = 0;

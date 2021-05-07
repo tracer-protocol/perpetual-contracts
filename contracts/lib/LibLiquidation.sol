@@ -127,7 +127,7 @@ library LibLiquidation {
             if (avgPrice < receipt.price && receipt.liquidationSide) {
                 amountToReturn = uint256(amountExpectedFor - amountSoldFor);
                 if (amountToReturn <= 0) {
-                    return 4;
+                    return 0;
                 }
                 percentSlippage = (amountToReturn * PERCENT_PRECISION) / amountExpectedFor;
             } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
@@ -140,7 +140,7 @@ library LibLiquidation {
             if (percentSlippage > maxSlippage) {
                 amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
             }
-            return (amountToReturn);
+            return amountToReturn;
         }
     }
 }
