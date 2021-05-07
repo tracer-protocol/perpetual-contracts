@@ -2,10 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 library LibLiquidation {
     using LibMath for uint256;
     using LibMath for int256;
+    using PRBMathUD60x18 for uint256;
+
     uint256 private constant PERCENT_PRECISION = 10000;
 
     struct LiquidationReceipt {
@@ -94,7 +97,6 @@ library LibLiquidation {
 
     function calculateSlippage(
         uint256 unitsSold,
-        uint256 priceMultiplier,
         uint256 maxSlippage,
         uint256 avgPrice,
         LibLiquidation.LiquidationReceipt memory receipt
@@ -110,9 +112,8 @@ library LibLiquidation {
             return 0;
         } else {
             // Liquidator took a long position, and price dropped
-            // todo CASTING CHECK
-            uint256 amountSoldFor = (avgPrice * unitsSold) / priceMultiplier;
-            uint256 amountExpectedFor = (receipt.price * unitsSold) / priceMultiplier;
+            uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
+            uint256 amountExpectedFor = PRBMathUD60x18.mul(receipt.price, unitsSold);
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator

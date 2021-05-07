@@ -3,10 +3,14 @@ pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
 import "../Interfaces/Types.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 library Balances {
     using LibMath for uint256;
     using LibMath for int256;
+    using PRBMathSD59x18 for int256;
+    using PRBMathUD60x18 for uint256;
 
     uint256 private constant MARGIN_MUL_FACTOR = 10000; // Factor to keep precision in base calcs
     uint256 private constant FEED_UNIT_DIVIDER = 10e7; // used to normalise gas feed prices for base calcs
@@ -19,7 +23,6 @@ library Balances {
      * @param amount the amount of positions being purchased in this trade
      * @param price the price the positions are being purchased at
      * @param side the side of the order (true for LONG, false for SHORT)
-     * @param priceMultiplier the price multiplier used for the tracer contract the calc is being run for
      * @param feeRate the current fee rate of the tracer contract the calc is being run for
      */
     function safeCalcTradeMargin(
@@ -28,12 +31,13 @@ library Balances {
         uint256 amount,
         uint256 price,
         bool side,
-        uint256 priceMultiplier,
         uint256 feeRate
     ) internal pure returns (int256 _currentBase, int256 _currentQuote) {
         // Get base change and fee if present
-        int256 baseChange = ((amount * price) / priceMultiplier).toInt256();
-        int256 fee = (baseChange * feeRate.toInt256()) / priceMultiplier.toInt256();
+        // todo CASTING CHECK
+        int256 baseChange = PRBMathUD60x18.mul(amount, price).toInt256();
+        // todo fee rate must be a WAD
+        int256 fee = PRBMathSD59x18.mul(baseChange, feeRate.toInt256());
         if (side) {
             // LONG
             currentQuote = currentQuote + amount.toInt256();
@@ -54,22 +58,17 @@ library Balances {
      * @param base the base of a user
      * @param position the position of a user
      * @param price the price for which the value is being calculated at
-     * @param priceMultiplier the multiplier value used for the price being referenced
     */
     function calcMarginPositionValue(
         int256 base,
         int256 position,
-        uint256 price,
-        uint256 priceMultiplier
+        uint256 price
     ) internal pure returns (int256 _baseCorrectUnits, int256 _positionValue) {
-        int256 baseCorrectUnits = 0;
         int256 positionValue = 0;
 
         // todo it appears both of the below params can be uints?
-        baseCorrectUnits = base.abs() * priceMultiplier.toInt256() * MARGIN_MUL_FACTOR.toInt256();
-        positionValue = position.abs() * price.toInt256();
-
-        return (baseCorrectUnits, positionValue);
+        positionValue = PRBMathSD59x18.mul(PRBMathSD59x18.abs(position), price.toInt256());
+        return (base, positionValue);
     }
 
     /**
@@ -77,21 +76,17 @@ library Balances {
      * @param quote The amount of quote units
      * @param price The price of the quote asset
      * @param base The base units
-     * @param priceMultiplier The multiplier for the price feed
      */
     function calcMargin(
-        int256 quote,
-        uint256 price,
-        int256 base,
-        uint256 priceMultiplier
+        int256 quote, //10^18
+        uint256 price, //10^18
+        int256 base //10^18
     ) internal pure returns (int256) {
-        // (10^18 * 10^8 + 10^18 * 10^8) / 10^8
-        // (10^26 + 10^26) / 10^8
-        // 10^18
-        return (((base * priceMultiplier.toInt256())) + quote * price.toInt256()) / priceMultiplier.toInt256();
+        // base + quote * price using WAD maths
+        return base + PRBMathSD59x18.mul(quote, price.toInt256());
     }
 
-    /*
+    /**
      * @notice Calculates what the minimum margin should be given a certain position
      * @param quote The amount of quote units
      * @param price The price of the quote asset
@@ -104,10 +99,9 @@ library Balances {
         uint256 price, // 10^8
         int256 base,  // 10^18
         uint256 liquidationGasCost, // USD/GAS 10^18
-        uint256 maxLeverage,
-        uint256 priceMultiplier
+        uint256 maxLeverage
     ) internal pure returns (uint256) {
-        uint256 leveragedNotionalValue = newCalcLeveragedNotionalValue(quote, price, base, priceMultiplier);
+        uint256 leveragedNotionalValue = newCalcLeveragedNotionalValue(quote, price, base);
         uint256 notionalValue = calcNotionalValue(quote, price);
 
         if (leveragedNotionalValue == 0 && quote >= 0) {
@@ -116,9 +110,7 @@ library Balances {
         }
         // LGC * 6 + notionalValue/maxLeverage
         uint256 lgc = liquidationGasCost * 6; // 10^18
-        // 10^26 * 10^4 / 10^4 / 10^8 = 10^18
-        // todo CASTING CHECK
-        uint256 baseMinimum = (notionalValue * MARGIN_MUL_FACTOR / maxLeverage) / priceMultiplier;
+         uint256 baseMinimum = PRBMathUD60x18.div(notionalValue, maxLeverage);
         return lgc + baseMinimum;
     }
 
@@ -131,18 +123,15 @@ library Balances {
      */
     function newCalcLeveragedNotionalValue(
         int256 quote, // 10^18
-        uint256 price, // 10^8
-        int256 base, // 10^18
-        uint256 priceMultiplier // 10^8
+        uint256 price, // 10^18
+        int256 base // 10^18
     ) internal pure returns (uint256) {
         uint256 notionalValue = calcNotionalValue(quote, price);
-        int256 margin = calcMargin(quote, price, base, priceMultiplier);
+        int256 margin = calcMargin(quote, price, base);
         // todo margin should be greater than minMargin for valid positions.
         // ensure this is safe
         uint256 _margin = margin > 0 ? uint(margin) : uint(0);
-        // todo CASTING CHECK
-        uint256 LNV = (notionalValue - _margin * priceMultiplier) / priceMultiplier;
-        return LNV;
+        return notionalValue - _margin;
     }
 
     /**
@@ -155,7 +144,7 @@ library Balances {
         uint256 price
     ) internal pure returns (uint256) {
         // todo CASTING CHECK
-        uint256 _quote = uint256(quote.abs());
-        return _quote * price; // 10^18 * 10^8 = 10^26
+        uint256 _quote = uint256(PRBMathSD59x18.abs(quote));
+        return PRBMathUD60x18.mul(_quote, price);
     }
 }

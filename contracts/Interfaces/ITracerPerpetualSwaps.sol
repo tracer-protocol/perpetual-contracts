@@ -37,8 +37,6 @@ interface ITracerPerpetualSwaps {
 
     function gasPriceOracle() external view returns(address);
 
-    function priceMultiplier() external view returns(uint256);
-
     function feeRate() external view returns(uint256);
 
     function maxLeverage() external view returns(uint256);
