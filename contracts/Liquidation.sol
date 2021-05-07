@@ -155,8 +155,8 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimEscrow(uint256 receiptId) public override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
-        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
+        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
 
         // Mark as claimed
@@ -164,8 +164,8 @@ contract Liquidation is ILiquidation, Ownable {
 
         // Update balance
         int256 amountToReturn = receipt.escrowedAmount.toInt256();
-        emit ClaimedEscrow(msg.sender, receipt.tracer, receiptId);
-        tracer.updateAccountsOnClaim(address(0), 0, msg.sender, amountToReturn, 0);
+        emit ClaimedEscrow(receipt.liquidatee, receipt.tracer, receiptId);
+        tracer.updateAccountsOnClaim(address(0), 0, receipt.liquidatee, amountToReturn, 0);
     }
 
     /**
