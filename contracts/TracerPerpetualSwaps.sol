@@ -27,6 +27,7 @@ contract TracerPerpetualSwaps is
 	// todo ensure these are fine being immutable
 	uint256 public immutable override priceMultiplier;
 	address public immutable override tracerBaseToken;
+	uint256 public immutable override baseTokenDecimals;
 	bytes32 public immutable override marketId;
 	IPricing public pricingContract;
 	IInsurance public insuranceContract;
@@ -68,6 +69,7 @@ contract TracerPerpetualSwaps is
 	constructor(
 		bytes32 _marketId,
 		address _tracerBaseToken,
+		uint256 _tokenDecimals,
 		address _gasPriceOracle,
 		address _pricingContract,
 		address _liquidationContract,
@@ -81,6 +83,7 @@ contract TracerPerpetualSwaps is
 		// with the contract
 		liquidationContract = _liquidationContract;
 		tracerBaseToken = _tracerBaseToken;
+		baseTokenDecimals = _tokenDecimals;
 		gasPriceOracle = _gasPriceOracle;
 		marketId = _marketId;
 		priceMultiplier = 10**uint256(_oracleDecimals);
@@ -92,25 +95,30 @@ contract TracerPerpetualSwaps is
 	/**
 	 * @notice Allows a user to deposit into their margin account
 	 * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
-	 * @param amount The amount of base tokens to be deposited into the Tracer Market account
+	 * @param amount The amount of base tokens to be deposited into the Tracer Market account. This amount
+	 * should be given with the correct decimal units of the token
 	 */
 	function deposit(uint256 amount) external override {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
 		IERC20(tracerBaseToken).transferFrom(msg.sender, address(this), amount);
 
 		// update user state
-		userBalance.base = userBalance.base + amount.toInt256();
+		int256 amountToUpdate = Balances.tokenToWad(baseTokenDecimals, amount);
+		userBalance.base = userBalance.base + amountToUpdate;
 		_updateAccountLeverage(msg.sender);
 
 		// update market TVL
-		tvl = tvl + amount;
+		// this cast is safe since amount > 0 on deposit and tokenToWad simply
+		// multiplies the amount up to a WAD value
+		tvl = tvl + uint(amountToUpdate);
 		emit Deposit(msg.sender, amount);
 	}
 
 	/**
 	 * @notice Allows a user to withdraw from their margin account
 	 * @dev Ensures that the users margin percent is valid after withdraw
-	 * @param amount The amount of margin tokens to be withdrawn from the tracer market account
+	 * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
+	 * should be given in WAD format
 	 */
 	function withdraw(uint256 amount) external override {
 		Types.AccountBalance storage userBalance = balances[msg.sender];
@@ -132,7 +140,8 @@ contract TracerPerpetualSwaps is
 		tvl = tvl - amount;
 
 		// perform transfer
-		IERC20(tracerBaseToken).transfer(msg.sender, amount);
+		uint256 transferAmount = Balances.wadToToken(baseTokenDecimals, amount);
+		IERC20(tracerBaseToken).transfer(msg.sender, transferAmount);
 		emit Withdraw(msg.sender, amount);
 	}
 
