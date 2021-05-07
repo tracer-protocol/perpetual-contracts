@@ -4,9 +4,17 @@ module.exports = async function (hre) {
 
   const {deployer} = await getNamedAccounts();
 
-  await deploy('LibLiquidation', {
+  const libLiquidation = await deploy('LibLiquidation', {
     from: deployer,
     log: true,
   });
+
+  await deploy('LibLiquidationMock', {
+    from: deployer,
+    log: true,
+    libraries: {
+      LibLiquidation: libLiquidation.address
+    }
+  });
 };
-module.exports.tags = ['LibLiquidation'];
+module.exports.tags = ['LibLiquidationMock'];
