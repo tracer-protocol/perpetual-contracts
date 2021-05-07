@@ -45,7 +45,7 @@ library LibLiquidation {
         int256 liquidatedQuote,
         int256 liquidatorQuote,
         int256 amount
-    ) internal pure returns (
+    ) public pure returns (
         int256 _liquidatorBaseChange,
         int256 _liquidatorQuoteChange,
         int256 _liquidateeBaseChange,
@@ -106,6 +106,7 @@ library LibLiquidation {
         uint256 avgPrice,
         LiquidationReceipt memory receipt
     ) internal pure returns (uint256) {
+        // Check price slippage and update account states
         if (
             avgPrice == receipt.price || // No price change
             (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short

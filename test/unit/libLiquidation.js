@@ -90,7 +90,7 @@ describe("Unit tests: LibLiquidation.sol", function() {
       expect(ret._liquidateeQuoteChange.toString()).to.equal(expectedChange)
     })
 
-    it("changes part of balance onpartial liquidation", async function() {
+    it("changes part of balance on partial liquidation", async function() {
       const liquidatedBase = "-100"
       const liquidatedQuote = "250"
       const liquidatorQuote = "300"
