@@ -20,7 +20,8 @@ describe("Unit tests: LibBalances.sol", function () {
     })
 
     context("NetValue", async () => {
-        it("Supports the full range of the quote parameter", async () => {
+        // net value = abs(position) * price
+        it("Supports the full range of the params", async () => {
             let positions = [
                 {
                     base: ethers.utils.parseEther("0"),
@@ -38,26 +39,6 @@ describe("Unit tests: LibBalances.sol", function () {
                 { base: ethers.utils.parseEther("0"), quote: MIN_INT256 }, //min position supported
             ]
 
-            // constant price of $1
-            let price = ethers.utils.parseEther("1")
-
-            // expected netValue results at a value of $1
-            let results = [
-                ethers.utils.parseEther("1"), //single position long
-                ethers.utils.parseEther("1"), //single position short
-                ethers.utils.parseEther("0"), //no positions
-                MAX_INT256, //max position supported
-                MIN_INT256.mul(-1),
-            ]
-
-            for (var i = 0; i < positions; i++) {
-                // todo fill in function call
-                // let result = await LibBalances.netValue(positions[i], price)
-                // expect(result.toString()).to.equal(results[i].toString())
-            }
-        })
-
-        it("Supports the full range of the price parameter", async () => {
             let prices = [
                 ethers.utils.parseEther("1"), //$1
                 ethers.utils.parseEther("-1"), //-$1
@@ -66,46 +47,125 @@ describe("Unit tests: LibBalances.sol", function () {
                 MIN_INT256, //$min_int256
             ]
 
-            let position = {
-                base: ethers.utils.parseEther("0"),
-                quote: ethers.utils.parseEther("1"),
-            }
+            // generate results
+            results = positions.forEach((position) => {
+                prices.forEach((price) => {
+                    // get the abs of the result
+                    let result = position.quote.mul(price)
+                    if (result.lt(BigNumber.from(0))) {
+                        result = result.mul(BigNumber.from(-1))
+                    }
+                    return result
+                })
+            })
 
-            let results = [
-                ethers.utils.parseEther("1"), //$1
-                ethers.utils.parseEther("1"), //$1
-                ethers.utils.parseEther("0"), //no positions
-                MAX_INT256, //max position supported
-                MIN_INT256.mul(-1),
+            for (var i = 0; i < positions.length; i++) {
+                for (var j = 0; j < prices.length; j++) {
+                    // let result = await LibBalances.netValue(positions[i], prices[j])
+                    // expect(result.toString()).to.equal(results[i+j].toString())
+                }
+            }
+        })
+    })
+
+    context("margin", async () => {
+        it("Supports the full range of params", async () => {
+            let positions = [
+                {
+                    base: ethers.utils.parseEther("1"),
+                    quote: ethers.utils.parseEther("1"),
+                },
+                {
+                    base: ethers.utils.parseEther("-1"),
+                    quote: ethers.utils.parseEther("-1"),
+                },
+                {
+                    base: ethers.utils.parseEther("0"),
+                    quote: ethers.utils.parseEther("0"),
+                },
+                {
+                    base: ethers.utils.parseEther("1"),
+                    quote: ethers.utils.parseEther("-1"),
+                },
+                { base: MAX_INT256, quote: MAX_INT256 }, //max position supported
+                { base: MIN_INT256, quote: MIN_INT256 }, //min position supported
             ]
 
-            for (var i = 0; i < prices; i++) {
-                // todo fill in function call
-                // let result = await LibBalances.netValue(position, prices[i])
-                // expect(result.toString()).to.equal(results[i].toString())
+            let prices = [
+                ethers.utils.parseEther("1"), //$1
+                ethers.utils.parseEther("-1"), //-$1
+                ethers.utils.parseEther("0"), //$0
+                MAX_INT256, //$max_int256
+                MIN_INT256, //$min_int256
+            ]
+
+            // generate results
+            results = positions.forEach((position) => {
+                prices.forEach((price) => {
+                    // get the abs of the result
+                    let result = position.quote.add(position.base.mul(price))
+                    return result
+                })
+            })
+
+            for (var i = 0; i < positions.length; i++) {
+                for (var j = 0; j < prices.length; j++) {
+                    // let result = await LibBalances.netValue(positions[i], prices[j])
+                    // expect(result.toString()).to.equal(results[i+j].toString())
+                }
             }
         })
+    })
 
-        it("Supports upper and lower bounds", async () => {
-            let upperBound = {
-              base: ethers.utils.parseEther("0"),
-              quote: MAX_INT256,
-              price: MAX_INT256,
-              result: MAX_INT256.mul(MAX_INT256)
-            }
+    context("leveragedNotionalValue", async () => {
+        // leveraged notional value = netValue - margin
+        let positions = [
+            {
+                base: ethers.utils.parseEther("1"),
+                quote: ethers.utils.parseEther("1"),
+            },
+            {
+                base: ethers.utils.parseEther("-1"),
+                quote: ethers.utils.parseEther("-1"),
+            },
+            {
+                base: ethers.utils.parseEther("0"),
+                quote: ethers.utils.parseEther("0"),
+            },
+            {
+                base: ethers.utils.parseEther("1"),
+                quote: ethers.utils.parseEther("-1"),
+            },
+            { base: MAX_INT256, quote: MAX_INT256 }, //max position supported
+            { base: MIN_INT256, quote: MIN_INT256 }, //min position supported
+        ]
 
-            let lowerBound = {
-              base: ethers.utils.parseEther("0"),
-              quote: MIN_INT256,
-              price: MIN_INT256,
-              result: MIN_INT256.mul(MIN_INT256)
-            }
+        let prices = [
+            ethers.utils.parseEther("1"), //$1
+            ethers.utils.parseEther("-1"), //-$1
+            ethers.utils.parseEther("0"), //$0
+            MAX_INT256, //$max_int256
+            MIN_INT256, //$min_int256
+        ]
 
-            // let upperResult = await LibBalances.netValue({base: upperBound.base, quote: upperBound.quote}, upperBound.price)
-            // expect(upperResult.toString()).to.equal(upperBound.result.toString())
-
-            // let lowerResult = await LibBalances.netValue({base: lowerBound.base, quote: lowerBound.quote}, upplowerBounderBound.price)
-            // expect(lowerResult.toString()).to.equal(lowerBound.result.toString())
+        // generate results
+        results = positions.forEach((position) => {
+            prices.forEach((price) => {
+                // get the abs of the result
+                let netValue = position.quote.mul(price)
+                let margin = position.quote.add(position.base.mul(price))
+                let result = netValue.sub(margin)
+                // ensure result >= 0
+                result = result.lt(BigNumber.from(0)) ? BigNumber.from(0) : result
+                return result
+            })
         })
+
+        for (var i = 0; i < positions.length; i++) {
+            for (var j = 0; j < prices.length; j++) {
+                // let result = await LibBalances.netValue(positions[i], prices[j])
+                // expect(result.toString()).to.equal(results[i+j].toString())
+            }
+        }
     })
 })
