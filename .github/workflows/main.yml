@@ -1,21 +1,48 @@
 name: Actions
 
 on:
-  push:
-    branches:
-      - master
-  pull_request: ~
+    push
 
 jobs:
-  run-tests:
-    name: Run Tracer Tests (with migrations)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: "12.16"
-      - run: yarn
-      - run: yarn test
-        env:
-          MAINNET_RPC: https://mainnet.infura.io/v3/0baed183ec2b45e3a5b6c1536a4a5bf0
+    build:
+        name: Run build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+
+            - name: Install dependencies
+              run: yarn install
+
+            - name: Compile contracts
+              run: yarn hardhat compile
+
+    test:
+        name: Run tests
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions/setup-node@v1
+              with:
+                node_version: "15.14"
+
+            - name: Install dependencies
+              run: yarn install
+
+            - name: Run unit tests
+              run: yarn run test:unit
+
+            - name: Run functional tests
+              run: yarn run test:functional
+
+    lint:
+        name: Run lints
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v1
+
+            - name: Install dependencies
+              run: yarn install
+
+            - name: Run Prettier
+              run: yarn run lint
+
