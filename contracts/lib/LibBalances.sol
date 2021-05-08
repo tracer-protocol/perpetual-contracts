@@ -6,6 +6,9 @@ import "./LibPerpetuals.sol";
 
 library Balances {
     using LibMath for int256;
+    using LibMath for uint256;
+
+    uint256 private constant MAX_DECIMALS = 18;
 
     struct Position {
         int256 base;
