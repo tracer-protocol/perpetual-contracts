@@ -19,7 +19,6 @@ contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
     event TracerDeployed(bytes32 marketId, address market);
 
     constructor(address _insurance, address _deployer) {
-        setInsuranceContract(_insurance);
         setDeployerContract(_deployer);
     }
 
@@ -52,16 +51,6 @@ contract MockTracerPerpetualsFactory is ITracerPerpetualsFactory {
         tracerCounter++;
 
         emit TracerDeployed(marketId, market);
-    }
-
-    /**
-     * @notice Sets the insurance contract for tracers. Allows the
-     *         factory to be used as a point of reference for all pieces
-     *         in the tracer protocol.
-     * @param newInsurance the new insurance contract address
-     */
-    function setInsuranceContract(address newInsurance) public override {
-        insurance = newInsurance;
     }
 
     /**
