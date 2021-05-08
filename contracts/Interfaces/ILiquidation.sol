@@ -5,7 +5,6 @@ import "../lib/LibPerpetuals.sol";
 import "../lib/LibLiquidation.sol";
 
 interface ILiquidation {
-
     function claimEscrow(uint256 id, address trader) external returns (int256);
 
     function calcAmountToReturn(
@@ -27,10 +26,7 @@ interface ILiquidation {
         view
         returns (LibLiquidation.LiquidationReceipt memory);
 
-    function liquidate(
-        int256 amount, 
-        address account
-    ) external;
+    function liquidate(int256 amount, address account) external;
 
     function claimReceipts(
         uint256 receiptId,
@@ -40,9 +36,9 @@ interface ILiquidation {
 
     function claimEscrow(uint256 receiptId) external;
 
-    function currentLiquidationId() external view returns(uint256);
+    function currentLiquidationId() external view returns (uint256);
 
-    function maxSlippage() external view returns(uint256);
+    function maxSlippage() external view returns (uint256);
 
     function setMaxSlippage(uint256 _maxSlippage) external;
 }

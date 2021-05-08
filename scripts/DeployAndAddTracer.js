@@ -1,27 +1,27 @@
-const hre = require("hardhat");
-const TestToken = artifacts.require("TestToken");
-const { BN, time } = require('@openzeppelin/test-helpers')
-const Gov = artifacts.require("Gov");
-const TracerFactory = artifacts.require("TracerPerpetualsFactory");
+const hre = require("hardhat")
+const TestToken = artifacts.require("TestToken")
+const { BN, time } = require("@openzeppelin/test-helpers")
+const Gov = artifacts.require("Gov")
+const TracerFactory = artifacts.require("TracerPerpetualsFactory")
 
 // small sample script for using deploys and then deploying a trace
 async function main() {
     // deploy all contracts using hardhat deploy
-    const { deployments } = hre;
+    const { deployments } = hre
     const twoDays = 172800
-    let accounts = await web3.eth.getAccounts();
+    let accounts = await web3.eth.getAccounts()
 
     // deploy all contracts
-    await deployments.fixture(["FullDeploy"]);
+    await deployments.fixture(["FullDeploy"])
 
     // todo how do collisions work on  multiple instances of a contract?
-    let oracle = await deployments.get('Oracle');
-    let gasPriceOracle = await deployments.get('Oracle');
-    let account = await deployments.get('Account');
-    let pricing = await deployments.get('Pricing');
-    let maxLeverage = new BN("125000").toString();
-    let gov = await deployments.get('Gov');
-    let govToken = await deployments.get('TestToken');
+    let oracle = await deployments.get("Oracle")
+    let gasPriceOracle = await deployments.get("Oracle")
+    let account = await deployments.get("Account")
+    let pricing = await deployments.get("Pricing")
+    let maxLeverage = new BN("125000").toString()
+    let gov = await deployments.get("Gov")
+    let govToken = await deployments.get("TestToken")
     let factory = await deployments.get("TracerFactory")
     gov = await Gov.at(gov.address)
     govToken = await TestToken.at(govToken.address)
@@ -33,11 +33,20 @@ async function main() {
     }
 
     // use gov to deploy a tracer
-    var token = await TestToken.new(web3.utils.toWei('1000000'))
+    var token = await TestToken.new(web3.utils.toWei("1000000"))
 
     //Deploy a new Tracer contract per test
     var deployTracerData = web3.eth.abi.encodeParameters(
-        ['bytes32', 'address', 'address', 'address', 'address', 'address', 'int256', 'uint256'],
+        [
+            "bytes32",
+            "address",
+            "address",
+            "address",
+            "address",
+            "address",
+            "int256",
+            "uint256",
+        ],
         [
             web3.utils.fromAscii(`TEST1/USD`),
             token.address,
@@ -46,7 +55,7 @@ async function main() {
             account.address,
             pricing.address,
             maxLeverage,
-            1 //funding rate sensitivity
+            1, //funding rate sensitivity
         ]
     )
 
@@ -60,8 +69,7 @@ async function main() {
 // and properly handle errors.
 main()
     .then(() => process.exit(0))
-    .catch(error => {
-        console.error(error);
-        process.exit(1);
-    });
-
+    .catch((error) => {
+        console.error(error)
+        process.exit(1)
+    })

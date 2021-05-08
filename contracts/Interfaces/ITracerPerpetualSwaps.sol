@@ -4,7 +4,6 @@ import "./Types.sol";
 import "../lib/LibPerpetuals.sol";
 
 interface ITracerPerpetualSwaps {
-
     function updateAccountsOnLiquidation(
         address liquidator,
         address liquidatee,
@@ -15,13 +14,13 @@ interface ITracerPerpetualSwaps {
         uint256 amountToEscrow
     ) external;
 
-	function updateAccountsOnReceiptClaim(
-		address claimant,
-		int256 amountToGiveToClaimant,
-		address liquidatee,
-		int256 amountToGiveToLiquidatee,
-		int256 amountToTakeFromInsurance
-	) external;
+    function updateAccountsOnReceiptClaim(
+        address claimant,
+        int256 amountToGiveToClaimant,
+        address liquidatee,
+        int256 amountToGiveToLiquidatee,
+        int256 amountToTakeFromInsurance
+    ) external;
 
     function settle(address account) external;
 
@@ -30,26 +29,29 @@ interface ITracerPerpetualSwaps {
     function baseTokenDecimals() external view returns (uint256);
 
     function liquidationContract() external view returns (address);
-    
+
     function tradingWhitelist(address trader) external returns (bool);
 
-    function marketId() external view returns(bytes32);
+    function marketId() external view returns (bytes32);
 
-    function leveragedNotionalValue() external view returns(int256);
+    function leveragedNotionalValue() external view returns (int256);
 
-    function gasPriceOracle() external view returns(address);
+    function gasPriceOracle() external view returns (address);
 
-    function priceMultiplier() external view returns(uint256);
+    function priceMultiplier() external view returns (uint256);
 
-    function feeRate() external view returns(uint256);
+    function feeRate() external view returns (uint256);
 
-    function maxLeverage() external view returns(uint256);
+    function maxLeverage() external view returns (uint256);
 
-    function LIQUIDATION_GAS_COST() external view returns(uint256);
+    function LIQUIDATION_GAS_COST() external view returns (uint256);
 
-    function fundingRateSensitivity() external view returns(uint256);
+    function fundingRateSensitivity() external view returns (uint256);
 
-    function getBalance(address account) external view returns (Types.AccountBalance memory);
+    function getBalance(address account)
+        external
+        view
+        returns (Types.AccountBalance memory);
 
     function setInsuranceContract(address insurance) external;
 
@@ -61,7 +63,8 @@ interface ITracerPerpetualSwaps {
 
     function setMaxLeverage(uint256 _maxLeverage) external;
 
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
+        external;
 
     function transferOwnership(address newOwner) external;
 
@@ -69,5 +72,9 @@ interface ITracerPerpetualSwaps {
 
     function withdraw(uint256 amount) external;
 
-    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2, uint256 fillAmount) external;
+    function matchOrders(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
+    ) external;
 }
