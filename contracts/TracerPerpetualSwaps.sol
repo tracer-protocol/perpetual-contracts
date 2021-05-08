@@ -229,12 +229,11 @@ contract TracerPerpetualSwaps is
 	function _updateAccountLeverage(address account) internal {
 		Types.AccountBalance memory userBalance = balances[account];
 		uint256 originalLeverage = userBalance.totalLeveragedValue;
+        Balances.Position memory pos = Balances.Position(userBalance.base, userBalance.quote);
 		uint256 newLeverage =
-			Balances.newCalcLeveragedNotionalValue(
-				userBalance.quote,
-				pricingContract.fairPrice(),
-				userBalance.base,
-				priceMultiplier
+			Balances.leveragedNotionalValue(
+                pos,
+				pricingContract.fairPrice()
 			);
 		balances[account].totalLeveragedValue = newLeverage;
 
@@ -447,17 +446,16 @@ contract TracerPerpetualSwaps is
 	) public view returns (bool) {
 		uint256 price = pricingContract.fairPrice();
 		uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
+        Balances.Position memory pos = Balances.Position(base, quote);
 		uint256 minMargin =
-			Balances.calcMinMargin(
-				quote,
+			Balances.minimumMargin(
+                pos,
 				price,
-				base,
 				gasCost,
-				maxLeverage,
-				priceMultiplier
+				maxLeverage
 			);
 		int256 margin =
-			Balances.calcMargin(quote, price, base, priceMultiplier);
+			Balances.margin(pos, price);
 
 		if (margin < 0) {
 			/* Margin being less than 0 is always invalid, even if position is 0.
