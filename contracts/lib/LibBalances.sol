@@ -104,5 +104,22 @@ library Balances {
 
         return newPosition;
     }
+
+    /**
+    * @notice converts a raw token amount to its WAD representation. Used for tokens
+    * that don't have 18 decimal places
+    */
+    function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
+        int scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
+        return amount.toInt256() * scaler;
+    }
+
+    /**
+    * @notice converts a wad token amount to its raw representation.
+    */
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
+        uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
+        return uint(wadAmount / scaler);
+    }
 }
 

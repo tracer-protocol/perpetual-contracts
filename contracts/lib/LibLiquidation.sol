@@ -25,7 +25,7 @@ library LibLiquidation {
     function calcEscrowLiquidationAmount(
         uint256 minMargin,
         int256 currentMargin
-    ) public pure returns (uint256) {
+    ) internal pure returns (uint256) {
         int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
         if (amountToEscrow < 0) {
             return 0;
@@ -45,7 +45,7 @@ library LibLiquidation {
         int256 liquidatedQuote,
         int256 liquidatorQuote,
         int256 amount
-    ) internal pure returns (
+    ) public pure returns (
         int256 _liquidatorBaseChange,
         int256 _liquidatorQuoteChange,
         int256 _liquidateeBaseChange,
@@ -92,14 +92,20 @@ library LibLiquidation {
         );
     }
 
+    /**
+     * @notice Calculates the amount of slippage experienced compared to value of position in a receipt
+     * @param unitsSold Amount of base units sold in the orders
+     * @param priceMultiplier Oracle price multiplier
+     * @param maxSlippage The upper bound for slippage
+     * @param avgPrice The average price of units sold in orders
+     */
     function calculateSlippage(
         uint256 unitsSold,
         uint256 priceMultiplier,
         uint256 maxSlippage,
         uint256 avgPrice,
-        LibLiquidation.LiquidationReceipt memory receipt
+        LiquidationReceipt memory receipt
     ) internal pure returns (uint256) {
-
         // Check price slippage and update account states
         if (
             avgPrice == receipt.price || // No price change
@@ -134,7 +140,7 @@ library LibLiquidation {
             if (percentSlippage > maxSlippage) {
                 amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
             }
-            return (amountToReturn);
+            return amountToReturn;
         }
     }
 }
