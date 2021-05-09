@@ -8,7 +8,10 @@ library LibLiquidationMock {
         uint256 minMargin,
         int256 currentMargin
     ) external pure returns (uint256 result) {
-        result = LibLiquidation.calcEscrowLiquidationAmount(minMargin, currentMargin);
+        result = LibLiquidation.calcEscrowLiquidationAmount(
+            minMargin,
+            currentMargin
+        );
     }
 
     function liquidationBalanceChanges(
@@ -16,12 +19,16 @@ library LibLiquidationMock {
         int256 liquidatedQuote,
         int256 liquidatorQuote,
         int256 amount
-    ) external pure returns (
-        int256 _liquidatorBaseChange,
-        int256 _liquidatorQuoteChange,
-        int256 _liquidateeBaseChange,
-        int256 _liquidateeQuoteChange
-    ) {
+    )
+        external
+        pure
+        returns (
+            int256 _liquidatorBaseChange,
+            int256 _liquidatorQuoteChange,
+            int256 _liquidateeBaseChange,
+            int256 _liquidateeQuoteChange
+        )
+    {
         (
             _liquidatorBaseChange,
             _liquidatorQuoteChange,
@@ -45,13 +52,20 @@ library LibLiquidationMock {
     ) external pure returns (uint256 result) {
         /* Create a struct LibLiquidation with only price and liquidationSide set,
            as they are the only ones used in calculateSlippage */
-        LibLiquidation.LiquidationReceipt memory minimalReceipt = LibLiquidation.LiquidationReceipt(
-            address(0),address(0),address(0), // Not used
-            receiptPrice,
-            0,0,0,0,false, // Not used
-            receiptSide,
-            false // Not used
-        );
+        LibLiquidation.LiquidationReceipt memory minimalReceipt =
+            LibLiquidation.LiquidationReceipt(
+                address(0),
+                address(0),
+                address(0), // Not used
+                receiptPrice,
+                0,
+                0,
+                0,
+                0,
+                false, // Not used
+                receiptSide,
+                false // Not used
+            );
 
         result = LibLiquidation.calculateSlippage(
             unitsSold,

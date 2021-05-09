@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface ITracerPerpetualsFactory {
-
     function tracersByIndex(uint256 count) external view returns (address);
 
     function validTracers(address market) external view returns (bool);

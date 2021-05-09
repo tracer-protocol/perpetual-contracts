@@ -29,7 +29,8 @@ library LibLiquidation {
         uint256 minMargin,
         int256 currentMargin
     ) internal pure returns (uint256) {
-        int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
+        int256 amountToEscrow =
+            currentMargin - (minMargin.toInt256() - currentMargin);
         if (amountToEscrow < 0) {
             return 0;
         }
@@ -41,29 +42,33 @@ library LibLiquidation {
      * @param liquidatedBase The base of the account being liquidated
      * @param liquidatedQuote The quote of the account being liquidated
      * @param liquidatorQuote The quote of the account liquidating
-     * @param amount The amount that is to be liquidated from the position 
+     * @param amount The amount that is to be liquidated from the position
      */
     function liquidationBalanceChanges(
         int256 liquidatedBase,
         int256 liquidatedQuote,
         int256 liquidatorQuote,
         int256 amount
-    ) public pure returns (
-        int256 _liquidatorBaseChange,
-        int256 _liquidatorQuoteChange,
-        int256 _liquidateeBaseChange,
-        int256 _liquidateeQuoteChange
-    ) {
+    )
+        public
+        pure
+        returns (
+            int256 _liquidatorBaseChange,
+            int256 _liquidatorQuoteChange,
+            int256 _liquidateeBaseChange,
+            int256 _liquidateeQuoteChange
+        )
+    {
         int256 liquidatorBaseChange;
         int256 liquidatorQuoteChange;
         int256 liquidateeBaseChange;
         int256 liquidateeQuoteChange;
         // base * (amount / quote)
         // todo CASTING CHECK
-        int256 changeInBase = 
-            ((liquidatedBase * ((amount * PERCENT_PRECISION.toInt256()) / liquidatedQuote.abs())) / 
-                    PERCENT_PRECISION.toInt256()
-            );
+        int256 changeInBase =
+            ((liquidatedBase *
+                ((amount * PERCENT_PRECISION.toInt256()) /
+                    liquidatedQuote.abs())) / PERCENT_PRECISION.toInt256());
         if (liquidatedBase > 0) {
             // Add to the liquidators margin, they are taking on positive margin
             liquidatorBaseChange = changeInBase;
@@ -87,7 +92,7 @@ library LibLiquidation {
             liquidatorQuoteChange = amount * (-1);
             liquidateeQuoteChange = amount;
         }
-        return(
+        return (
             liquidatorBaseChange,
             liquidatorQuoteChange,
             liquidateeBaseChange,
@@ -118,7 +123,8 @@ library LibLiquidation {
         } else {
             // Liquidator took a long position, and price dropped
             uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
-            uint256 amountExpectedFor = PRBMathUD60x18.mul(receipt.price, unitsSold);
+            uint256 amountExpectedFor =
+                PRBMathUD60x18.mul(receipt.price, unitsSold);
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
@@ -129,16 +135,22 @@ library LibLiquidation {
                 if (amountToReturn <= 0) {
                     return 0;
                 }
-                percentSlippage = (amountToReturn * PERCENT_PRECISION) / amountExpectedFor;
+                percentSlippage =
+                    (amountToReturn * PERCENT_PRECISION) /
+                    amountExpectedFor;
             } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
                 amountToReturn = uint256(amountSoldFor - amountExpectedFor);
                 if (amountToReturn <= 0) {
                     return 0;
                 }
-                percentSlippage = (amountToReturn * PERCENT_PRECISION) / amountExpectedFor;
+                percentSlippage =
+                    (amountToReturn * PERCENT_PRECISION) /
+                    amountExpectedFor;
             }
             if (percentSlippage > maxSlippage) {
-                amountToReturn = uint256((maxSlippage * amountExpectedFor) / PERCENT_PRECISION);
+                amountToReturn = uint256(
+                    (maxSlippage * amountExpectedFor) / PERCENT_PRECISION
+                );
             }
             return amountToReturn;
         }

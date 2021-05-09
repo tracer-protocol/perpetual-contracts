@@ -74,10 +74,11 @@ contract Pricing is IPricing {
      * @param tradePrice the price the trade executed at
      * @param tradeVolume the volume of the order
      */
-    function recordTrade(
-        uint256 tradePrice,
-        uint256 tradeVolume
-    ) external override onlyTracer {
+    function recordTrade(uint256 tradePrice, uint256 tradeVolume)
+        external
+        override
+        onlyTracer
+    {
         uint256 currentOraclePrice = oracle.latestAnswer();
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
@@ -95,8 +96,7 @@ contract Pricing is IPricing {
             updatePrice(tradePrice, currentOraclePrice, true);
 
             // todo contract needs to take in the insurance pool
-            int256 poolFundingRate =
-                insurance.getPoolFundingRate().toInt256();
+            int256 poolFundingRate = insurance.getPoolFundingRate().toInt256();
 
             updateFundingRate(currentOraclePrice, poolFundingRate);
 
@@ -124,7 +124,7 @@ contract Pricing is IPricing {
         uint256 marketPrice,
         uint256 oraclePrice,
         bool newRecord
-    ) internal{
+    ) internal {
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
@@ -163,8 +163,7 @@ contract Pricing is IPricing {
     {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
-        (uint256 underlyingTWAP, uint256 deriativeTWAP) =
-            getTWAPs(currentHour);
+        (uint256 underlyingTWAP, uint256 deriativeTWAP) = getTWAPs(currentHour);
         int256 newFundingRate =
             (deriativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue) *
                 (_tracer.fundingRateSensitivity().toInt256());
@@ -172,12 +171,14 @@ contract Pricing is IPricing {
         uint256 fundingIndex = currentFundingIndex - 1;
 
         // Create variable with value of new funding rate value
-        int256 currentFundingRateValue = fundingRates[fundingIndex].fundingRateValue;
+        int256 currentFundingRateValue =
+            fundingRates[fundingIndex].fundingRateValue;
         int256 fundingRateValue =
             currentFundingRateValue + (newFundingRate * oraclePrice.toInt256());
 
         // as above but with insurance funding rate value
-        int256 currentInsuranceFundingRateValue = insuranceFundingRates[fundingIndex].fundingRateValue;
+        int256 currentInsuranceFundingRateValue =
+            insuranceFundingRates[fundingIndex].fundingRateValue;
         int256 iPoolFundingRateValue =
             currentInsuranceFundingRateValue + iPoolFundingRate;
 
@@ -283,7 +284,6 @@ contract Pricing is IPricing {
         );
     }
 
-
     /**
      * @return all of the vairbales in the funding rate struct (insurance rate) from a particular tracer market
      */
@@ -368,8 +368,7 @@ contract Pricing is IPricing {
             if (hourlyPrice.numTrades != 0) {
                 runningTotal =
                     runningTotal +
-                    (uint256(hourlyPrice.totalPrice) /
-                        hourlyPrice.numTrades);
+                    (uint256(hourlyPrice.totalPrice) / hourlyPrice.numTrades);
                 numberOfHoursPresent = numberOfHoursPresent + 1;
             }
             if (oracleHourlyPrice.numTrades != 0) {

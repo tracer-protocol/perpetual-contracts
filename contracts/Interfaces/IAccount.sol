@@ -5,7 +5,11 @@ import "./Types.sol";
 interface IAccount {
     function deposit(uint256 amount, address market) external;
 
-    function depositTo(uint256 amount, address market, address user) external;
+    function depositTo(
+        uint256 amount,
+        address market,
+        address user
+    ) external;
 
     function withdraw(uint256 amount, address market) external;
 
@@ -38,10 +42,7 @@ interface IAccount {
         address market
     ) external;
 
-    function updateAccountLeverage(
-        address account,
-        address market
-    ) external;
+    function updateAccountLeverage(address account, address market) external;
 
     function marginIsValid(
         int256 base,
@@ -51,17 +52,32 @@ interface IAccount {
         address market
     ) external view returns (bool);
 
-    function userMarginIsValid(address account, address market) external view returns (bool);
+    function userMarginIsValid(address account, address market)
+        external
+        view
+        returns (bool);
 
-    function getUserMargin(address account, address market) external view returns (int256);
+    function getUserMargin(address account, address market)
+        external
+        view
+        returns (int256);
 
-    function getUserNotionalValue(address account, address market) external view returns (int256);
+    function getUserNotionalValue(address account, address market)
+        external
+        view
+        returns (int256);
 
-    function getUserMinMargin(address account, address market) external view returns (int256);
+    function getUserMinMargin(address account, address market)
+        external
+        view
+        returns (int256);
 
-    function tracerLeveragedNotionalValue(address market) external view returns(int256);
+    function tracerLeveragedNotionalValue(address market)
+        external
+        view
+        returns (int256);
 
-    function tvl(address market) external view returns(uint256);
+    function tvl(address market) external view returns (uint256);
 
     function setInsuranceContract(address newInsuranceContract) external;
 

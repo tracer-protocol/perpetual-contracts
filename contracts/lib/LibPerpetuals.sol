@@ -2,11 +2,8 @@
 pragma solidity ^0.8.0;
 
 library Perpetuals {
-    enum Side {
-        Long,
-        Short
-    }
-    
+    enum Side {Long, Short}
+
     struct Order {
         address maker;
         address market;
@@ -38,4 +35,3 @@ library Perpetuals {
         return pricesMatch && opposingSides && notExpired && notFilled;
     }
 }
-
