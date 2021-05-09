@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "../lib/LibPerpetuals.sol";
 
 interface Types {
-
     struct AccountBalance {
         int256 base; // The amount of units in the base asset
         int256 quote; // The amount of units in the quote asset
@@ -37,6 +36,4 @@ interface Types {
         bytes32 sigS;
         uint8 sigV;
     }
-
-
 }

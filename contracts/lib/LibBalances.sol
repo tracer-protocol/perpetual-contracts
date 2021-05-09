@@ -6,6 +6,9 @@ import "./LibPerpetuals.sol";
 
 library Balances {
     using LibMath for int256;
+    using LibMath for uint256;
+
+    uint256 private constant MAX_DECIMALS = 18;
 
     struct Position {
         int256 base;
@@ -18,18 +21,20 @@ library Balances {
         Perpetuals.Side side;
     }
 
-    function netValue(
-        Position calldata position,
-        uint256 price
-    ) public pure returns (uint256) {
+    function netValue(Position calldata position, uint256 price)
+        public
+        pure
+        returns (uint256)
+    {
         /* cast is safe due to semantics of `abs` */
         return uint256(position.quote.abs()) * price;
     }
 
-    function margin(
-        Position calldata position,
-        uint256 price
-    ) public pure returns (int256) {
+    function margin(Position calldata position, uint256 price)
+        public
+        pure
+        returns (int256)
+    {
         /*
          * A cast *must* occur somewhere here in order for this to type check.
          *
@@ -46,10 +51,11 @@ library Balances {
         return position.quote + position.base * signedPrice;
     }
 
-    function leveragedNotionalValue(
-        Position calldata position,
-        uint256 price
-    ) public pure returns (uint256) {
+    function leveragedNotionalValue(Position calldata position, uint256 price)
+        public
+        pure
+        returns (uint256)
+    {
         uint256 notionalValue = netValue(position, price);
         int256 marginValue = margin(position, price);
 
@@ -71,7 +77,7 @@ library Balances {
         uint256 notionalValue = netValue(position, price);
 
         uint256 liquidationGasCost = liquidationCost * 6;
-        
+
         uint256 minimumBase = notionalValue / maximumLeverage;
 
         return liquidationGasCost + minimumBase;
@@ -106,20 +112,27 @@ library Balances {
     }
 
     /**
-    * @notice converts a raw token amount to its WAD representation. Used for tokens
-    * that don't have 18 decimal places
-    */
-    function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
-        int scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
+     * @notice converts a raw token amount to its WAD representation. Used for tokens
+     * that don't have 18 decimal places
+     */
+    function tokenToWad(uint256 tokenDecimals, uint256 amount)
+        internal
+        pure
+        returns (int256)
+    {
+        int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
         return amount.toInt256() * scaler;
     }
 
     /**
-    * @notice converts a wad token amount to its raw representation.
-    */
-    function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
+     * @notice converts a wad token amount to its raw representation.
+     */
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
-        return uint(wadAmount / scaler);
+        return uint256(wadAmount / scaler);
     }
 }
-

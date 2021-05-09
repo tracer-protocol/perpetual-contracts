@@ -4,6 +4,7 @@ import "./Types.sol";
 
 interface ITrader {
     function chainId() external view returns (uint256);
+
     function EIP712_DOMAIN() external view returns (bytes32);
 
     function executeTrade(
@@ -12,14 +13,17 @@ interface ITrader {
         address market
     ) external;
 
-    function hashOrder(Perpetuals.Order memory order) external view returns (bytes32);
+    function hashOrder(Perpetuals.Order memory order)
+        external
+        view
+        returns (bytes32);
 
     function getDomain() external view returns (bytes32);
 
-    function verify(
-        address signer,
-        Types.SignedLimitOrder memory order
-    ) external view returns (bool);
+    function verify(address signer, Types.SignedLimitOrder memory order)
+        external
+        view
+        returns (bool);
 
     function verifySignature(
         address signer,
@@ -29,9 +33,18 @@ interface ITrader {
         uint8 sigV
     ) external view returns (bool);
 
-    function verifyNonce(Types.SignedLimitOrder memory order) external view returns (bool);
+    function verifyNonce(Types.SignedLimitOrder memory order)
+        external
+        view
+        returns (bool);
 
-    function getOrder(Perpetuals.Order memory order) external view returns (Perpetuals.Order memory);
+    function getOrder(Perpetuals.Order memory order)
+        external
+        view
+        returns (Perpetuals.Order memory);
 
-    function filledAmount(Perpetuals.Order memory order) external view returns (uint256);
+    function filledAmount(Perpetuals.Order memory order)
+        external
+        view
+        returns (uint256);
 }

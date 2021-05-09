@@ -16,7 +16,9 @@ contract Trader is ITrader {
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
     string private constant EIP712_DOMAIN_VERSION = "1.0";
     bytes32 private constant EIP712_DOMAIN_SEPERATOR =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        keccak256(
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        );
 
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
@@ -24,8 +26,8 @@ contract Trader is ITrader {
             "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expires,uint256 created,address market)"
         );
 
-    uint256 public override constant chainId = 1337; // Changes per chain
-    bytes32 public override immutable EIP712_DOMAIN;
+    uint256 public constant override chainId = 1337; // Changes per chain
+    bytes32 public immutable override EIP712_DOMAIN;
 
     // Trader => nonce
     mapping(address => uint256) public nonces; // Prevents replay attacks
@@ -35,7 +37,14 @@ contract Trader is ITrader {
     mapping(bytes32 => uint256) public filled;
 
     event Verify(address sig);
-    event CheckOrder(uint256 amount, int256 price, bool side, address user, uint256 expires, address market);
+    event CheckOrder(
+        uint256 amount,
+        int256 price,
+        bool side,
+        address user,
+        uint256 expires,
+        address market
+    );
 
     constructor() {
         // Construct the EIP712 Domain
@@ -50,9 +59,12 @@ contract Trader is ITrader {
         );
     }
 
-    function filledAmount(
-        Perpetuals.Order memory order
-    ) external view override returns (uint256) {
+    function filledAmount(Perpetuals.Order memory order)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return filled[Perpetuals.orderId(order)];
     }
 
@@ -81,8 +93,14 @@ contract Trader is ITrader {
             Perpetuals.Order storage makeOrder = grabOrder(makers, i, market);
             Perpetuals.Order storage takeOrder = grabOrder(takers, i, market);
 
-            require(makeOrder.market == market, "TDR: makeOrder market != supplied market");
-            require(takeOrder.market == market, "TDR: takeOrder market != supplied market");
+            require(
+                makeOrder.market == market,
+                "TDR: makeOrder market != supplied market"
+            );
+            require(
+                takeOrder.market == market,
+                "TDR: takeOrder market != supplied market"
+            );
 
             address maker = makers[i].order.maker;
             address taker = takers[i].order.maker;
@@ -94,18 +112,29 @@ contract Trader is ITrader {
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
             uint256 takeRemaining = takeOrder.amount - takeOrderFilled;
             // fill amount is the minimum of order 1 and order 2
-            uint256 fillAmount = makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
+            uint256 fillAmount =
+                makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
 
             // match orders
-            ITracerPerpetualSwaps(market).matchOrders(makeOrder, takeOrder, fillAmount);
+            ITracerPerpetualSwaps(market).matchOrders(
+                makeOrder,
+                takeOrder,
+                fillAmount
+            );
 
             // update order state
-            filled[Perpetuals.orderId(makeOrder)] = makeOrderFilled + fillAmount;
-            filled[Perpetuals.orderId(takeOrder)] = takeOrderFilled + fillAmount;
+            filled[Perpetuals.orderId(makeOrder)] =
+                makeOrderFilled +
+                fillAmount;
+            filled[Perpetuals.orderId(takeOrder)] =
+                takeOrderFilled +
+                fillAmount;
 
             // increment nonce if filled
-            bool completeMaker = filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
-            bool completeTaker = filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
+            bool completeMaker =
+                filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
+            bool completeTaker =
+                filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
 
             // check if we need to increment maker's nonce
             if (completeMaker) {
@@ -160,7 +189,12 @@ contract Trader is ITrader {
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
-    function hashOrder(Perpetuals.Order memory order) public view override returns (bytes32) {
+    function hashOrder(Perpetuals.Order memory order)
+        public
+        view
+        override
+        returns (bytes32)
+    {
         return
             keccak256(
                 abi.encodePacked(
@@ -196,12 +230,20 @@ contract Trader is ITrader {
      * @return true is signer has signed the order as given by the signature components
      *         and if the nonce of the order is correct else false.
      */
-    function verify(
-        address signer,
-        Types.SignedLimitOrder memory signedOrder
-    ) public view override returns (bool) {
+    function verify(address signer, Types.SignedLimitOrder memory signedOrder)
+        public
+        view
+        override
+        returns (bool)
+    {
         require(
-            verifySignature(signer, signedOrder.order, signedOrder.sigR, signedOrder.sigS, signedOrder.sigV),
+            verifySignature(
+                signer,
+                signedOrder.order,
+                signedOrder.sigR,
+                signedOrder.sigS,
+                signedOrder.sigV
+            ),
             "TDR: Signature verification failed"
         );
         require(verifyNonce(signedOrder), "TDR: Incorrect nonce");
@@ -231,7 +273,12 @@ contract Trader is ITrader {
      * @notice Verifies that the nonce of a order is the current user nonce
      * @param signedOrder The order being verified
      */
-    function verifyNonce(Types.SignedLimitOrder memory signedOrder) public view override returns (bool) {
+    function verifyNonce(Types.SignedLimitOrder memory signedOrder)
+        public
+        view
+        override
+        returns (bool)
+    {
         return signedOrder.nonce == nonces[signedOrder.order.maker];
     }
 
@@ -239,7 +286,12 @@ contract Trader is ITrader {
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order memory order) public view override returns (Perpetuals.Order memory) {
+    function getOrder(Perpetuals.Order memory order)
+        public
+        view
+        override
+        returns (Perpetuals.Order memory)
+    {
         return orders[hashOrder(order)];
     }
 }
