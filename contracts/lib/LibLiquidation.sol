@@ -73,7 +73,7 @@ library LibLiquidation {
         int256 liquidateeBaseChange;
         int256 liquidateeQuoteChange;
         // base * (amount / abs(quote))
-        
+
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
         if (liquidatedBase > 0) {
             // Add to the liquidators margin, they are taking on positive margin
@@ -144,12 +144,16 @@ library LibLiquidation {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
             if (amountToReturn <= 0) {
-                    return 0;
+                return 0;
             }
             // multiply by 100 as we expect this to be a percent as an integer eg 50% = 50
-            percentSlippage = PRBMathUD60x18.div(amountToReturn, amountExpectedFor) * 100;
+            percentSlippage =
+                PRBMathUD60x18.div(amountToReturn, amountExpectedFor) *
+                100;
             if (percentSlippage > maxSlippage) {
-                amountToReturn = PRBMathUD60x18.mul(maxSlippage, amountExpectedFor) / 100;
+                amountToReturn =
+                    PRBMathUD60x18.mul(maxSlippage, amountExpectedFor) /
+                    100;
             }
             return amountToReturn;
         }
