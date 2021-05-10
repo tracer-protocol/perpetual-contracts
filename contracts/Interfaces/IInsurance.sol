@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface IInsurance {
-
     function stake(uint256 amount) external;
 
     function withdraw(uint256 amount) external;
@@ -20,5 +19,4 @@ interface IInsurance {
     function poolNeedsFunding() external view returns (bool);
 
     function INSURANCE_MUL_FACTOR() external view returns (int256);
-    
 }

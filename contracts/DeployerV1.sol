@@ -8,10 +8,7 @@ import "./Interfaces/IDeployer.sol";
  * Deployer contract. Used by the Tracer Factory to deploy new Tracer markets
  */
 contract DeployerV1 is IDeployer {
-
-    function deploy(
-        bytes calldata _data
-    ) external override returns(address) {
+    function deploy(bytes calldata _data) external override returns (address) {
         (
             bytes32 _tracerId,
             address _tracerBaseToken,
@@ -22,30 +19,34 @@ contract DeployerV1 is IDeployer {
             uint256 _fundingRateSensitivity,
             uint256 _feeRate,
             uint256 _oracleDecimals
-        ) = abi.decode(_data, (
-            bytes32,
-            address,
-            uint256,
-            address,
-            address,
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        ));
-        TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
-            _tracerId,
-            _tracerBaseToken,
-            _tokenDecimals,
-            _gasPriceOracle,
-            _liquidationContract,
-            _maxLeverage,
-            _fundingRateSensitivity,
-            _feeRate,
-            _oracleDecimals
-        );
+        ) =
+            abi.decode(
+                _data,
+                (
+                    bytes32,
+                    address,
+                    uint256,
+                    address,
+                    address,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256
+                )
+            );
+        TracerPerpetualSwaps tracer =
+            new TracerPerpetualSwaps(
+                _tracerId,
+                _tracerBaseToken,
+                _tokenDecimals,
+                _gasPriceOracle,
+                _liquidationContract,
+                _maxLeverage,
+                _fundingRateSensitivity,
+                _feeRate,
+                _oracleDecimals
+            );
         tracer.transferOwnership(msg.sender);
         return address(tracer);
     }
-
 }

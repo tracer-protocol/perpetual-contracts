@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * The Chainlink oracle adapter allows you to wrap a Chainlink oracle feed
- * and ensure that the price is always returned in a wad format. 
+ * and ensure that the price is always returned in a wad format.
  * The upstream feed may be changed (Eg updated to a new Chainlink feed) while
  * keeping price consistency for the actual Tracer perp market.
  */
@@ -26,40 +26,40 @@ contract OracleAdapter is IOracle, Ownable {
      * @notice Gets the latest anwser from the oracle
      * @dev converts the price to a WAD price before returning
      */
-    function latestAnswer() external override view returns (uint256) {
-        return toWad(uint(oracle.latestAnswer()));
+    function latestAnswer() external view override returns (uint256) {
+        return toWad(uint256(oracle.latestAnswer()));
     }
 
-    function decimals() external override pure returns(uint8) {
+    function decimals() external pure override returns (uint8) {
         return uint8(MAX_DECIMALS);
     }
 
     /**
-    * @notice converts a raw value to a WAD value.
-    * @dev this allows consistency for oracles used throughout the protocol
-    *      and allows oracles to have their decimals changed withou affecting
-    *      the market itself
-    */
-    function toWad(uint256 raw) internal view returns(uint256) {
+     * @notice converts a raw value to a WAD value.
+     * @dev this allows consistency for oracles used throughout the protocol
+     *      and allows oracles to have their decimals changed withou affecting
+     *      the market itself
+     */
+    function toWad(uint256 raw) internal view returns (uint256) {
         return raw * scaler;
     }
 
     /**
-    * @notice Change the upstream feed address.
-    */
+     * @notice Change the upstream feed address.
+     */
     function changeOracle(address newOracle) public onlyOwner {
         setOracle(newOracle);
     }
 
     /**
-    * @notice sets the upstream oracle
-    * @dev resets the scalar value to ensure WAD values are always returned 
-    */
+     * @notice sets the upstream oracle
+     * @dev resets the scalar value to ensure WAD values are always returned
+     */
     function setOracle(address newOracle) internal {
         oracle = IChainlinkOracle(newOracle);
         // reset the scaler for consistency
         uint8 _decimals = oracle.decimals();
         require(_decimals <= MAX_DECIMALS, "COA: too many decimals");
-        scaler = uint(10**(MAX_DECIMALS - _decimals));        
+        scaler = uint256(10**(MAX_DECIMALS - _decimals));
     }
 }

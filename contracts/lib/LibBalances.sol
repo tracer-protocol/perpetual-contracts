@@ -1,179 +1,138 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+//SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
-import "../Interfaces/Types.sol";
+import "./LibPerpetuals.sol";
 
 library Balances {
-    using LibMath for uint256;
     using LibMath for int256;
+    using LibMath for uint256;
 
-    uint256 private constant MARGIN_MUL_FACTOR = 10000; // Factor to keep precision in base calcs
-    uint256 private constant FEED_UNIT_DIVIDER = 10e7; // used to normalise gas feed prices for base calcs
     uint256 private constant MAX_DECIMALS = 18;
 
-    /**
-     * @notice Calculates the new base and position given trade details. Assumes the entire trade will execute
-               to calculate the new base and position.
-     * @param currentBase the users current base account balance
-     * @param currentQuote the users current position balance
-     * @param amount the amount of positions being purchased in this trade
-     * @param price the price the positions are being purchased at
-     * @param side the side of the order (true for LONG, false for SHORT)
-     * @param priceMultiplier the price multiplier used for the tracer contract the calc is being run for
-     * @param feeRate the current fee rate of the tracer contract the calc is being run for
-     */
-    function safeCalcTradeMargin(
-        int256 currentBase,
-        int256 currentQuote,
-        uint256 amount,
-        uint256 price,
-        bool side,
-        uint256 priceMultiplier,
-        uint256 feeRate
-    ) internal pure returns (int256 _currentBase, int256 _currentQuote) {
-        // Get base change and fee if present
-        int256 baseChange = ((amount * price) / priceMultiplier).toInt256();
-        int256 fee = (baseChange * feeRate.toInt256()) / priceMultiplier.toInt256();
-        if (side) {
-            // LONG
-            currentQuote = currentQuote + amount.toInt256();
-            currentBase = currentBase - baseChange + fee;
-        } else {
-            // SHORT
-            currentQuote = currentQuote - amount.toInt256();
-            currentBase = currentBase + baseChange - fee;
-        }
-
-        return (currentBase, currentQuote);
+    struct Position {
+        int256 base;
+        int256 quote;
     }
 
-
-    /**
-     * @notice calculates the net value of both the users base and position given a
-     *         price and price multiplier.
-     * @param base the base of a user
-     * @param position the position of a user
-     * @param price the price for which the value is being calculated at
-     * @param priceMultiplier the multiplier value used for the price being referenced
-    */
-    function calcMarginPositionValue(
-        int256 base,
-        int256 position,
-        uint256 price,
-        uint256 priceMultiplier
-    ) internal pure returns (int256 _baseCorrectUnits, int256 _positionValue) {
-        int256 baseCorrectUnits = 0;
-        int256 positionValue = 0;
-
-        // todo it appears both of the below params can be uints?
-        baseCorrectUnits = base.abs() * priceMultiplier.toInt256() * MARGIN_MUL_FACTOR.toInt256();
-        positionValue = position.abs() * price.toInt256();
-
-        return (baseCorrectUnits, positionValue);
+    struct Trade {
+        uint256 price;
+        uint256 amount;
+        Perpetuals.Side side;
     }
 
-    /**
-     * @notice Calculates the marign as base + quote * quote_price
-     * @param quote The amount of quote units
-     * @param price The price of the quote asset
-     * @param base The base units
-     * @param priceMultiplier The multiplier for the price feed
-     */
-    function calcMargin(
-        int256 quote,
-        uint256 price,
-        int256 base,
-        uint256 priceMultiplier
-    ) internal pure returns (int256) {
-        // (10^18 * 10^8 + 10^18 * 10^8) / 10^8
-        // (10^26 + 10^26) / 10^8
-        // 10^18
-        return (((base * priceMultiplier.toInt256())) + quote * price.toInt256()) / priceMultiplier.toInt256();
+    function netValue(Position calldata position, uint256 price)
+        public
+        pure
+        returns (uint256)
+    {
+        /* cast is safe due to semantics of `abs` */
+        return uint256(position.quote.abs()) * price;
     }
 
-    /*
-     * @notice Calculates what the minimum margin should be given a certain position
-     * @param quote The amount of quote units
-     * @param price The price of the quote asset
-     * @param base The base units
-     * @param liquidationGasCost The cost to perform a liquidation
-     * @param maxLeverage The maximum ratio of notional value/margin
-     */
-    function calcMinMargin(
-        int256 quote, // 10^18
-        uint256 price, // 10^8
-        int256 base,  // 10^18
-        uint256 liquidationGasCost, // USD/GAS 10^18
-        uint256 maxLeverage,
-        uint256 priceMultiplier
-    ) internal pure returns (uint256) {
-        uint256 leveragedNotionalValue = newCalcLeveragedNotionalValue(quote, price, base, priceMultiplier);
-        uint256 notionalValue = calcNotionalValue(quote, price);
+    function margin(Position calldata position, uint256 price)
+        public
+        pure
+        returns (int256)
+    {
+        /*
+         * A cast *must* occur somewhere here in order for this to type check.
+         *
+         * After you've convinced yourself of this, the next intellectual jump
+         * that needs to be made is *what* to cast. We can't cast `base` as it's
+         * allowed to be negative. We can't cast `quote` as it's allowed to be
+         * negative. Thus, by elimination, the only thing we're left with is
+         * `price`.
+         *
+         * `price` has type `uint256` (i.e., it's unsigned). Thus, our below
+         * cast **will** throw iff. `price >= type(int256).max()`.
+         */
+        int256 signedPrice = LibMath.toInt256(price);
+        return position.quote + position.base * signedPrice;
+    }
 
-        if (leveragedNotionalValue == 0 && quote >= 0) {
-            // Over collateralised
+    function leveragedNotionalValue(Position calldata position, uint256 price)
+        public
+        pure
+        returns (uint256)
+    {
+        uint256 notionalValue = netValue(position, price);
+        int256 marginValue = margin(position, price);
+
+        int256 signedNotionalValue = LibMath.toInt256(notionalValue);
+
+        if (signedNotionalValue - marginValue < 0) {
             return 0;
+        } else {
+            return uint256(signedNotionalValue - marginValue);
         }
-        // LGC * 6 + notionalValue/maxLeverage
-        uint256 lgc = liquidationGasCost * 6; // 10^18
-        // 10^26 * 10^4 / 10^4 / 10^8 = 10^18
-        // todo CASTING CHECK
-        uint256 baseMinimum = (notionalValue * MARGIN_MUL_FACTOR / maxLeverage) / priceMultiplier;
-        return lgc + baseMinimum;
+    }
+
+    function minimumMargin(
+        Position calldata position,
+        uint256 price,
+        uint256 liquidationCost,
+        uint256 maximumLeverage
+    ) public pure returns (uint256) {
+        uint256 notionalValue = netValue(position, price);
+
+        uint256 liquidationGasCost = liquidationCost * 6;
+
+        uint256 minimumBase = notionalValue / maximumLeverage;
+
+        return liquidationGasCost + minimumBase;
+    }
+
+    function applyTrade(
+        Position calldata position,
+        Trade calldata trade,
+        uint256 feeRate
+    ) public pure returns (Position memory) {
+        int256 signedAmount = LibMath.toInt256(trade.amount);
+        int256 signedPrice = LibMath.toInt256(trade.price);
+        int256 signedFeeRate = LibMath.toInt256(feeRate);
+
+        int256 baseChange = signedAmount * signedPrice;
+        int256 fee = baseChange * signedFeeRate;
+
+        int256 newBase = 0;
+        int256 newQuote = 0;
+
+        if (trade.side == Perpetuals.Side.Long) {
+            newQuote = position.quote + signedAmount;
+            newBase = position.base - baseChange + fee;
+        } else if (trade.side == Perpetuals.Side.Short) {
+            newQuote = position.quote - signedAmount;
+            newBase = position.base + baseChange - fee;
+        }
+
+        Position memory newPosition = Position(newBase, newQuote);
+
+        return newPosition;
     }
 
     /**
-     * @notice Calculates Leveraged Notional Value, a.k.a the borrowed amount
-     *         The difference between the absolute value of the position and the margin
-     * @param quote The amount of quote units
-     * @param price The price of the quote asset
-     * @param base The base units
+     * @notice converts a raw token amount to its WAD representation. Used for tokens
+     * that don't have 18 decimal places
      */
-    function newCalcLeveragedNotionalValue(
-        int256 quote, // 10^18
-        uint256 price, // 10^8
-        int256 base, // 10^18
-        uint256 priceMultiplier // 10^8
-    ) internal pure returns (uint256) {
-        uint256 notionalValue = calcNotionalValue(quote, price);
-        int256 margin = calcMargin(quote, price, base, priceMultiplier);
-        // todo margin should be greater than minMargin for valid positions.
-        // ensure this is safe
-        uint256 _margin = margin > 0 ? uint(margin) : uint(0);
-        // todo CASTING CHECK
-        uint256 LNV = (notionalValue - _margin * priceMultiplier) / priceMultiplier;
-        return LNV;
-    }
-
-    /**
-     * @notice Calculates the notional value. i.e. the absolute value of a position
-     * @param quote The amount of quote units
-     * @param price The price of the quote asset
-     */
-    function calcNotionalValue(
-        int256 quote,
-        uint256 price
-    ) internal pure returns (uint256) {
-        // todo CASTING CHECK
-        uint256 _quote = uint256(quote.abs());
-        return _quote * price; // 10^18 * 10^8 = 10^26
-    }
-
-    /**
-    * @notice converts a raw token amount to its WAD representation. Used for tokens
-    * that don't have 18 decimal places
-    */
-    function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
-        int scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
+    function tokenToWad(uint256 tokenDecimals, uint256 amount)
+        internal
+        pure
+        returns (int256)
+    {
+        int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
         return amount.toInt256() * scaler;
     }
 
     /**
-    * @notice converts a wad token amount to its raw representation.
-    */
-    function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
+     * @notice converts a wad token amount to its raw representation.
+     */
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
-        return uint(wadAmount / scaler);
+        return uint256(wadAmount / scaler);
     }
 }

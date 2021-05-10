@@ -2,5 +2,9 @@
 pragma solidity ^0.8.0;
 
 interface ISafetyWithdraw {
-    function withdrawERC20Token(address tokenAddress, address to, uint256 amount) external;
+    function withdrawERC20Token(
+        address tokenAddress,
+        address to,
+        uint256 amount
+    ) external;
 }

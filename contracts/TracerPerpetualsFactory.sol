@@ -9,7 +9,6 @@ import "./Pricing.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
-
     uint256 public tracerCounter;
     address public deployer;
 
@@ -35,14 +34,11 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Allows any user to deploy a tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
-    function deployTracer(
-        bytes calldata _data,
-        address oracle
-    ) external {
+    function deployTracer(bytes calldata _data) external {
         _deployTracer(_data, msg.sender, oracle);
     }
 
-   /**
+    /**
      * @notice Allows the Tracer DAO to deploy a DAO approved Tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
@@ -56,13 +52,15 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
     }
 
     /**
-    * @notice internal function for the actual deployment of a Tracer market.
-    */
+     * @notice internal function for the actual deployment of a Tracer market.
+     */
     function _deployTracer(
         bytes calldata _data,
         address tracerOwner,
         address oracle
-    ) internal returns (address) {
+        internal
+        returns (address)
+    ) {
         // Create and link tracer to factory
         address market = IDeployer(deployer).deploy(_data);
         ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
@@ -90,18 +88,27 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Sets the deployer contract for tracers markets.
      * @param newDeployer the new deployer contract address
      */
-    function setDeployerContract(address newDeployer) public override onlyOwner() {
+    function setDeployerContract(address newDeployer)
+        public
+        override
+        onlyOwner()
+    {
         deployer = newDeployer;
     }
 
     /**
-    * @notice Sets a contracts approval by the DAO. This allows the factory to
-    *         identify contracts that the DAO has "absorbed" into its control
-    * @dev requires the contract to be owned by the DAO if being set to true.
-    */
-    function setApproved(address market, bool value) public override onlyOwner() {
-        if(value) { require(Ownable(market).owner() == owner(), "TFC: Owner not DAO"); }
+     * @notice Sets a contracts approval by the DAO. This allows the factory to
+     *         identify contracts that the DAO has "absorbed" into its control
+     * @dev requires the contract to be owned by the DAO if being set to true.
+     */
+    function setApproved(address market, bool value)
+        public
+        override
+        onlyOwner()
+    {
+        if (value) {
+            require(Ownable(market).owner() == owner(), "TFC: Owner not DAO");
+        }
         daoApproved[market] = value;
     }
-
 }
