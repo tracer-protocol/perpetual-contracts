@@ -22,10 +22,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
     event TracerDeployed(bytes32 indexed marketId, address indexed market);
 
-    constructor(
-        address _deployer,
-        address _governance
-    ) {
+    constructor(address _deployer, address _governance) {
         setDeployerContract(_deployer);
         transferOwnership(_governance);
     }
@@ -34,7 +31,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Allows any user to deploy a tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
-    function deployTracer(bytes calldata _data) external {
+    function deployTracer(bytes calldata _data, address oracle) external {
         _deployTracer(_data, msg.sender, oracle);
     }
 
@@ -42,10 +39,10 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Allows the Tracer DAO to deploy a DAO approved Tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
-    function deployTracerAndApprove(
-        bytes calldata _data,
-        address oracle
-    ) external onlyOwner() {
+    function deployTracerAndApprove(bytes calldata _data, address oracle)
+        external
+        onlyOwner()
+    {
         address tracer = _deployTracer(_data, owner(), oracle);
         // DAO deployed markets are automatically approved
         setApproved(address(tracer), true);
@@ -58,9 +55,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         bytes calldata _data,
         address tracerOwner,
         address oracle
-        internal
-        returns (address)
-    ) {
+    ) internal returns (address) {
         // Create and link tracer to factory
         address market = IDeployer(deployer).deploy(_data);
         ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
@@ -68,9 +63,10 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         validTracers[market] = true;
         tracersByIndex[tracerCounter] = market;
         tracerCounter++;
-        
+
         // Instantiate Insurance contract for tracer
-        address insurance = address(new Insurance(address(market), address(this)));
+        address insurance =
+            address(new Insurance(address(market), address(this)));
 
         address pricing = address(new Pricing(market, insurance, oracle));
 
