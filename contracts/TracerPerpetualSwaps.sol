@@ -13,6 +13,8 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract TracerPerpetualSwaps is
     ITracerPerpetualSwaps,
@@ -21,11 +23,12 @@ contract TracerPerpetualSwaps is
 {
     using LibMath for uint256;
     using LibMath for int256;
+    using PRBMathSD59x18 for int256;
+    using PRBMathUD60x18 for uint256;
 
     uint256 public override fundingRateSensitivity;
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     // todo ensure these are fine being immutable
-    uint256 public immutable override priceMultiplier;
     address public immutable override tracerBaseToken;
     uint256 public immutable override baseTokenDecimals;
     bytes32 public immutable override marketId;
@@ -82,7 +85,6 @@ contract TracerPerpetualSwaps is
         baseTokenDecimals = _tokenDecimals;
         gasPriceOracle = _gasPriceOracle;
         marketId = _marketId;
-        priceMultiplier = 10**uint256(_oracleDecimals);
         feeRate = _feeRate;
         maxLeverage = _maxLeverage;
         fundingRateSensitivity = _fundingRateSensitivity;
@@ -191,12 +193,12 @@ contract TracerPerpetualSwaps is
         Perpetuals.Order memory order2,
         uint256 fillAmount
     ) internal {
+        // fill amount > 0. Overflow occurs when fillAmount > 2^256 - 1
         int256 _fillAmount = fillAmount.toInt256();
-        // todo evaluate how safe this cast is
         int256 baseChange =
-            ((fillAmount * order1.price) / priceMultiplier).toInt256();
+            PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
 
-        //Update account states
+        // Update account states
         Types.AccountBalance storage account1 = balances[order1.maker];
         Types.AccountBalance storage account2 = balances[order2.maker];
 
@@ -382,11 +384,10 @@ contract TracerPerpetualSwaps is
             // Calc the difference in funding rates, remove price multiply factor
             int256 fundingDiff = currentGlobalRate - currentUserRate;
 
-            // Update account, divide by 2x price multiplier to factor out price and funding rate scalar value
-            // base - (fundingDiff * quote / (priceMultiplier * priceMultiplier))
-            accountBalance.base = (accountBalance.base -
-                (fundingDiff * accountBalance.quote) /
-                ((priceMultiplier * priceMultiplier).toInt256()));
+            // base - (fundingDiff * quote
+            accountBalance.base =
+                accountBalance.base -
+                PRBMathSD59x18.mul(fundingDiff, accountBalance.quote);
             // Update account gas price
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
                 .latestAnswer();

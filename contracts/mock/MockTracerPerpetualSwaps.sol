@@ -13,7 +13,6 @@ contract MockTracerPerpetualSwaps {
     bool _side;
     address _maker;
     uint256 _takerAmount;
-    uint256 _priceMultiplier;
     uint256 _creation;
 
     constructor(
@@ -31,7 +30,6 @@ contract MockTracerPerpetualSwaps {
         _side = side;
         _maker = maker;
         _takerAmount = takerAmount;
-        _priceMultiplier = priceMul;
     }
 
     /**
@@ -63,9 +61,5 @@ contract MockTracerPerpetualSwaps {
         returns (uint256)
     {
         return (_takerAmount);
-    }
-
-    function priceMultiplier() external view returns (uint256) {
-        return _priceMultiplier;
     }
 }

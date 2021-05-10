@@ -2,13 +2,18 @@
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
+import "../Interfaces/Types.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 import "./LibPerpetuals.sol";
 
 library Balances {
     using LibMath for int256;
     using LibMath for uint256;
+    using PRBMathSD59x18 for int256;
+    using PRBMathUD60x18 for uint256;
 
-    uint256 private constant MAX_DECIMALS = 18;
+    uint256 public constant MAX_DECIMALS = 18;
 
     struct Position {
         int256 base;
@@ -27,9 +32,14 @@ library Balances {
         returns (uint256)
     {
         /* cast is safe due to semantics of `abs` */
-        return uint256(position.quote.abs()) * price;
+        return PRBMathUD60x18.mul(uint256(LibMath.abs(position.quote)), price);
     }
 
+    /**
+     * @notice Calculates the marign as base + quote * quote_price
+     * @param position the position the account is currently in
+     * @param price The price of the quote asset
+     */
     function margin(Position calldata position, uint256 price)
         public
         pure
@@ -48,9 +58,14 @@ library Balances {
          * cast **will** throw iff. `price >= type(int256).max()`.
          */
         int256 signedPrice = LibMath.toInt256(price);
-        return position.quote + position.base * signedPrice;
+        return position.quote + PRBMathSD59x18.mul(position.base, signedPrice);
     }
 
+    /**
+     * @notice Calculates the notional value. i.e. the absolute value of a position
+     * @param position The position the account is currently in
+     * @param price The price of the quote asset
+     */
     function leveragedNotionalValue(Position calldata position, uint256 price)
         public
         pure
@@ -92,8 +107,8 @@ library Balances {
         int256 signedPrice = LibMath.toInt256(trade.price);
         int256 signedFeeRate = LibMath.toInt256(feeRate);
 
-        int256 baseChange = signedAmount * signedPrice;
-        int256 fee = baseChange * signedFeeRate;
+        int256 baseChange = PRBMathSD59x18.mul(signedAmount, signedPrice);
+        int256 fee = PRBMathSD59x18.mul(baseChange, signedFeeRate);
 
         int256 newBase = 0;
         int256 newQuote = 0;

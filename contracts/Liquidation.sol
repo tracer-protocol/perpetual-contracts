@@ -109,14 +109,12 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Marks receipts as claimed and returns the refund amount
      * @param escrowId the id of the receipt created during the liquidation event
      * @param orders the orders that sell the liquidated positions
-     * @param priceMultiplier the oracle price multiplier
      * @param traderContract the address of the trader contract the selling orders were made by
      * @param liquidator the account who executed the liquidation
      */
     function calcAmountToReturn(
         uint256 escrowId,
         Perpetuals.Order[] memory orders,
-        uint256 priceMultiplier,
         address traderContract,
         address liquidator
     ) public override returns (uint256) {
@@ -147,7 +145,6 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 amountToReturn =
             LibLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receipt
@@ -252,7 +249,6 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 price,
         int256 base,
         int256 amount,
-        uint256 priceMultiplier,
         uint256 gasPrice,
         address account
     ) internal returns (uint256) {
@@ -347,7 +343,6 @@ contract Liquidation is ILiquidation, Ownable {
                 pricing.fairPrice(),
                 liquidatedBalance.base,
                 amount,
-                tracer.priceMultiplier(),
                 liquidatedBalance.lastUpdatedGasPrice,
                 account
             );
@@ -406,13 +401,7 @@ contract Liquidation is ILiquidation, Ownable {
         LibLiquidation.LiquidationReceipt memory receipt =
             liquidationReceipts[receiptId];
         uint256 amountToReturn =
-            calcAmountToReturn(
-                receiptId,
-                orders,
-                tracer.priceMultiplier(),
-                traderContract,
-                msg.sender
-            );
+            calcAmountToReturn(receiptId, orders, traderContract, msg.sender);
 
         // Keep track of how much was actually taken out of insurance
         uint256 amountTakenFromInsurance;

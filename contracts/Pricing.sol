@@ -7,11 +7,12 @@ import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Pricing is IPricing {
-    uint256 private constant DIVIDE_PRECISION = 100000000; // 10^7
     using LibMath for uint256;
     using LibMath for int256;
+    using PRBMathUD60x18 for uint256;
 
     address public tracer;
     IInsurance public insurance;
@@ -46,6 +47,8 @@ contract Pricing is IPricing {
 
     /**
      * @dev Set tracer perps factory
+     * @dev ensure that oracle contract is returning WAD values. This may be done
+     *      by wrapping the raw oracle in an adapter (see contracts/oracle)
      * @param _tracer The address of the tracer this pricing contract links too
      */
     constructor(

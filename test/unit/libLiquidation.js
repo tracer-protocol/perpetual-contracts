@@ -172,14 +172,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
     context("liquidationBalanceChanges", async function () {
         it("0% slippage", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (1 * 10000).toString() // 100%
             const avgPrice = "200000000"
             const receiptPrice = "200000000"
             const expectedSlippage = "0" // 100*2 - 100*2
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,
@@ -190,14 +188,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("reverse slippage (liquidator benefits)", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (0.1 * 10000).toString() // 10%
             const avgPrice = "300000000"
             const receiptPrice = "200000000"
             const expectedSlippage = "0"
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,
@@ -208,14 +204,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("slippage over maxSlippage amount", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (0.1 * 10000).toString() // 10%
-            const avgPrice = "100000000"
-            const receiptPrice = "200000000"
+            const avgPrice = ethers.utils.parseEther("1")
+            const receiptPrice = ethers.utils.parseEther("2")
             const expectedSlippage = "20" // 10% of 200
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,
@@ -226,14 +220,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("50% slippage", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (1 * 10000).toString() // 100%
-            const avgPrice = "100000000"
-            const receiptPrice = "200000000"
+            const avgPrice = ethers.utils.parseEther("1")
+            const receiptPrice = ethers.utils.parseEther("2")
             const expectedSlippage = "100" // 100*2 - 100*1
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,
@@ -244,14 +236,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("short slippage (price goes up)", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (1 * 10000).toString() // 100%
-            const avgPrice = "200000000"
-            const receiptPrice = "100000000"
+            const avgPrice = ethers.utils.parseEther("2")
+            const receiptPrice = ethers.utils.parseEther("1")
             const expectedSlippage = "100" // 100*2 - 100*1
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,
@@ -262,14 +252,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("short slippage - slippage exceeds maxSlippage", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (1 * 10000).toString() // 100%
-            const avgPrice = "300000000"
-            const receiptPrice = "100000000"
+            const avgPrice = ethers.utils.parseEther("3")
+            const receiptPrice = ethers.utils.parseEther("1")
             const expectedSlippage = "100" // 100% of 100
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,
@@ -280,14 +268,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("short slippage - liquidator benefits", async function () {
             const unitsSold = "100"
-            const priceMultiplier = "100000000"
             const maxSlippage = (1 * 10000).toString() // 100%
-            const avgPrice = "50000000"
-            const receiptPrice = "100000000"
+            const avgPrice = ethers.utils.parseEther("1")
+            const receiptPrice = ethers.utils.parseEther("5")
             const expectedSlippage = "0"
             const slippage = await libLiquidation.calculateSlippage(
                 unitsSold,
-                priceMultiplier,
                 maxSlippage,
                 avgPrice,
                 receiptPrice,

@@ -21,7 +21,6 @@ interface IAccount {
         int256 currentInsuranceGlobalRate,
         int256 currentInsuranceUserRate,
         int256 gasPrice,
-        uint256 priceMultiplier,
         uint256 currentFundingIndex
     ) external;
 
