@@ -160,16 +160,11 @@ contract Liquidation is ILiquidation, Ownable {
         return amountToReturn;
     }
 
-
     /**
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId)
-        public
-        override
-        onlyTracer
-    {
+    function claimEscrow(uint256 receiptId) public override onlyTracer {
         LibLiquidation.LiquidationReceipt memory receipt =
             liquidationReceipts[receiptId];
         require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
@@ -182,7 +177,13 @@ contract Liquidation is ILiquidation, Ownable {
         // Update balance
         int256 amountToReturn = receipt.escrowedAmount.toInt256();
         emit ClaimedEscrow(receipt.liquidatee, receipt.tracer, receiptId);
-        tracer.updateAccountsOnClaim(address(0), 0, receipt.liquidatee, amountToReturn, 0);
+        tracer.updateAccountsOnClaim(
+            address(0),
+            0,
+            receipt.liquidatee,
+            amountToReturn,
+            0
+        );
     }
 
     /**
@@ -311,7 +312,7 @@ contract Liquidation is ILiquidation, Ownable {
         )
     {
         /* Liquidator's balance */
-        Types.AccountBalance memory liquidatorBalance =
+        Balances.Account memory liquidatorBalance =
             tracer.getBalance(liquidator);
 
         // Calculates what the updated state of both accounts will be if the liquidation is fully processed
@@ -319,7 +320,7 @@ contract Liquidation is ILiquidation, Ownable {
             LibLiquidation.liquidationBalanceChanges(
                 liquidatedBase,
                 liquidatedQuote,
-                liquidatorBalance.quote,
+                liquidatorBalance.position.quote,
                 amount
             );
     }
@@ -334,14 +335,13 @@ contract Liquidation is ILiquidation, Ownable {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
 
         /* Liquidated account's balance */
-        Types.AccountBalance memory liquidatedBalance =
-            tracer.getBalance(account);
+        Balances.Account memory liquidatedBalance = tracer.getBalance(account);
 
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
-                liquidatedBalance.quote,
+                liquidatedBalance.position.quote,
                 pricing.fairPrice(),
-                liquidatedBalance.base,
+                liquidatedBalance.position.base,
                 amount,
                 liquidatedBalance.lastUpdatedGasPrice,
                 account
@@ -360,8 +360,8 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeQuoteChange
         ) =
             calcLiquidationBalanceChanges(
-                liquidatedBalance.base,
-                liquidatedBalance.quote,
+                liquidatedBalance.position.base,
+                liquidatedBalance.position.quote,
                 msg.sender,
                 amount
             );
@@ -380,7 +380,7 @@ contract Liquidation is ILiquidation, Ownable {
             account,
             msg.sender,
             amount,
-            (liquidatedBalance.quote < 0 ? false : true),
+            (liquidatedBalance.position.quote < 0 ? false : true),
             address(tracer),
             currentLiquidationId - 1
         );
@@ -422,14 +422,17 @@ contract Liquidation is ILiquidation, Ownable {
             uint256 amountWantedFromInsurance =
                 amountToReturn - receipt.escrowedAmount;
 
-            Types.AccountBalance memory insuranceBalance =
+            Balances.Account memory insuranceBalance =
                 tracer.getBalance(insuranceContract);
-            if (insuranceBalance.base >= amountWantedFromInsurance.toInt256()) {
+            if (
+                insuranceBalance.position.base >=
+                amountWantedFromInsurance.toInt256()
+            ) {
                 // We don't need to drain insurance contract
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else {
                 // insuranceBalance.base < amountWantedFromInsurance
-                if (insuranceBalance.base <= 0) {
+                if (insuranceBalance.position.base <= 0) {
                     // attempt to drain entire balance that is needed from the pool
                     IInsurance(insuranceContract).drainPool(
                         amountWantedFromInsurance
@@ -438,15 +441,18 @@ contract Liquidation is ILiquidation, Ownable {
                     // attempt to drain the required balance taking into account the insurance balance in the account contract
                     IInsurance(insuranceContract).drainPool(
                         amountWantedFromInsurance -
-                            uint256(insuranceBalance.base)
+                            uint256(insuranceBalance.position.base)
                     );
                 }
                 if (
-                    insuranceBalance.base < amountWantedFromInsurance.toInt256()
+                    insuranceBalance.position.base <
+                    amountWantedFromInsurance.toInt256()
                 ) {
                     // Still not enough
-                    amountTakenFromInsurance = uint256(insuranceBalance.base);
-                    // insuranceBalance.base = 0;
+                    amountTakenFromInsurance = uint256(
+                        insuranceBalance.position.base
+                    );
+                    // insuranceBalance.position.base = 0;
                 } else {
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }

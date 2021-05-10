@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
-import "./Types.sol";
 import "../lib/LibPerpetuals.sol";
+import "../lib/LibBalances.sol";
 
 interface ITracerPerpetualSwaps {
     function updateAccountsOnLiquidation(
@@ -15,11 +15,11 @@ interface ITracerPerpetualSwaps {
     ) external;
 
     function updateAccountsOnClaim(
-      address claimant,
-      int256 amountToGiveToClaimant,
-      address liquidatee,
-      int256 amountToGiveToLiquidatee,
-      int256 amountToTakeFromInsurance
+        address claimant,
+        int256 amountToGiveToClaimant,
+        address liquidatee,
+        int256 amountToGiveToLiquidatee,
+        int256 amountToTakeFromInsurance
     ) external;
 
     function settle(address account) external;
@@ -49,7 +49,7 @@ interface ITracerPerpetualSwaps {
     function getBalance(address account)
         external
         view
-        returns (Types.AccountBalance memory);
+        returns (Balances.Account memory);
 
     function setInsuranceContract(address insurance) external;
 
