@@ -26,6 +26,13 @@ library Balances {
         Perpetuals.Side side;
     }
 
+    struct Account {
+        Position position;
+        uint256 totalLeveragedValue;
+        uint256 lastUpdatedIndex;
+        uint256 lastUpdatedGasPrice;
+    }
+
     function netValue(Position calldata position, uint256 price)
         public
         pure
