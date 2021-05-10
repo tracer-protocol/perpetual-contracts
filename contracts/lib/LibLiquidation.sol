@@ -118,7 +118,7 @@ library LibLiquidation {
         uint256 maxSlippage, //10^18
         uint256 avgPrice, //10^18
         LiquidationReceipt memory receipt
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         // Check price slippage and update account states
         if (
             avgPrice == receipt.price || // No price change
