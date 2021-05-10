@@ -15,11 +15,11 @@ interface ITracerPerpetualSwaps {
     ) external;
 
     function updateAccountsOnClaim(
-      address claimant,
-      int256 amountToGiveToClaimant,
-      address liquidatee,
-      int256 amountToGiveToLiquidatee,
-      int256 amountToTakeFromInsurance
+        address claimant,
+        int256 amountToGiveToClaimant,
+        address liquidatee,
+        int256 amountToGiveToLiquidatee,
+        int256 amountToTakeFromInsurance
     ) external;
 
     function settle(address account) external;
