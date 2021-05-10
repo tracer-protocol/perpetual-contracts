@@ -168,15 +168,14 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId, address liquidatee)
+    function claimEscrow(uint256 receiptId)
         public
         override
         onlyTracer
-        returns (int256)
     {
         LibLiquidation.LiquidationReceipt memory receipt =
             liquidationReceipts[receiptId];
-        require(receipt.liquidatee == liquidatee, "LIQ: Liquidatee mismatch");
+        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
 
