@@ -426,7 +426,6 @@ contract Liquidation is ILiquidation, Ownable {
                 tracer.getBalance(insuranceContract);
             if (insuranceBalance.base >= amountWantedFromInsurance.toInt256()) {
                 // We don't need to drain insurance contract
-                // insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else {
                 // insuranceBalance.base < amountWantedFromInsurance
@@ -449,8 +448,6 @@ contract Liquidation is ILiquidation, Ownable {
                     amountTakenFromInsurance = uint256(insuranceBalance.base);
                     // insuranceBalance.base = 0;
                 } else {
-                    // insuranceBalance.base >= amountWantedFromInsurance
-                    // insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }
             }
