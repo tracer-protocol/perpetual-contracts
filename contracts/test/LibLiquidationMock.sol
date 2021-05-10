@@ -44,7 +44,6 @@ library LibLiquidationMock {
 
     function calculateSlippage(
         uint256 unitsSold,
-        uint256 priceMultiplier,
         uint256 maxSlippage,
         uint256 avgPrice,
         uint256 receiptPrice,

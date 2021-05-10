@@ -105,6 +105,7 @@ library LibLiquidation {
      * @param unitsSold Amount of base units sold in the orders
      * @param maxSlippage The upper bound for slippage
      * @param avgPrice The average price of units sold in orders
+     * @param receipt The receipt for the state during liquidation
      */
     function calculateSlippage(
         uint256 unitsSold,
