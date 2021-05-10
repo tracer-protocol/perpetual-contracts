@@ -76,7 +76,7 @@ contract TracerPerpetualSwaps is
         uint256 _feeRate,
         uint256 _oracleDecimals
     ) Ownable() {
-        // dont convert to interface as we don't need to interact with the contract
+        // don't convert to interface as we don't need to interact with the contract
         liquidationContract = _liquidationContract;
         tracerBaseToken = _tracerBaseToken;
         baseTokenDecimals = _tokenDecimals;
