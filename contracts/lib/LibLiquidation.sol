@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./LibMath.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
-import "hardhat/console.sol";
 
 library LibLiquidation {
     using LibMath for uint256;
