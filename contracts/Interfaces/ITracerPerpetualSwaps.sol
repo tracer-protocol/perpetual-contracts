@@ -14,12 +14,12 @@ interface ITracerPerpetualSwaps {
         uint256 amountToEscrow
     ) external;
 
-    function updateAccountsOnReceiptClaim(
-        address claimant,
-        int256 amountToGiveToClaimant,
-        address liquidatee,
-        int256 amountToGiveToLiquidatee,
-        int256 amountToTakeFromInsurance
+    function updateAccountsOnClaim(
+      address claimant,
+      int256 amountToGiveToClaimant,
+      address liquidatee,
+      int256 amountToGiveToLiquidatee,
+      int256 amountToTakeFromInsurance
     ) external;
 
     function settle(address account) external;

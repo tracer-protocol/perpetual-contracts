@@ -163,25 +163,29 @@ contract Liquidation is ILiquidation, Ownable {
         return amountToReturn;
     }
 
+
     /**
-     * @notice Used to claim funds owed to you through your receipt.
-     * @dev Marks escrowed funds as claimed and returns amount to return
-     * @param receiptId the id of the receipt from which escrow is being claimed from
-     * @param liquidatee The address of the account that is getting liquidated (the liquidatee)
+     * @notice Allows a trader to claim escrowed funds after the escrow period has expired
+     * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId, address liquidatee)
+    function claimEscrow(uint256 receiptId)
         public
         override
         onlyTracer
-        returns (int256)
     {
         LibLiquidation.LiquidationReceipt memory receipt =
             liquidationReceipts[receiptId];
-        require(receipt.liquidatee == liquidatee, "LIQ: Liquidatee mismatch");
+        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
+
+        // Mark as claimed
         liquidationReceipts[receiptId].escrowClaimed = true;
-        return (receipt.escrowedAmount.toInt256());
+
+        // Update balance
+        int256 amountToReturn = receipt.escrowedAmount.toInt256();
+        emit ClaimedEscrow(receipt.liquidatee, receipt.tracer, receiptId);
+        tracer.updateAccountsOnClaim(address(0), 0, receipt.liquidatee, amountToReturn, 0);
     }
 
     /**
@@ -470,7 +474,7 @@ contract Liquidation is ILiquidation, Ownable {
             amountToGiveToClaimant = amountToReturn;
             amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
         }
-        tracer.updateAccountsOnReceiptClaim(
+        tracer.updateAccountsOnClaim(
             receipt.liquidator,
             amountToGiveToClaimant.toInt256(),
             receipt.liquidatee,
@@ -478,26 +482,6 @@ contract Liquidation is ILiquidation, Ownable {
             amountTakenFromInsurance.toInt256()
         );
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
-    }
-
-    /**
-     * @notice Allows a trader to claim escrowed funds after the escrow period has expired
-     * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
-     */
-    function claimEscrow(uint256 receiptId) public override {
-        // Get receipt
-        /* TODO awaiting account + tracer merge
-        (address receiptTracer, , address liquidatee , , , , uint256 releaseTime, ,bool escrowClaimed , ,) = receipt.getLiquidationReceipt(receiptId);
-        require(liquidatee == msg.sender, "LIQ: Not Entitled");
-        require(!escrowClaimed, "LIQ: Already claimed");
-        require(block.timestamp > releaseTime, "LIQ: Not yet released");
-        
-        // Update balance and mark as claimed
-        int256 accountMargin = balances[receiptTracer][msg.sender].base;
-        int256 amountToReturn = receipt.claimEscrow(receiptId, liquidatee);
-        balances[receiptTracer][msg.sender].base = accountMargin.add(amountToReturn);
-        emit ClaimedEscrow(msg.sender, receiptTracer, receiptId);
-        */
     }
 
     /**

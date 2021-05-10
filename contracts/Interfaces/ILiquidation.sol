@@ -5,8 +5,6 @@ import "../lib/LibPerpetuals.sol";
 import "../lib/LibLiquidation.sol";
 
 interface ILiquidation {
-    function claimEscrow(uint256 id, address trader) external returns (int256);
-
     function calcAmountToReturn(
         uint256 escrowId,
         Perpetuals.Order[] memory orders,

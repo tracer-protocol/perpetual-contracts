@@ -317,7 +317,7 @@ contract TracerPerpetualSwaps is
         require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
     }
 
-    function updateAccountsOnReceiptClaim(
+    function updateAccountsOnClaim(
         address claimant,
         int256 amountToGiveToClaimant,
         address liquidatee,
