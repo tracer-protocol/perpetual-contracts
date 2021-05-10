@@ -392,7 +392,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId Used to identify the receipt that will be claimed
      * @param orders The orders that sold the liquidated position
      */
-    function claimReceipts(
+    function claimReceipt(
         uint256 receiptId,
         Perpetuals.Order[] memory orders,
         address traderContract

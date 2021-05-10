@@ -25,7 +25,7 @@ interface ILiquidation {
 
     function liquidate(int256 amount, address account) external;
 
-    function claimReceipts(
+    function claimReceipt(
         uint256 receiptId,
         Perpetuals.Order[] memory orders,
         address traderContract
