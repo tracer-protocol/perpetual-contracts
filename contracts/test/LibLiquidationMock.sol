@@ -48,7 +48,7 @@ library LibLiquidationMock {
         uint256 avgPrice,
         uint256 receiptPrice,
         bool receiptSide
-    ) external pure returns (uint256 result) {
+    ) external view returns (uint256 result) {
         /* Create a struct LibLiquidation with only price and liquidationSide set,
            as they are the only ones used in calculateSlippage */
         LibLiquidation.LiquidationReceipt memory minimalReceipt =
