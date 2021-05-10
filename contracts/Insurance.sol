@@ -122,7 +122,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-        int256 base = (tracer.getBalance(address(this))).base;
+        int256 base = (tracer.getBalance(address(this))).position.base;
         if (base > 0) {
             tracer.withdraw(uint256(base));
             poolAmount = poolAmount + uint256(base);
