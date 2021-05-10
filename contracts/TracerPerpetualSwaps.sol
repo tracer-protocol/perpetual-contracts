@@ -76,8 +76,7 @@ contract TracerPerpetualSwaps is
         address _liquidationContract,
         uint256 _maxLeverage,
         uint256 _fundingRateSensitivity,
-        uint256 _feeRate,
-        uint256 _oracleDecimals
+        uint256 _feeRate
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
         liquidationContract = _liquidationContract;
