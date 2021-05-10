@@ -24,16 +24,28 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
-    event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
-    event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
+    event InsuranceDeposit(
+        address indexed market,
+        address indexed user,
+        uint256 indexed amount
+    );
+    event InsuranceWithdraw(
+        address indexed market,
+        address indexed user,
+        uint256 indexed amount
+    );
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     constructor(address _tracer, address _perpsFactory) {
         perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
-        require(perpsFactory.validTracers(_tracer), "Pool not deployed by perpsFactory");
- 
+        require(
+            perpsFactory.validTracers(_tracer),
+            "Pool not deployed by perpsFactory"
+        );
+
         tracer = ITracerPerpetualSwaps(_tracer);
-        InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
+        InsurancePoolToken _token =
+            new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerBaseToken();
         poolAmount = 0;
@@ -49,12 +61,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     function stake(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
         collateralToken.transferFrom(msg.sender, address(this), amount);
-        
+
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
         uint256 tokensToMint;
-        
+
         if (poolToken.totalSupply() == 0) {
             // Mint at 1:1 ratio if no users in the pool
             tokensToMint = amount;
@@ -63,7 +75,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             //          Pool tokens (the ones to be minted) / poolAmount (the collateral asset)
             // Note the difference between this and withdraw. Here we are calculating the amount of tokens
             // to mint, and `amount` is the amount to deposit.
-            uint256 tokensToCollatRatio = (poolToken.totalSupply() * SAFE_TOKEN_MULTIPLY) / poolAmount;
+            uint256 tokensToCollatRatio =
+                (poolToken.totalSupply() * SAFE_TOKEN_MULTIPLY) / poolAmount;
             tokensToMint = (tokensToCollatRatio * amount) / SAFE_TOKEN_MULTIPLY;
         }
         // Margin tokens become pool tokens
@@ -92,8 +105,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         //             poolAmount (collateral asset) / pool tokens
         // Note the difference between this and stake. Here we are calculating the amount of tokens
         // to withdraw, and `amount` is the amount to burn.
-        uint256 collatToTokensRatio = (poolAmount * SAFE_TOKEN_MULTIPLY) / poolToken.totalSupply();
-        uint256 tokensToSend = (collatToTokensRatio * amount) / SAFE_TOKEN_MULTIPLY;
+        uint256 collatToTokensRatio =
+            (poolAmount * SAFE_TOKEN_MULTIPLY) / poolToken.totalSupply();
+        uint256 tokensToSend =
+            (collatToTokensRatio * amount) / SAFE_TOKEN_MULTIPLY;
 
         // Pool tokens become margin tokens
         poolToken.burnFrom(msg.sender, amount);
@@ -102,16 +117,15 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         emit InsuranceWithdraw(address(tracer), msg.sender, tokensToSend);
     }
 
-
     /**
      * @notice Internally updates a given tracer's pool amount according to the tracer contract
-     * @dev Withdraws from tracer, and adds amount to the pool's amount field. 
+     * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
         int256 base = (tracer.getBalance(address(this))).base;
         if (base > 0) {
-            tracer.withdraw(uint(base));
-            poolAmount = poolAmount + uint(base);
+            tracer.withdraw(uint256(base));
+            poolAmount = poolAmount + uint256(base);
         }
     }
 
@@ -125,7 +139,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 tracerMarginToken = IERC20(tracer.tracerBaseToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (poolAmount < 10 ** 18) {
+        if (poolAmount < 10**18) {
             return;
         }
 
@@ -136,10 +150,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         // What the balance will be after
         uint256 difference = poolAmount - amount;
-        if (difference < 10 ** 18) {
+        if (difference < 10**18) {
             // Once we go below one token, social loss is required
             // This calculation caps draining so pool always has at least one token
-            amount = poolAmount - (10 ** 18);
+            amount = poolAmount - (10**18);
             // Use new amount to compute difference again.
             difference = poolAmount - amount;
         }
@@ -153,7 +167,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice gets a users balance in a given insurance pool
      * @param user the user whose balance is being retrieved
      */
-    function getPoolUserBalance(address user) public override view returns (uint256) {
+    function getPoolUserBalance(address user)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return InsurancePoolToken(token).balanceOf(user);
     }
 
@@ -161,7 +180,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice Gets the target fund amount for a given insurance pool
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
-    function getPoolTarget() public override view returns (uint256) {
+    function getPoolTarget() public view override returns (uint256) {
         int256 target = tracer.leveragedNotionalValue() / 100;
 
         if (target > 0) {
@@ -176,14 +195,16 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev the funding rate is represented as 0.0036523 * (insurance_fund_target - insurance_fund_holdings) / leveraged_notional_value)
      *      To preserve precision, the rate is multiplied by 10^7.
      */
-    function getPoolFundingRate() external override view returns (uint256) {
+    function getPoolFundingRate() external view override returns (uint256) {
         uint256 multiplyFactor = 3652300;
         int256 levNotionalValue = tracer.leveragedNotionalValue();
         if (levNotionalValue <= 0) {
             return 0;
         }
 
-        int256 rate = ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) / levNotionalValue;
+        int256 rate =
+            ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) /
+                levNotionalValue;
         if (rate < 0) {
             return 0;
         } else {
@@ -194,15 +215,15 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     /**
      * @notice returns if the insurance pool needs funding or not
      */
-    function poolNeedsFunding() external override view returns (bool) {
+    function poolNeedsFunding() external view override returns (bool) {
         return getPoolTarget() > poolAmount;
     }
 
     modifier onlyLiquidation() {
-		require(
-			msg.sender == tracer.liquidationContract(),
-			"INS: sender is not Liquidation contract"
-		);
-		_;
-	}
+        require(
+            msg.sender == tracer.liquidationContract(),
+            "INS: sender is not Liquidation contract"
+        );
+        _;
+    }
 }

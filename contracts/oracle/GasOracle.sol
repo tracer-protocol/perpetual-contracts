@@ -27,7 +27,7 @@ contract GasOracle is IOracle, Ownable {
      * @notice Calculates the latest USD/Gas price
      * @dev Returned value is USD/Gas * 10^18 for compatibility with rest of calculations
      */
-    function latestAnswer() external override view returns (uint256) {
+    function latestAnswer() external view override returns (uint256) {
         if (usdToGas != 0) {
             // Default value has been manually set
             return usdToGas;
@@ -37,10 +37,12 @@ contract GasOracle is IOracle, Ownable {
 
         uint256 gasDecimals = gasOracle.decimals();
         uint256 priceDecimals = priceOracle.decimals();
-        uint256 divisionPower = ten**((gasDecimals + priceDecimals) - gweiDividor);
+        uint256 divisionPower =
+            ten**((gasDecimals + priceDecimals) - gweiDividor);
 
         // todo sanity check on casting. int256->uint256 is safe
-        return ((uint(gasOracle.latestAnswer()) * uint(priceOracle.latestAnswer())) / divisionPower);
+        return ((uint256(gasOracle.latestAnswer()) *
+            uint256(priceOracle.latestAnswer())) / divisionPower);
     }
 
     /**

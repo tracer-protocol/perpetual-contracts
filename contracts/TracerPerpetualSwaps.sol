@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
-import { Balances } from "./lib/LibBalances.sol";
-import { Types } from "./Interfaces/Types.sol";
+import {Balances} from "./lib/LibBalances.sol";
+import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibPerpetuals.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
@@ -15,244 +15,243 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract TracerPerpetualSwaps is
-	ITracerPerpetualSwaps,
-	Ownable,
-	SafetyWithdraw
+    ITracerPerpetualSwaps,
+    Ownable,
+    SafetyWithdraw
 {
-	using LibMath for uint256;
-	using LibMath for int256;
+    using LibMath for uint256;
+    using LibMath for int256;
 
-	uint256 public override fundingRateSensitivity;
-	uint256 public constant override LIQUIDATION_GAS_COST = 63516;
-	// todo ensure these are fine being immutable
-	uint256 public immutable override priceMultiplier;
-	address public immutable override tracerBaseToken;
-	uint256 public immutable override baseTokenDecimals;
-	bytes32 public immutable override marketId;
-	IPricing public pricingContract;
-	IInsurance public insuranceContract;
-	address public override liquidationContract;
-	uint256 public override feeRate;
+    uint256 public override fundingRateSensitivity;
+    uint256 public constant override LIQUIDATION_GAS_COST = 63516;
+    // todo ensure these are fine being immutable
+    uint256 public immutable override priceMultiplier;
+    address public immutable override tracerBaseToken;
+    uint256 public immutable override baseTokenDecimals;
+    bytes32 public immutable override marketId;
+    IPricing public pricingContract;
+    IInsurance public insuranceContract;
+    address public override liquidationContract;
+    uint256 public override feeRate;
 
-	// Config variables
-	address public override gasPriceOracle;
-	uint256 public override maxLeverage; // The maximum ratio of notionalValue to margin
+    // Config variables
+    address public override gasPriceOracle;
+    uint256 public override maxLeverage; // The maximum ratio of notionalValue to margin
 
-	// Account State Variables
-	mapping(address => Types.AccountBalance) public balances;
-	uint256 public tvl;
-	int256 public override leveragedNotionalValue;
+    // Account State Variables
+    mapping(address => Types.AccountBalance) public balances;
+    uint256 public tvl;
+    int256 public override leveragedNotionalValue;
 
     // Order state
-    mapping (bytes32 => uint256) filled;
+    mapping(bytes32 => uint256) filled;
 
-	// Trading interfaces whitelist
-	mapping(address => bool) public override tradingWhitelist;
+    // Trading interfaces whitelist
+    mapping(address => bool) public override tradingWhitelist;
 
-	event FeeReceiverUpdated(address receiver);
-	event Deposit(address indexed user, uint256 indexed amount);
-	event Withdraw(address indexed user, uint256 indexed amount);
-	event Settled(address indexed account, int256 margin);
+    event FeeReceiverUpdated(address receiver);
+    event Deposit(address indexed user, uint256 indexed amount);
+    event Withdraw(address indexed user, uint256 indexed amount);
+    event Settled(address indexed account, int256 margin);
 
-	/**
-	 * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
-	 *         will be able to purchase and trade tracers after this deployment.
-	 * @param _marketId the id of the market, given as BASE/QUOTE
-	 * @param _tracerBaseToken the address of the token used for margin accounts (i.e. The margin token)
-	 * @param _gasPriceOracle the address of the contract implementing gas price oracle
-	 * @param _pricingContract the address of the contract implementing the IPricing.sol interface
-	 * @param _liquidationContract the contract that manages liquidations for this market
-	 * @param _maxLeverage the max leverage of the market. Min margin is derived from this
-	 * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
-	 * @param _feeRate the fee to be taken on trades in this market
-	 */
-	constructor(
-		bytes32 _marketId,
-		address _tracerBaseToken,
-		uint256 _tokenDecimals,
-		address _gasPriceOracle,
-		address _pricingContract,
-		address _liquidationContract,
-		uint256 _maxLeverage,
-		uint256 _fundingRateSensitivity,
-		uint256 _feeRate,
-		uint256 _oracleDecimals
-	) Ownable() {
-		pricingContract = IPricing(_pricingContract);
-		// dont convert to interface as we don't need to interact
-		// with the contract
-		liquidationContract = _liquidationContract;
-		tracerBaseToken = _tracerBaseToken;
-		baseTokenDecimals = _tokenDecimals;
-		gasPriceOracle = _gasPriceOracle;
-		marketId = _marketId;
-		priceMultiplier = 10**uint256(_oracleDecimals);
-		feeRate = _feeRate;
-		maxLeverage = _maxLeverage;
-		fundingRateSensitivity = _fundingRateSensitivity;
-	}
+    /**
+     * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
+     *         will be able to purchase and trade tracers after this deployment.
+     * @param _marketId the id of the market, given as BASE/QUOTE
+     * @param _tracerBaseToken the address of the token used for margin accounts (i.e. The margin token)
+     * @param _gasPriceOracle the address of the contract implementing gas price oracle
+     * @param _pricingContract the address of the contract implementing the IPricing.sol interface
+     * @param _liquidationContract the contract that manages liquidations for this market
+     * @param _maxLeverage the max leverage of the market. Min margin is derived from this
+     * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
+     * @param _feeRate the fee to be taken on trades in this market
+     */
+    constructor(
+        bytes32 _marketId,
+        address _tracerBaseToken,
+        uint256 _tokenDecimals,
+        address _gasPriceOracle,
+        address _pricingContract,
+        address _liquidationContract,
+        uint256 _maxLeverage,
+        uint256 _fundingRateSensitivity,
+        uint256 _feeRate,
+        uint256 _oracleDecimals
+    ) Ownable() {
+        pricingContract = IPricing(_pricingContract);
+        // dont convert to interface as we don't need to interact
+        // with the contract
+        liquidationContract = _liquidationContract;
+        tracerBaseToken = _tracerBaseToken;
+        baseTokenDecimals = _tokenDecimals;
+        gasPriceOracle = _gasPriceOracle;
+        marketId = _marketId;
+        priceMultiplier = 10**uint256(_oracleDecimals);
+        feeRate = _feeRate;
+        maxLeverage = _maxLeverage;
+        fundingRateSensitivity = _fundingRateSensitivity;
+    }
 
-	/**
-	 * @notice Allows a user to deposit into their margin account
-	 * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
-	 * @param amount The amount of base tokens to be deposited into the Tracer Market account. This amount
-	 * should be given with the correct decimal units of the token
-	 */
-	function deposit(uint256 amount) external override {
-		Types.AccountBalance storage userBalance = balances[msg.sender];
-		IERC20(tracerBaseToken).transferFrom(msg.sender, address(this), amount);
+    /**
+     * @notice Allows a user to deposit into their margin account
+     * @dev this contract must be an approvexd spender of the markets base token on behalf of the depositer.
+     * @param amount The amount of base tokens to be deposited into the Tracer Market account. This amount
+     * should be given with the correct decimal units of the token
+     */
+    function deposit(uint256 amount) external override {
+        Types.AccountBalance storage userBalance = balances[msg.sender];
+        IERC20(tracerBaseToken).transferFrom(msg.sender, address(this), amount);
 
-		// update user state
-		int256 amountToUpdate = Balances.tokenToWad(baseTokenDecimals, amount);
-		userBalance.base = userBalance.base + amountToUpdate;
-		_updateAccountLeverage(msg.sender);
+        // update user state
+        int256 amountToUpdate = Balances.tokenToWad(baseTokenDecimals, amount);
+        userBalance.base = userBalance.base + amountToUpdate;
+        _updateAccountLeverage(msg.sender);
 
-		// update market TVL
-		// this cast is safe since amount > 0 on deposit and tokenToWad simply
-		// multiplies the amount up to a WAD value
-		tvl = tvl + uint(amountToUpdate);
-		emit Deposit(msg.sender, amount);
-	}
+        // update market TVL
+        // this cast is safe since amount > 0 on deposit and tokenToWad simply
+        // multiplies the amount up to a WAD value
+        tvl = tvl + uint256(amountToUpdate);
+        emit Deposit(msg.sender, amount);
+    }
 
-	/**
-	 * @notice Allows a user to withdraw from their margin account
-	 * @dev Ensures that the users margin percent is valid after withdraw
-	 * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
-	 * should be given in WAD format
-	 */
-	function withdraw(uint256 amount) external override {
-		Types.AccountBalance storage userBalance = balances[msg.sender];
-		int256 newBase = userBalance.base - amount.toInt256();
-		require(
-			marginIsValid(
-				newBase,
-				userBalance.quote,
-				userBalance.lastUpdatedGasPrice
-			),
-			"TCR: Withdraw below valid Margin "
-		);
+    /**
+     * @notice Allows a user to withdraw from their margin account
+     * @dev Ensures that the users margin percent is valid after withdraw
+     * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
+     * should be given in WAD format
+     */
+    function withdraw(uint256 amount) external override {
+        Types.AccountBalance storage userBalance = balances[msg.sender];
+        int256 newBase = userBalance.base - amount.toInt256();
+        require(
+            marginIsValid(
+                newBase,
+                userBalance.quote,
+                userBalance.lastUpdatedGasPrice
+            ),
+            "TCR: Withdraw below valid Margin "
+        );
 
-		// update user state
-		userBalance.base = newBase;
-		_updateAccountLeverage(msg.sender);
+        // update user state
+        userBalance.base = newBase;
+        _updateAccountLeverage(msg.sender);
 
-		// Safemath will throw if tvl[market] < amount
-		tvl = tvl - amount;
+        // Safemath will throw if tvl[market] < amount
+        tvl = tvl - amount;
 
-		// perform transfer
-		uint256 transferAmount = Balances.wadToToken(baseTokenDecimals, amount);
-		IERC20(tracerBaseToken).transfer(msg.sender, transferAmount);
-		emit Withdraw(msg.sender, amount);
-	}
+        // perform transfer
+        uint256 transferAmount = Balances.wadToToken(baseTokenDecimals, amount);
+        IERC20(tracerBaseToken).transfer(msg.sender, transferAmount);
+        emit Withdraw(msg.sender, amount);
+    }
 
-	/**
-	 * @notice Match two orders that exist on chain against each other
-	 * @param order1 the first order
-	 * @param order2 the second order
-	 * @param fillAmount the amount to be filled as sent by the trader
-	 */
-	function matchOrders(
-		Perpetuals.Order memory order1,
-		Perpetuals.Order memory order2,
-		uint256 fillAmount
-	) public override onlyWhitelisted {
+    /**
+     * @notice Match two orders that exist on chain against each other
+     * @param order1 the first order
+     * @param order2 the second order
+     * @param fillAmount the amount to be filled as sent by the trader
+     */
+    function matchOrders(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
+    ) public override onlyWhitelisted {
         uint256 filled1 = filled[Perpetuals.orderId(order1)];
         uint256 filled2 = filled[Perpetuals.orderId(order2)];
 
         // guard
-        require(Perpetuals.canMatch(order1, filled1, order2, filled2),
-            "TCR: Orders cannot be matched");
+        require(
+            Perpetuals.canMatch(order1, filled1, order2, filled2),
+            "TCR: Orders cannot be matched"
+        );
 
-		// settle accounts
-		settle(order1.maker);
-		settle(order2.maker);
+        // settle accounts
+        settle(order1.maker);
+        settle(order2.maker);
 
-		// update account states
-		executeTrade(order1, order2, fillAmount);
+        // update account states
+        executeTrade(order1, order2, fillAmount);
 
-		// update leverage
-		_updateAccountLeverage(order1.maker);
-		_updateAccountLeverage(order2.maker);
+        // update leverage
+        _updateAccountLeverage(order1.maker);
+        _updateAccountLeverage(order2.maker);
 
-		// Update internal trade state
-		// note: price has already been validated here, so order 1 price can be used
-		pricingContract.recordTrade(order1.price, fillAmount);
+        // Update internal trade state
+        // note: price has already been validated here, so order 1 price can be used
+        pricingContract.recordTrade(order1.price, fillAmount);
 
-		// Ensures that you are in a position to take the trade
-		require(
-			userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
-			"TCR: Margin Invalid post trade "
-		);
-	}
+        // Ensures that you are in a position to take the trade
+        require(
+            userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
+            "TCR: Margin Invalid post trade "
+        );
+    }
 
-	/**
-	 * @notice Updates account states of two accounts given two orders that are being executed
-	 */
-	function executeTrade(
-		Perpetuals.Order memory order1,
-		Perpetuals.Order memory order2,
-		uint256 fillAmount
-	) internal {
-		int256 _fillAmount = fillAmount.toInt256();
-		// todo evaluate how safe this cast is
-		int256 baseChange =
-			((fillAmount * order1.price) / priceMultiplier).toInt256();
+    /**
+     * @notice Updates account states of two accounts given two orders that are being executed
+     */
+    function executeTrade(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
+    ) internal {
+        int256 _fillAmount = fillAmount.toInt256();
+        // todo evaluate how safe this cast is
+        int256 baseChange =
+            ((fillAmount * order1.price) / priceMultiplier).toInt256();
 
-		//Update account states
-		Types.AccountBalance storage account1 = balances[order1.maker];
-		Types.AccountBalance storage account2 = balances[order2.maker];
+        //Update account states
+        Types.AccountBalance storage account1 = balances[order1.maker];
+        Types.AccountBalance storage account2 = balances[order2.maker];
 
         /* TODO: handle every enum arm! */
-		if (order1.side == Perpetuals.Side.Long) {
-			// user 1 is long. Increase quote, decrease base
-			account1.base = account1.base - baseChange;
-			account1.quote = account1.quote + _fillAmount;
+        if (order1.side == Perpetuals.Side.Long) {
+            // user 1 is long. Increase quote, decrease base
+            account1.base = account1.base - baseChange;
+            account1.quote = account1.quote + _fillAmount;
 
-			// user 2 is short. Increase base, decrease quote
-			account2.base = account2.base + baseChange;
-			account2.quote = account2.quote - _fillAmount;
-		} else {
-			// user 1 is short. Increase base, decrease quote
-			account1.base = account1.base + baseChange;
-			account1.quote = account1.quote - _fillAmount;
+            // user 2 is short. Increase base, decrease quote
+            account2.base = account2.base + baseChange;
+            account2.quote = account2.quote - _fillAmount;
+        } else {
+            // user 1 is short. Increase base, decrease quote
+            account1.base = account1.base + baseChange;
+            account1.quote = account1.quote - _fillAmount;
 
-			// user 2 is long. Increase quote, decrease base
-			account2.base = account2.base - baseChange;
-			account2.quote = account2.quote + _fillAmount;
-		}
-	}
+            // user 2 is long. Increase quote, decrease base
+            account2.base = account2.base - baseChange;
+            account2.quote = account2.quote + _fillAmount;
+        }
+    }
 
-	/**
-	 * @notice internal function for updating leverage. Called within the Account contract. Also
-	 *         updates the total leveraged notional value for the tracer market itself.
-	 */
-	function _updateAccountLeverage(address account) internal {
-		Types.AccountBalance memory userBalance = balances[account];
-		uint256 originalLeverage = userBalance.totalLeveragedValue;
-		uint256 newLeverage =
-			Balances.newCalcLeveragedNotionalValue(
-				userBalance.quote,
-				pricingContract.fairPrice(),
-				userBalance.base,
-				priceMultiplier
-			);
-		balances[account].totalLeveragedValue = newLeverage;
+    /**
+     * @notice internal function for updating leverage. Called within the Account contract. Also
+     *         updates the total leveraged notional value for the tracer market itself.
+     */
+    function _updateAccountLeverage(address account) internal {
+        Types.AccountBalance memory userBalance = balances[account];
+        uint256 originalLeverage = userBalance.totalLeveragedValue;
+        Balances.Position memory pos =
+            Balances.Position(userBalance.base, userBalance.quote);
+        uint256 newLeverage =
+            Balances.leveragedNotionalValue(pos, pricingContract.fairPrice());
+        balances[account].totalLeveragedValue = newLeverage;
 
-		// Update market leveraged notional value
-		_updateTracerLeverage(newLeverage, originalLeverage);
-	}
+        // Update market leveraged notional value
+        _updateTracerLeverage(newLeverage, originalLeverage);
+    }
 
-	// todo these calcs can be in a library function
-	/**
-	 * @notice Updates the global leverage value given an accounts new leveraged value and old leveraged value
-	 * @param accountNewLeveragedNotional The future notional value of the account
-	 * @param accountOldLeveragedNotional The stored notional value of the account
-	 */
-	function _updateTracerLeverage(
-		uint256 accountNewLeveragedNotional,
-		uint256 accountOldLeveragedNotional
-	) internal {
-		/*
+    // todo these calcs can be in a library function
+    /**
+     * @notice Updates the global leverage value given an accounts new leveraged value and old leveraged value
+     * @param accountNewLeveragedNotional The future notional value of the account
+     * @param accountOldLeveragedNotional The stored notional value of the account
+     */
+    function _updateTracerLeverage(
+        uint256 accountNewLeveragedNotional,
+        uint256 accountOldLeveragedNotional
+    ) internal {
+        /*
         Update notional value
         Method:
         For both maker and taker, calculate the new leveraged notional value, as well as their change
@@ -269,287 +268,277 @@ contract TracerPerpetualSwaps is
         (which is the old leveraged value)
         */
 
-		// todo CASTING CHECK
-		int256 _newLeverage = accountNewLeveragedNotional.toInt256();
-		int256 _oldLeverage = accountOldLeveragedNotional.toInt256();
-		int256 accountDelta = _newLeverage - _oldLeverage;
-		if (
-			_newLeverage > 0 && _oldLeverage >= 0
-		) {
-			leveragedNotionalValue = leveragedNotionalValue + accountDelta;
-		} else if (
-			_newLeverage > 0 && _oldLeverage < 0
-		) {
-			leveragedNotionalValue =
-				leveragedNotionalValue +
-				_newLeverage;
-		} else if (
-			_newLeverage <= 0 &&
-			accountDelta < 0 &&
-			_oldLeverage > 0
-		) {
-			leveragedNotionalValue =
-				leveragedNotionalValue -
-				_oldLeverage;
-		}
-	}
+        // todo CASTING CHECK
+        int256 _newLeverage = accountNewLeveragedNotional.toInt256();
+        int256 _oldLeverage = accountOldLeveragedNotional.toInt256();
+        int256 accountDelta = _newLeverage - _oldLeverage;
+        if (_newLeverage > 0 && _oldLeverage >= 0) {
+            leveragedNotionalValue = leveragedNotionalValue + accountDelta;
+        } else if (_newLeverage > 0 && _oldLeverage < 0) {
+            leveragedNotionalValue = leveragedNotionalValue + _newLeverage;
+        } else if (_newLeverage <= 0 && accountDelta < 0 && _oldLeverage > 0) {
+            leveragedNotionalValue = leveragedNotionalValue - _oldLeverage;
+        }
+    }
 
-	function updateAccountsOnLiquidation(
-		address liquidator,
-		address liquidatee,
-		int256 liquidatorBaseChange,
-		int256 liquidatorQuoteChange,
-		int256 liquidateeBaseChange,
-		int256 liquidateeQuoteChange,
-		uint256 amountToEscrow
-	) external override onlyLiquidation {
-		// Limits the gas use when liquidating
-		uint256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
-		require(
-			tx.gasprice <= gasPrice,
-			"TCR: GasPrice > FGasPrice"
-		);
-		// Update liquidators last updated gas price
-		Types.AccountBalance storage liquidatorBalance = balances[liquidator];
-		Types.AccountBalance storage liquidateeBalance = balances[liquidatee];
+    function updateAccountsOnLiquidation(
+        address liquidator,
+        address liquidatee,
+        int256 liquidatorBaseChange,
+        int256 liquidatorQuoteChange,
+        int256 liquidateeBaseChange,
+        int256 liquidateeQuoteChange,
+        uint256 amountToEscrow
+    ) external override onlyLiquidation {
+        // Limits the gas use when liquidating
+        uint256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
+        require(tx.gasprice <= gasPrice, "TCR: GasPrice > FGasPrice");
+        // Update liquidators last updated gas price
+        Types.AccountBalance storage liquidatorBalance = balances[liquidator];
+        Types.AccountBalance storage liquidateeBalance = balances[liquidatee];
 
-		// update liquidators balance
-		liquidatorBalance.lastUpdatedGasPrice = gasPrice;
-		liquidatorBalance.base =
-			liquidatorBalance.base +
-			liquidatorBaseChange -
-			amountToEscrow.toInt256();
-		liquidatorBalance.quote =
-			liquidatorBalance.quote +
-			liquidatorQuoteChange;
+        // update liquidators balance
+        liquidatorBalance.lastUpdatedGasPrice = gasPrice;
+        liquidatorBalance.base =
+            liquidatorBalance.base +
+            liquidatorBaseChange -
+            amountToEscrow.toInt256();
+        liquidatorBalance.quote =
+            liquidatorBalance.quote +
+            liquidatorQuoteChange;
 
-		// update liquidatee balance
-		liquidateeBalance.base = liquidateeBalance.base + liquidateeBaseChange;
-		liquidateeBalance.quote =
-			liquidateeBalance.quote +
-			liquidateeQuoteChange;
+        // update liquidatee balance
+        liquidateeBalance.base = liquidateeBalance.base + liquidateeBaseChange;
+        liquidateeBalance.quote =
+            liquidateeBalance.quote +
+            liquidateeQuoteChange;
 
-		// Checks if the liquidator is in a valid position to process the liquidation
-		require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
-	}
+        // Checks if the liquidator is in a valid position to process the liquidation
+        require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
+    }
 
-	function updateAccountsOnClaim(
-		address claimant,
-		int256 amountToGiveToClaimant,
-		address liquidatee,
-		int256 amountToGiveToLiquidatee,
-		int256 amountToTakeFromInsurance
-	) external override onlyLiquidation {
-		address insuranceAddr = address(insuranceContract);
-		balances[insuranceAddr].base = balances[insuranceAddr].base - amountToTakeFromInsurance;
+    function updateAccountsOnClaim(
+        address claimant,
+        int256 amountToGiveToClaimant,
+        address liquidatee,
+        int256 amountToGiveToLiquidatee,
+        int256 amountToTakeFromInsurance
+    ) external override onlyLiquidation {
+        address insuranceAddr = address(insuranceContract);
+        balances[insuranceAddr].base =
+            balances[insuranceAddr].base -
+            amountToTakeFromInsurance;
         balances[claimant].base =
-            balances[claimant].base + amountToGiveToClaimant;
+            balances[claimant].base +
+            amountToGiveToClaimant;
         balances[liquidatee].base =
-            balances[liquidatee].base + amountToGiveToLiquidatee;
-		require(balances[insuranceAddr].base > 0, "TCR: Insurance not adequately funded");
-	}
+            balances[liquidatee].base +
+            amountToGiveToLiquidatee;
+        require(
+            balances[insuranceAddr].base > 0,
+            "TCR: Insurance not adequately funded"
+        );
+    }
 
-	/**
-	 * @notice settles an account. Compares current global rate with the users last updated rate
-	 *         Updates the accounts margin balance accordingly.
-	 * @dev Ensures the account remains in a valid margin position. Will throw if account is under margin
-	 *      and the account must then be liquidated.
-	 * @param account the address to settle.
-	 * @dev This function aggregates data to feed into account.sol"s settle function which sets
-	 */
-	function settle(address account) public override {
-		// Get account and global last updated indexes
-		uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
-		uint256 currentGlobalFundingIndex =
-			pricingContract.currentFundingIndex();
+    /**
+     * @notice settles an account. Compares current global rate with the users last updated rate
+     *         Updates the accounts margin balance accordingly.
+     * @dev Ensures the account remains in a valid margin position. Will throw if account is under margin
+     *      and the account must then be liquidated.
+     * @param account the address to settle.
+     * @dev This function aggregates data to feed into account.sol"s settle function which sets
+     */
+    function settle(address account) public override {
+        // Get account and global last updated indexes
+        uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
+        uint256 currentGlobalFundingIndex =
+            pricingContract.currentFundingIndex();
 
-		// Only settle account if its last updated index was before the current global index
-		if (accountLastUpdatedIndex < currentGlobalFundingIndex) {
-			/*
+        // Only settle account if its last updated index was before the current global index
+        if (accountLastUpdatedIndex < currentGlobalFundingIndex) {
+            /*
              Get current and global funding statuses
              Note: global rates reference the last fully established rate (hence the -1), and not
              the current global rate. User rates reference the last saved user rate
             */
-			(, , , int256 currentGlobalRate) =
-				pricingContract.getFundingRate(
-					pricingContract.currentFundingIndex() - 1
-				);
-			(, , , int256 currentUserRate) =
-				pricingContract.getFundingRate(accountLastUpdatedIndex);
-			(, , , int256 currentInsuranceGlobalRate) =
-				pricingContract.getInsuranceFundingRate(
-					pricingContract.currentFundingIndex() - 1
-				);
-			(, , , int256 currentInsuranceUserRate) =
-				pricingContract.getInsuranceFundingRate(
-					accountLastUpdatedIndex
-				);
+            (, , , int256 currentGlobalRate) =
+                pricingContract.getFundingRate(
+                    pricingContract.currentFundingIndex() - 1
+                );
+            (, , , int256 currentUserRate) =
+                pricingContract.getFundingRate(accountLastUpdatedIndex);
+            (, , , int256 currentInsuranceGlobalRate) =
+                pricingContract.getInsuranceFundingRate(
+                    pricingContract.currentFundingIndex() - 1
+                );
+            (, , , int256 currentInsuranceUserRate) =
+                pricingContract.getInsuranceFundingRate(
+                    accountLastUpdatedIndex
+                );
 
-			// settle the account
-			Types.AccountBalance storage accountBalance = balances[account];
-			Types.AccountBalance storage insuranceBalance =
-				balances[address(insuranceContract)];
+            // settle the account
+            Types.AccountBalance storage accountBalance = balances[account];
+            Types.AccountBalance storage insuranceBalance =
+                balances[address(insuranceContract)];
 
-			// todo pretty much all of the below should be in a library
+            // todo pretty much all of the below should be in a library
 
-			// Calc the difference in funding rates, remove price multiply factor
-			int256 fundingDiff = currentGlobalRate - currentUserRate;
+            // Calc the difference in funding rates, remove price multiply factor
+            int256 fundingDiff = currentGlobalRate - currentUserRate;
 
-			// Update account, divide by 2x price multiplier to factor out price and funding rate scalar value
-			// base - (fundingDiff * quote / (priceMultiplier * priceMultiplier))
-			accountBalance.base = (accountBalance.base -
-				(fundingDiff * accountBalance.quote) /
-				((priceMultiplier * priceMultiplier).toInt256()));
-			// Update account gas price
-			accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
-				.latestAnswer();
+            // Update account, divide by 2x price multiplier to factor out price and funding rate scalar value
+            // base - (fundingDiff * quote / (priceMultiplier * priceMultiplier))
+            accountBalance.base = (accountBalance.base -
+                (fundingDiff * accountBalance.quote) /
+                ((priceMultiplier * priceMultiplier).toInt256()));
+            // Update account gas price
+            accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
+                .latestAnswer();
 
-			if (accountBalance.totalLeveragedValue > 0) {
-				// calc and pay insurance funding rate
-				// todo CASTING CHECK
-				int256 changeInInsuranceBalance =
-					((currentInsuranceGlobalRate - currentInsuranceUserRate) *
-						accountBalance.totalLeveragedValue.toInt256()) /
-						insuranceContract.INSURANCE_MUL_FACTOR();
+            if (accountBalance.totalLeveragedValue > 0) {
+                // calc and pay insurance funding rate
+                // todo CASTING CHECK
+                int256 changeInInsuranceBalance =
+                    ((currentInsuranceGlobalRate - currentInsuranceUserRate) *
+                        accountBalance.totalLeveragedValue.toInt256()) /
+                        insuranceContract.INSURANCE_MUL_FACTOR();
 
-				if (changeInInsuranceBalance > 0) {
-					// Only pay insurance fund if required
-					accountBalance.base =
-						accountBalance.base -
-						changeInInsuranceBalance;
-					insuranceBalance.base =
-						insuranceBalance.base +
-						changeInInsuranceBalance;
-					// uint is safe since changeInInsuranceBalance > 0
-				}
-			}
+                if (changeInInsuranceBalance > 0) {
+                    // Only pay insurance fund if required
+                    accountBalance.base =
+                        accountBalance.base -
+                        changeInInsuranceBalance;
+                    insuranceBalance.base =
+                        insuranceBalance.base +
+                        changeInInsuranceBalance;
+                    // uint is safe since changeInInsuranceBalance > 0
+                }
+            }
 
-			// Update account index
-			accountBalance.lastUpdatedIndex = pricingContract
-				.currentFundingIndex();
-			require(userMarginIsValid(account), "TCR: Target under-margined ");
-			emit Settled(account, accountBalance.base);
-		}
-	}
+            // Update account index
+            accountBalance.lastUpdatedIndex = pricingContract
+                .currentFundingIndex();
+            require(userMarginIsValid(account), "TCR: Target under-margined ");
+            emit Settled(account, accountBalance.base);
+        }
+    }
 
-	// todo this function should be in a lib
-	/**
-	 * @notice Checks the validity of a potential margin given the necessary parameters
-	 * @param base The base value to be assessed (positive or negative)
-	 * @param quote The accounts quote units
-	 * @param gasPrice The gas price
-	 * @return a bool representing the validity of a margin
-	 */
-	function marginIsValid(
-		int256 base,
-		int256 quote,
-		uint256 gasPrice
-	) public view returns (bool) {
-		uint256 price = pricingContract.fairPrice();
-		uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
-		uint256 minMargin =
-			Balances.calcMinMargin(
-				quote,
-				price,
-				base,
-				gasCost,
-				maxLeverage,
-				priceMultiplier
-			);
-		int256 margin =
-			Balances.calcMargin(quote, price, base, priceMultiplier);
+    // todo this function should be in a lib
+    /**
+     * @notice Checks the validity of a potential margin given the necessary parameters
+     * @param base The base value to be assessed (positive or negative)
+     * @param quote The accounts quote units
+     * @param gasPrice The gas price
+     * @return a bool representing the validity of a margin
+     */
+    function marginIsValid(
+        int256 base,
+        int256 quote,
+        uint256 gasPrice
+    ) public view returns (bool) {
+        uint256 price = pricingContract.fairPrice();
+        uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
+        Balances.Position memory pos = Balances.Position(base, quote);
+        uint256 minMargin =
+            Balances.minimumMargin(pos, price, gasCost, maxLeverage);
+        int256 margin = Balances.margin(pos, price);
 
-		if (margin < 0) {
-			/* Margin being less than 0 is always invalid, even if position is 0.
+        if (margin < 0) {
+            /* Margin being less than 0 is always invalid, even if position is 0.
                This could happen if user attempts to over-withdraw */
-			return false;
-		}
-		if (minMargin == 0) {
-			return true;
-		}
+            return false;
+        }
+        if (minMargin == 0) {
+            return true;
+        }
 
-		// todo CASTING CHECK
-		return margin > minMargin.toInt256();
-	}
+        // todo CASTING CHECK
+        return margin > minMargin.toInt256();
+    }
 
-	/**
-	 * @notice Checks if a given accounts margin is valid
-	 * @param account The address of the account whose margin is to be checked
-	 * @return true if the margin is valid or false otherwise
-	 */
-	function userMarginIsValid(address account) public view returns (bool) {
-		Types.AccountBalance memory accountBalance = balances[account];
-		return
-			marginIsValid(
-				accountBalance.base,
-				accountBalance.quote,
-				accountBalance.lastUpdatedGasPrice
-			);
-	}
+    /**
+     * @notice Checks if a given accounts margin is valid
+     * @param account The address of the account whose margin is to be checked
+     * @return true if the margin is valid or false otherwise
+     */
+    function userMarginIsValid(address account) public view returns (bool) {
+        Types.AccountBalance memory accountBalance = balances[account];
+        return
+            marginIsValid(
+                accountBalance.base,
+                accountBalance.quote,
+                accountBalance.lastUpdatedGasPrice
+            );
+    }
 
-    function getBalance(address account) public view override returns (Types.AccountBalance memory) {
+    function getBalance(address account)
+        public
+        view
+        override
+        returns (Types.AccountBalance memory)
+    {
         return balances[account];
     }
 
-	function setInsuranceContract(address insurance) public override onlyOwner {
-		insuranceContract = IInsurance(insurance);
-	}
+    function setInsuranceContract(address insurance) public override onlyOwner {
+        insuranceContract = IInsurance(insurance);
+    }
 
-	function setPricingContract(address pricing) public override onlyOwner {
-		pricingContract = IPricing(pricing);
-	}
+    function setPricingContract(address pricing) public override onlyOwner {
+        pricingContract = IPricing(pricing);
+    }
 
-	function setGasOracle(address _gasOracle) public override onlyOwner {
-		gasPriceOracle = _gasOracle;
-	}
+    function setGasOracle(address _gasOracle) public override onlyOwner {
+        gasPriceOracle = _gasOracle;
+    }
 
-	function setFeeRate(uint256 _feeRate) public override onlyOwner {
-		feeRate = _feeRate;
-	}
+    function setFeeRate(uint256 _feeRate) public override onlyOwner {
+        feeRate = _feeRate;
+    }
 
-	function setMaxLeverage(uint256 _maxLeverage) public override onlyOwner {
-		maxLeverage = _maxLeverage;
-	}
+    function setMaxLeverage(uint256 _maxLeverage) public override onlyOwner {
+        maxLeverage = _maxLeverage;
+    }
 
-	function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
-		public
-		override
-		onlyOwner
-	{
-		fundingRateSensitivity = _fundingRateSensitivity;
-	}
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
+        public
+        override
+        onlyOwner
+    {
+        fundingRateSensitivity = _fundingRateSensitivity;
+    }
 
-	function transferOwnership(address newOwner)
-		public
-		override(Ownable, ITracerPerpetualSwaps)
-		onlyOwner
-	{
-		super.transferOwnership(newOwner);
-	}
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ITracerPerpetualSwaps)
+        onlyOwner
+    {
+        super.transferOwnership(newOwner);
+    }
 
-	/**
-	* @notice allows the owner of a market to set the whitelisting of a trading interface address
-	* @dev a permissioned interface may call the matchOrders function.
-	* @param tradingContract the contract to have its whitelisting permissions set
-	* @param whitelisted the permission of the contract. If true this contract make call makeOrder
-	*/
-	function setWhitelist(address tradingContract, bool whitelisted) external onlyOwner {
-		tradingWhitelist[tradingContract] = whitelisted;
-	}
+    /**
+     * @notice allows the owner of a market to set the whitelisting of a trading interface address
+     * @dev a permissioned interface may call the matchOrders function.
+     * @param tradingContract the contract to have its whitelisting permissions set
+     * @param whitelisted the permission of the contract. If true this contract make call makeOrder
+     */
+    function setWhitelist(address tradingContract, bool whitelisted)
+        external
+        onlyOwner
+    {
+        tradingWhitelist[tradingContract] = whitelisted;
+    }
 
-	modifier onlyLiquidation() {
-		require(
-			msg.sender == liquidationContract,
-			"TCR: Sender not liquidation contract "
-		);
-		_;
-	}
+    modifier onlyLiquidation() {
+        require(
+            msg.sender == liquidationContract,
+            "TCR: Sender not liquidation contract "
+        );
+        _;
+    }
 
-	modifier onlyWhitelisted() {
-		require(
-			tradingWhitelist[msg.sender],
-			"TCR: Contract not whitelisted"
-		);
-		_;
-	}
+    modifier onlyWhitelisted() {
+        require(tradingWhitelist[msg.sender], "TCR: Contract not whitelisted");
+        _;
+    }
 }
