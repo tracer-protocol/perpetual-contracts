@@ -41,8 +41,5 @@ jobs:
               run: yarn install
 
             - name: Run Prettier
-              run: yarn run lint:fix
-
-            - name: Run Prettier
               run: yarn run lint
 
