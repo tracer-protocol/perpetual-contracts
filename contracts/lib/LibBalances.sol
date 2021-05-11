@@ -65,7 +65,7 @@ library Balances {
          * cast **will** throw iff. `price >= type(int256).max()`.
          */
         int256 signedPrice = LibMath.toInt256(price);
-        return position.base + PRBMathSD59x18.mul(position.quote, signedPrice);
+        return position.quote + PRBMathSD59x18.mul(position.base, signedPrice);
     }
 
     /**
@@ -100,9 +100,9 @@ library Balances {
 
         uint256 liquidationGasCost = liquidationCost * 6;
 
-        uint256 minimumQuote = notionalValue / maximumLeverage;
+        uint256 baseMinimumMargin = notionalValue / maximumLeverage;
 
-        return liquidationGasCost + minimumQuote;
+        return liquidationGasCost + baseMinimumMargin;
     }
 
     function applyTrade(
