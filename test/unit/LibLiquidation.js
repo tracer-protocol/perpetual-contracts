@@ -99,7 +99,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
                 expectedLiquidatorQuoteChange
             )
             expect(ret._liquidatorBaseChange.toString()).to.equal(
-                expectedChange
+                expectedLiquidatorBaseChange
             )
             expect(ret._liquidateeQuoteChange.toString()).to.equal(
                 expectedLiquidateeQuoteChange
@@ -167,7 +167,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
         })
     })
 
-    context("liquidationBalanceChanges", async function () {
+    context("calculateSlippage", async function () {
         it("0% slippage", async function () {
             const unitsSold = "100"
             const maxSlippage = (1 * 10000).toString() // 100%
