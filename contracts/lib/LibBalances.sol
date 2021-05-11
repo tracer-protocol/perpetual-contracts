@@ -43,7 +43,7 @@ library Balances {
     }
 
     /**
-     * @notice Calculates the marign as quote + base * base_price
+     * @notice Calculates the margin as quote + base * base_price
      * @param position the position the account is currently in
      * @param price The price of the base asset
      */
