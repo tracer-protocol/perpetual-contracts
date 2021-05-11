@@ -100,9 +100,9 @@ library Balances {
 
         uint256 liquidationGasCost = liquidationCost * 6;
 
-        uint256 baseMinimumMargin = notionalValue / maximumLeverage;
+        uint256 minimumMarginWithoutGasCost = notionalValue / maximumLeverage;
 
-        return liquidationGasCost + baseMinimumMargin;
+        return liquidationGasCost + minimumMarginWithoutGasCost;
     }
 
     function applyTrade(
