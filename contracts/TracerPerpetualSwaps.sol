@@ -5,6 +5,7 @@ import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
+import "./lib/LibPrices.sol";
 import "./lib/LibPerpetuals.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
@@ -348,7 +349,7 @@ contract TracerPerpetualSwaps is
      * @dev Ensures the account remains in a valid margin position. Will throw if account is under margin
      *      and the account must then be liquidated.
      * @param account the address to settle.
-     * @dev This function aggregates data to feed into account.sol"s settle function which sets
+     * @dev This function aggregates data to feed into account.sols settle function which sets
      */
     function settle(address account) public override {
         // Get account and global last updated indexes
@@ -363,17 +364,17 @@ contract TracerPerpetualSwaps is
              Note: global rates reference the last fully established rate (hence the -1), and not
              the current global rate. User rates reference the last saved user rate
             */
-            (, , , int256 currentGlobalRate) =
+            Prices.FundingRateInstant memory currGlobalRate =
                 pricingContract.getFundingRate(
                     pricingContract.currentFundingIndex() - 1
                 );
-            (, , , int256 currentUserRate) =
+            Prices.FundingRateInstant memory currUserRate =
                 pricingContract.getFundingRate(accountLastUpdatedIndex);
-            (, , , int256 currentInsuranceGlobalRate) =
+            Prices.FundingRateInstant memory currInsuranceGlobalRate =
                 pricingContract.getInsuranceFundingRate(
                     pricingContract.currentFundingIndex() - 1
                 );
-            (, , , int256 currentInsuranceUserRate) =
+            Prices.FundingRateInstant memory currInsuranceUserRate =
                 pricingContract.getInsuranceFundingRate(
                     accountLastUpdatedIndex
                 );
@@ -386,7 +387,7 @@ contract TracerPerpetualSwaps is
             // todo pretty much all of the below should be in a library
 
             // Calc the difference in funding rates, remove price multiply factor
-            int256 fundingDiff = currentGlobalRate - currentUserRate;
+            int256 fundingDiff = currGlobalRate.fundingRate - currUserRate.fundingRate;
 
             // base - (fundingDiff * quote
             accountBalance.position.base =
@@ -400,7 +401,7 @@ contract TracerPerpetualSwaps is
                 // calc and pay insurance funding rate
                 // todo CASTING CHECK
                 int256 changeInInsuranceBalance =
-                    ((currentInsuranceGlobalRate - currentInsuranceUserRate) *
+                    ((currInsuranceGlobalRate.fundingRate - currInsuranceUserRate.fundingRate) *
                         accountBalance.totalLeveragedValue.toInt256()) /
                         insuranceContract.INSURANCE_MUL_FACTOR();
 

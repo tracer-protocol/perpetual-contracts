@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
+import "./lib/LibPrices.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
@@ -22,10 +22,10 @@ contract Pricing is IPricing {
     Types.PricingMetrics internal price;
 
     // funding index => funding rate
-    mapping(uint256 => Types.FundingRate) public fundingRates;
+    mapping(uint256 => Prices.FundingRateInstant) public fundingRates;
 
     // funding index => insurance funding rate
-    mapping(uint256 => Types.FundingRate) public insuranceFundingRates;
+    mapping(uint256 => Prices.FundingRateInstant) public insuranceFundingRates;
 
     // market's time value
     int256 public override timeValue;
@@ -39,7 +39,7 @@ contract Pricing is IPricing {
     uint8 public currentHour;
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
-    event FundingRateUpdated(int256 fundingRate, int256 fundingRateValue);
+    event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
     event InsuranceFundingRateUpdated(
         int256 insuranceFundingRate,
         int256 insuranceFundingRateValue
@@ -62,8 +62,8 @@ contract Pricing is IPricing {
 
         // initialise funding rate, similar to what was done in trace perp
         uint256 oracleLatestPrice = oracle.latestAnswer();
-        setFundingRate(oracleLatestPrice, 0, 0);
-        setInsuranceFundingRate(oracleLatestPrice, 0, 0);
+        setFundingRate(0, 0);
+        setInsuranceFundingRate(0, 0);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
     }
@@ -172,21 +172,20 @@ contract Pricing is IPricing {
 
         // Create variable with value of new funding rate value
         int256 currentFundingRateValue =
-            fundingRates[fundingIndex].fundingRateValue;
-        int256 fundingRateValue =
+            fundingRates[fundingIndex].cumulativeFundingRate;
+        int256 cumulativeFundingRate =
             currentFundingRateValue + (newFundingRate * oraclePrice.toInt256());
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue =
-            insuranceFundingRates[fundingIndex].fundingRateValue;
+            insuranceFundingRates[fundingIndex].cumulativeFundingRate;
         int256 iPoolFundingRateValue =
             currentInsuranceFundingRateValue + iPoolFundingRate;
 
         // Call setter functions on calculated variables
-        setFundingRate(oraclePrice, newFundingRate, fundingRateValue);
-        emit FundingRateUpdated(newFundingRate, fundingRateValue);
+        setFundingRate(newFundingRate, cumulativeFundingRate);
+        emit FundingRateUpdated(newFundingRate, cumulativeFundingRate);
         setInsuranceFundingRate(
-            oraclePrice,
             iPoolFundingRate,
             iPoolFundingRateValue
         );
@@ -224,39 +223,33 @@ contract Pricing is IPricing {
 
     /**
      * @notice Sets the values of the fundingRate struct
-     * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The funding Rate of the Tracer, calculated by updateFundingRate
-     * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
+     * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
     function setFundingRate(
-        uint256 marketPrice,
         int256 fundingRate,
-        int256 fundingRateValue
+        int256 cumulativeFundingRate
     ) internal {
-        fundingRates[currentFundingIndex] = Types.FundingRate(
+        fundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
-            marketPrice,
             fundingRate,
-            fundingRateValue
+            cumulativeFundingRate
         );
     }
 
     /**
      * @notice Sets the values of the fundingRate struct for a particular Tracer Marker
-     * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The insurance funding Rate of the Tracer, calculated by updateFundingRate
-     * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
+     * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
     function setInsuranceFundingRate(
-        uint256 marketPrice,
         int256 fundingRate,
-        int256 fundingRateValue
+        int256 cumulativeFundingRate
     ) internal {
-        insuranceFundingRates[currentFundingIndex] = Types.FundingRate(
+        insuranceFundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
-            marketPrice,
             fundingRate,
-            fundingRateValue
+            cumulativeFundingRate
         );
     }
 
@@ -268,42 +261,30 @@ contract Pricing is IPricing {
         public
         view
         override
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256
-        )
+        returns (Prices.FundingRateInstant memory)
     {
-        Types.FundingRate memory fundingRate = fundingRates[index];
-        return (
-            fundingRate.recordTime,
-            fundingRate.recordPrice,
+        Prices.FundingRateInstant memory fundingRate = fundingRates[index];
+        return Prices.FundingRateInstant(
+            fundingRate.timestamp,
             fundingRate.fundingRate,
-            fundingRate.fundingRateValue
+            fundingRate.cumulativeFundingRate
         );
     }
 
     /**
-     * @return all of the vairbales in the funding rate struct (insurance rate) from a particular tracer market
+     * @return all of the variables in the funding rate struct (insurance rate) from a particular tracer market
      */
     function getInsuranceFundingRate(uint256 index)
         public
         view
         override
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256
-        )
+        returns (Prices.FundingRateInstant memory)
     {
-        Types.FundingRate memory fundingRate = insuranceFundingRates[index];
-        return (
-            fundingRate.recordTime,
-            fundingRate.recordPrice,
+        Prices.FundingRateInstant memory fundingRate = insuranceFundingRates[index];
+        return Prices.FundingRateInstant(
+            fundingRate.timestamp,
             fundingRate.fundingRate,
-            fundingRate.fundingRateValue
+            fundingRate.cumulativeFundingRate
         );
     }
 
