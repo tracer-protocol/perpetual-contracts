@@ -5,10 +5,9 @@ import "../lib/LibPerpetuals.sol";
 
 interface Types {
     struct FundingRate {
-        uint256 recordTime;
-        uint256 recordPrice;
-        int256 fundingRate; //positive value = longs pay shorts
-        int256 fundingRateValue; //previous rate + (time diff * price * rate)
+        uint256 timestamp;
+        int256 fundingRate;
+        int256 cumulativeFundingRate;
     }
 
     struct HourlyPrices {
