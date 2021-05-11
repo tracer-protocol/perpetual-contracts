@@ -429,7 +429,6 @@ contract Liquidation is ILiquidation, Ownable {
                 amountWantedFromInsurance.toInt256()
             ) {
                 // We don't need to drain insurance contract
-                // insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else {
                 // insuranceBalance.base < amountWantedFromInsurance
@@ -455,8 +454,6 @@ contract Liquidation is ILiquidation, Ownable {
                     );
                     // insuranceBalance.position.base = 0;
                 } else {
-                    // insuranceBalance.position.base >= amountWantedFromInsurance
-                    // insuranceBalance.position.base = insuranceBalance.position.base - amountWantedFromInsurance.toInt256();
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }
             }
