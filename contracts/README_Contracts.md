@@ -8,7 +8,7 @@
 Usage: This contract is used in order to retrieve the current gas price in $USD
 
 **Oracle.sol**  
-**Explanation:** This contract is an implementation of an Oracle that reports the market price of the underlying asset that the tracers value is quoted upon. Implementations of these oracles can differ as long as the oracle complies with IOracle.sol and is community approve      
+**Explanation:** This contract is an implementation of an Oracle that reports the market price of the underlying asset that the tracers value is based upon. Implementations of these oracles can differ as long as the oracle complies with IOracle.sol and is community approve      
 Usage: This contract is used in order to retrieve off chain asset prices (via Chainlink) as well as the Ethereum gas price
 
 **Gov.sol**  
