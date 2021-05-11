@@ -192,13 +192,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        uint256 target = tracer.leveragedNotionalValue() / 100;
-
-        if (target > 0) {
-            return target;
-        } else {
-            return 0;
-        }
+        return tracer.leveragedNotionalValue() / 100;
     }
 
     /**
