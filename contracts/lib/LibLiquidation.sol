@@ -59,31 +59,18 @@ library LibLiquidation {
     {
         // proportionate amount of base to take
         // base * (amount / abs(quote))
-        int256 changeInBase =
+        int256 portionOfQuote =
             PRBMathSD59x18.mul(
                 liquidatedBase,
                 PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedQuote))
             );
 
-        int256 liquidatorQuoteChange;
-        int256 liquidatorBaseChange;
-        int256 liquidateeQuoteChange;
-        int256 liquidateeBaseChange;
-
-        // The amount of quote to liquidate, given the supplied amount of base being liquidated
-        // quote * (amount / base)
-        // todo CASTING CHECK
-        int256 portionOfQuote =
-            ((liquidatedQuote *
-                ((amount * PERCENT_PRECISION.toInt256()) /
-                    liquidatedBase.abs())) / PERCENT_PRECISION.toInt256());
-
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
-        liquidatorQuoteChange = portionOfQuote;
-        liquidateeQuoteChange = portionOfQuote * (-1);
+        _liquidatorQuoteChange = portionOfQuote;
+        _liquidateeQuoteChange = portionOfQuote * (-1);
 
-        liquidatorBaseChange = amount;
-        liquidateeBaseChange = amount * (-1);
+        _liquidatorBaseChange = amount;
+        _liquidateeBaseChange = amount * (-1);
     }
 
     /**
