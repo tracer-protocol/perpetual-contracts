@@ -105,7 +105,6 @@ contract Liquidation is ILiquidation, Ownable {
         currentLiquidationId += 1;
     }
 
-
     /**
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
