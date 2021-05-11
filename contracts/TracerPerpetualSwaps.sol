@@ -394,7 +394,7 @@ contract TracerPerpetualSwaps is
             // Calc the difference in funding rates, remove price multiply factor
             int256 fundingDiff = currentGlobalRate - currentUserRate;
 
-            // quote - (fundingDiff * base
+            // quote - (fundingDiff * base)
             accountBalance.position.quote =
                 accountBalance.position.quote -
                 PRBMathSD59x18.mul(fundingDiff, accountBalance.position.base);
