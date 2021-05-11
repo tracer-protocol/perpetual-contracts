@@ -64,7 +64,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         // convert token amount to WAD
         uint256 amountToUpdate =
-            uint256(Balances.tokenToWad(tracer.baseTokenDecimals(), amount));
+            uint256(Balances.tokenToWad(tracer.quoteTokenDecimals(), amount));
 
         // Update pool balances and user
         updatePoolAmount();
@@ -118,7 +118,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         // convert token amount to raw amount from WAD
         uint256 tokensToSend =
-            Balances.wadToToken(tracer.baseTokenDecimals(), wadTokensToSend);
+            Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // Pool tokens become margin tokens
         poolToken.burnFrom(msg.sender, amount);
