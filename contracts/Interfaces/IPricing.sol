@@ -1,26 +1,18 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
+import "../lib/LibPrices.sol";
+
 interface IPricing {
     function getFundingRate(uint256 index)
         external
         view
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256
-        );
+        returns (Prices.FundingRateInstant memory);
 
     function getInsuranceFundingRate(uint256 index)
         external
         view
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256
-        );
+        returns (Prices.FundingRateInstant memory);
 
     function currentFundingIndex() external view returns (uint256);
 
