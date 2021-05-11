@@ -61,18 +61,17 @@ library LibLiquidation {
         int256 liquidatorBaseChange;
         int256 liquidateeQuoteChange;
         int256 liquidateeBaseChange;
+
+        // The amount of quote to liquidate, given the supplied amount of base being liquidated
         // quote * (amount / base)
         // todo CASTING CHECK
-        int256 changeInQuote =
+        int256 portionOfQuote =
             ((liquidatedQuote *
                 ((amount * PERCENT_PRECISION.toInt256()) /
                     liquidatedBase.abs())) / PERCENT_PRECISION.toInt256());
-        // if (liquidatedQuote > 0) {
-        // Add to the liquidators margin, they are taking on positive margin
-        liquidatorQuoteChange = changeInQuote;
 
-        // Subtract from the liquidatees margin
-        liquidateeQuoteChange = changeInQuote * (-1);
+        liquidatorQuoteChange = portionOfQuote;
+        liquidateeQuoteChange = portionOfQuote * (-1);
 
         liquidatorBaseChange = amount;
         liquidateeBaseChange = amount * (-1);
