@@ -106,61 +106,6 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
-     * @notice Marks receipts as claimed and returns the refund amount
-     * @param escrowId the id of the receipt created during the liquidation event
-     * @param orders the orders that sell the liquidated positions
-     * @param traderContract the address of the trader contract the selling orders were made by
-     * @param liquidator the account who executed the liquidation
-     */
-    function calcAmountToReturn(
-        uint256 escrowId,
-        Perpetuals.Order[] memory orders,
-        address traderContract,
-        address liquidator
-    ) public override returns (uint256) {
-        LibLiquidation.LiquidationReceipt memory receipt =
-            liquidationReceipts[escrowId];
-        require(receipt.liquidator == liquidator, "LIQ: Liquidator mismatch");
-        require(
-            block.timestamp < receipt.releaseTime,
-            "LIQ: claim time passed"
-        );
-        require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
-        require(
-            tracer.tradingWhitelist(traderContract),
-            "LIQ: Trader is not whitelisted"
-        );
-
-        // Validate the escrowed order was fully sold
-        (uint256 unitsSold, uint256 avgPrice) =
-            calcUnitsSold(orders, traderContract, escrowId);
-        require(
-            unitsSold <= uint256(receipt.amountLiquidated.abs()),
-            "LIQ: Unit mismatch"
-        );
-
-        // Mark refund as claimed
-        liquidationReceipts[escrowId].liquidatorRefundClaimed = true;
-
-        uint256 amountToReturn =
-            LibLiquidation.calculateSlippage(
-                unitsSold,
-                maxSlippage,
-                avgPrice,
-                receipt
-            );
-
-        if (amountToReturn > receipt.escrowedAmount) {
-            liquidationReceipts[escrowId].escrowedAmount = 0;
-        } else {
-            liquidationReceipts[escrowId].escrowedAmount =
-                receipt.escrowedAmount -
-                amountToReturn;
-        }
-        return amountToReturn;
-    }
-
-    /**
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
@@ -387,6 +332,37 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
+     * @notice Marks receipts as claimed and returns the refund amount
+     * @param escrowId the id of the receipt created during the liquidation event
+     * @param orders the orders that sell the liquidated positions
+     * @param traderContract the address of the trader contract the selling orders were made by
+     */
+    function calcAmountToReturn(
+        uint256 escrowId,
+        Perpetuals.Order[] memory orders,
+        address traderContract
+    ) public override returns (uint256) {
+        LibLiquidation.LiquidationReceipt memory receipt =
+            liquidationReceipts[escrowId];
+        // Validate the escrowed order was fully sold
+        (uint256 unitsSold, uint256 avgPrice) =
+            calcUnitsSold(orders, traderContract, escrowId);
+        require(
+            unitsSold <= uint256(receipt.amountLiquidated.abs()),
+            "LIQ: Unit mismatch"
+        );
+
+        uint256 amountToReturn =
+            LibLiquidation.calculateSlippage(
+                unitsSold,
+                maxSlippage,
+                avgPrice,
+                receipt
+            );
+        return amountToReturn;
+    }
+
+    /**
      * @notice Allows a liquidator to submit a single liquidation receipt and multiple order ids. If the
      *         liquidator experienced slippage, will refund them a proportional amount of their deposit.
      * @param receiptId Used to identify the receipt that will be claimed
@@ -400,8 +376,31 @@ contract Liquidation is ILiquidation, Ownable {
         // Claim the receipts from the escrow system, get back amount to return
         LibLiquidation.LiquidationReceipt memory receipt =
             liquidationReceipts[receiptId];
+
+        // Mark refund as claimed
+        require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
+        liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
+
+        require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
+        require(
+            block.timestamp < receipt.releaseTime,
+            "LIQ: claim time passed"
+        );
+        require(
+            tracer.tradingWhitelist(traderContract),
+            "LIQ: Trader is not whitelisted"
+        );
+
         uint256 amountToReturn =
-            calcAmountToReturn(receiptId, orders, traderContract, msg.sender);
+            calcAmountToReturn(receiptId, orders, traderContract);
+
+        if (amountToReturn > receipt.escrowedAmount) {
+            liquidationReceipts[receiptId].escrowedAmount = 0;
+        } else {
+            liquidationReceipts[receiptId].escrowedAmount =
+                receipt.escrowedAmount -
+                amountToReturn;
+        }
 
         // Keep track of how much was actually taken out of insurance
         uint256 amountTakenFromInsurance;
@@ -429,7 +428,6 @@ contract Liquidation is ILiquidation, Ownable {
                 amountWantedFromInsurance.toInt256()
             ) {
                 // We don't need to drain insurance contract
-                // insuranceBalance.base = insuranceBalance.base - amountWantedFromInsurance.toInt256();
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else {
                 // insuranceBalance.base < amountWantedFromInsurance
@@ -455,8 +453,6 @@ contract Liquidation is ILiquidation, Ownable {
                     );
                     // insuranceBalance.position.base = 0;
                 } else {
-                    // insuranceBalance.position.base >= amountWantedFromInsurance
-                    // insuranceBalance.position.base = insuranceBalance.position.base - amountWantedFromInsurance.toInt256();
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }
             }
