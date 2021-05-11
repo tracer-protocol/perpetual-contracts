@@ -47,10 +47,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         InsurancePoolToken _token =
             new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
-        collateralAsset = tracer.tracerBaseToken();
+        collateralAsset = tracer.tracerQuoteToken();
         poolAmount = 0;
 
-        emit InsurancePoolDeployed(_tracer, tracer.tracerBaseToken());
+        emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
     /**
@@ -133,10 +133,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-        int256 base = (tracer.getBalance(address(this))).position.base;
-        if (base > 0) {
-            tracer.withdraw(uint256(base));
-            poolAmount = poolAmount + uint256(base);
+        int256 quote = (tracer.getBalance(address(this))).position.quote;
+        if (quote > 0) {
+            tracer.withdraw(uint256(quote));
+            poolAmount = poolAmount + uint256(quote);
         }
     }
 
@@ -147,7 +147,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param amount The desired amount to take from the insurance pool
      */
     function drainPool(uint256 amount) external override onlyLiquidation() {
-        IERC20 tracerMarginToken = IERC20(tracer.tracerBaseToken());
+        IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
         if (poolAmount < 10**18) {
