@@ -38,71 +38,71 @@ library LibLiquidation {
     }
 
     /**
-     * @notice Calculates the updated base and quote of the trader and liquidator on a liquidation event.
-     * @param liquidatedBase The base of the account being liquidated
+     * @notice Calculates the updated quote and base of the trader and liquidator on a liquidation event.
      * @param liquidatedQuote The quote of the account being liquidated
-     * @param liquidatorQuote The quote of the account liquidating
+     * @param liquidatedBase The base of the account being liquidated
+     * @param liquidatorBase The base of the account liquidating
      * @param amount The amount that is to be liquidated from the position
      */
     function liquidationBalanceChanges(
-        int256 liquidatedBase,
         int256 liquidatedQuote,
-        int256 liquidatorQuote,
+        int256 liquidatedBase,
+        int256 liquidatorBase,
         int256 amount
     )
         public
         pure
         returns (
-            int256 _liquidatorBaseChange,
             int256 _liquidatorQuoteChange,
-            int256 _liquidateeBaseChange,
-            int256 _liquidateeQuoteChange
+            int256 _liquidatorBaseChange,
+            int256 _liquidateeQuoteChange,
+            int256 _liquidateeBaseChange
         )
     {
-        int256 liquidatorBaseChange;
         int256 liquidatorQuoteChange;
-        int256 liquidateeBaseChange;
+        int256 liquidatorBaseChange;
         int256 liquidateeQuoteChange;
-        // base * (amount / quote)
+        int256 liquidateeBaseChange;
+        // quote * (amount / base)
         // todo CASTING CHECK
-        int256 changeInBase =
-            ((liquidatedBase *
+        int256 changeInQuote =
+            ((liquidatedQuote *
                 ((amount * PERCENT_PRECISION.toInt256()) /
-                    liquidatedQuote.abs())) / PERCENT_PRECISION.toInt256());
-        if (liquidatedBase > 0) {
+                    liquidatedBase.abs())) / PERCENT_PRECISION.toInt256());
+        if (liquidatedQuote > 0) {
             // Add to the liquidators margin, they are taking on positive margin
-            liquidatorBaseChange = changeInBase;
+            liquidatorQuoteChange = changeInQuote;
 
             // Subtract from the liquidatees margin
-            liquidateeBaseChange = changeInBase * (-1);
+            liquidateeQuoteChange = changeInQuote * (-1);
         } else {
             // Subtract from the liquidators margin, they are taking on negative margin
-            liquidatorBaseChange = changeInBase * (-1);
+            liquidatorQuoteChange = changeInQuote * (-1);
 
             // Add this to the user balances margin
-            liquidateeBaseChange = changeInBase;
+            liquidateeQuoteChange = changeInQuote;
         }
 
-        if (liquidatorQuote > 0) {
+        if (liquidatorBase > 0) {
             // Take from liquidatee, give to liquidator
-            liquidatorQuoteChange = amount;
-            liquidateeQuoteChange = amount * (-1);
+            liquidatorBaseChange = amount;
+            liquidateeBaseChange = amount * (-1);
         } else {
             // Take from liquidator, give to liquidatee
-            liquidatorQuoteChange = amount * (-1);
-            liquidateeQuoteChange = amount;
+            liquidatorBaseChange = amount * (-1);
+            liquidateeBaseChange = amount;
         }
         return (
-            liquidatorBaseChange,
             liquidatorQuoteChange,
-            liquidateeBaseChange,
-            liquidateeQuoteChange
+            liquidatorBaseChange,
+            liquidateeQuoteChange,
+            liquidateeBaseChange
         );
     }
 
     /**
      * @notice Calculates the amount of slippage experienced compared to value of position in a receipt
-     * @param unitsSold Amount of base units sold in the orders
+     * @param unitsSold Amount of quote units sold in the orders
      * @param maxSlippage The upper bound for slippage
      * @param avgPrice The average price of units sold in orders
      * @param receipt The receipt for the state during liquidation

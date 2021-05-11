@@ -45,8 +45,8 @@ interface IAccount {
     function updateAccountLeverage(address account, address market) external;
 
     function marginIsValid(
-        int256 base,
         int256 quote,
+        int256 base,
         int256 price,
         int256 gasPrice,
         address market

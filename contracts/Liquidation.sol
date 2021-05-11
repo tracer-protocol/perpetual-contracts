@@ -191,14 +191,14 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     function verifyAndSubmitLiquidation(
-        int256 quote,
-        uint256 price,
         int256 base,
+        uint256 price,
+        int256 quote,
         int256 amount,
         uint256 gasPrice,
         address account
     ) internal returns (uint256) {
-        Balances.Position memory pos = Balances.Position(base, quote);
+        Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
         int256 currentMargin = Balances.margin(pos, price);
@@ -214,7 +214,7 @@ contract Liquidation is ILiquidation, Ownable {
                 ),
             "LIQ: Account above margin"
         );
-        require(amount <= quote.abs(), "LIQ: Liquidate Amount > Position");
+        require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow =
@@ -229,7 +229,7 @@ contract Liquidation is ILiquidation, Ownable {
             );
 
         // create a liquidation receipt
-        bool side = quote < 0 ? false : true;
+        bool side = base < 0 ? false : true;
         submitLiquidation(
             msg.sender,
             account,
@@ -242,18 +242,18 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     function calcLiquidationBalanceChanges(
-        int256 liquidatedBase,
         int256 liquidatedQuote,
+        int256 liquidatedBase,
         address liquidator,
         int256 amount
     )
         internal
         view
         returns (
-            int256 liquidatorBaseChange,
             int256 liquidatorQuoteChange,
-            int256 liquidateeBaseChange,
-            int256 liquidateeQuoteChange
+            int256 liquidatorBaseChange,
+            int256 liquidateeQuoteChange,
+            int256 liquidateeBaseChange
         )
     {
         /* Liquidator's balance */
@@ -263,9 +263,9 @@ contract Liquidation is ILiquidation, Ownable {
         // Calculates what the updated state of both accounts will be if the liquidation is fully processed
         return
             LibLiquidation.liquidationBalanceChanges(
-                liquidatedBase,
                 liquidatedQuote,
-                liquidatorBalance.position.quote,
+                liquidatedBase,
+                liquidatorBalance.position.base,
                 amount
             );
     }
@@ -284,9 +284,9 @@ contract Liquidation is ILiquidation, Ownable {
 
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
-                liquidatedBalance.position.quote,
-                pricing.fairPrice(),
                 liquidatedBalance.position.base,
+                pricing.fairPrice(),
+                liquidatedBalance.position.quote,
                 amount,
                 liquidatedBalance.lastUpdatedGasPrice,
                 account
@@ -299,14 +299,14 @@ contract Liquidation is ILiquidation, Ownable {
         );
 
         (
-            int256 liquidatorBaseChange,
             int256 liquidatorQuoteChange,
-            int256 liquidateeBaseChange,
-            int256 liquidateeQuoteChange
+            int256 liquidatorBaseChange,
+            int256 liquidateeQuoteChange,
+            int256 liquidateeBaseChange
         ) =
             calcLiquidationBalanceChanges(
-                liquidatedBalance.position.base,
                 liquidatedBalance.position.quote,
+                liquidatedBalance.position.base,
                 msg.sender,
                 amount
             );
@@ -314,10 +314,10 @@ contract Liquidation is ILiquidation, Ownable {
         tracer.updateAccountsOnLiquidation(
             msg.sender,
             account,
-            liquidatorBaseChange,
             liquidatorQuoteChange,
-            liquidateeBaseChange,
+            liquidatorBaseChange,
             liquidateeQuoteChange,
+            liquidateeBaseChange,
             amountToEscrow
         );
 
@@ -325,7 +325,7 @@ contract Liquidation is ILiquidation, Ownable {
             account,
             msg.sender,
             amount,
-            (liquidatedBalance.position.quote < 0 ? false : true),
+            (liquidatedBalance.position.base < 0 ? false : true),
             address(tracer),
             currentLiquidationId - 1
         );
@@ -424,14 +424,14 @@ contract Liquidation is ILiquidation, Ownable {
             Balances.Account memory insuranceBalance =
                 tracer.getBalance(insuranceContract);
             if (
-                insuranceBalance.position.base >=
+                insuranceBalance.position.quote >=
                 amountWantedFromInsurance.toInt256()
             ) {
                 // We don't need to drain insurance contract
                 amountTakenFromInsurance = amountWantedFromInsurance;
             } else {
-                // insuranceBalance.base < amountWantedFromInsurance
-                if (insuranceBalance.position.base <= 0) {
+                // insuranceBalance.quote < amountWantedFromInsurance
+                if (insuranceBalance.position.quote <= 0) {
                     // attempt to drain entire balance that is needed from the pool
                     IInsurance(insuranceContract).drainPool(
                         amountWantedFromInsurance
@@ -440,18 +440,18 @@ contract Liquidation is ILiquidation, Ownable {
                     // attempt to drain the required balance taking into account the insurance balance in the account contract
                     IInsurance(insuranceContract).drainPool(
                         amountWantedFromInsurance -
-                            uint256(insuranceBalance.position.base)
+                            uint256(insuranceBalance.position.quote)
                     );
                 }
                 if (
-                    insuranceBalance.position.base <
+                    insuranceBalance.position.quote <
                     amountWantedFromInsurance.toInt256()
                 ) {
                     // Still not enough
                     amountTakenFromInsurance = uint256(
-                        insuranceBalance.position.base
+                        insuranceBalance.position.quote
                     );
-                    // insuranceBalance.position.base = 0;
+                    // insuranceBalance.position.quote = 0;
                 } else {
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }

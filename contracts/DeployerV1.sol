@@ -11,7 +11,7 @@ contract DeployerV1 is IDeployer {
     function deploy(bytes calldata _data) external override returns (address) {
         (
             bytes32 _tracerId,
-            address _tracerBaseToken,
+            address _tracerQuoteToken,
             uint256 _tokenDecimals,
             address _gasPriceOracle,
             address _liquidationContract,
@@ -35,7 +35,7 @@ contract DeployerV1 is IDeployer {
         TracerPerpetualSwaps tracer =
             new TracerPerpetualSwaps(
                 _tracerId,
-                _tracerBaseToken,
+                _tracerQuoteToken,
                 _tokenDecimals,
                 _gasPriceOracle,
                 _liquidationContract,
