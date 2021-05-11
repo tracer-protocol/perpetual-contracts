@@ -108,10 +108,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         //             poolAmount (collateral asset) / pool tokens
         // Note the difference between this and stake. Here we are calculating the amount of tokens
         // to withdraw, and `amount` is the amount to burn.
-        uint256 tokensToSend = PRBMathUD60x18.mul(
-            PRBMathUD60x18.div(poolAmount, poolToken.totalSupply()),
-            amount
-        );
+        uint256 tokensToSend =
+            PRBMathUD60x18.mul(
+                PRBMathUD60x18.div(poolAmount, poolToken.totalSupply()),
+                amount
+            );
         // Pool tokens become margin tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, tokensToSend);
@@ -183,10 +184,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        int256 target = tracer.leveragedNotionalValue() / 100;
+        uint256 target = tracer.leveragedNotionalValue() / 100;
 
         if (target > 0) {
-            return uint256(target);
+            return target;
         } else {
             return 0;
         }
@@ -201,22 +202,14 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         // 0.0036523 as a WAD = 36523 * (10**11)
         uint256 multiplyFactor = 36523 * (10**11);
 
-
-        int256 levNotionalValue = tracer.leveragedNotionalValue();
+        uint256 levNotionalValue = tracer.leveragedNotionalValue();
         if (levNotionalValue <= 0) {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.div(getPoolTarget() - poolAmount, levNotionalValue);
-
-        int256 rate =
-            ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) /
-                levNotionalValue;
-        if (rate < 0) {
-            return 0;
-        } else {
-            return uint256(rate);
-        }
+        uint256 ratio =
+            PRBMathUD60x18.div(getPoolTarget() - poolAmount, levNotionalValue);
+        return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
 
     /**
