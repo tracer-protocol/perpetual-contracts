@@ -15,9 +15,6 @@ import "prb-math/contracts/PRBMathUD60x18.sol";
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using LibMath for uint256;
     using LibMath for int256;
-
-    // int256 public constant override INSURANCE_MUL_FACTOR = 1000000000;
-    // uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
