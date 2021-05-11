@@ -90,7 +90,7 @@ contract TracerPerpetualSwaps is
 
     /**
      * @notice Allows a user to deposit into their margin account
-     * @dev this contract must be an approvexd spender of the markets quote token on behalf of the depositer.
+     * @dev this contract must be an approved spender of the markets quote token on behalf of the depositer.
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
      * should be given with the correct decimal units of the token
      */
