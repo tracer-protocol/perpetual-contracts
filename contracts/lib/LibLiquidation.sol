@@ -41,7 +41,6 @@ library LibLiquidation {
      * @notice Calculates the updated quote and base of the trader and liquidator on a liquidation event.
      * @param liquidatedQuote The quote of the account being liquidated
      * @param liquidatedBase The base of the account being liquidated
-     * @param liquidatorBase The base of the account liquidating
      * @param amount The amount that is to be liquidated from the position
      */
     function liquidationBalanceChanges(
