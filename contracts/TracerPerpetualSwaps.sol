@@ -405,9 +405,8 @@ contract TracerPerpetualSwaps is
                 // calc and pay insurance funding rate
                 // todo CASTING CHECK
                 int256 changeInInsuranceBalance =
-                    ((currentInsuranceGlobalRate - currentInsuranceUserRate) *
-                        accountBalance.totalLeveragedValue.toInt256()) /
-                        insuranceContract.INSURANCE_MUL_FACTOR();
+                    (currentInsuranceGlobalRate - currentInsuranceUserRate) *
+                        accountBalance.totalLeveragedValue.toInt256();
 
                 if (changeInInsuranceBalance > 0) {
                     // Only pay insurance fund if required
