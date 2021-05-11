@@ -8,4 +8,3 @@ library Prices {
         int256 cumulativeFundingRate;
     }
 }
-

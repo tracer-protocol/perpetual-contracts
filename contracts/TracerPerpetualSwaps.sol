@@ -387,7 +387,8 @@ contract TracerPerpetualSwaps is
             // todo pretty much all of the below should be in a library
 
             // Calc the difference in funding rates, remove price multiply factor
-            int256 fundingDiff = currGlobalRate.fundingRate - currUserRate.fundingRate;
+            int256 fundingDiff =
+                currGlobalRate.fundingRate - currUserRate.fundingRate;
 
             // base - (fundingDiff * quote
             accountBalance.position.base =
@@ -401,7 +402,8 @@ contract TracerPerpetualSwaps is
                 // calc and pay insurance funding rate
                 // todo CASTING CHECK
                 int256 changeInInsuranceBalance =
-                    ((currInsuranceGlobalRate.fundingRate - currInsuranceUserRate.fundingRate) *
+                    ((currInsuranceGlobalRate.fundingRate -
+                        currInsuranceUserRate.fundingRate) *
                         accountBalance.totalLeveragedValue.toInt256()) /
                         insuranceContract.INSURANCE_MUL_FACTOR();
 

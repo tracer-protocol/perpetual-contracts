@@ -185,10 +185,7 @@ contract Pricing is IPricing {
         // Call setter functions on calculated variables
         setFundingRate(newFundingRate, cumulativeFundingRate);
         emit FundingRateUpdated(newFundingRate, cumulativeFundingRate);
-        setInsuranceFundingRate(
-            iPoolFundingRate,
-            iPoolFundingRateValue
-        );
+        setInsuranceFundingRate(iPoolFundingRate, iPoolFundingRateValue);
         emit InsuranceFundingRateUpdated(
             iPoolFundingRate,
             iPoolFundingRateValue
@@ -226,10 +223,9 @@ contract Pricing is IPricing {
      * @param fundingRate The funding Rate of the Tracer, calculated by updateFundingRate
      * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
-    function setFundingRate(
-        int256 fundingRate,
-        int256 cumulativeFundingRate
-    ) internal {
+    function setFundingRate(int256 fundingRate, int256 cumulativeFundingRate)
+        internal
+    {
         fundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
             fundingRate,
@@ -264,11 +260,12 @@ contract Pricing is IPricing {
         returns (Prices.FundingRateInstant memory)
     {
         Prices.FundingRateInstant memory fundingRate = fundingRates[index];
-        return Prices.FundingRateInstant(
-            fundingRate.timestamp,
-            fundingRate.fundingRate,
-            fundingRate.cumulativeFundingRate
-        );
+        return
+            Prices.FundingRateInstant(
+                fundingRate.timestamp,
+                fundingRate.fundingRate,
+                fundingRate.cumulativeFundingRate
+            );
     }
 
     /**
@@ -280,12 +277,14 @@ contract Pricing is IPricing {
         override
         returns (Prices.FundingRateInstant memory)
     {
-        Prices.FundingRateInstant memory fundingRate = insuranceFundingRates[index];
-        return Prices.FundingRateInstant(
-            fundingRate.timestamp,
-            fundingRate.fundingRate,
-            fundingRate.cumulativeFundingRate
-        );
+        Prices.FundingRateInstant memory fundingRate =
+            insuranceFundingRates[index];
+        return
+            Prices.FundingRateInstant(
+                fundingRate.timestamp,
+                fundingRate.fundingRate,
+                fundingRate.cumulativeFundingRate
+            );
     }
 
     /**
