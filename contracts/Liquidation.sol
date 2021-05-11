@@ -449,7 +449,6 @@ contract Liquidation is ILiquidation, Ownable {
                     amountTakenFromInsurance = uint256(
                         insuranceBalance.position.quote
                     );
-                    // insuranceBalance.position.quote = 0;
                 } else {
                     amountTakenFromInsurance = amountWantedFromInsurance;
                 }
