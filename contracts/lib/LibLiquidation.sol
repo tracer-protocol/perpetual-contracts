@@ -3,13 +3,13 @@ pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
 
 library LibLiquidation {
     using LibMath for uint256;
     using LibMath for int256;
     using PRBMathUD60x18 for uint256;
-
-    uint256 private constant PERCENT_PRECISION = 10000;
+    using PRBMathSD59x18 for int256;
 
     struct LiquidationReceipt {
         address tracer;
@@ -26,8 +26,8 @@ library LibLiquidation {
     }
 
     function calcEscrowLiquidationAmount(
-        uint256 minMargin,
-        int256 currentMargin
+        uint256 minMargin, //10^18
+        int256 currentMargin //10^18
     ) internal pure returns (uint256) {
         int256 amountToEscrow =
             currentMargin - (minMargin.toInt256() - currentMargin);
@@ -44,9 +44,9 @@ library LibLiquidation {
      * @param amount The amount that is to be liquidated from the position
      */
     function liquidationBalanceChanges(
-        int256 liquidatedQuote,
-        int256 liquidatedBase,
-        int256 amount
+        int256 liquidatedBase, //10^18
+        int256 liquidatedQuote, //10^18
+        int256 amount //10^18
     )
         public
         pure
@@ -57,6 +57,14 @@ library LibLiquidation {
             int256 _liquidateeBaseChange
         )
     {
+        // proportionate amount of base to take
+        // base * (amount / abs(quote))
+        int256 changeInBase =
+            PRBMathSD59x18.mul(
+                liquidatedBase,
+                PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedQuote))
+            );
+
         int256 liquidatorQuoteChange;
         int256 liquidatorBaseChange;
         int256 liquidateeQuoteChange;
@@ -70,18 +78,12 @@ library LibLiquidation {
                 ((amount * PERCENT_PRECISION.toInt256()) /
                     liquidatedBase.abs())) / PERCENT_PRECISION.toInt256());
 
+        // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
         liquidatorQuoteChange = portionOfQuote;
         liquidateeQuoteChange = portionOfQuote * (-1);
 
         liquidatorBaseChange = amount;
         liquidateeBaseChange = amount * (-1);
-
-        return (
-            liquidatorQuoteChange,
-            liquidatorBaseChange,
-            liquidateeQuoteChange,
-            liquidateeBaseChange
-        );
     }
 
     /**
@@ -92,9 +94,9 @@ library LibLiquidation {
      * @param receipt The receipt for the state during liquidation
      */
     function calculateSlippage(
-        uint256 unitsSold,
-        uint256 maxSlippage,
-        uint256 avgPrice,
+        uint256 unitsSold, //10^18
+        uint256 maxSlippage, //10^18
+        uint256 avgPrice, //10^18
         LiquidationReceipt memory receipt
     ) internal pure returns (uint256) {
         // Check price slippage and update account states
@@ -113,29 +115,25 @@ library LibLiquidation {
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
+            // todo this can probably be further simplified
             uint256 amountToReturn = 0;
             uint256 percentSlippage = 0;
             if (avgPrice < receipt.price && receipt.liquidationSide) {
-                amountToReturn = uint256(amountExpectedFor - amountSoldFor);
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage =
-                    (amountToReturn * PERCENT_PRECISION) /
-                    amountExpectedFor;
+                amountToReturn = amountExpectedFor - amountSoldFor;
             } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
-                amountToReturn = uint256(amountSoldFor - amountExpectedFor);
-                if (amountToReturn <= 0) {
-                    return 0;
-                }
-                percentSlippage =
-                    (amountToReturn * PERCENT_PRECISION) /
-                    amountExpectedFor;
+                amountToReturn = amountSoldFor - amountExpectedFor;
             }
+            if (amountToReturn <= 0) {
+                return 0;
+            }
+            // multiply by 100 as we expect this to be a percent as an integer eg 50% = 50
+            percentSlippage =
+                PRBMathUD60x18.div(amountToReturn, amountExpectedFor) *
+                100;
             if (percentSlippage > maxSlippage) {
-                amountToReturn = uint256(
-                    (maxSlippage * amountExpectedFor) / PERCENT_PRECISION
-                );
+                amountToReturn =
+                    PRBMathUD60x18.mul(maxSlippage, amountExpectedFor) /
+                    100;
             }
             return amountToReturn;
         }

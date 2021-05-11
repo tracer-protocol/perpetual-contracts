@@ -43,7 +43,7 @@ contract TracerPerpetualSwaps is
     // Account State Variables
     mapping(address => Balances.Account) public balances;
     uint256 public tvl;
-    int256 public override leveragedNotionalValue;
+    uint256 public override leveragedNotionalValue;
 
     // Order state
     mapping(bytes32 => uint256) filled;
@@ -278,13 +278,18 @@ contract TracerPerpetualSwaps is
         int256 _newLeverage = accountNewLeveragedNotional.toInt256();
         int256 _oldLeverage = accountOldLeveragedNotional.toInt256();
         int256 accountDelta = _newLeverage - _oldLeverage;
+        int256 _levNotionalValue = 0;
         if (_newLeverage > 0 && _oldLeverage >= 0) {
-            leveragedNotionalValue = leveragedNotionalValue + accountDelta;
+            _levNotionalValue = _levNotionalValue + accountDelta;
         } else if (_newLeverage > 0 && _oldLeverage < 0) {
-            leveragedNotionalValue = leveragedNotionalValue + _newLeverage;
+            _levNotionalValue = _levNotionalValue + _newLeverage;
         } else if (_newLeverage <= 0 && accountDelta < 0 && _oldLeverage > 0) {
-            leveragedNotionalValue = leveragedNotionalValue - _oldLeverage;
+            _levNotionalValue = _levNotionalValue - _oldLeverage;
         }
+
+        leveragedNotionalValue = _levNotionalValue > 0
+            ? uint256(_levNotionalValue)
+            : 0;
     }
 
     function updateAccountsOnLiquidation(
