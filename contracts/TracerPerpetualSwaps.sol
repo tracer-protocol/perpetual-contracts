@@ -96,11 +96,17 @@ contract TracerPerpetualSwaps is
      */
     function deposit(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
-        IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(tracerQuoteToken).transferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
 
         // update user state
         int256 amountToUpdate = Balances.tokenToWad(quoteTokenDecimals, amount);
-        userBalance.position.quote = userBalance.position.quote + amountToUpdate;
+        userBalance.position.quote =
+            userBalance.position.quote +
+            amountToUpdate;
         _updateAccountLeverage(msg.sender);
 
         // update market TVL
@@ -136,7 +142,8 @@ contract TracerPerpetualSwaps is
         tvl = tvl - amount;
 
         // perform transfer
-        uint256 transferAmount = Balances.wadToToken(quoteTokenDecimals, amount);
+        uint256 transferAmount =
+            Balances.wadToToken(quoteTokenDecimals, amount);
         IERC20(tracerQuoteToken).transfer(msg.sender, transferAmount);
         emit Withdraw(msg.sender, amount);
     }
