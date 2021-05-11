@@ -5,7 +5,6 @@ import "./lib/LibMath.sol";
 import "./lib/LibLiquidation.sol";
 import "./lib/LibBalances.sol";
 import "./Interfaces/ILiquidation.sol";
-import "./Interfaces/IAccount.sol";
 import "./Interfaces/ITrader.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";

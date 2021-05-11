@@ -8,7 +8,6 @@ import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibPerpetuals.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/IAccount.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";

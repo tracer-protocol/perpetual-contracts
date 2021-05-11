@@ -86,9 +86,9 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const amount = "250"
 
             /* quote goes up or down by 100, base goes up or down by 250, since this is a complete liquidation */
-            const expectedLiquidatorQuoteChange = "100"
+            const expectedLiquidatorQuoteChange = "-100"
             const expectedLiquidatorBaseChange = "250"
-            const expectedLiquidateeQuoteChange = "-100"
+            const expectedLiquidateeQuoteChange = "100"
             const expectedLiquidateeBaseChange = "-250"
 
             const ret = await libLiquidation.liquidationBalanceChanges(
@@ -147,9 +147,41 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const amount = "125"
 
             /* quote goes up or down by 50, base goes up or down by 125, since this is a 50% partial liquidation */
-            const expectedLiquidatorQuoteChange = "50"
+            const expectedLiquidatorQuoteChange = "-50"
             const expectedLiquidatorBaseChange = "125"
-            const expectedLiquidateeQuoteChange = "-50"
+            const expectedLiquidateeQuoteChange = "50"
+            const expectedLiquidateeBaseChange = "-125"
+
+            const ret = await libLiquidation.liquidationBalanceChanges(
+                liquidatedQuote,
+                liquidatedBase,
+                liquidatorBase,
+                amount
+            )
+            expect(ret._liquidatorQuoteChange.toString()).to.equal(
+                expectedLiquidatorQuoteChange
+            )
+            expect(ret._liquidatorBaseChange.toString()).to.equal(
+                expectedLiquidatorBaseChange
+            )
+            expect(ret._liquidateeQuoteChange.toString()).to.equal(
+                expectedLiquidateeQuoteChange
+            )
+            expect(ret._liquidateeBaseChange.toString()).to.equal(
+                expectedLiquidateeBaseChange
+            )
+        })
+
+        it("Correctly changes base when liquidatorBase is negative", async function () {
+            const liquidatedQuote = "-100"
+            const liquidatedBase = "250"
+            const liquidatorBase = "-300"
+            const amount = "125"
+
+            /* quote goes up or down by 50, base goes up or down by 125, since this is a 50% partial liquidation */
+            const expectedLiquidatorQuoteChange = "-50"
+            const expectedLiquidatorBaseChange = "125"
+            const expectedLiquidateeQuoteChange = "50"
             const expectedLiquidateeBaseChange = "-125"
 
             const ret = await libLiquidation.liquidationBalanceChanges(

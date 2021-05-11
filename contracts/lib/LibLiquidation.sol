@@ -69,29 +69,16 @@ library LibLiquidation {
             ((liquidatedQuote *
                 ((amount * PERCENT_PRECISION.toInt256()) /
                     liquidatedBase.abs())) / PERCENT_PRECISION.toInt256());
-        if (liquidatedQuote > 0) {
-            // Add to the liquidators margin, they are taking on positive margin
-            liquidatorQuoteChange = changeInQuote;
+        // if (liquidatedQuote > 0) {
+        // Add to the liquidators margin, they are taking on positive margin
+        liquidatorQuoteChange = changeInQuote;
 
-            // Subtract from the liquidatees margin
-            liquidateeQuoteChange = changeInQuote * (-1);
-        } else {
-            // Subtract from the liquidators margin, they are taking on negative margin
-            liquidatorQuoteChange = changeInQuote * (-1);
+        // Subtract from the liquidatees margin
+        liquidateeQuoteChange = changeInQuote * (-1);
 
-            // Add this to the user balances margin
-            liquidateeQuoteChange = changeInQuote;
-        }
+        liquidatorBaseChange = amount;
+        liquidateeBaseChange = amount * (-1);
 
-        if (liquidatorBase > 0) {
-            // Take from liquidatee, give to liquidator
-            liquidatorBaseChange = amount;
-            liquidateeBaseChange = amount * (-1);
-        } else {
-            // Take from liquidator, give to liquidatee
-            liquidatorBaseChange = amount * (-1);
-            liquidateeBaseChange = amount;
-        }
         return (
             liquidatorQuoteChange,
             liquidatorBaseChange,
