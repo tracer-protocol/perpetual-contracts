@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 library Prices {
-    struct FundingRate {
+    struct FundingRateInstant {
         uint256 timestamp;
         int256 fundingRate;
         int256 cumulativeFundingRate;
