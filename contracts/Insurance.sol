@@ -9,13 +9,15 @@ import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using LibMath for uint256;
     using LibMath for int256;
 
-    int256 public constant override INSURANCE_MUL_FACTOR = 1000000000;
-    uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
+    // int256 public constant override INSURANCE_MUL_FACTOR = 1000000000;
+    // uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
@@ -75,9 +77,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             //          Pool tokens (the ones to be minted) / poolAmount (the collateral asset)
             // Note the difference between this and withdraw. Here we are calculating the amount of tokens
             // to mint, and `amount` is the amount to deposit.
-            uint256 tokensToCollatRatio =
-                (poolToken.totalSupply() * SAFE_TOKEN_MULTIPLY) / poolAmount;
-            tokensToMint = (tokensToCollatRatio * amount) / SAFE_TOKEN_MULTIPLY;
+            tokensToMint = PRBMathUD60x18.mul(
+                PRBMathUD60x18.div(poolToken.totalSupply(), poolAmount),
+                amount
+            );
         }
         // Margin tokens become pool tokens
         poolToken.mint(msg.sender, tokensToMint);
@@ -105,11 +108,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         //             poolAmount (collateral asset) / pool tokens
         // Note the difference between this and stake. Here we are calculating the amount of tokens
         // to withdraw, and `amount` is the amount to burn.
-        uint256 collatToTokensRatio =
-            (poolAmount * SAFE_TOKEN_MULTIPLY) / poolToken.totalSupply();
-        uint256 tokensToSend =
-            (collatToTokensRatio * amount) / SAFE_TOKEN_MULTIPLY;
-
+        uint256 tokensToSend = PRBMathUD60x18.mul(
+            PRBMathUD60x18.div(poolAmount, poolToken.totalSupply()),
+            amount
+        );
         // Pool tokens become margin tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, tokensToSend);
@@ -196,11 +198,16 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      *      To preserve precision, the rate is multiplied by 10^7.
      */
     function getPoolFundingRate() external view override returns (uint256) {
-        uint256 multiplyFactor = 3652300;
+        // 0.0036523 as a WAD = 36523 * (10**11)
+        uint256 multiplyFactor = 36523 * (10**11);
+
+
         int256 levNotionalValue = tracer.leveragedNotionalValue();
         if (levNotionalValue <= 0) {
             return 0;
         }
+
+        uint256 ratio = PRBMathUD60x18.div(getPoolTarget() - poolAmount, levNotionalValue);
 
         int256 rate =
             ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) /
