@@ -181,10 +181,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        int256 target = tracer.leveragedNotionalValue() / 100;
+        uint256 target = tracer.leveragedNotionalValue() / 100;
 
         if (target > 0) {
-            return uint256(target);
+            return target;
         } else {
             return 0;
         }
@@ -197,19 +197,21 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function getPoolFundingRate() external view override returns (uint256) {
         uint256 multiplyFactor = 3652300;
-        int256 levNotionalValue = tracer.leveragedNotionalValue();
+        uint256 levNotionalValue = tracer.leveragedNotionalValue();
         if (levNotionalValue <= 0) {
             return 0;
         }
 
-        int256 rate =
-            ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) /
-                levNotionalValue;
-        if (rate < 0) {
-            return 0;
-        } else {
-            return uint256(rate);
-        }
+        // todo patch logic with WAD maths
+        // int256 rate =
+        //     ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) /
+        //         levNotionalValue;
+        // if (rate < 0) {
+        //     return 0;
+        // } else {
+        //     return uint256(rate);
+        // }
+        return 0;
     }
 
     /**
