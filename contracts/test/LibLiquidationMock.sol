@@ -17,7 +17,6 @@ library LibLiquidationMock {
     function liquidationBalanceChanges(
         int256 liquidatedQuote,
         int256 liquidatedBase,
-        int256 liquidatorBase,
         int256 amount
     )
         external
@@ -37,7 +36,6 @@ library LibLiquidationMock {
         ) = LibLiquidation.liquidationBalanceChanges(
             liquidatedQuote,
             liquidatedBase,
-            liquidatorBase,
             amount
         );
     }

@@ -264,7 +264,6 @@ contract Liquidation is ILiquidation, Ownable {
             LibLiquidation.liquidationBalanceChanges(
                 liquidatedQuote,
                 liquidatedBase,
-                liquidatorBalance.position.base,
                 amount
             );
     }

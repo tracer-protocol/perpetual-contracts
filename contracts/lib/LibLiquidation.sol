@@ -47,7 +47,6 @@ library LibLiquidation {
     function liquidationBalanceChanges(
         int256 liquidatedQuote,
         int256 liquidatedBase,
-        int256 liquidatorBase,
         int256 amount
     )
         public
