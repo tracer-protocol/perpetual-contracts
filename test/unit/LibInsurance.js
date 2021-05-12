@@ -44,9 +44,9 @@ describe("Unit tests: LibInsurance.sol", function () {
 
         it("returns 0 if the amount to stake is 0", async() => {
             let result = await libInsurance.calcMintAmount(
-                zero,
-                zero,
-                zero
+                ethers.utils.parseEther("10"), //pool token supply
+                ethers.utils.parseEther("5"), //collateral held
+                ethers.utils.parseEther("0") //amount of collateral to deposit
             )
             expect(result.toString()).to.equal(
                 zero.toString()
@@ -54,6 +54,17 @@ describe("Unit tests: LibInsurance.sol", function () {
         })
 
         it("returns 0 if the pool token underlying is 0", async() => {
+            let result = await libInsurance.calcMintAmount(
+                ethers.utils.parseEther("10"), //pool token supply
+                ethers.utils.parseEther("0"), //collateral held
+                ethers.utils.parseEther("10") //amount of collateral to deposit
+            )
+            expect(result.toString()).to.equal(
+                zero.toString()
+            )
+        })
+
+        it("returns the expected amount", async() => {
             let expectedResult = ethers.utils.parseEther("20")
             let result = await libInsurance.calcMintAmount(
                 ethers.utils.parseEther("10"), //pool token supply
@@ -64,22 +75,11 @@ describe("Unit tests: LibInsurance.sol", function () {
                 expectedResult.toString()
             )   
         })
-
-        it("returns the expected amount", async() => {
-            let result = await libInsurance.calcMintAmount(
-                zero,
-                zero,
-                zero
-            )
-            expect(result.toString()).to.equal(
-                zero.toString()
-            )
-        })
     })
 
     context('calcWithdrawAmount', async() => {
         it("returns 0 if pool token total supply is 0", async() => {
-            let result = await libInsurance.calcMintAmount(
+            let result = await libInsurance.calcWithdrawAmount(
                 zero,
                 zero,
                 zero
@@ -89,18 +89,29 @@ describe("Unit tests: LibInsurance.sol", function () {
             )
         })
 
-        it("returns 0 if the amount to stake is 0", async() => {
-            let result = await libInsurance.calcMintAmount(
-                zero,
-                zero,
-                zero
+        it("returns 0 if the amount to withdraw is 0", async() => {
+            let result = await libInsurance.calcWithdrawAmount(
+                ethers.utils.parseEther("10"), //pool token supply
+                ethers.utils.parseEther("5"), //collateral held
+                ethers.utils.parseEther("0") //amount of collateral to deposit
             )
             expect(result.toString()).to.equal(
                 zero.toString()
             )
         })
 
-        it("returns 0 if the pool token underlying is 0", async() => {
+        it("returns 0 if the pool token supply is 0", async() => {
+            let result = await libInsurance.calcWithdrawAmount(
+                ethers.utils.parseEther("0"), //pool token supply
+                ethers.utils.parseEther("10"), //collateral held
+                ethers.utils.parseEther("10") //amount of collateral to deposit
+            )
+            expect(result.toString()).to.equal(
+                zero.toString()
+            )
+        })
+
+        it("returns the expected amount", async() => {
             let expectedResult = ethers.utils.parseEther("5")
             let result = await libInsurance.calcWithdrawAmount(
                 ethers.utils.parseEther("10"), //pool token supply
@@ -109,17 +120,6 @@ describe("Unit tests: LibInsurance.sol", function () {
             )
             expect(result.toString()).to.equal(
                 expectedResult.toString()
-            )
-        })
-
-        it("returns the expected amount", async() => {
-            let result = await libInsurance.calcMintAmount(
-                zero,
-                zero,
-                zero
-            )
-            expect(result.toString()).to.equal(
-                zero.toString()
             )
         })
     })
