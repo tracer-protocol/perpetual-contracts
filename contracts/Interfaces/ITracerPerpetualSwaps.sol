@@ -34,7 +34,7 @@ interface ITracerPerpetualSwaps {
 
     function marketId() external view returns (bytes32);
 
-    function leveragedNotionalValue() external view returns (int256);
+    function leveragedNotionalValue() external view returns (uint256);
 
     function gasPriceOracle() external view returns (address);
 

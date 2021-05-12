@@ -45,7 +45,7 @@ contract TracerPerpetualSwaps is
     // Account State Variables
     mapping(address => Balances.Account) public balances;
     uint256 public tvl;
-    int256 public override leveragedNotionalValue;
+    uint256 public override leveragedNotionalValue;
 
     // Order state
     mapping(bytes32 => uint256) filled;
@@ -252,34 +252,11 @@ contract TracerPerpetualSwaps is
         uint256 accountNewLeveragedNotional,
         uint256 accountOldLeveragedNotional
     ) internal {
-        /*
-        Update notional value
-        Method:
-        For both maker and taker, calculate the new leveraged notional value, as well as their change
-        in leverage. In 3 cases, this should update the global leverage. There are only 3 cases since we don"t
-        want the contract to store negative leverage (over collateralized accounts should not zero out leveraged accounts)
-        
-        Cases are:
-        a. New leverage is positive and the accounts previous leveraged was positive (leverage increase)
-        total contract leverage has increased by the difference between these two (delta)
-        b. new leveraged is positive, and old leverage was negative (leverage increase)
-        total contract leverage has increased by the difference between zero and the new leverage
-        c. new leverage is negative, the change in leverage is negative, but the old leverage was positive (leverage decrease)
-        total contract leverage has decreased by the difference between the old leverage and zero
-        (which is the old leveraged value)
-        */
-
-        // todo CASTING CHECK
-        int256 _newLeverage = accountNewLeveragedNotional.toInt256();
-        int256 _oldLeverage = accountOldLeveragedNotional.toInt256();
-        int256 accountDelta = _newLeverage - _oldLeverage;
-        if (_newLeverage > 0 && _oldLeverage >= 0) {
-            leveragedNotionalValue = leveragedNotionalValue + accountDelta;
-        } else if (_newLeverage > 0 && _oldLeverage < 0) {
-            leveragedNotionalValue = leveragedNotionalValue + _newLeverage;
-        } else if (_newLeverage <= 0 && accountDelta < 0 && _oldLeverage > 0) {
-            leveragedNotionalValue = leveragedNotionalValue - _oldLeverage;
-        }
+        leveragedNotionalValue = Prices.globalLeverage(
+            leveragedNotionalValue,
+            accountOldLeveragedNotional,
+            accountNewLeveragedNotional
+        );
     }
 
     function updateAccountsOnLiquidation(
