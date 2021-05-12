@@ -20,7 +20,7 @@ contract GasOracle is IOracle, Ownable {
 
     constructor(address _priceOracle, address _gasOracle) {
         gasOracle = IChainlinkOracle(_gasOracle); /* Gas cost oracle */
-        priceOracle = IChainlinkOracle(_priceOracle); /* Base/ETH oracle */
+        priceOracle = IChainlinkOracle(_priceOracle); /* Quote/ETH oracle */
     }
 
     /**

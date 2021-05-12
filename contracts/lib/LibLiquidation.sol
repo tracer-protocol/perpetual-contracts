@@ -38,76 +38,44 @@ library LibLiquidation {
     }
 
     /**
-     * @notice Calculates the updated base and quote of the trader and liquidator on a liquidation event.
-     * @param liquidatedBase The base of the account being liquidated
+     * @notice Calculates the updated quote and base of the trader and liquidator on a liquidation event.
      * @param liquidatedQuote The quote of the account being liquidated
-     * @param liquidatorQuote The quote of the account liquidating
+     * @param liquidatedBase The base of the account being liquidated
      * @param amount The amount that is to be liquidated from the position
      */
     function liquidationBalanceChanges(
         int256 liquidatedBase, //10^18
         int256 liquidatedQuote, //10^18
-        int256 liquidatorQuote, //10^18
         int256 amount //10^18
     )
         public
         pure
         returns (
-            int256,
-            int256,
-            int256,
-            int256
+            int256 _liquidatorQuoteChange,
+            int256 _liquidatorBaseChange,
+            int256 _liquidateeQuoteChange,
+            int256 _liquidateeBaseChange
         )
     {
         // proportionate amount of base to take
         // base * (amount / abs(quote))
-        int256 changeInBase =
+        int256 portionOfQuote =
             PRBMathSD59x18.mul(
                 liquidatedBase,
                 PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedQuote))
             );
 
-        int256 liquidatorBaseChange;
-        int256 liquidatorQuoteChange;
-        int256 liquidateeBaseChange;
-        int256 liquidateeQuoteChange;
-        // base * (amount / abs(quote))
-
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
-        if (liquidatedBase > 0) {
-            // Add to the liquidators margin, they are taking on positive margin
-            liquidatorBaseChange = changeInBase;
+        _liquidatorQuoteChange = portionOfQuote;
+        _liquidateeQuoteChange = portionOfQuote * (-1);
 
-            // Subtract from the liquidatees margin
-            liquidateeBaseChange = changeInBase * (-1);
-        } else {
-            // Subtract from the liquidators margin, they are taking on negative margin
-            liquidatorBaseChange = changeInBase * (-1);
-
-            // Add this to the user balances margin
-            liquidateeBaseChange = changeInBase;
-        }
-
-        if (liquidatorQuote > 0) {
-            // Take from liquidatee, give to liquidator
-            liquidatorQuoteChange = amount;
-            liquidateeQuoteChange = amount * (-1);
-        } else {
-            // Take from liquidator, give to liquidatee
-            liquidatorQuoteChange = amount * (-1);
-            liquidateeQuoteChange = amount;
-        }
-        return (
-            liquidatorBaseChange,
-            liquidatorQuoteChange,
-            liquidateeBaseChange,
-            liquidateeQuoteChange
-        );
+        _liquidatorBaseChange = amount;
+        _liquidateeBaseChange = amount * (-1);
     }
 
     /**
      * @notice Calculates the amount of slippage experienced compared to value of position in a receipt
-     * @param unitsSold Amount of base units sold in the orders
+     * @param unitsSold Amount of quote units sold in the orders
      * @param maxSlippage The upper bound for slippage
      * @param avgPrice The average price of units sold in orders
      * @param receipt The receipt for the state during liquidation
