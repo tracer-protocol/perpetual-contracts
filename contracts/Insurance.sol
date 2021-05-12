@@ -70,7 +70,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
-        // calc the amount of insurance pool tokens to mint
+        // tokens to mint = (pool token supply / collateral holdings) * collaterael amount to stake
         uint256 tokensToMint =
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
@@ -78,7 +78,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 amountToUpdate
             );
 
-        // Margin tokens become pool tokens
+        // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
         collateralAmount = collateralAmount + amountToUpdate;
         emit InsuranceDeposit(address(tracer), msg.sender, amountToUpdate);
@@ -95,12 +95,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
-
+        
         IERC20 collateralToken = IERC20(collateralAsset);
-        // Burn tokens and pay out user
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
-        // Get the amount of quote tokens to send back to the user
+        // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
         uint256 wadTokensToSend =
             LibInsurance.calcWithdrawAmount(
                 poolToken.totalSupply(),
@@ -112,9 +111,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 tokensToSend =
             Balances.wadToToken(tracer.baseTokenDecimals(), wadTokensToSend);
 
-        // Pool tokens become margin tokens
+        // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, tokensToSend);
+        
         // pool amount is always in WAD format
         collateralAmount = collateralAmount - wadTokensToSend;
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
