@@ -23,6 +23,7 @@ library LibInsurance {
             // to mint, and `amount` is the amount to deposit.
             return
                 PRBMathUD60x18.mul(
+                    // todo what if pool token underlying is 0
                     PRBMathUD60x18.div(poolTokenSupply, poolTokenUnderlying),
                     wadAmount
                 );
