@@ -95,7 +95,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
-        
+
         IERC20 collateralToken = IERC20(collateralAsset);
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
@@ -114,7 +114,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, tokensToSend);
-        
+
         // pool amount is always in WAD format
         collateralAmount = collateralAmount - wadTokensToSend;
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
@@ -125,17 +125,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-<<<<<<< HEAD
-        int256 base = (tracer.getBalance(address(this))).position.base;
-        if (base > 0) {
-            tracer.withdraw(uint256(base));
-            collateralAmount = collateralAmount + uint256(base);
-=======
         int256 quote = (tracer.getBalance(address(this))).position.quote;
         if (quote > 0) {
             tracer.withdraw(uint256(quote));
-            poolAmount = poolAmount + uint256(quote);
->>>>>>> e4ea45ffca0ab88827ed28dab3fcff23198cc744
+            collateralAmount = collateralAmount + uint256(quote);
         }
     }
 
