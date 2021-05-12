@@ -8,6 +8,7 @@ import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
 import {Balances} from "./lib/LibBalances.sol";
+import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
@@ -19,8 +20,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
-    uint256 public poolAmount; // amount of underlying collateral in pool
-    address public token; // tokenized holdings of pool - not necessarily 1 to 1 with underlying
+    uint256 public collateralAmount; // amount of underlying collateral in pool, in WAD format
+    address public token; // token representation of a users holding in the pool
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
@@ -48,7 +49,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
-        poolAmount = 0;
 
         emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
@@ -69,24 +69,18 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
-        uint256 tokensToMint;
 
-        if (poolToken.totalSupply() == 0) {
-            // Mint at 1:1 ratio if no users in the pool
-            tokensToMint = amountToUpdate;
-        } else {
-            // Mint at the correct ratio =
-            //          Pool tokens (the ones to be minted) / poolAmount (the collateral asset)
-            // Note the difference between this and withdraw. Here we are calculating the amount of tokens
-            // to mint, and `amount` is the amount to deposit.
-            tokensToMint = PRBMathUD60x18.mul(
-                PRBMathUD60x18.div(poolToken.totalSupply(), poolAmount),
+        // tokens to mint = (pool token supply / collateral holdings) * collaterael amount to stake
+        uint256 tokensToMint =
+            LibInsurance.calcMintAmount(
+                poolToken.totalSupply(),
+                collateralAmount,
                 amountToUpdate
             );
-        }
-        // Margin tokens become pool tokens
+
+        // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
-        poolAmount = poolAmount + amountToUpdate;
+        collateralAmount = collateralAmount + amountToUpdate;
         emit InsuranceDeposit(address(tracer), msg.sender, amountToUpdate);
     }
 
@@ -103,16 +97,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         require(balance >= amount, "INS: balance < amount");
 
         IERC20 collateralToken = IERC20(collateralAsset);
-        // Burn tokens and pay out user
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
-        // Burn at the correct ratio =
-        //             poolAmount (collateral asset) / pool tokens
-        // Note the difference between this and stake. Here we are calculating the amount of tokens
-        // to withdraw, and `amount` is the amount to burn.
+        // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
         uint256 wadTokensToSend =
-            PRBMathUD60x18.mul(
-                PRBMathUD60x18.div(poolAmount, poolToken.totalSupply()),
+            LibInsurance.calcWithdrawAmount(
+                poolToken.totalSupply(),
+                collateralAmount,
                 amount
             );
 
@@ -120,11 +111,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 tokensToSend =
             Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
-        // Pool tokens become margin tokens
+        // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, tokensToSend);
+
         // pool amount is always in WAD format
-        poolAmount = poolAmount - wadTokensToSend;
+        collateralAmount = collateralAmount - wadTokensToSend;
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
 
@@ -136,7 +128,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         int256 quote = (tracer.getBalance(address(this))).position.quote;
         if (quote > 0) {
             tracer.withdraw(uint256(quote));
-            poolAmount = poolAmount + uint256(quote);
+            collateralAmount = collateralAmount + uint256(quote);
         }
     }
 
@@ -150,28 +142,28 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (poolAmount < 10**18) {
+        if (collateralAmount < 10**18) {
             return;
         }
 
         // Enforce a maximum at poolAmount
-        if (amount > poolAmount) {
-            amount = poolAmount;
+        if (amount > collateralAmount) {
+            amount = collateralAmount;
         }
 
         // What the balance will be after
-        uint256 difference = poolAmount - amount;
+        uint256 difference = collateralAmount - amount;
         if (difference < 10**18) {
             // Once we go below one token, social loss is required
             // This calculation caps draining so pool always has at least one token
-            amount = poolAmount - (10**18);
+            amount = collateralAmount - (10**18);
             // Use new amount to compute difference again.
-            difference = poolAmount - amount;
+            difference = collateralAmount - amount;
         }
 
         tracerMarginToken.approve(address(tracer), amount);
         tracer.deposit(amount);
-        poolAmount = difference;
+        collateralAmount = difference;
     }
 
     /**
@@ -210,7 +202,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         }
 
         uint256 ratio =
-            PRBMathUD60x18.div(getPoolTarget() - poolAmount, levNotionalValue);
+            PRBMathUD60x18.div(
+                getPoolTarget() - collateralAmount,
+                levNotionalValue
+            );
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
 
@@ -218,7 +213,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice returns if the insurance pool needs funding or not
      */
     function poolNeedsFunding() external view override returns (bool) {
-        return getPoolTarget() > poolAmount;
+        return getPoolTarget() > collateralAmount;
     }
 
     modifier onlyLiquidation() {
