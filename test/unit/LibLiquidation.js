@@ -91,8 +91,8 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const expectedLiquidateeBaseChange = "-250"
 
             const ret = await libLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
                 liquidatedBase,
+                liquidatedQuote,
                 amount
             )
             expect(ret._liquidatorQuoteChange.toString()).to.equal(
@@ -118,8 +118,8 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const expectedChange = "0"
 
             const ret = await libLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
                 liquidatedBase,
+                liquidatedQuote,
                 amount
             )
             expect(ret._liquidatorQuoteChange.toString()).to.equal(
@@ -148,8 +148,8 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const expectedLiquidateeBaseChange = "-125"
 
             const ret = await libLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
                 liquidatedBase,
+                liquidatedQuote,
                 amount
             )
             expect(ret._liquidatorQuoteChange.toString()).to.equal(
@@ -166,7 +166,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
             )
         })
 
-        it.only("Returns 0 if liquidated agent has no balance", async function () {
+        it("Returns 0 if liquidated agent has no balance", async function () {
             const liquidatedQuote = "0"
             const liquidatedBase = "0"
             const amount = "125"
@@ -175,8 +175,35 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const expectedChange = "0"
 
             const ret = await libLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
                 liquidatedBase,
+                liquidatedQuote,
+                amount
+            )
+            expect(ret._liquidatorQuoteChange.toString()).to.equal(
+                expectedChange
+            )
+            expect(ret._liquidatorBaseChange.toString()).to.equal(
+                expectedChange
+            )
+            expect(ret._liquidateeQuoteChange.toString()).to.equal(
+                expectedChange
+            )
+            expect(ret._liquidateeBaseChange.toString()).to.equal(
+                expectedChange
+            )
+        })
+
+        it("Caps the amount at min(base, amount) i.e. if amount > base, ", async function () {
+            const liquidatedQuote = "0"
+            const liquidatedBase = "0"
+            const amount = "125"
+
+            /* quote goes up or down by 50, base goes up or down by 125, since this is a 50% partial liquidation */
+            const expectedChange = "0"
+
+            const ret = await libLiquidation.liquidationBalanceChanges(
+                liquidatedBase,
+                liquidatedQuote,
                 amount
             )
             expect(ret._liquidatorQuoteChange.toString()).to.equal(

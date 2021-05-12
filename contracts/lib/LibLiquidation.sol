@@ -59,10 +59,13 @@ library LibLiquidation {
     {
         // proportionate amount of base to take
         // base * (amount / abs(quote))
+        if (liquidatedBase == 0) {
+            return (0,0,0,0);
+        }
         int256 portionOfQuote =
             PRBMathSD59x18.mul(
-                liquidatedBase,
-                PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedQuote))
+                liquidatedQuote,
+                PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
             );
 
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
