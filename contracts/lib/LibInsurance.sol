@@ -19,7 +19,7 @@ library LibInsurance {
         } else if (poolTokenUnderlying == 0) {
             // avoid divide by 0
             return 0;
-        }  else {
+        } else {
             // Mint at the correct ratio =
             //          Pool tokens (the ones to be minted) / poolAmount (the collateral asset)
             // Note the difference between this and withdraw. Here we are calculating the amount of tokens
