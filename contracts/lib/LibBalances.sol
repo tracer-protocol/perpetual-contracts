@@ -16,8 +16,8 @@ library Balances {
     uint256 public constant MAX_DECIMALS = 18;
 
     struct Position {
-        int256 base;
         int256 quote;
+        int256 base;
     }
 
     struct Trade {
@@ -26,19 +26,26 @@ library Balances {
         Perpetuals.Side side;
     }
 
+    struct Account {
+        Position position;
+        uint256 totalLeveragedValue;
+        uint256 lastUpdatedIndex;
+        uint256 lastUpdatedGasPrice;
+    }
+
     function netValue(Position calldata position, uint256 price)
         public
         pure
         returns (uint256)
     {
         /* cast is safe due to semantics of `abs` */
-        return PRBMathUD60x18.mul(uint256(LibMath.abs(position.quote)), price);
+        return PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price);
     }
 
     /**
-     * @notice Calculates the marign as base + quote * quote_price
+     * @notice Calculates the margin as quote + base * base_price
      * @param position the position the account is currently in
-     * @param price The price of the quote asset
+     * @param price The price of the base asset
      */
     function margin(Position calldata position, uint256 price)
         public
@@ -49,8 +56,8 @@ library Balances {
          * A cast *must* occur somewhere here in order for this to type check.
          *
          * After you've convinced yourself of this, the next intellectual jump
-         * that needs to be made is *what* to cast. We can't cast `base` as it's
-         * allowed to be negative. We can't cast `quote` as it's allowed to be
+         * that needs to be made is *what* to cast. We can't cast `quote` as it's
+         * allowed to be negative. We can't cast `base` as it's allowed to be
          * negative. Thus, by elimination, the only thing we're left with is
          * `price`.
          *
@@ -64,7 +71,7 @@ library Balances {
     /**
      * @notice Calculates the notional value. i.e. the absolute value of a position
      * @param position The position the account is currently in
-     * @param price The price of the quote asset
+     * @param price The price of the base asset
      */
     function leveragedNotionalValue(Position calldata position, uint256 price)
         public
@@ -93,9 +100,9 @@ library Balances {
 
         uint256 liquidationGasCost = liquidationCost * 6;
 
-        uint256 minimumBase = notionalValue / maximumLeverage;
+        uint256 minimumMarginWithoutGasCost = notionalValue / maximumLeverage;
 
-        return liquidationGasCost + minimumBase;
+        return liquidationGasCost + minimumMarginWithoutGasCost;
     }
 
     function applyTrade(
@@ -107,21 +114,21 @@ library Balances {
         int256 signedPrice = LibMath.toInt256(trade.price);
         int256 signedFeeRate = LibMath.toInt256(feeRate);
 
-        int256 baseChange = PRBMathSD59x18.mul(signedAmount, signedPrice);
-        int256 fee = PRBMathSD59x18.mul(baseChange, signedFeeRate);
+        int256 quoteChange = PRBMathSD59x18.mul(signedAmount, signedPrice);
+        int256 fee = PRBMathSD59x18.mul(quoteChange, signedFeeRate);
 
-        int256 newBase = 0;
         int256 newQuote = 0;
+        int256 newBase = 0;
 
         if (trade.side == Perpetuals.Side.Long) {
-            newQuote = position.quote + signedAmount;
-            newBase = position.base - baseChange + fee;
+            newBase = position.base + signedAmount;
+            newQuote = position.quote - quoteChange + fee;
         } else if (trade.side == Perpetuals.Side.Short) {
-            newQuote = position.quote - signedAmount;
-            newBase = position.base + baseChange - fee;
+            newBase = position.base - signedAmount;
+            newQuote = position.quote + quoteChange - fee;
         }
 
-        Position memory newPosition = Position(newBase, newQuote);
+        Position memory newPosition = Position(newQuote, newBase);
 
         return newPosition;
     }

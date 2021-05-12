@@ -8,8 +8,7 @@ interface ILiquidation {
     function calcAmountToReturn(
         uint256 escrowId,
         Perpetuals.Order[] memory orders,
-        address traderContract,
-        address liquidator
+        address traderContract
     ) external returns (uint256);
 
     function calcUnitsSold(

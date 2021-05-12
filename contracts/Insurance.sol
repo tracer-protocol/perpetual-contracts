@@ -7,15 +7,15 @@ import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import "./lib/SafetyWithdraw.sol";
+import {Balances} from "./lib/LibBalances.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using LibMath for uint256;
     using LibMath for int256;
-
-    int256 public constant override INSURANCE_MUL_FACTOR = 1000000000;
-    uint256 public constant SAFE_TOKEN_MULTIPLY = 1e18;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
@@ -47,20 +47,24 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         InsurancePoolToken _token =
             new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
-        collateralAsset = tracer.tracerBaseToken();
+        collateralAsset = tracer.tracerQuoteToken();
         poolAmount = 0;
 
-        emit InsurancePoolDeployed(_tracer, tracer.tracerBaseToken());
+        emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
     /**
      * @notice Allows a user to stake to a given tracer market insurance pool
      * @dev Mints amount of the pool token to the user
-     * @param amount the amount of tokens to stake
+     * @param amount the amount of tokens to stake. Provided in token native units
      */
     function stake(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
         collateralToken.transferFrom(msg.sender, address(this), amount);
+
+        // convert token amount to WAD
+        uint256 amountToUpdate =
+            uint256(Balances.tokenToWad(tracer.quoteTokenDecimals(), amount));
 
         // Update pool balances and user
         updatePoolAmount();
@@ -69,26 +73,27 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         if (poolToken.totalSupply() == 0) {
             // Mint at 1:1 ratio if no users in the pool
-            tokensToMint = amount;
+            tokensToMint = amountToUpdate;
         } else {
             // Mint at the correct ratio =
             //          Pool tokens (the ones to be minted) / poolAmount (the collateral asset)
             // Note the difference between this and withdraw. Here we are calculating the amount of tokens
             // to mint, and `amount` is the amount to deposit.
-            uint256 tokensToCollatRatio =
-                (poolToken.totalSupply() * SAFE_TOKEN_MULTIPLY) / poolAmount;
-            tokensToMint = (tokensToCollatRatio * amount) / SAFE_TOKEN_MULTIPLY;
+            tokensToMint = PRBMathUD60x18.mul(
+                PRBMathUD60x18.div(poolToken.totalSupply(), poolAmount),
+                amountToUpdate
+            );
         }
         // Margin tokens become pool tokens
         poolToken.mint(msg.sender, tokensToMint);
-        poolAmount = poolAmount + amount;
-        emit InsuranceDeposit(address(tracer), msg.sender, amount);
+        poolAmount = poolAmount + amountToUpdate;
+        emit InsuranceDeposit(address(tracer), msg.sender, amountToUpdate);
     }
 
     /**
      * @notice Allows a user to withdraw their assets from a given insurance pool
      * @dev burns amount of tokens from the pool token
-     * @param amount the amount of pool tokens to burn
+     * @param amount the amount of pool tokens to burn. Provided in WAD format
      */
     function withdraw(uint256 amount) external override {
         require(amount > 0, "INS: amount <= 0");
@@ -105,16 +110,22 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         //             poolAmount (collateral asset) / pool tokens
         // Note the difference between this and stake. Here we are calculating the amount of tokens
         // to withdraw, and `amount` is the amount to burn.
-        uint256 collatToTokensRatio =
-            (poolAmount * SAFE_TOKEN_MULTIPLY) / poolToken.totalSupply();
+        uint256 wadTokensToSend =
+            PRBMathUD60x18.mul(
+                PRBMathUD60x18.div(poolAmount, poolToken.totalSupply()),
+                amount
+            );
+
+        // convert token amount to raw amount from WAD
         uint256 tokensToSend =
-            (collatToTokensRatio * amount) / SAFE_TOKEN_MULTIPLY;
+            Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // Pool tokens become margin tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, tokensToSend);
-        poolAmount = poolAmount - tokensToSend;
-        emit InsuranceWithdraw(address(tracer), msg.sender, tokensToSend);
+        // pool amount is always in WAD format
+        poolAmount = poolAmount - wadTokensToSend;
+        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
 
     /**
@@ -122,10 +133,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-        int256 base = (tracer.getBalance(address(this))).base;
-        if (base > 0) {
-            tracer.withdraw(uint256(base));
-            poolAmount = poolAmount + uint256(base);
+        int256 quote = (tracer.getBalance(address(this))).position.quote;
+        if (quote > 0) {
+            tracer.withdraw(uint256(quote));
+            poolAmount = poolAmount + uint256(quote);
         }
     }
 
@@ -136,7 +147,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param amount The desired amount to take from the insurance pool
      */
     function drainPool(uint256 amount) external override onlyLiquidation() {
-        IERC20 tracerMarginToken = IERC20(tracer.tracerBaseToken());
+        IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
         if (poolAmount < 10**18) {
@@ -181,13 +192,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        int256 target = tracer.leveragedNotionalValue() / 100;
-
-        if (target > 0) {
-            return uint256(target);
-        } else {
-            return 0;
-        }
+        return tracer.leveragedNotionalValue() / 100;
     }
 
     /**
@@ -196,20 +201,17 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      *      To preserve precision, the rate is multiplied by 10^7.
      */
     function getPoolFundingRate() external view override returns (uint256) {
-        uint256 multiplyFactor = 3652300;
-        int256 levNotionalValue = tracer.leveragedNotionalValue();
+        // 0.0036523 as a WAD = 36523 * (10**11)
+        uint256 multiplyFactor = 36523 * (10**11);
+
+        uint256 levNotionalValue = tracer.leveragedNotionalValue();
         if (levNotionalValue <= 0) {
             return 0;
         }
 
-        int256 rate =
-            ((multiplyFactor * (getPoolTarget() - poolAmount)).toInt256()) /
-                levNotionalValue;
-        if (rate < 0) {
-            return 0;
-        } else {
-            return uint256(rate);
-        }
+        uint256 ratio =
+            PRBMathUD60x18.div(getPoolTarget() - poolAmount, levNotionalValue);
+        return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
 
     /**

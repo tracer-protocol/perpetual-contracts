@@ -1,32 +1,32 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
-import "./Types.sol";
 import "../lib/LibPerpetuals.sol";
+import "../lib/LibBalances.sol";
 
 interface ITracerPerpetualSwaps {
     function updateAccountsOnLiquidation(
         address liquidator,
         address liquidatee,
-        int256 liquidatorBaseChange,
         int256 liquidatorQuoteChange,
-        int256 liquidateeBaseChange,
+        int256 liquidatorBaseChange,
         int256 liquidateeQuoteChange,
+        int256 liquidateeBaseChange,
         uint256 amountToEscrow
     ) external;
 
     function updateAccountsOnClaim(
-      address claimant,
-      int256 amountToGiveToClaimant,
-      address liquidatee,
-      int256 amountToGiveToLiquidatee,
-      int256 amountToTakeFromInsurance
+        address claimant,
+        int256 amountToGiveToClaimant,
+        address liquidatee,
+        int256 amountToGiveToLiquidatee,
+        int256 amountToTakeFromInsurance
     ) external;
 
     function settle(address account) external;
 
-    function tracerBaseToken() external view returns (address);
+    function tracerQuoteToken() external view returns (address);
 
-    function baseTokenDecimals() external view returns (uint256);
+    function quoteTokenDecimals() external view returns (uint256);
 
     function liquidationContract() external view returns (address);
 
@@ -34,7 +34,7 @@ interface ITracerPerpetualSwaps {
 
     function marketId() external view returns (bytes32);
 
-    function leveragedNotionalValue() external view returns (int256);
+    function leveragedNotionalValue() external view returns (uint256);
 
     function gasPriceOracle() external view returns (address);
 
@@ -49,7 +49,7 @@ interface ITracerPerpetualSwaps {
     function getBalance(address account)
         external
         view
-        returns (Types.AccountBalance memory);
+        returns (Balances.Account memory);
 
     function setInsuranceContract(address insurance) external;
 

@@ -4,14 +4,6 @@ pragma solidity ^0.8.0;
 import "../lib/LibPerpetuals.sol";
 
 interface Types {
-    struct AccountBalance {
-        int256 base; // The amount of units in the base asset
-        int256 quote; // The amount of units in the quote asset
-        uint256 totalLeveragedValue;
-        uint256 lastUpdatedIndex;
-        uint256 lastUpdatedGasPrice;
-    }
-
     struct FundingRate {
         uint256 recordTime;
         uint256 recordPrice;

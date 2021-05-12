@@ -11,14 +11,13 @@ contract DeployerV1 is IDeployer {
     function deploy(bytes calldata _data) external override returns (address) {
         (
             bytes32 _tracerId,
-            address _tracerBaseToken,
+            address _tracerQuoteToken,
             uint256 _tokenDecimals,
             address _gasPriceOracle,
             address _liquidationContract,
             uint256 _maxLeverage,
             uint256 _fundingRateSensitivity,
-            uint256 _feeRate,
-            uint256 _oracleDecimals
+            uint256 _feeRate
         ) =
             abi.decode(
                 _data,
@@ -30,21 +29,19 @@ contract DeployerV1 is IDeployer {
                     address,
                     uint256,
                     uint256,
-                    uint256,
                     uint256
                 )
             );
         TracerPerpetualSwaps tracer =
             new TracerPerpetualSwaps(
                 _tracerId,
-                _tracerBaseToken,
+                _tracerQuoteToken,
                 _tokenDecimals,
                 _gasPriceOracle,
                 _liquidationContract,
                 _maxLeverage,
                 _fundingRateSensitivity,
-                _feeRate,
-                _oracleDecimals
+                _feeRate
             );
         tracer.transferOwnership(msg.sender);
         return address(tracer);
