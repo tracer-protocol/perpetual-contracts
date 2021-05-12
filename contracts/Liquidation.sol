@@ -213,7 +213,7 @@ contract Liquidation is ILiquidation, Ownable {
                 ),
             "LIQ: Account above margin"
         );
-        require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
+        require(amount <= base.abs(), "LIQ: Liquidate Amount > base");
 
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow =
@@ -285,10 +285,6 @@ contract Liquidation is ILiquidation, Ownable {
 
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
-        require(
-            amount <= liquidatedBalance.position.base,
-            "LIQ: Liquidation amount > account's base"
-        );
 
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
