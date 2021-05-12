@@ -35,6 +35,7 @@ describe("Liquidation functional tests", async () => {
 
         it("Reverts on negative liquidation amount", async () => {})
 
+it("Reverts on liquidation amount == 0", async () => {})
         it("Reverts on amount > agent base amount", async () => {})
 
         it("Updates accounts and escrow correctly on full liquidation", async () => {})
