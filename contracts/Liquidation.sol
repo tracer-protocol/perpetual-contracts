@@ -268,17 +268,27 @@ contract Liquidation is ILiquidation, Ownable {
             );
     }
 
+    function fullLiquidate(address account) external override {
+        /* Liquidated account's balance */
+        accountBase = tracer.getBalance(account).position.base;
+        liquidate(accountBase, account);
+    }
+
     /**
      * @notice Liquidates the margin account of a particular user. A deposit is needed from the liquidator.
      *         Generates a liquidation receipt for the liquidator to use should they need a refund.
      * @param amount The amount of tokens to be liquidated
      * @param account The account that is to be liquidated.
      */
-    function liquidate(int256 amount, address account) external override {
+    function liquidate(int256 amount, address account) public override {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
 
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
+        require(
+            amount <= liquidateBalance.position.base,
+            "LIQ: Liquidation amount > account's base"
+        );
 
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
