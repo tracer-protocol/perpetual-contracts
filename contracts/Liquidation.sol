@@ -444,7 +444,6 @@ contract Liquidation is ILiquidation, Ownable {
                     tracer.getBalance(insuranceContract);
                 if (
                     updatedInsuranceBalance.position.quote <
-                    // insuranceBalance.position.quote <
                     amountWantedFromInsurance.toInt256()
                 ) {
                     // Still not enough
