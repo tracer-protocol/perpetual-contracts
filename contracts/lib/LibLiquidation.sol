@@ -60,7 +60,7 @@ library LibLiquidation {
         // proportionate amount of base to take
         // base * (amount / abs(quote))
         if (liquidatedBase == 0) {
-            return (0,0,0,0);
+            return (0, 0, 0, 0);
         }
         int256 portionOfQuote =
             PRBMathSD59x18.mul(
