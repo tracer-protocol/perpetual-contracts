@@ -22,6 +22,8 @@ interface ILiquidation {
         view
         returns (LibLiquidation.LiquidationReceipt memory);
 
+    function fullLiquidate(address account) external;
+
     function liquidate(int256 amount, address account) external;
 
     function claimReceipts(

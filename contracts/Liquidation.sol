@@ -270,7 +270,7 @@ contract Liquidation is ILiquidation, Ownable {
 
     function fullLiquidate(address account) external override {
         /* Liquidated account's balance */
-        accountBase = tracer.getBalance(account).position.base;
+        int256 accountBase = tracer.getBalance(account).position.base;
         liquidate(accountBase, account);
     }
 
@@ -286,7 +286,7 @@ contract Liquidation is ILiquidation, Ownable {
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
         require(
-            amount <= liquidateBalance.position.base,
+            amount <= liquidatedBalance.position.base,
             "LIQ: Liquidation amount > account's base"
         );
 
