@@ -1,84 +1,78 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
+import "../lib/LibPerpetuals.sol";
+import "../lib/LibBalances.sol";
 
 interface ITracerPerpetualSwaps {
+    function updateAccountsOnLiquidation(
+        address liquidator,
+        address liquidatee,
+        int256 liquidatorQuoteChange,
+        int256 liquidatorBaseChange,
+        int256 liquidateeQuoteChange,
+        int256 liquidateeBaseChange,
+        uint256 amountToEscrow
+    ) external;
 
-    function makeOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        uint256 expiration
-    ) external returns (uint256);
-
-    function permissionedMakeOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        uint256 expiration,
-        address maker
-    ) external returns (uint256);
-
-    function takeOrder(uint256 orderId, uint256 amount) external;
-
-    function permissionedTakeOrder(uint256 orderId, uint256 amount, address taker) external;
+    function updateAccountsOnClaim(
+        address claimant,
+        int256 amountToGiveToClaimant,
+        address liquidatee,
+        int256 amountToGiveToLiquidatee,
+        int256 amountToTakeFromInsurance
+    ) external;
 
     function settle(address account) external;
 
-    function tracerBaseToken() external view returns (address);
+    function tracerQuoteToken() external view returns (address);
 
-    function marketId() external view returns(bytes32);
+    function quoteTokenDecimals() external view returns (uint256);
 
-    function leveragedNotionalValue() external view returns(int256);
+    function liquidationContract() external view returns (address);
 
-    function oracle() external view returns(address);
+    function tradingWhitelist(address trader) external returns (bool);
 
-    function gasPriceOracle() external view returns(address);
+    function marketId() external view returns (bytes32);
 
-    function priceMultiplier() external view returns(uint256);
+    function leveragedNotionalValue() external view returns (uint256);
 
-    function feeRate() external view returns(uint256);
+    function gasPriceOracle() external view returns (address);
 
-    function maxLeverage() external view returns(int256);
+    function feeRate() external view returns (uint256);
 
-    function LIQUIDATION_GAS_COST() external view returns(uint256);
+    function maxLeverage() external view returns (uint256);
 
-    function FUNDING_RATE_SENSITIVITY() external view returns(uint256);
+    function LIQUIDATION_GAS_COST() external view returns (uint256);
 
-    function currentHour() external view returns(uint8);
+    function fundingRateSensitivity() external view returns (uint256);
 
-    function getOrder(uint orderId) external view returns(uint256, uint256, int256, bool, address, uint256);
-
-    function getOrderTakerAmount(uint256 orderId, address taker) external view returns(uint256);
-
-    function tracerGetBalance(address account) external view returns(
-        int256 margin,
-        int256 position,
-        int256 totalLeveragedValue,
-        int256 lastUpdatedGasPrice,
-        uint256 lastUpdatedIndex
-    );
-
-    function setUserPermissions(address account, bool permission) external;
+    function getBalance(address account)
+        external
+        view
+        returns (Balances.Account memory);
 
     function setInsuranceContract(address insurance) external;
 
-    function setAccountContract(address account) external;
-
     function setPricingContract(address pricing) external;
-
-    function setOracle(address _oracle) external;
 
     function setGasOracle(address _gasOracle) external;
 
     function setFeeRate(uint256 _feeRate) external;
 
-    function setMaxLeverage(int256 _maxLeverage) external;
+    function setMaxLeverage(uint256 _maxLeverage) external;
 
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
+        external;
 
     function transferOwnership(address newOwner) external;
 
-    function initializePricing() external;
+    function deposit(uint256 amount) external;
 
-    function matchOrders(uint order1, uint order2) external;
+    function withdraw(uint256 amount) external;
+
+    function matchOrders(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
+    ) external;
 }
