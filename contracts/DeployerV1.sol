@@ -14,23 +14,13 @@ contract DeployerV1 is IDeployer {
             address _tracerQuoteToken,
             uint256 _tokenDecimals,
             address _gasPriceOracle,
-            address _liquidationContract,
             uint256 _maxLeverage,
             uint256 _fundingRateSensitivity,
             uint256 _feeRate
         ) =
             abi.decode(
                 _data,
-                (
-                    bytes32,
-                    address,
-                    uint256,
-                    address,
-                    address,
-                    uint256,
-                    uint256,
-                    uint256
-                )
+                (bytes32, address, uint256, address, uint256, uint256, uint256)
             );
         TracerPerpetualSwaps tracer =
             new TracerPerpetualSwaps(
@@ -38,7 +28,6 @@ contract DeployerV1 is IDeployer {
                 _tracerQuoteToken,
                 _tokenDecimals,
                 _gasPriceOracle,
-                _liquidationContract,
                 _maxLeverage,
                 _fundingRateSensitivity,
                 _feeRate

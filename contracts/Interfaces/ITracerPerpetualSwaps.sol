@@ -51,6 +51,8 @@ interface ITracerPerpetualSwaps {
         view
         returns (Balances.Account memory);
 
+    function setLiquidationContract(address liquidation) external;
+
     function setInsuranceContract(address insurance) external;
 
     function setPricingContract(address pricing) external;
