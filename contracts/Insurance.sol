@@ -90,8 +90,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param amount the amount of pool tokens to burn. Provided in WAD format
      */
     function withdraw(uint256 amount) external override {
-        require(amount > 0, "INS: amount <= 0");
-
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
