@@ -361,6 +361,71 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
+     * @notice Drains a certain amount from insurance pool to cover excess slippage not covered by escrow
+     * @param amountWantedFromInsurance How much we want to drain
+     * @param receipt The liquidation receipt for which we are calling on the insurance pool to cover
+     */
+    function drainInsurancePoolOnLiquidation(
+        uint256 amountWantedFromInsurance,
+        LibLiquidation.LiquidationReceipt memory receipt
+    )
+        internal
+        returns (
+            uint256 _amountTakenFromInsurance,
+            uint256 _amountToGiveToClaimant
+        )
+    {
+        /*
+         * If there was not enough escrowed, we want to call the insurance pool to help out.
+         * First, check the margin of the insurance Account. If this is enough, just drain from there.
+         * If this is not enough, call Insurance.drainPool to get some tokens from the insurance pool.
+         * If drainPool is able to drain enough, drain from the new margin.
+         * If the margin still does not have enough after calling drainPool, we are not able to fully
+         * claim the receipt, only up to the amount the insurance pool allows for.
+         */
+
+        Balances.Account memory insuranceBalance =
+            tracer.getBalance(insuranceContract);
+        if (
+            insuranceBalance.position.quote >=
+            amountWantedFromInsurance.toInt256()
+        ) {
+            // We don't need to drain insurance contract. The balance is already in the market contract
+            _amountTakenFromInsurance = amountWantedFromInsurance;
+        } else {
+            // insuranceBalance.quote < amountWantedFromInsurance
+            if (insuranceBalance.position.quote <= 0) {
+                // attempt to drain entire balance that is needed from the pool
+                IInsurance(insuranceContract).drainPool(
+                    amountWantedFromInsurance
+                );
+            } else {
+                // attempt to drain the required balance taking into account the insurance balance in the account contract
+                IInsurance(insuranceContract).drainPool(
+                    amountWantedFromInsurance -
+                        uint256(insuranceBalance.position.quote)
+                );
+            }
+            if (
+                insuranceBalance.position.quote <
+                amountWantedFromInsurance.toInt256()
+            ) {
+                // Still not enough
+                _amountTakenFromInsurance = uint256(
+                    insuranceBalance.position.quote
+                );
+            } else {
+                _amountTakenFromInsurance = amountWantedFromInsurance;
+            }
+        }
+
+        _amountToGiveToClaimant =
+            receipt.escrowedAmount +
+            _amountTakenFromInsurance;
+        // Don't add any to liquidatee
+    }
+
+    /**
      * @notice Allows a liquidator to submit a single liquidation receipt and multiple order ids. If the
      *         liquidator experienced slippage, will refund them a proportional amount of their deposit.
      * @param receiptId Used to identify the receipt that will be claimed
@@ -405,59 +470,18 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 amountToGiveToClaimant;
         uint256 amountToGiveToLiquidatee;
 
-        /*
-         * If there was not enough escrowed, we want to call the insurance pool to help out.
-         * First, check the margin of the insurance Account. If this is enough, just drain from there.
-         * If this is not enough, call Insurance.drainPool to get some tokens from the insurance pool.
-         * If drainPool is able to drain enough, drain from the new margin.
-         * If the margin still does not have enough after calling drainPool, we are not able to fully
-         * claim the receipt, only up to the amount the insurance pool allows for.
-         */
         if (amountToReturn > receipt.escrowedAmount) {
             // Need to cover some loses with the insurance contract
-            // Amount needed from insurance
+            // Whatever is the remainder that can't be covered from escrow
             uint256 amountWantedFromInsurance =
                 amountToReturn - receipt.escrowedAmount;
-
-            Balances.Account memory insuranceBalance =
-                tracer.getBalance(insuranceContract);
-            if (
-                insuranceBalance.position.quote >=
-                amountWantedFromInsurance.toInt256()
-            ) {
-                // We don't need to drain insurance contract
-                amountTakenFromInsurance = amountWantedFromInsurance;
-            } else {
-                // insuranceBalance.quote < amountWantedFromInsurance
-                if (insuranceBalance.position.quote <= 0) {
-                    // attempt to drain entire balance that is needed from the pool
-                    IInsurance(insuranceContract).drainPool(
-                        amountWantedFromInsurance
-                    );
-                } else {
-                    // attempt to drain the required balance taking into account the insurance balance in the account contract
-                    IInsurance(insuranceContract).drainPool(
-                        amountWantedFromInsurance -
-                            uint256(insuranceBalance.position.quote)
-                    );
-                }
-                if (
-                    insuranceBalance.position.quote <
-                    amountWantedFromInsurance.toInt256()
-                ) {
-                    // Still not enough
-                    amountTakenFromInsurance = uint256(
-                        insuranceBalance.position.quote
-                    );
-                } else {
-                    amountTakenFromInsurance = amountWantedFromInsurance;
-                }
-            }
-
-            amountToGiveToClaimant =
-                receipt.escrowedAmount +
-                amountTakenFromInsurance;
-            // Don't add any to liquidatee
+            (
+                amountTakenFromInsurance,
+                amountToGiveToClaimant
+            ) = drainInsurancePoolOnLiquidation(
+                amountWantedFromInsurance,
+                receipt
+            );
         } else {
             amountToGiveToClaimant = amountToReturn;
             amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
