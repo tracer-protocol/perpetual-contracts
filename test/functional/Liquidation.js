@@ -35,6 +35,27 @@ describe("Liquidation functional tests", async () => {
         context("when some invalid orders", async () => {
             it("Calculates correctly", async () => {})
         })
+
+        context(
+            "when some orders were created before the receipt",
+            async () => {
+                it("Calculates correctly", async () => {})
+            }
+        )
+
+        context(
+            "when some orders were created of the wrong side (e.g. long when they should be short)",
+            async () => {
+                it("Calculates correctly", async () => {})
+            }
+        )
+
+        context(
+            "when some orders have different maker to liquidator",
+            async () => {
+                it("Calculates correctly", async () => {})
+            }
+        )
     })
 
     context("getLiquidationReceipt", async () => {
