@@ -8,8 +8,9 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Pricing is IPricing {
+contract Pricing is IPricing, Ownable {
     using LibMath for uint256;
     using LibMath for int256;
     using PRBMathUD60x18 for uint256;
@@ -55,7 +56,7 @@ contract Pricing is IPricing {
         address _tracer,
         address _insurance,
         address _oracle
-    ) {
+    ) Ownable() {
         tracer = _tracer;
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
@@ -444,6 +445,14 @@ contract Pricing is IPricing {
                (total / number of trades) */
             return hourly.totalPrice / hourly.numTrades;
         }
+    }
+
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, IPricing)
+        onlyOwner
+    {
+        super.transferOwnership(newOwner);
     }
 
     /**

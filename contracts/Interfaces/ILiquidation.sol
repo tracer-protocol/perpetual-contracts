@@ -34,6 +34,8 @@ interface ILiquidation {
 
     function currentLiquidationId() external view returns (uint256);
 
+    function transferOwnership(address newOwner) external;
+
     function maxSlippage() external view returns (uint256);
 
     function setMaxSlippage(uint256 _maxSlippage) external;

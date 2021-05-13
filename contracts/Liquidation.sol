@@ -59,7 +59,7 @@ contract Liquidation is ILiquidation, Ownable {
         address _insuranceContract,
         uint256 _maxSlippage,
         address gov
-    ) {
+    ) Ownable() {
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -469,6 +469,14 @@ contract Liquidation is ILiquidation, Ownable {
             amountTakenFromInsurance.toInt256()
         );
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
+    }
+
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ILiquidation)
+        onlyOwner
+    {
+        super.transferOwnership(newOwner);
     }
 
     /**

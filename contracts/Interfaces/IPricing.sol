@@ -40,6 +40,8 @@ interface IPricing {
         view
         returns (uint256);
 
+    function transferOwnership(address newOwner) external;
+
     function getHourlyAvgOraclePrice(uint256 hour)
         external
         view
