@@ -3,95 +3,247 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 
 describe("Liquidation functional tests", async () => {
     context("calcAmountToReturn", async () => {
-        it("Reverts when units sold is greater than liquidation amount", async () => {})
+        context("when units sold is greater than liquidation amount", async () => {
+            it("Reverts ", async () => {
 
-        it("When there is slippage", async () => {})
+            })
+        })
 
-        it("Returns 0 when there is no slippage", async () => {})
+        context("When there is slippage", async () => {
+            it("Calculates accurately", async () => {
+
+            })
+        })
+
+        context("When there is no slippage", async () => {
+            it("Returns 0 ", async () => {
+
+            })
+        })
     })
 
     context("calcUnitsSold", async () => {
-        it("Does nothing when no orders given", async () => {})
+        context("Does nothing when no orders given", async () => {
+            it("", async () => {
 
-        it("Calculates correctly in normal case", async () => {})
+            })
+        })
 
-        it("Returns nothing when all invalid orders", async () => {})
+        context("Calculates correctly in normal case", async () => {
+            it("", async () => {
 
-        it("Returns correct when some invalid orders", async () => {})
+            })
+        })
+
+        context("Returns nothing when all invalid orders", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Returns correct when some invalid orders", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("getLiquidationReceipt", async () => {
-        it("Returns a valid receipt after submission", async () => {})
+        context("Returns a valid receipt after submission", async () => {
+            it("", async () => {
 
-        it("Returns nothing on invalid submission", async () => {})
+            })
+        })
+
+        context("Returns nothing on invalid submission", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("liquidate", async () => {
-        it("Reverts when liquidation would put liquidator below minimum margin", async () => {})
+        context("Reverts when liquidation would put liquidator below minimum margin", async () => {
+            it("", async () => {
 
-        it("Reverts when agent isn't below margin", async () => {})
+            })
+        })
 
-        it("Reverts when gas price is above fast gas price", async () => {})
+        context("Reverts when agent isn't below margin", async () => {
+            it("", async () => {
 
-        it("Reverts on negative liquidation amount", async () => {})
+            })
+        })
 
-        it("Reverts on liquidation amount == 0", async () => {})
-        it("Reverts on amount > agent base amount", async () => {})
+        context("Reverts when gas price is above fast gas price", async () => {
+            it("", async () => {
 
-        it("Updates accounts and escrow correctly on full liquidation", async () => {})
+            })
+        })
 
-        it("Updates accounts and escrow correctly on partial liquidation", async () => {})
+        context("Reverts on negative liquidation amount", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Reverts on liquidation amount == 0", async () => {
+            it("", async () => {
+
+            })
+        })
+        context("Reverts on amount > agent base amount", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Updates accounts and escrow correctly on full liquidation", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Updates accounts and escrow correctly on partial liquidation", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("claimReceipt", async () => {
-        it("Reverts when receipt doesn't exist", async () => {})
+        context("Reverts when receipt doesn't exist", async () => {
+            it("", async () => {
 
-        it("Reverts when non-whitelisted trader is given", async () => {})
+            })
+        })
 
-        it("reverts when claim time has passed", async () => {})
+        context("Reverts when non-whitelisted trader is given", async () => {
+            it("", async () => {
 
-        it("reverts when sender isn't liquidator", async () => {})
+            })
+        })
 
-        it("reverts on a receipt that's already claimed", async () => {})
+        context("reverts when claim time has passed", async () => {
+            it("", async () => {
 
-        it("Accurately updates accounts when slippage occurs - below escrow amount", async () => {})
+            })
+        })
 
-        it("Accurately updates accounts when slippage occurs - below escrow amount & empty insurance pool", async () => {})
+        context("reverts when sender isn't liquidator", async () => {
+            it("", async () => {
 
-        it("Accurately updates accounts when slippage occurs - below escrow amount & half-full insurance pool", async () => {})
+            })
+        })
 
-        it("Accurately updates accounts when slippage occurs - below escrow amount & full insurance pool", async () => {})
+        context("reverts on a receipt that's already claimed", async () => {
+            it("", async () => {
 
-        it("Accurately updates accounts when slippage occurs - above maxSlippage (caps at maxSlippage)", async () => {})
+            })
+        })
 
-        it("Makes no changes (to all 3 accounts) when No slippage", async () => {})
+        context("Accurately updates accounts when slippage occurs - below escrow amount", async () => {
+            it("", async () => {
 
-        it("Makes no changes (to all 3 accounts) when units sold is 0", async () => {})
+            })
+        })
+
+        context("Accurately updates accounts when slippage occurs - below escrow amount & empty insurance pool", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Accurately updates accounts when slippage occurs - below escrow amount & half-full insurance pool", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Accurately updates accounts when slippage occurs - below escrow amount & full insurance pool", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Accurately updates accounts when slippage occurs - above maxSlippage (caps at maxSlippage)", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Makes no changes (to all 3 accounts) when No slippage", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Makes no changes (to all 3 accounts) when units sold is 0", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("claimEscrow", async () => {
-        it("Reverts on caller not liquidatee", async () => {})
+        context("Reverts on caller not liquidatee", async () => {
+            it("", async () => {
 
-        it("Reverts if receipt already claimed through claimEscrow", async () => {})
+            })
+        })
 
-        it("Reverts if calling too early", async () => {})
+        context("Reverts if receipt already claimed through claimEscrow", async () => {
+            it("", async () => {
 
-        it("Is accurate if receipt partially claimed by liquidator on claimReceipt", async () => {})
+            })
+        })
 
-        it("Is accurate if receipt fully claimed by liquidator on claimReceipt", async () => {})
+        context("Reverts if calling too early", async () => {
+            it("", async () => {
 
-        it("Is accurate if receipt not claimed by liquidator on claimReceipt", async () => {})
+            })
+        })
+
+        context("Is accurate if receipt partially claimed by liquidator on claimReceipt", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Is accurate if receipt fully claimed by liquidator on claimReceipt", async () => {
+            it("", async () => {
+
+            })
+        })
+
+        context("Is accurate if receipt not claimed by liquidator on claimReceipt", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("currentLiquidationId", async () => {
-        it("Correctly increments liquidation ID", async () => {})
+        context("Correctly increments liquidation ID", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("setMaxSlippage", async () => {
-        it("Correctly updates maxSlippage", async () => {})
+        context("Correctly updates maxSlippage", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 
     context("E2E", async () => {
-        it("End-to-end Test", async () => {})
+        context("End-to-end Test", async () => {
+            it("", async () => {
+
+            })
+        })
     })
 })
