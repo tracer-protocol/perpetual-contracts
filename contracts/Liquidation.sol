@@ -197,6 +197,13 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 gasPrice,
         address account
     ) internal returns (uint256) {
+        require(amount > 0, "LIQ: Liquidation amount <= 0");
+        // Limits the gas use when liquidating
+        require(
+            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
+            "LIQ: GasPrice > FGasPrice"
+        );
+
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
@@ -275,8 +282,6 @@ contract Liquidation is ILiquidation, Ownable {
      * @param account The account that is to be liquidated.
      */
     function liquidate(int256 amount, address account) external override {
-        require(amount > 0, "LIQ: Liquidation amount <= 0");
-
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
 
@@ -289,12 +294,6 @@ contract Liquidation is ILiquidation, Ownable {
                 liquidatedBalance.lastUpdatedGasPrice,
                 account
             );
-
-        // Limits the gas use when liquidating
-        require(
-            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
-            "LIQ: GasPrice > FGasPrice"
-        );
 
         (
             int256 liquidatorQuoteChange,
@@ -366,7 +365,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId Used to identify the receipt that will be claimed
      * @param orders The orders that sold the liquidated position
      */
-    function claimReceipts(
+    function claimReceipt(
         uint256 receiptId,
         Perpetuals.Order[] memory orders,
         address traderContract
@@ -441,13 +440,15 @@ contract Liquidation is ILiquidation, Ownable {
                             uint256(insuranceBalance.position.quote)
                     );
                 }
+                Balances.Account memory updatedInsuranceBalance =
+                    tracer.getBalance(insuranceContract);
                 if (
-                    insuranceBalance.position.quote <
+                    updatedInsuranceBalance.position.quote <
                     amountWantedFromInsurance.toInt256()
                 ) {
                     // Still not enough
                     amountTakenFromInsurance = uint256(
-                        insuranceBalance.position.quote
+                        updatedInsuranceBalance.position.quote
                     );
                 } else {
                     amountTakenFromInsurance = amountWantedFromInsurance;
