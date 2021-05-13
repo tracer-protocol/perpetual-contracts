@@ -15,6 +15,11 @@ library Prices {
         uint256 trades;
     }
 
+    struct TWAP {
+        uint256 underlying;
+        uint256 derivative;
+    }
+
     function globalLeverage(
         uint256 globalLeverage,
         uint256 oldLeverage,
