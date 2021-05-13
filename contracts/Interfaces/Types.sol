@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../lib/LibPerpetuals.sol";
+import "../lib/LibPrices.sol";
 
 interface Types {
     struct FundingRate {
@@ -10,14 +11,9 @@ interface Types {
         int256 cumulativeFundingRate;
     }
 
-    struct HourlyPrices {
-        uint256 totalPrice;
-        uint256 numTrades;
-    }
-
-    struct PricingMetrics {
-        Types.HourlyPrices[24] hourlyTracerPrices;
-        Types.HourlyPrices[24] hourlyOraclePrices;
+    struct PricesMetrics {
+        Prices.PriceInstant[24] hourlyTracerPrices;
+        Prices.PriceInstant[24] hourlyOraclePrices;
     }
 
     struct SignedLimitOrder {
