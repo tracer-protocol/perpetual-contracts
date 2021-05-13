@@ -4,13 +4,17 @@ pragma solidity ^0.8.0;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/IDeployer.sol";
-import "./Insurance.sol";
-import "./Pricing.sol";
+import "./Interfaces/ILiquidationDeployer.sol";
+import "./Interfaces/IInsuranceDeployer.sol";
+import "./Interfaces/IPricingDeployer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
     uint256 public tracerCounter;
     address public deployer;
+    address public liquidationDeployer;
+    address public insuranceDeployer;
+    address public pricingDeployer;
 
     // Index of Tracer (where 0 is index of first Tracer market), corresponds to tracerCounter => market address
     mapping(uint256 => address) public override tracersByIndex;
@@ -22,8 +26,17 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
     event TracerDeployed(bytes32 indexed marketId, address indexed market);
 
-    constructor(address _deployer, address _governance) {
+    constructor(
+        address _deployer,
+        address _liquidationDeployer,
+        address _insuranceDeployer,
+        address _pricingDeployer,
+        address _governance
+    ) {
         setDeployerContract(_deployer);
+        setLiquidationDeployerContract(_liquidationDeployer);
+        setInsuranceDeployerContract(_insuranceDeployer);
+        setPricingDeployerContract(_pricingDeployer);
         transferOwnership(_governance);
     }
 
@@ -31,19 +44,25 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Allows any user to deploy a tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
-    function deployTracer(bytes calldata _data, address oracle) external {
-        _deployTracer(_data, msg.sender, oracle);
+    function deployTracer(
+        bytes calldata _data,
+        address oracle,
+        uint256 maxLiquidationSlippage
+    ) external {
+        _deployTracer(_data, msg.sender, oracle, maxLiquidationSlippage);
     }
 
     /**
      * @notice Allows the Tracer DAO to deploy a DAO approved Tracer market
      * @param _data The data that will be used as constructor parameters for the new Tracer market.
      */
-    function deployTracerAndApprove(bytes calldata _data, address oracle)
-        external
-        onlyOwner()
-    {
-        address tracer = _deployTracer(_data, owner(), oracle);
+    function deployTracerAndApprove(
+        bytes calldata _data,
+        address oracle,
+        uint256 maxLiquidationSlippage
+    ) external onlyOwner() {
+        address tracer =
+            _deployTracer(_data, owner(), oracle, maxLiquidationSlippage);
         // DAO deployed markets are automatically approved
         setApproved(address(tracer), true);
     }
@@ -54,7 +73,8 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
     function _deployTracer(
         bytes calldata _data,
         address tracerOwner,
-        address oracle
+        address oracle,
+        uint256 maxLiquidationSlippage
     ) internal returns (address) {
         // Create and link tracer to factory
         address market = IDeployer(deployer).deploy(_data);
@@ -66,14 +86,22 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
         // Instantiate Insurance contract for tracer
         address insurance =
-            address(new Insurance(address(market), address(this)));
-
-        address pricing = address(new Pricing(market, insurance, oracle));
+            IInsuranceDeployer(insuranceDeployer).deploy(market, address(this));
+        address pricing =
+            IPricingDeployer(pricingDeployer).deploy(market, insurance, oracle);
+        address liquidation =
+            ILiquidationDeployer(liquidationDeployer).deploy(
+                pricing,
+                market,
+                insurance,
+                maxLiquidationSlippage,
+                tracerOwner
+            );
 
         // Perform admin operations on the tracer to finalise linking
         tracer.setInsuranceContract(insurance);
         tracer.setPricingContract(pricing);
-        tracer.setLiquidationContract(pricing);
+        tracer.setLiquidationContract(liquidation);
 
         // Ownership either to the deployer or the DAO
         tracer.transferOwnership(tracerOwner);
@@ -91,6 +119,30 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         onlyOwner()
     {
         deployer = newDeployer;
+    }
+
+    function setInsuranceDeployerContract(address newInsuranceDeployer)
+        public
+        override
+        onlyOwner()
+    {
+        insuranceDeployer = newInsuranceDeployer;
+    }
+
+    function setPricingDeployerContract(address newPricingDeployer)
+        public
+        override
+        onlyOwner()
+    {
+        pricingDeployer = newPricingDeployer;
+    }
+
+    function setLiquidationDeployerContract(address newLiquidationDeployer)
+        public
+        override
+        onlyOwner()
+    {
+        liquidationDeployer = newLiquidationDeployer;
     }
 
     /**

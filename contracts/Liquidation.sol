@@ -53,7 +53,6 @@ contract Liquidation is ILiquidation, Ownable {
     );
     event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
 
-    // On contract deployment set the account contract.
     constructor(
         address _pricing,
         address _tracer,
