@@ -10,6 +10,11 @@ library Prices {
         int256 cumulativeFundingRate;
     }
 
+    struct PriceInstant {
+        uint256 cumulativePrice;
+        uint256 trades;
+    }
+
     function globalLeverage(
         uint256 globalLeverage,
         uint256 oldLeverage,
