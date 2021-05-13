@@ -239,34 +239,6 @@ contract Liquidation is ILiquidation, Ownable {
         return amountToEscrow;
     }
 
-    function calcLiquidationBalanceChanges(
-        int256 liquidatedQuote,
-        int256 liquidatedBase,
-        address liquidator,
-        int256 amount
-    )
-        internal
-        view
-        returns (
-            int256 liquidatorQuoteChange,
-            int256 liquidatorBaseChange,
-            int256 liquidateeQuoteChange,
-            int256 liquidateeBaseChange
-        )
-    {
-        /* Liquidator's balance */
-        Balances.Account memory liquidatorBalance =
-            tracer.getBalance(liquidator);
-
-        // Calculates what the updated state of both accounts will be if the liquidation is fully processed
-        return
-            LibLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
-                liquidatedBase,
-                amount
-            );
-    }
-
     /**
      * @notice Liquidates the margin account of a particular user. A deposit is needed from the liquidator.
      *         Generates a liquidation receipt for the liquidator to use should they need a refund.
@@ -301,10 +273,9 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeQuoteChange,
             int256 liquidateeBaseChange
         ) =
-            calcLiquidationBalanceChanges(
+            LibLiquidation.liquidationBalanceChanges(
                 liquidatedBalance.position.quote,
                 liquidatedBalance.position.base,
-                msg.sender,
                 amount
             );
 

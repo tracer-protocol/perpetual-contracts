@@ -16,7 +16,7 @@ interface ITracerPerpetualsFactory {
     function setLiquidationDeployerContract(address newLiquidationDeployer)
         external;
 
-    function setDeployerContract(address newDeployer) external;
+    function setPerpsDeployerContract(address newDeployer) external;
 
     function setApproved(address market, bool value) external;
 }

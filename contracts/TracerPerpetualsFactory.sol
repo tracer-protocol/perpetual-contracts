@@ -6,15 +6,15 @@ import "./Interfaces/IPricing.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
-import "./Interfaces/IDeployer.sol";
-import "./Interfaces/ILiquidationDeployer.sol";
-import "./Interfaces/IInsuranceDeployer.sol";
-import "./Interfaces/IPricingDeployer.sol";
+import "./Interfaces/deployers/IPerpsDeployer.sol";
+import "./Interfaces/deployers/ILiquidationDeployer.sol";
+import "./Interfaces/deployers/IInsuranceDeployer.sol";
+import "./Interfaces/deployers/IPricingDeployer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
     uint256 public tracerCounter;
-    address public deployer;
+    address public perpsDeployer;
     address public liquidationDeployer;
     address public insuranceDeployer;
     address public pricingDeployer;
@@ -30,13 +30,13 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
     event TracerDeployed(bytes32 indexed marketId, address indexed market);
 
     constructor(
-        address _deployer,
+        address _perpsDeployer,
         address _liquidationDeployer,
         address _insuranceDeployer,
         address _pricingDeployer,
         address _governance
     ) {
-        setDeployerContract(_deployer);
+        setPerpsDeployerContract(_perpsDeployer);
         setLiquidationDeployerContract(_liquidationDeployer);
         setInsuranceDeployerContract(_insuranceDeployer);
         setPricingDeployerContract(_pricingDeployer);
@@ -80,7 +80,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         uint256 maxLiquidationSlippage
     ) internal returns (address) {
         // Create and link tracer to factory
-        address market = IDeployer(deployer).deploy(_data);
+        address market = IPerpsDeployer(perpsDeployer).deploy(_data);
         ITracerPerpetualSwaps tracer = ITracerPerpetualSwaps(market);
 
         validTracers[market] = true;
@@ -116,15 +116,15 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
     }
 
     /**
-     * @notice Sets the deployer contract for tracers markets.
-     * @param newDeployer the new deployer contract address
+     * @notice Sets the perpsDeployer contract for tracers markets.
+     * @param newDeployer the new perpsDeployer contract address
      */
-    function setDeployerContract(address newDeployer)
+    function setPerpsDeployerContract(address newDeployer)
         public
         override
         onlyOwner()
     {
-        deployer = newDeployer;
+        perpsDeployer = newDeployer;
     }
 
     function setInsuranceDeployerContract(address newInsuranceDeployer)
