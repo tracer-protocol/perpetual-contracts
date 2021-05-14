@@ -5,17 +5,6 @@ import "../lib/LibPerpetuals.sol";
 import "../lib/LibPrices.sol";
 
 interface Types {
-    struct FundingRate {
-        uint256 timestamp;
-        int256 fundingRate;
-        int256 cumulativeFundingRate;
-    }
-
-    struct PricesMetrics {
-        Prices.PriceInstant[24] hourlyTracerPrices;
-        Prices.PriceInstant[24] hourlyOraclePrices;
-    }
-
     struct SignedLimitOrder {
         Perpetuals.Order order;
         uint256 nonce;
