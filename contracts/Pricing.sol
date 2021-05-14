@@ -311,31 +311,9 @@ contract Pricing is IPricing {
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
     function get24HourPrices() public view override returns (uint256, uint256) {
-        uint256 runningTotal = 0;
-        uint256 oracleRunningTotal = 0;
-        uint8 numberOfHoursPresent = 0;
-        uint8 numberOfOracleHoursPresent = 0;
-        for (uint8 i = 0; i < 23; i++) {
-            Prices.PriceInstant memory hourlyPrice = hourlyTracerPrices[i];
-            Prices.PriceInstant memory oracleHourlyPrice =
-                hourlyOraclePrices[i];
-            if (hourlyPrice.trades != 0) {
-                runningTotal =
-                    runningTotal +
-                    (uint256(hourlyPrice.cumulativePrice) / hourlyPrice.trades);
-                numberOfHoursPresent = numberOfHoursPresent + 1;
-            }
-            if (oracleHourlyPrice.trades != 0) {
-                oracleRunningTotal =
-                    oracleRunningTotal +
-                    (uint256(oracleHourlyPrice.cumulativePrice) /
-                        oracleHourlyPrice.trades);
-                numberOfOracleHoursPresent = numberOfOracleHoursPresent + 1;
-            }
-        }
         return (
-            runningTotal / numberOfHoursPresent,
-            oracleRunningTotal / numberOfOracleHoursPresent
+            Prices.averagePriceForPeriod(hourlyTracerPrices),
+            Prices.averagePriceForPeriod(hourlyOraclePrices)
         );
     }
 
