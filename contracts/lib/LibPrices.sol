@@ -30,6 +30,14 @@ library Prices {
         return uint256(LibMath.abs(oraclePrice.toInt256() - timeValue));
     }
 
+    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
+        public
+        pure
+        returns (int256)
+    {
+        return int256((averageTracerPrice - averageOraclePrice) / 90);
+    }
+
     function averagePrice(PriceInstant memory price)
         public
         pure

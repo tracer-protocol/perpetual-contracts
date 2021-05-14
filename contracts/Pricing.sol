@@ -215,9 +215,7 @@ contract Pricing is IPricing {
     function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
 
-        timeValue =
-            timeValue +
-            ((avgPrice.toInt256() - oracleAvgPrice.toInt256()) / 90);
+        timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
     }
 
     /**
