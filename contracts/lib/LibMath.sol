@@ -13,8 +13,8 @@ library LibMath {
         return x > 0 ? int256(x) : int256(-1 * x);
     }
 
-    function sum(uint256[] arr) internal pure returns (uint256) {
-        uint256 n = arr.len;
+    function sum(uint256[] memory arr) internal pure returns (uint256) {
+        uint256 n = arr.length;
         uint256 total = 0;
 
         for (uint256 i = 0; i < n; i++) {
@@ -24,8 +24,8 @@ library LibMath {
         return total;
     }
 
-    function mean(uint256[] arr) internal pure returns (uint256) {
-        uint256 n = arr.len;
+    function mean(uint256[] memory arr) internal pure returns (uint256) {
+        uint256 n = arr.length;
 
         return sum(arr) / n;
     }

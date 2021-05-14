@@ -23,7 +23,7 @@ interface IPricing {
     function getTWAPs(uint256 currentHour)
         external
         view
-        returns (uint256, uint256);
+        returns (Prices.TWAP memory);
 
     function get24HourPrices() external view returns (uint256, uint256);
 
