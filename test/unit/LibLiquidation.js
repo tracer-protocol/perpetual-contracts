@@ -24,10 +24,11 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const minMargin = 123
             const expectedEscrowAmount = minMargin.toString()
 
-            const escrowAmount = await libLiquidation.calcEscrowLiquidationAmount(
-                minMargin,
-                margin
-            )
+            const escrowAmount =
+                await libLiquidation.calcEscrowLiquidationAmount(
+                    minMargin,
+                    margin
+                )
             expect(escrowAmount.toString()).to.equal(expectedEscrowAmount)
         })
 
@@ -36,10 +37,11 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const minMargin = 123
             const expectedEscrowAmount = 77 // 100 - (123 - 100) = 77
 
-            const escrowAmount = await libLiquidation.calcEscrowLiquidationAmount(
-                minMargin,
-                margin
-            )
+            const escrowAmount =
+                await libLiquidation.calcEscrowLiquidationAmount(
+                    minMargin,
+                    margin
+                )
             expect(escrowAmount.toString()).to.equal(
                 expectedEscrowAmount.toString()
             )
@@ -50,10 +52,11 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const minMargin = 123
             const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
 
-            const escrowAmount = await libLiquidation.calcEscrowLiquidationAmount(
-                minMargin,
-                margin
-            )
+            const escrowAmount =
+                await libLiquidation.calcEscrowLiquidationAmount(
+                    minMargin,
+                    margin
+                )
             expect(escrowAmount.toString()).to.equal(
                 expectedEscrowAmount.toString()
             )
@@ -64,10 +67,11 @@ describe("Unit tests: LibLiquidation.sol", function () {
             const minMargin = 123
             const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
 
-            const escrowAmount = await libLiquidation.calcEscrowLiquidationAmount(
-                minMargin,
-                margin
-            )
+            const escrowAmount =
+                await libLiquidation.calcEscrowLiquidationAmount(
+                    minMargin,
+                    margin
+                )
             expect(escrowAmount.toString()).to.equal(
                 expectedEscrowAmount.toString()
             )
