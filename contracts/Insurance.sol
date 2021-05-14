@@ -197,7 +197,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         }
 
         uint256 rate =
-            (multiplyFactor * (getPoolTarget() - poolAmount)) / levNotionalValue;
+            (multiplyFactor * (getPoolTarget() - poolAmount)) /
+                levNotionalValue;
         return rate;
     }
 

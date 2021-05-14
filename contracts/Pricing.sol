@@ -19,7 +19,8 @@ contract Pricing is IPricing {
     IOracle public oracle;
 
     // pricing metrics
-    Types.PricingMetrics internal price;
+    Prices.PriceInstant[] internal hourlyTracerPrices;
+    Prices.PriceInstant[] internal hourlyOraclePrices;
 
     // funding index => funding rate
     mapping(uint256 => Prices.FundingRateInstant) public fundingRates;
@@ -128,27 +129,27 @@ contract Pricing is IPricing {
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
-            Types.HourlyPrices memory newHourly =
-                Types.HourlyPrices(marketPrice, 1);
-            price.hourlyTracerPrices[currentHour] = newHourly;
+            Prices.PriceInstant memory newHourly =
+                Prices.PriceInstant(marketPrice, 1);
+            hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Types.HourlyPrices memory oracleHour =
-                Types.HourlyPrices(oraclePrice, 1);
-            price.hourlyOraclePrices[currentHour] = oracleHour;
+            Prices.PriceInstant memory oracleHour =
+                Prices.PriceInstant(oraclePrice, 1);
+            hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the market price to a running total and increment number of trades
-            price.hourlyTracerPrices[currentHour].totalPrice =
-                price.hourlyTracerPrices[currentHour].totalPrice +
+            hourlyTracerPrices[currentHour].cumulativePrice =
+                hourlyTracerPrices[currentHour].cumulativePrice +
                 marketPrice;
-            price.hourlyTracerPrices[currentHour].numTrades =
-                price.hourlyTracerPrices[currentHour].numTrades +
+            hourlyTracerPrices[currentHour].trades =
+                hourlyTracerPrices[currentHour].trades +
                 1;
             // As above but with oracle price
-            price.hourlyOraclePrices[currentHour].totalPrice =
-                price.hourlyOraclePrices[currentHour].totalPrice +
+            hourlyOraclePrices[currentHour].cumulativePrice =
+                hourlyOraclePrices[currentHour].cumulativePrice +
                 oraclePrice;
-            price.hourlyOraclePrices[currentHour].numTrades =
-                price.hourlyOraclePrices[currentHour].numTrades +
+            hourlyOraclePrices[currentHour].trades =
+                hourlyOraclePrices[currentHour].trades +
                 1;
         }
     }
@@ -163,10 +164,13 @@ contract Pricing is IPricing {
     {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
-        (uint256 underlyingTWAP, uint256 deriativeTWAP) = getTWAPs(currentHour);
+        Prices.TWAP memory twapPrices = getTWAPs(currentHour);
+        uint256 underlyingTWAP = twapPrices.underlying;
+        uint256 derivativeTWAP = twapPrices.derivative;
         int256 newFundingRate =
-            (deriativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue) *
-                (_tracer.fundingRateSensitivity().toInt256());
+            (derivativeTWAP.toInt256() -
+                underlyingTWAP.toInt256() -
+                timeValue) * (_tracer.fundingRateSensitivity().toInt256());
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex - 1;
 
@@ -213,6 +217,7 @@ contract Pricing is IPricing {
      */
     function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
+
         timeValue =
             timeValue +
             ((avgPrice.toInt256() - oracleAvgPrice.toInt256()) / 90);
@@ -296,38 +301,9 @@ contract Pricing is IPricing {
         public
         view
         override
-        returns (uint256, uint256)
+        returns (Prices.TWAP memory)
     {
-        uint256 underlyingSum = 0;
-        uint256 derivativeSum = 0;
-        uint256 derivativeInstances = 0;
-        uint256 underlyingInstances = 0;
-        for (uint256 i = 0; i < 8; i++) {
-            uint256 timeWeight = 8 - i;
-            uint256 j = hour - i; // keep moving towards 0
-            // loop back around list if required
-            if (j < 0) {
-                j = 23;
-            }
-            uint256 derivativePrice = getHourlyAvgTracerPrice(uint256(j));
-            uint256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j));
-            if (derivativePrice != 0) {
-                derivativeInstances = derivativeInstances + uint256(timeWeight);
-                derivativeSum = derivativeSum + (timeWeight * derivativePrice);
-            }
-            if (underlyingPrice != 0) {
-                underlyingInstances = underlyingInstances + uint256(timeWeight);
-                underlyingSum = underlyingSum + (timeWeight * underlyingPrice);
-            }
-        }
-        if (derivativeInstances == 0) {
-            // Not enough market data yet
-            return (0, 0);
-        }
-        return (
-            underlyingSum / underlyingInstances,
-            derivativeSum / derivativeInstances
-        );
+        Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**
@@ -335,27 +311,25 @@ contract Pricing is IPricing {
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
     function get24HourPrices() public view override returns (uint256, uint256) {
-        Types.PricingMetrics memory pricing = price;
         uint256 runningTotal = 0;
         uint256 oracleRunningTotal = 0;
         uint8 numberOfHoursPresent = 0;
         uint8 numberOfOracleHoursPresent = 0;
         for (uint8 i = 0; i < 23; i++) {
-            Types.HourlyPrices memory hourlyPrice =
-                pricing.hourlyTracerPrices[i];
-            Types.HourlyPrices memory oracleHourlyPrice =
-                pricing.hourlyOraclePrices[i];
-            if (hourlyPrice.numTrades != 0) {
+            Prices.PriceInstant memory hourlyPrice = hourlyTracerPrices[i];
+            Prices.PriceInstant memory oracleHourlyPrice =
+                hourlyOraclePrices[i];
+            if (hourlyPrice.trades != 0) {
                 runningTotal =
                     runningTotal +
-                    (uint256(hourlyPrice.totalPrice) / hourlyPrice.numTrades);
+                    (uint256(hourlyPrice.cumulativePrice) / hourlyPrice.trades);
                 numberOfHoursPresent = numberOfHoursPresent + 1;
             }
-            if (oracleHourlyPrice.numTrades != 0) {
+            if (oracleHourlyPrice.trades != 0) {
                 oracleRunningTotal =
                     oracleRunningTotal +
-                    (uint256(oracleHourlyPrice.totalPrice) /
-                        oracleHourlyPrice.numTrades);
+                    (uint256(oracleHourlyPrice.cumulativePrice) /
+                        oracleHourlyPrice.trades);
                 numberOfOracleHoursPresent = numberOfOracleHoursPresent + 1;
             }
         }
@@ -376,22 +350,10 @@ contract Pricing is IPricing {
         override
         returns (uint256)
     {
-        Types.PricingMetrics memory pricing = price;
-        Types.HourlyPrices memory hourly;
-
-        /* bounds check the provided hour (note that the cast is safe due to
-         * short-circuit evaluation of this conditional) */
-        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
-            return 0;
-        }
-
-        /* note that this cast is safe due to our above bounds check */
-        hourly = pricing.hourlyTracerPrices[uint256(hour)];
-
-        if (hourly.numTrades == 0) {
+        if (hour >= hourlyTracerPrices.length) {
             return 0;
         } else {
-            return hourly.totalPrice / hourly.numTrades;
+            return Prices.averagePrice(hourlyTracerPrices[hour]);
         }
     }
 
@@ -405,24 +367,10 @@ contract Pricing is IPricing {
         override
         returns (uint256)
     {
-        Types.PricingMetrics memory pricing = price;
-        Types.HourlyPrices memory hourly;
-
-        /* bounds check the provided hour (note that the cast is safe due to
-         * short-circuit evaluation of this conditional) */
-        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
-            return 0;
-        }
-
-        /* note that this cast is safe due to our above bounds check */
-        hourly = pricing.hourlyOraclePrices[uint256(hour)];
-
-        if (hourly.numTrades == 0) {
+        if (hour >= hourlyOraclePrices.length) {
             return 0;
         } else {
-            /* On each trade, the oracle price is added to, so the average is
-               (total / number of trades) */
-            return hourly.totalPrice / hourly.numTrades;
+            return Prices.averagePrice(hourlyOraclePrices[hour]);
         }
     }
 
