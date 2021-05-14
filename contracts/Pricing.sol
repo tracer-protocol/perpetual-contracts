@@ -259,13 +259,7 @@ contract Pricing is IPricing {
         override
         returns (Prices.FundingRateInstant memory)
     {
-        Prices.FundingRateInstant memory fundingRate = fundingRates[index];
-        return
-            Prices.FundingRateInstant(
-                fundingRate.timestamp,
-                fundingRate.fundingRate,
-                fundingRate.cumulativeFundingRate
-            );
+        return fundingRates[index];
     }
 
     /**
@@ -277,14 +271,7 @@ contract Pricing is IPricing {
         override
         returns (Prices.FundingRateInstant memory)
     {
-        Prices.FundingRateInstant memory fundingRate =
-            insuranceFundingRates[index];
-        return
-            Prices.FundingRateInstant(
-                fundingRate.timestamp,
-                fundingRate.fundingRate,
-                fundingRate.cumulativeFundingRate
-            );
+        return insuranceFundingRates[index];
     }
 
     /**
