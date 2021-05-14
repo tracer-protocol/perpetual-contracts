@@ -20,7 +20,11 @@ library Prices {
         uint256 derivative;
     }
 
-    function averagePrice(PriceInstant price) returns (uint256) {
+    function averagePrice(PriceInstant memory price)
+        public
+        pure
+        returns (uint256)
+    {
         return price.cumulativePrice / price.trades;
     }
 
@@ -29,11 +33,11 @@ library Prices {
         pure
         returns (uint256)
     {
-        uint256 n = prices.len;
-        uint256[n] averagePrices = [];
+        uint256 n = prices.length <= 24 ? prices.length : 24;
+        uint256[] memory averagePrices = new uint256[](24);
 
         for (uint256 i = 0; i < n; i++) {
-            PriceInstant currPrice = prices[i];
+            PriceInstant memory currPrice = prices[i];
             averagePrices[i] = averagePrice(currPrice);
         }
 
