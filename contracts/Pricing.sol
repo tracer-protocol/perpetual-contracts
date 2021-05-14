@@ -202,10 +202,7 @@ contract Pricing is IPricing {
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
     function fairPrice() public view override returns (uint256) {
-        uint256 oraclePrice = oracle.latestAnswer();
-        // calculates fairPrice
-        // todo this can probably be optimised
-        return uint256((oraclePrice.toInt256() - timeValue).abs());
+        return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 
     ////////////////////////////

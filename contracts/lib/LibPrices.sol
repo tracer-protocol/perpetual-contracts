@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import "./LibMath.sol";
 
 library Prices {
+    using LibMath for uint256;
+
     struct FundingRateInstant {
         uint256 timestamp;
         int256 fundingRate;
@@ -18,6 +20,14 @@ library Prices {
     struct TWAP {
         uint256 underlying;
         uint256 derivative;
+    }
+
+    function fairPrice(uint256 oraclePrice, int256 timeValue)
+        public
+        pure
+        returns (uint256)
+    {
+        return uint256(LibMath.abs(oraclePrice.toInt256() - timeValue));
     }
 
     function averagePrice(PriceInstant memory price)
