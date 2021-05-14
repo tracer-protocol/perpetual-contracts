@@ -112,8 +112,14 @@ library Prices {
             } else {
                 return
                     TWAP(
-                        cumulativeUnderlying / instantUnderlying,
-                        cumulativeDerivative / instantDerivative
+                        PRBMathSD60x18.div(
+                            cumulativeUnderlying,
+                            instantUnderlying
+                        ),
+                        PRBMathSD60x18.div(
+                            cumulativeDerivative,
+                            instantDerivative
+                        )
                     );
             }
         }
