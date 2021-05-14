@@ -17,6 +17,4 @@ interface IInsurance {
     function getPoolFundingRate() external view returns (uint256);
 
     function poolNeedsFunding() external view returns (bool);
-
-    function INSURANCE_MUL_FACTOR() external view returns (int256);
 }

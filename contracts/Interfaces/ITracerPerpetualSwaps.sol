@@ -7,10 +7,10 @@ interface ITracerPerpetualSwaps {
     function updateAccountsOnLiquidation(
         address liquidator,
         address liquidatee,
-        int256 liquidatorBaseChange,
         int256 liquidatorQuoteChange,
-        int256 liquidateeBaseChange,
+        int256 liquidatorBaseChange,
         int256 liquidateeQuoteChange,
+        int256 liquidateeBaseChange,
         uint256 amountToEscrow
     ) external;
 
@@ -24,9 +24,9 @@ interface ITracerPerpetualSwaps {
 
     function settle(address account) external;
 
-    function tracerBaseToken() external view returns (address);
+    function tracerQuoteToken() external view returns (address);
 
-    function baseTokenDecimals() external view returns (uint256);
+    function quoteTokenDecimals() external view returns (uint256);
 
     function liquidationContract() external view returns (address);
 

@@ -17,27 +17,25 @@ library LibLiquidationMock {
     function liquidationBalanceChanges(
         int256 liquidatedBase,
         int256 liquidatedQuote,
-        int256 liquidatorQuote,
         int256 amount
     )
         external
         pure
         returns (
-            int256 _liquidatorBaseChange,
             int256 _liquidatorQuoteChange,
-            int256 _liquidateeBaseChange,
-            int256 _liquidateeQuoteChange
+            int256 _liquidatorBaseChange,
+            int256 _liquidateeQuoteChange,
+            int256 _liquidateeBaseChange
         )
     {
         (
-            _liquidatorBaseChange,
             _liquidatorQuoteChange,
-            _liquidateeBaseChange,
-            _liquidateeQuoteChange
+            _liquidatorBaseChange,
+            _liquidateeQuoteChange,
+            _liquidateeBaseChange
         ) = LibLiquidation.liquidationBalanceChanges(
             liquidatedBase,
             liquidatedQuote,
-            liquidatorQuote,
             amount
         );
     }
