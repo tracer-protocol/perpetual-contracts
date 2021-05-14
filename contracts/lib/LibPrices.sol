@@ -24,6 +24,22 @@ library Prices {
         return price.cumulativePrice / price.trades;
     }
 
+    function averagePriceForPeriod(PriceInstant[] memory prices)
+        public
+        pure
+        returns (uint256)
+    {
+        uint256 n = prices.len;
+        uint256[n] averagePrices = [];
+
+        for (uint256 i = 0; i < n; i++) {
+            PriceInstant currPrice = prices[i];
+            averagePrices[i] = averagePrice(currPrice);
+        }
+
+        return LibMath.mean(averagePrices);
+    }
+
     function globalLeverage(
         uint256 globalLeverage,
         uint256 oldLeverage,
@@ -52,7 +68,7 @@ library Prices {
         uint256 instantUnderlying = 0;
         uint256 cumulativeUnderlying = 0;
 
-        for (uint256 i=0;i<8;i++) {
+        for (uint256 i = 0; i < 8; i++) {
             uint256 currTimeWeight = 8 - i;
             uint256 j = 8 - i;
 
@@ -71,12 +87,12 @@ library Prices {
 
             if (instantDerivative == 0) {
                 return TWAP(0, 0);
-            }
-            else {
-                return TWAP(
-                    cumulativeUnderlying / instantUnderlying,
-                    cumulativeDerivative / instantDerivative
-                );
+            } else {
+                return
+                    TWAP(
+                        cumulativeUnderlying / instantUnderlying,
+                        cumulativeDerivative / instantDerivative
+                    );
             }
         }
     }
