@@ -386,7 +386,8 @@ contract TracerPerpetualSwaps is
                 // todo CASTING CHECK
                 int256 changeInInsuranceBalance =
                     PRBMathSD59x18.mul(
-                        currInsuranceGlobalRate.fundingRate - currInsuranceUserRate.fundingRate,
+                        currInsuranceGlobalRate.fundingRate -
+                            currInsuranceUserRate.fundingRate,
                         accountBalance.totalLeveragedValue.toInt256()
                     );
 
