@@ -8,7 +8,15 @@ interface ITracerPerpetualsFactory {
 
     function daoApproved(address market) external view returns (bool);
 
-    function setDeployerContract(address newDeployer) external;
+    function setInsuranceDeployerContract(address newInsuranceDeployer)
+        external;
+
+    function setPricingDeployerContract(address newPricingDeployer) external;
+
+    function setLiquidationDeployerContract(address newLiquidationDeployer)
+        external;
+
+    function setPerpsDeployerContract(address newDeployer) external;
 
     function setApproved(address market, bool value) external;
 }

@@ -53,14 +53,13 @@ contract Liquidation is ILiquidation, Ownable {
     );
     event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
 
-    // On contract deployment set the account contract.
     constructor(
         address _pricing,
         address _tracer,
         address _insuranceContract,
         uint256 _maxSlippage,
         address gov
-    ) {
+    ) Ownable() {
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -247,34 +246,6 @@ contract Liquidation is ILiquidation, Ownable {
         return amountToEscrow;
     }
 
-    function calcLiquidationBalanceChanges(
-        int256 liquidatedQuote,
-        int256 liquidatedBase,
-        address liquidator,
-        int256 amount
-    )
-        internal
-        view
-        returns (
-            int256 liquidatorQuoteChange,
-            int256 liquidatorBaseChange,
-            int256 liquidateeQuoteChange,
-            int256 liquidateeBaseChange
-        )
-    {
-        /* Liquidator's balance */
-        Balances.Account memory liquidatorBalance =
-            tracer.getBalance(liquidator);
-
-        // Calculates what the updated state of both accounts will be if the liquidation is fully processed
-        return
-            LibLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
-                liquidatedBase,
-                amount
-            );
-    }
-
     /**
      * @notice Liquidates the margin account of a particular user. A deposit is needed from the liquidator.
      *         Generates a liquidation receipt for the liquidator to use should they need a refund.
@@ -301,10 +272,9 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeQuoteChange,
             int256 liquidateeBaseChange
         ) =
-            calcLiquidationBalanceChanges(
+            LibLiquidation.liquidationBalanceChanges(
                 liquidatedBalance.position.quote,
                 liquidatedBalance.position.base,
-                msg.sender,
                 amount
             );
 
@@ -471,6 +441,14 @@ contract Liquidation is ILiquidation, Ownable {
             amountTakenFromInsurance.toInt256()
         );
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
+    }
+
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ILiquidation)
+        onlyOwner
+    {
+        super.transferOwnership(newOwner);
     }
 
     /**
