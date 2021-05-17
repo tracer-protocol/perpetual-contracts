@@ -545,7 +545,7 @@ contract TracerPerpetualSwaps is
             feeReceiver == msg.sender,
             "Only feeReceiver can withdraw fees"
         );
-        
+
         uint256 tempFees = fees;
         fees = 0;
 
