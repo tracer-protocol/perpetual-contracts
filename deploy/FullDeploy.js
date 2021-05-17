@@ -3,7 +3,7 @@ module.exports = async function (hre) {
     const { deploy } = deployments
 
     const { deployer } = await getNamedAccounts()
-
+    console.log(deployer, "Deployer")
     // deploy libs
     const safetyWithdraw = await deploy('SafetyWithdraw', {
         from: deployer,
@@ -41,15 +41,36 @@ module.exports = async function (hre) {
         log: true,
     });
 
-    // deploy token
+    // deploy token with an initial supply of 100000
     await deploy('TestToken', {
-        args: ["100000000000000000000000"],
+        args: ["100000000000000000000000"], 
         from: deployer,
         log: true,
     });
 
+    // deploy deployers
+    const liquidationDeployer = await deploy('LiquidationDeployerV1', {
+        from: deployer,
+        libraries: {
+            LibLiquidation: libLiquidation.address,
+            Balances: libBalances.address,
+            LibMath: libMath.address
+        },
+        log: true
+    })
+
+    const insuranceDeployer = await deploy('InsuranceDeployerV1', {
+        from: deployer,
+        log: true
+    })
+
+    const pricingDeployer = await deploy('PricingDeployerV1', {
+        from: deployer,
+        log: true
+    })
+
     // deploy Tracer perps deployer
-    const deployerV1 = await deploy('DeployerV1', {
+    const perpsDeployer = await deploy('PerpsDeployerV1', {
         from: deployer,
         libraries: {
             Perpetuals: libPerpetuals.address,
@@ -60,9 +81,15 @@ module.exports = async function (hre) {
         log: true,
     });
 
-    // // deploy Tracer perps factory
+    // deploy Tracer perps factory
     await deploy('TracerPerpetualsFactory', {
-        args: [deployerV1.address, deployer],
+        args: [
+            perpsDeployer.address, 
+            liquidationDeployer.address,
+            insuranceDeployer.address,
+            pricingDeployer.address,
+            deployer // governance address
+        ],
         from: deployer,
         log: true,
     });
