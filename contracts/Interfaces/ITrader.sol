@@ -9,8 +9,7 @@ interface ITrader {
 
     function executeTrade(
         Types.SignedLimitOrder[] memory makers,
-        Types.SignedLimitOrder[] memory takers,
-        address market
+        Types.SignedLimitOrder[] memory takers
     ) external;
 
     function hashOrder(Perpetuals.Order memory order)
@@ -19,11 +18,6 @@ interface ITrader {
         returns (bytes32);
 
     function getDomain() external view returns (bytes32);
-
-    function verify(address signer, Types.SignedLimitOrder memory order)
-        external
-        view
-        returns (bool);
 
     function verifySignature(
         address signer,
