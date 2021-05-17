@@ -33,8 +33,8 @@ IPricing.sol is an inteface that describes the functions that a Pricing contract
 => The specific implementation of this interface as a contract can be found in Pricing.sol   
 **Explanation:** A Pricing contract handles all of the updating, storage allocation and retrieval of values related to the value of a Tracer (e.g. funding rate or Tracer price)
 
-**IDeployer.sol:**  
-IDeployer.sol is an interface that describes the functions that a Deployer contract should implement.   
+**IPerpsDeployer.sol:**  
+IPerpsDeployer.sol is an interface that describes the functions that a Deployer contract should implement.   
 =>The specific implementation of this interface as a contract can be found in DeployerV1.sol   
 **Explanation:** A deployer contract facilitates the deployment of Tracers
 
