@@ -54,6 +54,7 @@ contract TracerPerpetualSwaps is
     mapping(address => bool) public override tradingWhitelist;
 
     event FeeReceiverUpdated(address receiver);
+    event FeeWithdrawn(address receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
@@ -208,29 +209,44 @@ contract TracerPerpetualSwaps is
         Balances.Account storage account1 = balances[order1.maker];
         Balances.Account storage account2 = balances[order2.maker];
 
-		int256 fee = PRBMathUD60x18.mul(uint256(quoteChange), uint(feeRate.toInt256())).toInt256();
+        int256 fee =
+            PRBMathUD60x18
+                .mul(uint256(quoteChange), uint256(feeRate.toInt256()))
+                .toInt256();
 
         /* TODO: handle every enum arm! */
         if (order1.side == Perpetuals.Side.Long) {
             // user 1 is long. Increase base, decrease quote
-            account1.position.quote = account1.position.quote - quoteChange - fee;
+            account1.position.quote =
+                account1.position.quote -
+                quoteChange -
+                fee;
             account1.position.base = account1.position.base + _fillAmount;
 
             // user 2 is short. Increase quote, decrease base
-            account2.position.quote = account2.position.quote + quoteChange + fee;
+            account2.position.quote =
+                account2.position.quote +
+                quoteChange +
+                fee;
             account2.position.base = account2.position.base - _fillAmount;
         } else {
             // user 1 is short. Increase quote, decrease base
-            account1.position.quote = account1.position.quote + quoteChange + fee;
+            account1.position.quote =
+                account1.position.quote +
+                quoteChange +
+                fee;
             account1.position.base = account1.position.base - _fillAmount;
 
             // user 2 is long. Increase base, decrease quote
-            account2.position.quote = account2.position.quote - quoteChange - fee;
+            account2.position.quote =
+                account2.position.quote -
+                quoteChange -
+                fee;
             account2.position.base = account2.position.base + _fillAmount;
         }
 
         // Add fee into fees
-        fees = fees + uint(fee * 2);
+        fees = fees + uint256(fee * 2);
     }
 
     /**
@@ -518,16 +534,21 @@ contract TracerPerpetualSwaps is
     function setGasOracle(address _gasOracle) public override onlyOwner {
         gasPriceOracle = _gasOracle;
     }
+
     function setFeeReceiver(address receiver) public override onlyOwner {
         feeReceiver = receiver;
         emit FeeReceiverUpdated(receiver);
     }
 
     function withdrawFee() public override {
-		require(feeReceiver == msg.sender);
+        require(
+            feeReceiver == msg.sender,
+            "Only feeReceiver can withdraw fees"
+        );
         fees = 0;
         // Withdraw from the account
         IERC20(tracerQuoteToken).transfer(feeReceiver, fees);
+        emit FeeWithdrawn(feeReceiver, fees);
     }
 
     function setFeeRate(uint256 _feeRate) public override onlyOwner {
