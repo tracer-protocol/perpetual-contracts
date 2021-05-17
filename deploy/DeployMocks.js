@@ -1,4 +1,3 @@
-
 module.exports = async function (hre) {
     const { deployments, getNamedAccounts } = hre
     const { deploy } = deployments
