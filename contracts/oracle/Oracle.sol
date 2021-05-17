@@ -11,19 +11,14 @@ import "../Interfaces/IOracle.sol";
  *      such can be used as the oracle implementation.
  */
 contract Oracle is IOracle {
-
-    int256 public price = 100000000;
+    uint256 public price = 100000000;
     uint8 public override decimals = 8; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
 
-    function latestAnswer() external override view returns (int256) {
+    function latestAnswer() external view override returns (uint256) {
         return price;
     }
 
-    function isStale() external override view returns (bool) {
-        return false;
-    }
-
-    function setPrice(int256 _price) public {
+    function setPrice(uint256 _price) public {
         price = _price;
     }
 

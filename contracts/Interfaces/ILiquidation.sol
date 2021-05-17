@@ -1,63 +1,42 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
-pragma experimental ABIEncoderV2;
 import "./Types.sol";
+import "../lib/LibPerpetuals.sol";
+import "../lib/LibLiquidation.sol";
 
 interface ILiquidation {
-    function submitLiquidation(
-        address market,
-        address liquidator,
-        address liquidatee,
-        int256 price,
-        uint256 escrowedAmount,
-        int256 amountLiquidated,
-        bool liquidationSide
-    ) external;
-
-    function claimEscrow(uint256 id, address trader) external returns (int256);
-
-    function claimReceipts(
+    function calcAmountToReturn(
         uint256 escrowId,
-        uint256[] memory orderIds,
-        uint256 priceMultiplier,
-        address market,
-        address liquidator
+        Perpetuals.Order[] memory orders,
+        address traderContract
     ) external returns (uint256);
+
+    function calcUnitsSold(
+        Perpetuals.Order[] memory orders,
+        address traderContract,
+        uint256 receiptId
+    ) external returns (uint256, uint256);
 
     function getLiquidationReceipt(uint256 id)
         external
         view
-        returns (
-            address,
-            address,
-            address,
-            int256,
-            uint256,
-            uint256,
-            uint256,
-            int256,
-            bool,
-            bool,
-            bool
-        );
+        returns (LibLiquidation.LiquidationReceipt memory);
 
-    function liquidate(
-        int256 amount, 
-        address account,
-        address market
-    ) external;
+    function liquidate(int256 amount, address account) external;
 
-    function claimReceipts(
-        uint256 receiptID,
-        uint256[] memory orderIds,
-        address market
+    function claimReceipt(
+        uint256 receiptId,
+        Perpetuals.Order[] memory orders,
+        address traderContract
     ) external;
 
     function claimEscrow(uint256 receiptId) external;
 
-    function currentLiquidationId() external view returns(uint256);
+    function currentLiquidationId() external view returns (uint256);
 
-    function maxSlippage() external view returns(int256);
+    function transferOwnership(address newOwner) external;
 
-    function setMaxSlippage(int256 _maxSlippage) external;
+    function maxSlippage() external view returns (uint256);
+
+    function setMaxSlippage(uint256 _maxSlippage) external;
 }

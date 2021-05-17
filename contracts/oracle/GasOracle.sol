@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../Interfaces/IOracle.sol";
+import "../Interfaces/IChainlinkOracle.sol";
 import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -12,21 +13,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract GasOracle is IOracle, Ownable {
     using LibMath for uint256;
-    IOracle public gasOracle;
-    IOracle public priceOracle;
-    int256 public usdToGas;
+    IChainlinkOracle public gasOracle;
+    IChainlinkOracle public priceOracle;
+    uint256 public usdToGas;
     uint8 public override decimals = 8; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
 
     constructor(address _priceOracle, address _gasOracle) {
-        gasOracle = IOracle(_gasOracle); /* Gas cost oracle */
-        priceOracle = IOracle(_priceOracle); /* Base/ETH oracle */
+        gasOracle = IChainlinkOracle(_gasOracle); /* Gas cost oracle */
+        priceOracle = IChainlinkOracle(_priceOracle); /* Quote/ETH oracle */
     }
 
     /**
      * @notice Calculates the latest USD/Gas price
      * @dev Returned value is USD/Gas * 10^18 for compatibility with rest of calculations
      */
-    function latestAnswer() external override view returns (int256) {
+    function latestAnswer() external view override returns (uint256) {
         if (usdToGas != 0) {
             // Default value has been manually set
             return usdToGas;
@@ -36,31 +37,27 @@ contract GasOracle is IOracle, Ownable {
 
         uint256 gasDecimals = gasOracle.decimals();
         uint256 priceDecimals = priceOracle.decimals();
-        uint256 divisionPower = ten**((gasDecimals + priceDecimals) - gweiDividor);
+        uint256 divisionPower =
+            ten**((gasDecimals + priceDecimals) - gweiDividor);
 
-        return (gasOracle.latestAnswer() * priceOracle.latestAnswer()) / divisionPower.toInt256();
-    }
-
-    /**
-    * @notice returns if either feed is stale
-    */
-    function isStale() external override view returns (bool) {
-        return (gasOracle.isStale() || priceOracle.isStale());
+        // todo sanity check on casting. int256->uint256 is safe
+        return ((uint256(gasOracle.latestAnswer()) *
+            uint256(priceOracle.latestAnswer())) / divisionPower);
     }
 
     /**
      * @notice Manually set the new ratio of USD/Gas
      */
-    function setUsdToGas(int256 _price) public {
+    function setUsdToGas(uint256 _price) public {
         usdToGas = _price;
     }
 
     function setGasOracle(address _gasOracle) public onlyOwner {
-        gasOracle = IOracle(_gasOracle);
+        gasOracle = IChainlinkOracle(_gasOracle);
     }
 
     function setPriceOracle(address _priceOracle) public onlyOwner {
-        priceOracle = IOracle(_priceOracle);
+        priceOracle = IChainlinkOracle(_priceOracle);
     }
 
     function setDecimals(uint8 _decimals) external {

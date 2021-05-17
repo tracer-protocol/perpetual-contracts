@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SafetyWithdraw is Ownable, ISafetyWithdraw {
-
     function withdrawERC20Token(
         address tokenAddress,
         address to,

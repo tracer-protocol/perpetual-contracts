@@ -5,11 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InsurancePoolToken is ERC20, Ownable, ERC20Burnable {
-    constructor(
-        string memory name,
-        string memory symbol
-    ) public ERC20(name, symbol) {
-    }
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
 
     function mint(address to, uint256 amount) external onlyOwner() {
         _mint(to, amount);
