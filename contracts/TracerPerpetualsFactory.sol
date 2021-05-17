@@ -97,8 +97,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
                 pricing,
                 market,
                 insurance,
-                maxLiquidationSlippage,
-                tracerOwner
+                maxLiquidationSlippage
             );
 
         // Perform admin operations on the tracer to finalise linking

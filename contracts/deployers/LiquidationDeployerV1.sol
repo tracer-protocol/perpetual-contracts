@@ -12,17 +12,11 @@ contract LiquidationDeployerV1 is ILiquidationDeployer {
         address pricing,
         address tracer,
         address insuranceContract,
-        uint256 maxSlippage,
-        address gov
+        uint256 maxSlippage
     ) external override returns (address) {
         Liquidation liquidation =
-            new Liquidation(
-                pricing,
-                tracer,
-                insuranceContract,
-                maxSlippage,
-                gov
-            );
+            new Liquidation(pricing, tracer, insuranceContract, maxSlippage);
+        liquidation.transferOwnership(msg.sender);
         return address(liquidation);
     }
 }
