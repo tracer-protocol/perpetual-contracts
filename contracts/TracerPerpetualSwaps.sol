@@ -67,7 +67,7 @@ contract TracerPerpetualSwaps is
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market. Min margin is derived from this
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
-     * @param _feeRate the fee to be taken on trades in this market
+     * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      */
     constructor(
         bytes32 _marketId,
@@ -545,10 +545,13 @@ contract TracerPerpetualSwaps is
             feeReceiver == msg.sender,
             "Only feeReceiver can withdraw fees"
         );
+        
+        uint256 tempFees = fees;
         fees = 0;
+
         // Withdraw from the account
-        IERC20(tracerQuoteToken).transfer(feeReceiver, fees);
-        emit FeeWithdrawn(feeReceiver, fees);
+        IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees);
+        emit FeeWithdrawn(feeReceiver, tempFees);
     }
 
     function setFeeRate(uint256 _feeRate) public override onlyOwner {
