@@ -44,19 +44,14 @@ async function main() {
             feeRate,
         ]
     )
-    console.log(await factoryInstance.owner(), "Factory owner")
-    console.log(
-        factoryInstance.signer.address,
-        "Factory instance signers address"
-    )
     await factoryInstance.deployTracer(
         deployTracerData,
         oracle.address,
         maxLiquidationSlippage
     )
-    // let tracerAddr = await factoryInstance.connect(deployer).tracersByIndex(0)
+    let tracerAddr = await factoryInstance.tracersByIndex(0)
     console.log(`Factory Deployed: ${factory.address}`)
-    // console.log(`Tracer Deployed: ${tracerAddr}`)
+    console.log(`Tracer Deployed: ${tracerAddr}`)
     console.log(`Trader Deployed: ${trader.address}`)
     console.log(`Margin Token Deployed: ${token.address}`)
 }

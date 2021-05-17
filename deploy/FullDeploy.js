@@ -3,7 +3,6 @@ module.exports = async function (hre) {
     const { deploy } = deployments
 
     const { deployer } = await getNamedAccounts()
-    console.log(deployer, "Deployer")
     // deploy libs
     const safetyWithdraw = await deploy("SafetyWithdraw", {
         from: deployer,
