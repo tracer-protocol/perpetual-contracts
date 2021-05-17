@@ -68,7 +68,7 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        int256 delta = int256(newLeverage - oldLeverage);
+        int256 delta = int256(newLeverage) - int256(oldLeverage);
 
         if (delta >= 0) {
             /* leverage has increased or remained the same */
