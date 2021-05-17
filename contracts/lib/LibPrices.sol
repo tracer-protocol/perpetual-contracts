@@ -79,7 +79,7 @@ library Prices {
                 /* handle underflow */
                 return 0;
             } else {
-                return globalLeverage - uint256(delta);
+                return globalLeverage - (oldLeverage - newLeverage);
             }
         }
     }
