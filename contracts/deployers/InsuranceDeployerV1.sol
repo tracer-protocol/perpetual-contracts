@@ -14,6 +14,7 @@ contract InsuranceDeployerV1 is IInsuranceDeployer {
         returns (address)
     {
         Insurance insurance = new Insurance(tracer, perpsFactory);
+        insurance.transferOwnership(msg.sender);
         return address(insurance);
     }
 }

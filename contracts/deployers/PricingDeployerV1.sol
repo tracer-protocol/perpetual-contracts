@@ -14,6 +14,7 @@ contract PricingDeployerV1 is IPricingDeployer {
         address oracle
     ) external override returns (address) {
         Pricing pricing = new Pricing(tracer, insuranceContract, oracle);
+        pricing.transferOwnership(msg.sender);
         return address(pricing);
     }
 }

@@ -57,14 +57,12 @@ contract Liquidation is ILiquidation, Ownable {
         address _pricing,
         address _tracer,
         address _insuranceContract,
-        uint256 _maxSlippage,
-        address gov
+        uint256 _maxSlippage
     ) Ownable() {
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
         maxSlippage = _maxSlippage;
-        transferOwnership(gov);
     }
 
     /**

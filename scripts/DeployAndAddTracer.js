@@ -1,68 +1,58 @@
 const hre = require("hardhat")
-const TestToken = artifacts.require("TestToken")
-const { BN, time } = require("@openzeppelin/test-helpers")
-const Gov = artifacts.require("Gov")
-const TracerFactory = artifacts.require("TracerPerpetualsFactory")
 
 // small sample script for using deploys and then deploying a trace
 async function main() {
     // deploy all contracts using hardhat deploy
-    const { deployments } = hre
-    const twoDays = 172800
-    let accounts = await web3.eth.getAccounts()
-
+    const { deployments, ethers, getNamedAccounts } = hre
+    const [deployer, ...accounts] = await ethers.getSigners()
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
-
-    // todo how do collisions work on  multiple instances of a contract?
-    let oracle = await deployments.get("Oracle")
+    let maxLeverage = new ethers.BigNumber.from("125000").toString()
+    let tokenDecimals = new ethers.BigNumber.from("1000000").toString()
+    let feeRate = "5000000000000000000" // 5 percent
+    let maxLiquidationSlippage = "50000000000000000000" // 50 percent
+    let fundingRateSensitivity = 1
     let gasPriceOracle = await deployments.get("Oracle")
-    let account = await deployments.get("Account")
-    let pricing = await deployments.get("Pricing")
-    let maxLeverage = new BN("125000").toString()
-    let gov = await deployments.get("Gov")
-    let govToken = await deployments.get("TestToken")
-    let factory = await deployments.get("TracerFactory")
-    gov = await Gov.at(gov.address)
-    govToken = await TestToken.at(govToken.address)
-    factory = await TracerFactory.at(factory.address)
-
-    // get the deployed gov token and send it out
-    for (var i = 0; i < 6; i++) {
-        await govToken.transfer(accounts[i], web3.utils.toWei("200"))
-    }
-
-    // use gov to deploy a tracer
-    var token = await TestToken.new(web3.utils.toWei("1000000"))
+    let trader = await deployments.get("Trader")
+    let factory = await deployments.get("TracerPerpetualsFactory")
+    let oracle = await deployments.get("Oracle")
+    let factoryInstance = new ethers.Contract(
+        factory.address,
+        factory.abi
+    ).connect(deployer)
+    let token = await deployments.get("TestToken")
 
     //Deploy a new Tracer contract per test
-    var deployTracerData = web3.eth.abi.encodeParameters(
+    var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
-            "bytes32",
-            "address",
-            "address",
-            "address",
-            "address",
-            "address",
-            "int256",
-            "uint256",
+            "bytes32", //_marketId,
+            "address", //_tracerQuoteToken,
+            "uint256", //_tokenDecimals,
+            "address", //_gasPriceOracle,
+            "uint256", //_maxLeverage,
+            "uint256", //_fundingRateSensitivity,
+            "uint256", //_feeRate
         ],
         [
-            web3.utils.fromAscii(`TEST1/USD`),
+            ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
-            oracle.address,
+            tokenDecimals,
             gasPriceOracle.address,
-            account.address,
-            pricing.address,
             maxLeverage,
-            1, //funding rate sensitivity
+            fundingRateSensitivity,
+            feeRate,
         ]
     )
-
-    await factory.deployTracer(deployTracerData)
-    let tracerAddr = await factory.tracersByIndex(0)
-    console.log(`Tracer Deplpoyed: ${tracerAddr}`)
-    console.log(`Margin Token Deplpoyed: ${token.address}`)
+    await factoryInstance.deployTracer(
+        deployTracerData,
+        oracle.address,
+        maxLiquidationSlippage
+    )
+    let tracerAddr = await factoryInstance.tracersByIndex(0)
+    console.log(`Factory Deployed: ${factory.address}`)
+    console.log(`Tracer Deployed: ${tracerAddr}`)
+    console.log(`Trader Deployed: ${trader.address}`)
+    console.log(`Margin Token Deployed: ${token.address}`)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

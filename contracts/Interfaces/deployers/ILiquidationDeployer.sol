@@ -6,7 +6,6 @@ interface ILiquidationDeployer {
         address pricing,
         address tracer,
         address insuranceContract,
-        uint256 maxSlippage,
-        address gov
+        uint256 maxSlippage
     ) external returns (address);
 }
