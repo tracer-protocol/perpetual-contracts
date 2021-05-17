@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 library Prices {
     using LibMath for uint256;
@@ -67,15 +68,15 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        uint256 delta = oldLeverage - newLeverage;
+        int256 delta = int256(newLeverage - oldLeverage);
 
-        if (oldLeverage < newLeverage) {
-            return globalLeverage + delta;
-        } else {
-            if (delta == globalLeverage) {
+        if (delta >= 0) { /* leverage has increased or remained the same */
+            return globalLeverage + uint256(delta);
+        } else { /* leverage has decreased */
+            if (uint256(delta) > globalLeverage) { /* handle underflow */
                 return 0;
             } else {
-                return uint256(globalLeverage - delta);
+                return globalLeverage - uint256(delta);
             }
         }
     }
@@ -112,11 +113,11 @@ library Prices {
             } else {
                 return
                     TWAP(
-                        PRBMathSD60x18.div(
+                        PRBMathUD60x18.div(
                             cumulativeUnderlying,
                             instantUnderlying
                         ),
-                        PRBMathSD60x18.div(
+                        PRBMathUD60x18.div(
                             cumulativeDerivative,
                             instantDerivative
                         )
