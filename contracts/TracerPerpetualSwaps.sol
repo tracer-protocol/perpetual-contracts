@@ -211,7 +211,7 @@ contract TracerPerpetualSwaps is
 
         int256 fee =
             PRBMathUD60x18
-                .mul(uint256(quoteChange), uint256(feeRate.toInt256()))
+                .mul(uint256(quoteChange), uint256(feeRate))
                 .toInt256();
 
         /* TODO: handle every enum arm! */
@@ -226,14 +226,14 @@ contract TracerPerpetualSwaps is
             // user 2 is short. Increase quote, decrease base
             account2.position.quote =
                 account2.position.quote +
-                quoteChange +
+                quoteChange -
                 fee;
             account2.position.base = account2.position.base - _fillAmount;
         } else {
             // user 1 is short. Increase quote, decrease base
             account1.position.quote =
                 account1.position.quote +
-                quoteChange +
+                quoteChange -
                 fee;
             account1.position.base = account1.position.base - _fillAmount;
 
