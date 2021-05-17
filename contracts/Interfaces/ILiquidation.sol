@@ -24,7 +24,7 @@ interface ILiquidation {
 
     function liquidate(int256 amount, address account) external;
 
-    function claimReceipts(
+    function claimReceipt(
         uint256 receiptId,
         Perpetuals.Order[] memory orders,
         address traderContract
@@ -33,6 +33,8 @@ interface ILiquidation {
     function claimEscrow(uint256 receiptId) external;
 
     function currentLiquidationId() external view returns (uint256);
+
+    function transferOwnership(address newOwner) external;
 
     function maxSlippage() external view returns (uint256);
 

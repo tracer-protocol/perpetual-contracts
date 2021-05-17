@@ -37,7 +37,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     );
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
-    constructor(address _tracer, address _perpsFactory) {
+    constructor(address _tracer, address _perpsFactory) Ownable() {
         perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
         require(
             perpsFactory.validTracers(_tracer),
@@ -90,8 +90,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @param amount the amount of pool tokens to burn. Provided in WAD format
      */
     function withdraw(uint256 amount) external override {
-        require(amount > 0, "INS: amount <= 0");
-
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
@@ -207,6 +205,14 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 levNotionalValue
             );
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
+    }
+
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, IInsurance)
+        onlyOwner
+    {
+        super.transferOwnership(newOwner);
     }
 
     /**

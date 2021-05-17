@@ -15,4 +15,4 @@ private_keys.txt
 yarn-error.log
 artifacts/
 cache/
-
+deployments/

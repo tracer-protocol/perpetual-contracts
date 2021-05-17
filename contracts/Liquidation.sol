@@ -53,14 +53,13 @@ contract Liquidation is ILiquidation, Ownable {
     );
     event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
 
-    // On contract deployment set the account contract.
     constructor(
         address _pricing,
         address _tracer,
         address _insuranceContract,
         uint256 _maxSlippage,
         address gov
-    ) {
+    ) Ownable() {
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -197,6 +196,13 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 gasPrice,
         address account
     ) internal returns (uint256) {
+        require(amount > 0, "LIQ: Liquidation amount <= 0");
+        // Limits the gas use when liquidating
+        require(
+            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
+            "LIQ: GasPrice > FGasPrice"
+        );
+
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
@@ -240,34 +246,6 @@ contract Liquidation is ILiquidation, Ownable {
         return amountToEscrow;
     }
 
-    function calcLiquidationBalanceChanges(
-        int256 liquidatedQuote,
-        int256 liquidatedBase,
-        address liquidator,
-        int256 amount
-    )
-        internal
-        view
-        returns (
-            int256 liquidatorQuoteChange,
-            int256 liquidatorBaseChange,
-            int256 liquidateeQuoteChange,
-            int256 liquidateeBaseChange
-        )
-    {
-        /* Liquidator's balance */
-        Balances.Account memory liquidatorBalance =
-            tracer.getBalance(liquidator);
-
-        // Calculates what the updated state of both accounts will be if the liquidation is fully processed
-        return
-            LibLiquidation.liquidationBalanceChanges(
-                liquidatedQuote,
-                liquidatedBase,
-                amount
-            );
-    }
-
     /**
      * @notice Liquidates the margin account of a particular user. A deposit is needed from the liquidator.
      *         Generates a liquidation receipt for the liquidator to use should they need a refund.
@@ -275,8 +253,6 @@ contract Liquidation is ILiquidation, Ownable {
      * @param account The account that is to be liquidated.
      */
     function liquidate(int256 amount, address account) external override {
-        require(amount > 0, "LIQ: Liquidation amount <= 0");
-
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
 
@@ -290,22 +266,15 @@ contract Liquidation is ILiquidation, Ownable {
                 account
             );
 
-        // Limits the gas use when liquidating
-        require(
-            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
-            "LIQ: GasPrice > FGasPrice"
-        );
-
         (
             int256 liquidatorQuoteChange,
             int256 liquidatorBaseChange,
             int256 liquidateeQuoteChange,
             int256 liquidateeBaseChange
         ) =
-            calcLiquidationBalanceChanges(
+            LibLiquidation.liquidationBalanceChanges(
                 liquidatedBalance.position.quote,
                 liquidatedBalance.position.base,
-                msg.sender,
                 amount
             );
 
@@ -406,13 +375,15 @@ contract Liquidation is ILiquidation, Ownable {
                         uint256(insuranceBalance.position.quote)
                 );
             }
+            Balances.Account memory updatedInsuranceBalance =
+                tracer.getBalance(insuranceContract);
             if (
-                insuranceBalance.position.quote <
+                updatedInsuranceBalance.position.quote <
                 amountWantedFromInsurance.toInt256()
             ) {
                 // Still not enough
                 _amountTakenFromInsurance = uint256(
-                    insuranceBalance.position.quote
+                    updatedInsuranceBalance.position.quote
                 );
             } else {
                 _amountTakenFromInsurance = amountWantedFromInsurance;
@@ -431,7 +402,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId Used to identify the receipt that will be claimed
      * @param orders The orders that sold the liquidated position
      */
-    function claimReceipts(
+    function claimReceipt(
         uint256 receiptId,
         Perpetuals.Order[] memory orders,
         address traderContract
@@ -494,6 +465,14 @@ contract Liquidation is ILiquidation, Ownable {
             amountTakenFromInsurance.toInt256()
         );
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
+    }
+
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ILiquidation)
+        onlyOwner
+    {
+        super.transferOwnership(newOwner);
     }
 
     /**
