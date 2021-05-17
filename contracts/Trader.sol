@@ -36,16 +36,6 @@ contract Trader is ITrader {
     mapping(bytes32 => Perpetuals.Order) public orders;
     mapping(bytes32 => uint256) public filled;
 
-    event Verify(address sig);
-    event CheckOrder(
-        uint256 amount,
-        int256 price,
-        bool side,
-        address user,
-        uint256 expires,
-        address market
-    );
-
     constructor() {
         // Construct the EIP712 Domain
         EIP712_DOMAIN = keccak256(
@@ -73,12 +63,10 @@ contract Trader is ITrader {
      *         by matching orders 1 to 1
      * @param makers An array of signed make orders
      * @param takers An array of signed take orders
-     * @param market The market to execute the trade in
      */
     function executeTrade(
         Types.SignedLimitOrder[] memory makers,
-        Types.SignedLimitOrder[] memory takers,
-        address market
+        Types.SignedLimitOrder[] memory takers
     ) external override {
         require(makers.length == takers.length, "TDR: Lengths differ");
 
@@ -88,19 +76,20 @@ contract Trader is ITrader {
         require(n > 0, "TDR: Received empty arrays");
 
         for (uint256 i = 0; i < n; i++) {
-            // retrieve orders and verify their signatures
-            // if the order does not exist, it is created here
-            Perpetuals.Order storage makeOrder = grabOrder(makers, i, market);
-            Perpetuals.Order storage takeOrder = grabOrder(takers, i, market);
+            // verify each order individually and together
+            if (
+                !isValidSignature(makers[i].order.maker, makers[i]) ||
+                !isValidSignature(takers[i].order.maker, takers[i]) ||
+                !isValidPair(takers[i], makers[i])
+            ) {
+                // skip if either order is invalid
+                continue;
+            }
 
-            require(
-                makeOrder.market == market,
-                "TDR: makeOrder market != supplied market"
-            );
-            require(
-                takeOrder.market == market,
-                "TDR: takeOrder market != supplied market"
-            );
+            // retrieve orders
+            // if the order does not exist, it is created here
+            Perpetuals.Order storage makeOrder = grabOrder(makers, i);
+            Perpetuals.Order storage takeOrder = grabOrder(takers, i);
 
             address maker = makers[i].order.maker;
             address taker = takers[i].order.maker;
@@ -116,11 +105,20 @@ contract Trader is ITrader {
                 makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
 
             // match orders
-            ITracerPerpetualSwaps(market).matchOrders(
-                makeOrder,
-                takeOrder,
-                fillAmount
-            );
+            // referencing makeOrder.market is safe due to above require
+            // make low level call to catch revert
+            (bool success, ) =
+                makeOrder.market.call(
+                    abi.encodePacked(
+                        ITracerPerpetualSwaps(makeOrder.market)
+                            .matchOrders
+                            .selector,
+                        abi.encode(makeOrder, takeOrder, fillAmount)
+                    )
+                );
+
+            // ignore orders that cannot be executed
+            if (!success) continue;
 
             // update order state
             filled[Perpetuals.orderId(makeOrder)] =
@@ -153,19 +151,14 @@ contract Trader is ITrader {
      * @param signedOrders an array of signed orders
      * @param index the index into the array where the desired order is
      * @return the specified order
-     * @dev Performs its own bounds check on the array access
+     * @dev Should only be called with a verified signedOrder and with index
+     *      < signedOrders.length
      */
     function grabOrder(
         Types.SignedLimitOrder[] memory signedOrders,
-        uint256 index,
-        address market
+        uint256 index
     ) internal returns (Perpetuals.Order storage) {
-        require(index <= signedOrders.length, "TDR: Out of bounds access");
-
         Types.SignedLimitOrder memory signedOrder = signedOrders[index];
-
-        // verify signature and nonce
-        verify(signedOrder.order.maker, signedOrder);
 
         bytes32 orderHash = hashOrder(signedOrder.order);
         // check if order exists on chain, if not, create it
@@ -178,7 +171,7 @@ contract Trader is ITrader {
             newOrder.side = signedOrder.order.side;
             newOrder.expires = signedOrder.order.expires;
             newOrder.created = block.timestamp;
-            newOrder.market = market;
+            newOrder.market = signedOrder.order.market;
         }
 
         return orders[orderHash];
@@ -227,27 +220,34 @@ contract Trader is ITrader {
      * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
      * @param signer The signer who is being verified against the order
      * @param signedOrder The signed order to verify the signature of
-     * @return true is signer has signed the order as given by the signature components
-     *         and if the nonce of the order is correct else false.
+     * @return if an order has a valid signature and a valid nonce
+     * @dev does not throw if the signature is invalid.
      */
-    function verify(address signer, Types.SignedLimitOrder memory signedOrder)
-        public
-        view
-        override
-        returns (bool)
-    {
-        require(
-            verifySignature(
-                signer,
-                signedOrder.order,
-                signedOrder.sigR,
-                signedOrder.sigS,
-                signedOrder.sigV
-            ),
-            "TDR: Signature verification failed"
-        );
-        require(verifyNonce(signedOrder), "TDR: Incorrect nonce");
-        return true;
+    function isValidSignature(
+        address signer,
+        Types.SignedLimitOrder memory signedOrder
+    ) internal view returns (bool) {
+        return (verifySignature(
+            signer,
+            signedOrder.order,
+            signedOrder.sigR,
+            signedOrder.sigS,
+            signedOrder.sigV
+        ) && verifyNonce(signedOrder));
+    }
+
+    /**
+     * @notice Validates a given pair of signed orders against each other
+     * @param signedOrder1 the first signed order
+     * @param signedOrder2 the second signed order
+     * @return if signedOrder1 is compatible with signedOrder2
+     * @dev does not throw if pairs are invalid
+     */
+    function isValidPair(
+        Types.SignedLimitOrder memory signedOrder1,
+        Types.SignedLimitOrder memory signedOrder2
+    ) internal pure returns (bool) {
+        return (signedOrder1.order.market == signedOrder2.order.market);
     }
 
     /**
