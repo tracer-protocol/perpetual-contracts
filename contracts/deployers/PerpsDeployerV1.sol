@@ -1,36 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./TracerPerpetualSwaps.sol";
-import "./Interfaces/IDeployer.sol";
+import "../TracerPerpetualSwaps.sol";
+import "../Interfaces/deployers/IPerpsDeployer.sol";
 
 /**
  * Deployer contract. Used by the Tracer Factory to deploy new Tracer markets
  */
-contract DeployerV1 is IDeployer {
+contract PerpsDeployerV1 is IPerpsDeployer {
     function deploy(bytes calldata _data) external override returns (address) {
         (
             bytes32 _tracerId,
             address _tracerQuoteToken,
             uint256 _tokenDecimals,
             address _gasPriceOracle,
-            address _liquidationContract,
             uint256 _maxLeverage,
             uint256 _fundingRateSensitivity,
             uint256 _feeRate
         ) =
             abi.decode(
                 _data,
-                (
-                    bytes32,
-                    address,
-                    uint256,
-                    address,
-                    address,
-                    uint256,
-                    uint256,
-                    uint256
-                )
+                (bytes32, address, uint256, address, uint256, uint256, uint256)
             );
         TracerPerpetualSwaps tracer =
             new TracerPerpetualSwaps(
@@ -38,7 +28,6 @@ contract DeployerV1 is IDeployer {
                 _tracerQuoteToken,
                 _tokenDecimals,
                 _gasPriceOracle,
-                _liquidationContract,
                 _maxLeverage,
                 _fundingRateSensitivity,
                 _feeRate
