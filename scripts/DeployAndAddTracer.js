@@ -1,5 +1,4 @@
 const hre = require("hardhat")
-const factory_ = hre.artifacts.readArtifact("TracerPerpetualsFactory")
 
 // small sample script for using deploys and then deploying a trace
 async function main() {
