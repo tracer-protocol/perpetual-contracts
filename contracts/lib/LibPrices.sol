@@ -70,10 +70,13 @@ library Prices {
     ) public pure returns (uint256) {
         int256 delta = int256(newLeverage - oldLeverage);
 
-        if (delta >= 0) { /* leverage has increased or remained the same */
+        if (delta >= 0) {
+            /* leverage has increased or remained the same */
             return globalLeverage + uint256(delta);
-        } else { /* leverage has decreased */
-            if (uint256(delta) > globalLeverage) { /* handle underflow */
+        } else {
+            /* leverage has decreased */
+            if (uint256(delta) > globalLeverage) {
+                /* handle underflow */
                 return 0;
             } else {
                 return globalLeverage - uint256(delta);
