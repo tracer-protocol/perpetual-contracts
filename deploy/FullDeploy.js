@@ -1,7 +1,6 @@
 module.exports = async function (hre) {
     const { deployments, getNamedAccounts } = hre
-    const { read, deploy, execute } = deployments
-    console.log(execute);
+    const { deploy, execute } = deployments
 
     const { deployer } = await getNamedAccounts()
     // deploy libs
@@ -126,11 +125,10 @@ module.exports = async function (hre) {
     })
 
     let maxLeverage = new ethers.BigNumber.from("125000").toString()
-    let tokenDecimals = new ethers.BigNumber.from("1000000").toString()
+    let tokenDecimals = new ethers.BigNumber.from("8").toString()
     let feeRate = "5000000000000000000" // 5 percent
     let fundingRateSensitivity = 1
 
-    console.log(deployer)
     const tracer = await deploy("TracerPerpetualSwaps", {
         args: [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -173,7 +171,6 @@ module.exports = async function (hre) {
     })
 
     let maxLiquidationSlippage = ethers.utils.parseEther("50")// 50 percent
-    console.log(maxLiquidationSlippage)
 
     const liquidation = await deploy("Liquidation", {
         args: [
@@ -195,4 +192,4 @@ module.exports = async function (hre) {
     await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setPricingContract", pricing.address);
     await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setLiquidationContract", liquidation.address);
 }
-module.exports.tags = ["FullDeploy"]
+module.exports.tags = ["FullDeploy", "TracerPerpetualSwaps"]
