@@ -88,14 +88,12 @@ describe("Unit tests: Trader.sol", function () {
         context(
             "When called with a valid signedOrder and signature data",
             async () => {
-                it("returns true", async () => {
-                })
+                it("returns true", async () => {})
             }
         )
 
         context("When called with the zero address", async () => {
-            it("returns false", async () => {
-            })
+            it("returns false", async () => {})
         })
     })
 })

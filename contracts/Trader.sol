@@ -177,7 +177,7 @@ contract Trader is ITrader {
                             order.market,
                             order.price,
                             order.amount,
-                            uint(order.side),
+                            uint256(order.side),
                             order.expires,
                             order.created
                         )
@@ -204,11 +204,7 @@ contract Trader is ITrader {
         address signer,
         Types.SignedLimitOrder memory signedOrder
     ) internal view returns (bool) {
-        return
-            verifySignature(
-                signer,
-                signedOrder
-            );
+        return verifySignature(signer, signedOrder);
     }
 
     /**
