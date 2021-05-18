@@ -35,40 +35,46 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
-    const priceOracle = await deploy("Oracle", {
+    const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
+        contract: "Oracle"
     })
 
-    const oracleAdapter = await deploy("OracleAdapter", {
+    const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
-        args: [priceOracle.address]
+        args: [priceOracle.address],
+        contract: "OracleAdapter"
     })
 
-    const gasOracle = await deploy("Oracle", {
+    const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        skipIfAlreadyDeployed: false
+        skipIfAlreadyDeployed: false,
+        contract: "Oracle"
     })
 
-    const ethOracle = await deploy("Oracle", {
+    const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
-        skipIfAlreadyDeployed: false
+        skipIfAlreadyDeployed: false,
+        contract: "Oracle"
     })
 
-    const gasPriceOracle = await deploy("GasOracle", {
+    const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracle.address, gasOracle.address]
+        args: [ethOracle.address, gasOracle.address],
+        contract: "GasOracle"
     })
 
-    const gasPriceOracleAdapter = await deploy("OracleAdapter", {
+    const gasPriceOracleAdapter = await deploy("GasPriceOracleAdapter", {
         from: deployer,
         log: true,
         args: [gasPriceOracle.address],
-        skipIfAlreadyDeployed: false
+        skipIfAlreadyDeployed: false,
+        contract: "OracleAdapter"
     })
 
     // deploy token with an initial supply of 100000
