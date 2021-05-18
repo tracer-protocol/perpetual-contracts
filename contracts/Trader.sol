@@ -5,7 +5,6 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
-import "hardhat/console.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -104,6 +103,8 @@ contract Trader is ITrader {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
+            // todo this could be succeptible to re-entrancy as
+            // market is never verified
             (bool success, ) =
                 makeOrder.market.call(
                     abi.encodePacked(
@@ -234,13 +235,6 @@ contract Trader is ITrader {
         address signer,
         Types.SignedLimitOrder memory signedOrder
     ) public view override returns (bool) {
-        console.log("maker: %s ", signedOrder.order.maker);
-        console.log("market: %s ", signedOrder.order.market);
-        console.log("amount: %s ", signedOrder.order.amount);
-        console.log("price: %s ", signedOrder.order.price);
-        console.log("side: %s ", uint(signedOrder.order.side));
-        console.log("expiry: %s ", signedOrder.order.expires);
-        console.log("created: %s ", signedOrder.order.created);
         return
             signer ==
             ecrecover(
