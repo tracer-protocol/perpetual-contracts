@@ -28,11 +28,11 @@ contract Trader is ITrader {
     uint256 public constant override chainId = 1337; // Changes per chain
     bytes32 public immutable override EIP712_DOMAIN;
 
-    // Trader => nonce
-    mapping(address => uint256) public nonces; // Prevents replay attacks
-
-    // Order hash to memory
+    // order hash to memory
     mapping(bytes32 => Perpetuals.Order) public orders;
+    // maps an order hash to its signed order if seen before
+    mapping(bytes32 => Types.SignedLimitOrder) public orderToSig;
+    // order hash to amount filled
     mapping(bytes32 => uint256) public filled;
 
     constructor() {
@@ -93,8 +93,10 @@ contract Trader is ITrader {
             address maker = makers[i].order.maker;
             address taker = takers[i].order.maker;
 
-            uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
-            uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
+            uint256 makeOrderFilled =
+                filled[Perpetuals.orderId(makeOrder)];
+            uint256 takeOrderFilled =
+                filled[Perpetuals.orderId(takeOrder)];
 
             // calc fill amount
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
@@ -129,19 +131,11 @@ contract Trader is ITrader {
 
             // increment nonce if filled
             bool completeMaker =
-                filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
+                filled[Perpetuals.orderId(makeOrder)] ==
+                    makeOrder.amount;
             bool completeTaker =
-                filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
-
-            // check if we need to increment maker's nonce
-            if (completeMaker) {
-                nonces[maker]++;
-            }
-
-            // check if we need to increment taker's nonce
-            if (completeTaker) {
-                nonces[taker]++;
-            }
+                filled[Perpetuals.orderId(takeOrder)] ==
+                    takeOrder.amount;
         }
     }
 
@@ -157,20 +151,15 @@ contract Trader is ITrader {
         Types.SignedLimitOrder[] memory signedOrders,
         uint256 index
     ) internal returns (Perpetuals.Order storage) {
-        Types.SignedLimitOrder memory signedOrder = signedOrders[index];
+        Perpetuals.Order memory rawOrder = signedOrders[index].order;
 
-        bytes32 orderHash = hashOrder(signedOrder.order);
+        bytes32 orderHash = hashOrder(rawOrder);
         // check if order exists on chain, if not, create it
         if (orders[orderHash].maker == address(0)) {
             // store this order to keep track of state
-            Perpetuals.Order storage newOrder = orders[orderHash];
-            newOrder.maker = signedOrder.order.maker;
-            newOrder.amount = signedOrder.order.amount;
-            newOrder.price = signedOrder.order.price;
-            newOrder.side = signedOrder.order.side;
-            newOrder.expires = signedOrder.order.expires;
-            newOrder.created = block.timestamp;
-            newOrder.market = signedOrder.order.market;
+            orders[orderHash] = rawOrder;
+            // map the order hash to the signed order
+            orderToSig[orderHash] = signedOrders[index];
         }
 
         return orders[orderHash];
@@ -226,13 +215,13 @@ contract Trader is ITrader {
         address signer,
         Types.SignedLimitOrder memory signedOrder
     ) internal view returns (bool) {
-        return (verifySignature(
+        return verifySignature(
             signer,
-            signedOrder.order,
+            signedOrder,
             signedOrder.sigR,
             signedOrder.sigS,
             signedOrder.sigV
-        ) && verifyNonce(signedOrder));
+        );
     }
 
     /**
@@ -260,25 +249,12 @@ contract Trader is ITrader {
      */
     function verifySignature(
         address signer,
-        Perpetuals.Order memory order,
+        Types.SignedLimitOrder memory order,
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
     ) public view override returns (bool) {
-        return signer == ecrecover(hashOrder(order), sigV, sigR, sigS);
-    }
-
-    /**
-     * @notice Verifies that the nonce of a order is the current user nonce
-     * @param signedOrder The order being verified
-     */
-    function verifyNonce(Types.SignedLimitOrder memory signedOrder)
-        public
-        view
-        override
-        returns (bool)
-    {
-        return signedOrder.nonce == nonces[signedOrder.order.maker];
+        return signer == ecrecover(hashOrder(order.order), sigV, sigR, sigS);
     }
 
     /**

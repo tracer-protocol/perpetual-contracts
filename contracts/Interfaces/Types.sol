@@ -23,7 +23,6 @@ interface Types {
 
     struct SignedLimitOrder {
         Perpetuals.Order order;
-        uint256 nonce;
         bytes32 sigR;
         bytes32 sigS;
         uint8 sigV;
