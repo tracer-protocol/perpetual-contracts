@@ -1,6 +1,7 @@
 module.exports = async function (hre) {
     const { deployments, getNamedAccounts } = hre
-    const { deploy } = deployments
+    const { read, deploy, execute } = deployments
+    console.log(execute);
 
     const { deployer } = await getNamedAccounts()
     // deploy libs
@@ -26,7 +27,7 @@ module.exports = async function (hre) {
     })
 
     // deploy trader
-    await deploy("Trader", {
+    const trader = await deploy("Trader", {
         from: deployer,
         log: true,
         libraries: {
@@ -35,13 +36,44 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
-    await deploy("Oracle", {
+    const priceOracle = await deploy("Oracle", {
         from: deployer,
         log: true,
     })
 
+    const oracleAdapter = await deploy("OracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [priceOracle.address]
+    })
+
+    const gasOracle = await deploy("Oracle", {
+        from: deployer,
+        log: true,
+        skipIfAlreadyDeployed: false
+    })
+
+    const ethOracle = await deploy("Oracle", {
+        from: deployer,
+        log: true,
+        skipIfAlreadyDeployed: false
+    })
+
+    const gasPriceOracle = await deploy("GasOracle", {
+        from: deployer,
+        log: true,
+        args: [ethOracle.address, gasOracle.address]
+    })
+
+    const gasPriceOracleAdapter = await deploy("OracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [gasPriceOracle.address],
+        skipIfAlreadyDeployed: false
+    })
+
     // deploy token with an initial supply of 100000
-    await deploy("TestToken", {
+    const token = await deploy("TestToken", {
         args: ["100000000000000000000000"],
         from: deployer,
         log: true,
@@ -92,5 +124,75 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
     })
+
+    let maxLeverage = new ethers.BigNumber.from("125000").toString()
+    let tokenDecimals = new ethers.BigNumber.from("1000000").toString()
+    let feeRate = "5000000000000000000" // 5 percent
+    let fundingRateSensitivity = 1
+
+    console.log(deployer)
+    const tracer = await deploy("TracerPerpetualSwaps", {
+        args: [
+            ethers.utils.formatBytes32String("TEST1/USD"),
+            token.address,
+            tokenDecimals,
+            gasPriceOracleAdapter.address,
+            maxLeverage,
+            fundingRateSensitivity,
+            feeRate,
+            deployer,
+        ],
+        from: deployer,
+        log: true,
+        libraries: {
+            LibMath: libMath.address,
+            SafetyWithdraw: safetyWithdraw.address,
+            Balances: libBalances.address,
+            Perpetuals: libPerpetuals.address
+        }
+    })
+
+    const insurance = await deploy("Insurance", {
+        args: [
+            tracer.address,
+        ],
+        from: deployer,
+        libraries: {
+            Balances: libBalances.address
+        }
+    })
+
+    const pricing = await deploy("Pricing", {
+        args: [
+            tracer.address,
+            insurance.address,
+            oracleAdapter.address
+        ],
+        from: deployer,
+        log: true
+    })
+
+    let maxLiquidationSlippage = ethers.utils.parseEther("50")// 50 percent
+    console.log(maxLiquidationSlippage)
+
+    const liquidation = await deploy("Liquidation", {
+        args: [
+            pricing.address,
+            tracer.address,
+            insurance.address,
+            maxLiquidationSlippage
+        ],
+        from: deployer,
+        log: true,
+        libraries: {
+            LibMath: libMath.address,
+            Balances: libBalances.address,
+            LibLiquidation: libLiquidation.address
+        }
+    })
+
+    await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setInsuranceContract", insurance.address);
+    await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setPricingContract", pricing.address);
+    await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setLiquidationContract", liquidation.address);
 }
 module.exports.tags = ["FullDeploy"]
