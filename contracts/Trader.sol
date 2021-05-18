@@ -91,9 +91,6 @@ contract Trader is ITrader {
             Perpetuals.Order storage makeOrder = grabOrder(makers, i);
             Perpetuals.Order storage takeOrder = grabOrder(takers, i);
 
-            address maker = makers[i].order.maker;
-            address taker = takers[i].order.maker;
-
             uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
             uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
 
@@ -127,12 +124,6 @@ contract Trader is ITrader {
             filled[Perpetuals.orderId(takeOrder)] =
                 takeOrderFilled +
                 fillAmount;
-
-            // increment nonce if filled
-            bool completeMaker =
-                filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
-            bool completeTaker =
-                filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
         }
     }
 
