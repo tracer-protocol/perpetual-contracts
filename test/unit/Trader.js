@@ -157,27 +157,23 @@ describe("Unit tests: Trader.sol", function () {
             "When called with a valid signedOrder and signature data",
             async () => {
                 it("returns true", async () => {
-                    //let result = await trader.getDomain()
-                    // console.log(orderSigner)
-                    // console.log(validSignedOrder)
-                    // console.log(trader.address)
-                    // trader = trader.connect(accounts[0].address)
-                    // // console.log(trader)
+                    // todo fix circular dependency in testing this
                     // let result = await trader.verifySignature(
                     //     "0x70aa3A48f576B9DEB37Ce20DB0a7c809AeE8EbfA",
                     //     [
-                    //         '0x70aa3A48f576B9DEB37Ce20DB0a7c809AeE8EbfA',
-                    //         '0x100b427A173fA3e66759449B4Cf63818Bedb9F47',
-                    //         '1000000000000000000',
-                    //         '1000000000000000000',
-                    //         1,
-                    //         1918373212,
-                    //         0,
-                    //         0
+                    //         [
+                    //             '0x70aa3A48f576B9DEB37Ce20DB0a7c809AeE8EbfA',
+                    //             '0x100b427A173fA3e66759449B4Cf63818Bedb9F47',
+                    //             '1000000000000000000',
+                    //             '1000000000000000000',
+                    //             1,
+                    //             1918373212,
+                    //             0
+                    //         ],
+                    //         "0x55ad6998f732fe2e7b98cf51ed79ff5aef6e67828078d20d1061a3a59ce03770",
+                    //         "0x5ee5fae5c95bc0e700bf221c6652365cf2a6492c68dc8e775337fa8995bbd600",
+                    //         27,
                     //     ],
-                    //     "0x4872e98f18fe70a65c882a343990e17ef8c499fdf3606d1a8d7526224d1c12d9",
-                    //     "0x6b2b980a8cee7e27fb44de84d6aad995225029965c5047f7fdb925519f932e42",
-                    //     27,
                     // )
                     // expect(result).to.equal(true)
                     return true
@@ -197,35 +193,5 @@ describe("Unit tests: Trader.sol", function () {
                 //expect(result).to.equal(false)
             })
         })
-    })
-
-    describe("verifyNonce", async () => {
-        context("When called with a valid signedOrder", async () => {
-            it("returns true", async () => {})
-        })
-
-        context("When called with an invalid signed order", async () => {
-            it("returns false", async () => {})
-        })
-    })
-
-    describe("verify", async () => {
-        context("When called with a valid signature and nonce", async () => {
-            it("returns true", async () => {})
-        })
-
-        context(
-            "When called with a valid signature and invalid nonce",
-            async () => {
-                it("reverts", async () => {})
-            }
-        )
-
-        context(
-            "When called with a valid nonce and invalid signature",
-            async () => {
-                it("reverts", async () => {})
-            }
-        )
     })
 })

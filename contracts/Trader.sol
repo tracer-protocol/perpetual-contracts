@@ -5,6 +5,7 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
+import "hardhat/console.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -22,7 +23,7 @@ contract Trader is ITrader {
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expires,uint256 created,address market)"
+            "Order(address maker,address market,uint256 price,uint256 amount,uint256 side,uint256 expires,uint256 created)"
         );
 
     uint256 public constant override chainId = 1337; // Changes per chain
@@ -93,10 +94,8 @@ contract Trader is ITrader {
             address maker = makers[i].order.maker;
             address taker = takers[i].order.maker;
 
-            uint256 makeOrderFilled =
-                filled[Perpetuals.orderId(makeOrder)];
-            uint256 takeOrderFilled =
-                filled[Perpetuals.orderId(takeOrder)];
+            uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
+            uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
 
             // calc fill amount
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
@@ -131,11 +130,9 @@ contract Trader is ITrader {
 
             // increment nonce if filled
             bool completeMaker =
-                filled[Perpetuals.orderId(makeOrder)] ==
-                    makeOrder.amount;
+                filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
             bool completeTaker =
-                filled[Perpetuals.orderId(takeOrder)] ==
-                    takeOrder.amount;
+                filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
         }
     }
 
@@ -185,12 +182,12 @@ contract Trader is ITrader {
                         abi.encode(
                             ORDER_TYPE,
                             order.maker,
-                            order.amount,
+                            order.market,
                             order.price,
-                            order.side,
+                            order.amount,
+                            uint(order.side),
                             order.expires,
-                            order.created,
-                            order.market
+                            order.created
                         )
                     )
                 )
@@ -215,13 +212,11 @@ contract Trader is ITrader {
         address signer,
         Types.SignedLimitOrder memory signedOrder
     ) internal view returns (bool) {
-        return verifySignature(
-            signer,
-            signedOrder,
-            signedOrder.sigR,
-            signedOrder.sigS,
-            signedOrder.sigV
-        );
+        return
+            verifySignature(
+                signer,
+                signedOrder
+            );
     }
 
     /**
@@ -241,20 +236,28 @@ contract Trader is ITrader {
     /**
      * @notice Verifies the signature component of a signed order
      * @param signer The signer who is being verified against the order
-     * @param order The unsigned order to verify the signature of
-     * @param sigR R component of the signature
-     * @param sigS S component of the signature
-     * @param sigV V component of the signature
+     * @param signedOrder The unsigned order to verify the signature of
      * @return true is signer has signed the order, else false
      */
     function verifySignature(
         address signer,
-        Types.SignedLimitOrder memory order,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
+        Types.SignedLimitOrder memory signedOrder
     ) public view override returns (bool) {
-        return signer == ecrecover(hashOrder(order.order), sigV, sigR, sigS);
+        console.log("maker: %s ", signedOrder.order.maker);
+        console.log("market: %s ", signedOrder.order.market);
+        console.log("amount: %s ", signedOrder.order.amount);
+        console.log("price: %s ", signedOrder.order.price);
+        console.log("side: %s ", uint(signedOrder.order.side));
+        console.log("expiry: %s ", signedOrder.order.expires);
+        console.log("created: %s ", signedOrder.order.created);
+        return
+            signer ==
+            ecrecover(
+                hashOrder(signedOrder.order),
+                signedOrder.sigV,
+                signedOrder.sigR,
+                signedOrder.sigS
+            );
     }
 
     /**
