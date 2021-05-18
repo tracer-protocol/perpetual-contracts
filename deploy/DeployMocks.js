@@ -8,7 +8,7 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
     })
-    
+
     const libBalances = await deploy("Balances", {
         from: deployer,
         log: true,
