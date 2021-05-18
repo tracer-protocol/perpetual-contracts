@@ -26,7 +26,7 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
         libraries: {
-            LibBalances: libBalances.address,
+            Balances: libBalances.address,
         },
     })
 }
