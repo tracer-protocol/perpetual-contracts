@@ -20,7 +20,7 @@ async function main() {
         factory.address,
         factory.abi
     ).connect(deployer)
-    let token = await deployments.get("TestToken")
+    let token = await deployments.get("QuoteToken")
 
     //Deploy a new Tracer contract per test
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(

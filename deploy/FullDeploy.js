@@ -2,7 +2,7 @@ module.exports = async function (hre) {
     const { deployments, getNamedAccounts } = hre
     const { deploy, execute } = deployments
 
-    const { deployer } = await getNamedAccounts()
+    const { deployer, acc1, acc2, acc3 } = await getNamedAccounts()
     // deploy libs
     const safetyWithdraw = await deploy("SafetyWithdraw", {
         from: deployer,
@@ -51,14 +51,12 @@ module.exports = async function (hre) {
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        skipIfAlreadyDeployed: false,
         contract: "Oracle"
     })
 
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
-        skipIfAlreadyDeployed: false,
         contract: "Oracle"
     })
 
@@ -73,16 +71,20 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
         args: [gasPriceOracle.address],
-        skipIfAlreadyDeployed: false,
         contract: "OracleAdapter"
     })
 
     // deploy token with an initial supply of 100000
-    const token = await deploy("TestToken", {
+    const token = await deploy("QuoteToken", {
         args: ["100000000000000000000000"],
         from: deployer,
         log: true,
+        contract: "TestToken"
     })
+
+    await execute("QuoteToken", {from: deployer, log: true}, "transfer", acc1, "10000");
+    await execute("QuoteToken", {from: deployer, log: true}, "transfer", acc2, "10000");
+    await execute("QuoteToken", {from: deployer, log: true}, "transfer", acc3, "10000");
 
     // deploy deployers
     const liquidationDeployer = await deploy("LiquidationDeployerV1", {
