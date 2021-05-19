@@ -29,203 +29,573 @@ describe("Unit tests: LibBalances.sol", async () => {
 
     describe("netValue", async () => {
         context(
-            "When called with normal position and minimum price",
+            "When called with (minimum, minimum) position and minimum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    const position = normalPosition
-                    const price = minimumPrice
-
-                    const actualNetValue = await libBalances.netValue(
-                        position,
-                        price
-                    )
-
-                    const expectedNetValue = ethers.utils.parseEther("0")
-
-                    expect(actualNetValue).to.equal(expectedNetValue)
-                })
+                /* TODO: (min, min, min) */
             }
         )
 
         context(
-            "When called with normal position and maximum price",
+            "When called with (minimum, minimum) position and normal price",
             async () => {
-                it("Reverts", async () => {
-                    const position = normalPosition
-                    const price = maximumPrice
-
-                    await expect(libBalances.netValue(position, price)).to.be
-                        .reverted
-                })
+                /* TODO: (min, min, norm) */
             }
         )
 
         context(
-            "When called with normal position and normal price",
+            "When called with (minimum, minimum) position and maximum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    const position = normalPosition
-                    const price = normalPrice
+                /* TODO: (min, min, max) */
+            }
+        )
 
-                    const actualNetValue = await libBalances.netValue(
-                        position,
-                        price
-                    )
+        context(
+            "When called with (minimum, normal) position and minimum price",
+            async () => {
+                /* TODO: (min, norm, min) */
+            }
+        )
 
-                    const expectedNetValue = ethers.utils.parseEther("9900")
+        context(
+            "When called with (minimum, normal) position and normal price",
+            async () => {
+                /* TODO: (min, norm, norm) */
+            }
+        )
 
-                    expect(actualNetValue).to.equal(expectedNetValue)
-                })
+        context(
+            "When called with (minimum, normal) position and maximum price",
+            async () => {
+                /* TODO: (min, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and minimum price",
+            async () => {
+                /* TODO: (min, max, min) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and normal price",
+            async () => {
+                /* TODO: (min, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and maximum price",
+            async () => {
+                /* TODO: (min, max, max) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and minimum price",
+            async () => {
+                /* TODO: (norm, min, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and normal price",
+            async () => {
+                /* TODO: (norm, min, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and maximum price",
+            async () => {
+                /* TODO: (norm, min, max) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and minimum price",
+            async () => {
+                /* TODO: (norm, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and normal price",
+            async () => {
+                /* TODO: (norm, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and maximum price",
+            async () => {
+                /* TODO: (norm, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and minimum price",
+            async () => {
+                /* TODO: (norm, max, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and normal price",
+            async () => {
+                /* TODO: (norm, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and maximum price",
+            async () => {
+                /* TODO: (norm, max, max) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and minimum price",
+            async () => {
+                /* TODO: (max, min, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and normal price",
+            async () => {
+                /* TODO: (max, min, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and maximum price",
+            async () => {
+                /* TODO: (max, min, max) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and minimum price",
+            async () => {
+                /* TODO: (max, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and normal price",
+            async () => {
+                /* TODO: (max, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and maximum price",
+            async () => {
+                /* TODO: (max, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and minimum price",
+            async () => {
+                /* TODO: (max, max, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and normal price",
+            async () => {
+                /* TODO: (max, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and maximum price",
+            async () => {
+                /* TODO: (max, max, max) */
             }
         )
     })
 
     describe("margin", async () => {
-        /* normal position */
-
         context(
-            "When called with normal position and minimum price",
+            "When called with (minimum, minimum) position and minimum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    const position = normalPosition
-                    const price = minimumPrice
-
-                    const actualMargin = await libBalances.margin(
-                        position,
-                        price
-                    )
-
-                    const expectedMargin = ethers.utils.parseEther("12")
-
-                    expect(actualMargin).to.equal(expectedMargin)
-                })
+                /* TODO: (min, min, min) */
             }
         )
 
         context(
-            "When called with normal position and maximum price",
+            "When called with (minimum, minimum) position and normal price",
             async () => {
-                it("Reverts", async () => {
-                    const position = normalPosition
-                    const price = maximumPrice
-
-                    await expect(libBalances.margin(position, price)).to.be
-                        .reverted
-                })
+                /* TODO: (min, min, norm) */
             }
         )
 
         context(
-            "When called with normal position and normal price",
+            "When called with (minimum, minimum) position and maximum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    const position = normalPosition
-                    const price = normalPrice
+                /* TODO: (min, min, max) */
+            }
+        )
 
-                    const actualMargin = await libBalances.margin(
-                        position,
-                        price
-                    )
+        context(
+            "When called with (minimum, normal) position and minimum price",
+            async () => {
+                /* TODO: (min, norm, min) */
+            }
+        )
 
-                    const expectedMargin = ethers.utils.parseEther("9912")
+        context(
+            "When called with (minimum, normal) position and normal price",
+            async () => {
+                /* TODO: (min, norm, norm) */
+            }
+        )
 
-                    expect(actualMargin).to.equal(expectedMargin)
-                })
+        context(
+            "When called with (minimum, normal) position and maximum price",
+            async () => {
+                /* TODO: (min, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and minimum price",
+            async () => {
+                /* TODO: (min, max, min) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and normal price",
+            async () => {
+                /* TODO: (min, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and maximum price",
+            async () => {
+                /* TODO: (min, max, max) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and minimum price",
+            async () => {
+                /* TODO: (norm, min, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and normal price",
+            async () => {
+                /* TODO: (norm, min, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and maximum price",
+            async () => {
+                /* TODO: (norm, min, max) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and minimum price",
+            async () => {
+                /* TODO: (norm, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and normal price",
+            async () => {
+                /* TODO: (norm, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and maximum price",
+            async () => {
+                /* TODO: (norm, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and minimum price",
+            async () => {
+                /* TODO: (norm, max, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and normal price",
+            async () => {
+                /* TODO: (norm, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and maximum price",
+            async () => {
+                /* TODO: (norm, max, max) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and minimum price",
+            async () => {
+                /* TODO: (max, min, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and normal price",
+            async () => {
+                /* TODO: (max, min, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and maximum price",
+            async () => {
+                /* TODO: (max, min, max) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and minimum price",
+            async () => {
+                /* TODO: (max, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and normal price",
+            async () => {
+                /* TODO: (max, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and maximum price",
+            async () => {
+                /* TODO: (max, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and minimum price",
+            async () => {
+                /* TODO: (max, max, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and normal price",
+            async () => {
+                /* TODO: (max, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and maximum price",
+            async () => {
+                /* TODO: (max, max, max) */
             }
         )
     })
 
     describe("leveragedNotionalValue", async () => {
-        /* normal position */
-
         context(
-            "When called with normal position and minimum price",
+            "When called with (minimum, minimum) position and minimum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    const position = normalPosition
-                    const price = minimumPrice
-
-                    const actualLeveragedNotionalValue =
-                        await libBalances.leveragedNotionalValue(
-                            position,
-                            price
-                        )
-
-                    const expectedLeveragedNotionalValue =
-                        ethers.utils.parseEther("0")
-
-                    expect(actualLeveragedNotionalValue).to.equal(
-                        expectedLeveragedNotionalValue
-                    )
-                })
+                /* TODO: (min, min, min) */
             }
         )
 
         context(
-            "When called with normal position and maximum price",
+            "When called with (minimum, minimum) position and normal price",
             async () => {
-                it("Reverts", async () => {
-                    const position = normalPosition
-                    const price = maximumPrice
-
-                    await expect(
-                        libBalances.leveragedNotionalValue(position, price)
-                    ).to.be.reverted
-                })
+                /* TODO: (min, min, norm) */
             }
         )
 
         context(
-            "When called with normal position and normal price",
+            "When called with (minimum, minimum) position and maximum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    const position = normalPosition
-                    const price = normalPrice
-
-                    const actualLeveragedNotionalValue =
-                        await libBalances.leveragedNotionalValue(
-                            position,
-                            price
-                        )
-
-                    const expectedLeveragedNotionalValue =
-                        ethers.utils.parseEther("0")
-
-                    expect(actualLeveragedNotionalValue).to.equal(
-                        expectedLeveragedNotionalValue
-                    )
-                })
-            }
-        )
-    })
-
-    describe("minimumMargin", async () => {
-        /* normal position */
-
-        context(
-            "When called with normal position and minimum price",
-            async () => {
-                it("Returns the correct result", async () => {
-                    /* TODO: implement */
-                })
+                /* TODO: (min, min, max) */
             }
         )
 
         context(
-            "When called with normal position and maximum price",
+            "When called with (minimum, normal) position and minimum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    /* TODO: implement */
-                })
+                /* TODO: (min, norm, min) */
             }
         )
 
         context(
-            "When called with normal position and normal price",
+            "When called with (minimum, normal) position and normal price",
             async () => {
-                it("Returns the correct result", async () => {
-                    /* TODO: implement */
-                })
+                /* TODO: (min, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (minimum, normal) position and maximum price",
+            async () => {
+                /* TODO: (min, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and minimum price",
+            async () => {
+                /* TODO: (min, max, min) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and normal price",
+            async () => {
+                /* TODO: (min, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (minimum, maximum) position and maximum price",
+            async () => {
+                /* TODO: (min, max, max) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and minimum price",
+            async () => {
+                /* TODO: (norm, min, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and normal price",
+            async () => {
+                /* TODO: (norm, min, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, minimum) position and maximum price",
+            async () => {
+                /* TODO: (norm, min, max) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and minimum price",
+            async () => {
+                /* TODO: (norm, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and normal price",
+            async () => {
+                /* TODO: (norm, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, normal) position and maximum price",
+            async () => {
+                /* TODO: (norm, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and minimum price",
+            async () => {
+                /* TODO: (norm, max, min) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and normal price",
+            async () => {
+                /* TODO: (norm, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (normal, maximum) position and maximum price",
+            async () => {
+                /* TODO: (norm, max, max) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and minimum price",
+            async () => {
+                /* TODO: (max, min, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and normal price",
+            async () => {
+                /* TODO: (max, min, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, minimum) position and maximum price",
+            async () => {
+                /* TODO: (max, min, max) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and minimum price",
+            async () => {
+                /* TODO: (max, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and normal price",
+            async () => {
+                /* TODO: (max, norm, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, normal) position and maximum price",
+            async () => {
+                /* TODO: (max, norm, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and minimum price",
+            async () => {
+                /* TODO: (max, max, min) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and normal price",
+            async () => {
+                /* TODO: (max, max, norm) */
+            }
+        )
+
+        context(
+            "When called with (maximum, maximum) position and maximum price",
+            async () => {
+                /* TODO: (max, max, max) */
             }
         )
     })
