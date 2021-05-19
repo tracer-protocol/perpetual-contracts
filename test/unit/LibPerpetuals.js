@@ -296,118 +296,121 @@ describe("Unit tests: LibLiquidation.sol", function () {
             })
         })
 
-        context("when called with orders that were created in the future", async() => {
-            it("returns false if order a was created in the future", async() => {
-                let price = ethers.utils.parseEther("1")
-                let amount = ethers.utils.parseEther("1")
-                let sideA = 1
-                let sideB = 0
-                let expires = 3021382897 // large unix timestamp
-                let createdA = 3021382897
-                let createdB = 0
-                let filledA = 0
-                let filledB = 0
-                let orderA = [
-                    zeroAddress,
-                    zeroAddress,
-                    price,
-                    amount,
-                    sideA,
-                    expires,
-                    createdA,
-                ]
-                let orderB = [
-                    zeroAddress,
-                    zeroAddress,
-                    price,
-                    amount,
-                    sideB,
-                    expires,
-                    createdB,
-                ]
-                let result = await libPerpetuals.canMatch(
-                    orderA,
-                    filledA,
-                    orderB,
-                    filledB
-                )
-                expect(result).to.equal(false)
-            })
+        context(
+            "when called with orders that were created in the future",
+            async () => {
+                it("returns false if order a was created in the future", async () => {
+                    let price = ethers.utils.parseEther("1")
+                    let amount = ethers.utils.parseEther("1")
+                    let sideA = 1
+                    let sideB = 0
+                    let expires = 3021382897 // large unix timestamp
+                    let createdA = 3021382897
+                    let createdB = 0
+                    let filledA = 0
+                    let filledB = 0
+                    let orderA = [
+                        zeroAddress,
+                        zeroAddress,
+                        price,
+                        amount,
+                        sideA,
+                        expires,
+                        createdA,
+                    ]
+                    let orderB = [
+                        zeroAddress,
+                        zeroAddress,
+                        price,
+                        amount,
+                        sideB,
+                        expires,
+                        createdB,
+                    ]
+                    let result = await libPerpetuals.canMatch(
+                        orderA,
+                        filledA,
+                        orderB,
+                        filledB
+                    )
+                    expect(result).to.equal(false)
+                })
 
-            it("returns false if order b was created in the future", async() => {
-                let price = ethers.utils.parseEther("1")
-                let amount = ethers.utils.parseEther("1")
-                let sideA = 1
-                let sideB = 0
-                let expires = 3021382897 // large unix timestamp
-                let createdB = 3021382897
-                let createdA = 0
-                let filledA = 0
-                let filledB = 0
-                let orderA = [
-                    zeroAddress,
-                    zeroAddress,
-                    price,
-                    amount,
-                    sideA,
-                    expires,
-                    createdA,
-                ]
-                let orderB = [
-                    zeroAddress,
-                    zeroAddress,
-                    price,
-                    amount,
-                    sideB,
-                    expires,
-                    createdB,
-                ]
-                let result = await libPerpetuals.canMatch(
-                    orderA,
-                    filledA,
-                    orderB,
-                    filledB
-                )
-                expect(result).to.equal(false)
-            })
+                it("returns false if order b was created in the future", async () => {
+                    let price = ethers.utils.parseEther("1")
+                    let amount = ethers.utils.parseEther("1")
+                    let sideA = 1
+                    let sideB = 0
+                    let expires = 3021382897 // large unix timestamp
+                    let createdB = 3021382897
+                    let createdA = 0
+                    let filledA = 0
+                    let filledB = 0
+                    let orderA = [
+                        zeroAddress,
+                        zeroAddress,
+                        price,
+                        amount,
+                        sideA,
+                        expires,
+                        createdA,
+                    ]
+                    let orderB = [
+                        zeroAddress,
+                        zeroAddress,
+                        price,
+                        amount,
+                        sideB,
+                        expires,
+                        createdB,
+                    ]
+                    let result = await libPerpetuals.canMatch(
+                        orderA,
+                        filledA,
+                        orderB,
+                        filledB
+                    )
+                    expect(result).to.equal(false)
+                })
 
-            it("retuns false if both orders were created in the future", async() => {
-                let price = ethers.utils.parseEther("1")
-                let amount = ethers.utils.parseEther("1")
-                let sideA = 1
-                let sideB = 0
-                let expires = 3021382897 // large unix timestamp
-                let createdA = 3021382897
-                let createdB = 3021382897
-                let filledA = 0
-                let filledB = 0
-                let orderA = [
-                    zeroAddress,
-                    zeroAddress,
-                    price,
-                    amount,
-                    sideA,
-                    expires,
-                    createdA,
-                ]
-                let orderB = [
-                    zeroAddress,
-                    zeroAddress,
-                    price,
-                    amount,
-                    sideB,
-                    expires,
-                    createdB,
-                ]
-                let result = await libPerpetuals.canMatch(
-                    orderA,
-                    filledA,
-                    orderB,
-                    filledB
-                )
-                expect(result).to.equal(false)
-            })
-        })
+                it("retuns false if both orders were created in the future", async () => {
+                    let price = ethers.utils.parseEther("1")
+                    let amount = ethers.utils.parseEther("1")
+                    let sideA = 1
+                    let sideB = 0
+                    let expires = 3021382897 // large unix timestamp
+                    let createdA = 3021382897
+                    let createdB = 3021382897
+                    let filledA = 0
+                    let filledB = 0
+                    let orderA = [
+                        zeroAddress,
+                        zeroAddress,
+                        price,
+                        amount,
+                        sideA,
+                        expires,
+                        createdA,
+                    ]
+                    let orderB = [
+                        zeroAddress,
+                        zeroAddress,
+                        price,
+                        amount,
+                        sideB,
+                        expires,
+                        createdB,
+                    ]
+                    let result = await libPerpetuals.canMatch(
+                        orderA,
+                        filledA,
+                        orderB,
+                        filledB
+                    )
+                    expect(result).to.equal(false)
+                })
+            }
+        )
 
         context("when called with valid orders", async () => {
             it("returns true", async () => {
