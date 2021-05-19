@@ -90,14 +90,14 @@ describe("Unit tests: LibBalances.sol", async () => {
                     const position = normalPosition
                     const price = minimumPrice
 
-                    const actualNetValue = await libBalances.margin(
+                    const actualMargin = await libBalances.margin(
                         position,
                         price
                     )
 
-                    const expectedNetValue = ethers.utils.parseEther("12")
+                    const expectedMargin = ethers.utils.parseEther("12")
 
-                    expect(actualNetValue).to.equal(expectedNetValue)
+                    expect(actualMargin).to.equal(expectedMargin)
                 })
             }
         )
@@ -122,14 +122,14 @@ describe("Unit tests: LibBalances.sol", async () => {
                     const position = normalPosition
                     const price = normalPrice
 
-                    const actualNetValue = await libBalances.margin(
+                    const actualMargin = await libBalances.margin(
                         position,
                         price
                     )
 
-                    const expectedNetValue = ethers.utils.parseEther("9912")
+                    const expectedMargin = ethers.utils.parseEther("9912")
 
-                    expect(actualNetValue).to.equal(expectedNetValue)
+                    expect(actualMargin).to.equal(expectedMargin)
                 })
             }
         )
@@ -142,7 +142,21 @@ describe("Unit tests: LibBalances.sol", async () => {
             "When called with normal position and minimum price",
             async () => {
                 it("Returns the correct result", async () => {
-                    /* TODO: implement */
+                    const position = normalPosition
+                    const price = minimumPrice
+
+                    const actualLeveragedNotionalValue =
+                        await libBalances.leveragedNotionalValue(
+                            position,
+                            price
+                        )
+
+                    const expectedLeveragedNotionalValue =
+                        ethers.utils.parseEther("0")
+
+                    expect(actualLeveragedNotionalValue).to.equal(
+                        expectedLeveragedNotionalValue
+                    )
                 })
             }
         )
