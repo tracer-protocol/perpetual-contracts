@@ -199,5 +199,7 @@ module.exports = async function (hre) {
     await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setInsuranceContract", insurance.address);
     await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setPricingContract", pricing.address);
     await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setLiquidationContract", liquidation.address);
+
+    await execute("TracerPerpetualSwaps", {from: deployer, log: true}, "setWhitelist", trader.address, true);
 }
 module.exports.tags = ["FullDeploy", "TracerPerpetualSwaps"]
