@@ -69,14 +69,11 @@ library Prices {
         uint256 newLeverage
     ) public pure returns (uint256) {
         bool leverageHasIncreased = newLeverage > oldLeverage;
-        bool leverageHasDecreased = newLeverage < oldLeverage;
 
         if (leverageHasIncreased) {
             return globalLeverage + (newLeverage - oldLeverage);
-        } else if (leverageHasDecreased) {
-            return globalLeverage - (newLeverage - oldLeverage);
         } else {
-            return globalLeverage;
+            return globalLeverage - (newLeverage - oldLeverage);
         }
     }
 
