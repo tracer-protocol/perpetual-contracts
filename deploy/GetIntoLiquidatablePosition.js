@@ -18,13 +18,17 @@ module.exports = async function (hre) {
     // console.log((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString())
     console.log("deployer and acc1 have deposited into perp swaps market")
 
-    /*
     const makerOrder = [
         deployer.address,
         perps.address,
-        1 * 10^()
+        price,
+        50,
+        0,
+        ethers.block.timestamp,
+        123
     ]
 
+    /*
     struct Order {
         address maker;
         address market;
