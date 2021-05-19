@@ -99,7 +99,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
             it("returns false if order a is expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
-                let sideA = 0
+                let sideA = 1
                 let sideB = 0
                 let expiresA = 500
                 let expiresB = 3021382897 // large unix timestamp
@@ -128,7 +128,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
             it("returns false if order b is expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
-                let sideA = 0
+                let sideA = 1
                 let sideB = 0
                 let expiresB = 250
                 let expiresA = 3021382897 // large unix timestamp
@@ -158,7 +158,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
             it("returns false if both orders are expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
-                let sideA = 0
+                let sideA = 1
                 let sideB = 0
                 let expiresA = 350
                 let expiresB = 750
