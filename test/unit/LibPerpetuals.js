@@ -3,7 +3,7 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
-describe("Unit tests: LibLiquidation.sol", function () {
+describe("Unit tests: LibPerpetuals.sol", function () {
     let accounts
     let libPerpetuals
 
