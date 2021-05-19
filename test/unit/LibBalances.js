@@ -105,7 +105,7 @@ describe("Unit tests: LibBalances.sol", async () => {
         context(
             "When called with normal position and maximum price",
             async () => {
-                it("Returns the correct result", async () => {
+                it("Reverts", async () => {
                     const position = normalPosition
                     const price = maximumPrice
 
@@ -164,8 +164,13 @@ describe("Unit tests: LibBalances.sol", async () => {
         context(
             "When called with normal position and maximum price",
             async () => {
-                it("Returns the correct result", async () => {
-                    /* TODO: implement */
+                it("Reverts", async () => {
+                    const position = normalPosition
+                    const price = maximumPrice
+
+                    await expect(
+                        libBalances.leveragedNotionalValue(position, price)
+                    ).to.be.reverted
                 })
             }
         )
@@ -174,7 +179,21 @@ describe("Unit tests: LibBalances.sol", async () => {
             "When called with normal position and normal price",
             async () => {
                 it("Returns the correct result", async () => {
-                    /* TODO: implement */
+                    const position = normalPosition
+                    const price = normalPrice
+
+                    const actualLeveragedNotionalValue =
+                        await libBalances.leveragedNotionalValue(
+                            position,
+                            price
+                        )
+
+                    const expectedLeveragedNotionalValue =
+                        ethers.utils.parseEther("0")
+
+                    expect(actualLeveragedNotionalValue).to.equal(
+                        expectedLeveragedNotionalValue
+                    )
                 })
             }
         )
