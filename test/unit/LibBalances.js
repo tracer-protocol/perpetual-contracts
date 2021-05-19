@@ -87,7 +87,17 @@ describe("Unit tests: LibBalances.sol", async () => {
             "When called with normal position and minimum price",
             async () => {
                 it("Returns the correct result", async () => {
-                    /* TODO: implement */
+                    const position = normalPosition
+                    const price = minimumPrice
+
+                    const actualNetValue = await libBalances.margin(
+                        position,
+                        price
+                    )
+
+                    const expectedNetValue = ethers.utils.parseEther("12")
+
+                    expect(actualNetValue).to.equal(expectedNetValue)
                 })
             }
         )
@@ -96,7 +106,11 @@ describe("Unit tests: LibBalances.sol", async () => {
             "When called with normal position and maximum price",
             async () => {
                 it("Returns the correct result", async () => {
-                    /* TODO: implement */
+                    const position = normalPosition
+                    const price = maximumPrice
+
+                    await expect(libBalances.margin(position, price)).to.be
+                        .reverted
                 })
             }
         )
@@ -105,7 +119,17 @@ describe("Unit tests: LibBalances.sol", async () => {
             "When called with normal position and normal price",
             async () => {
                 it("Returns the correct result", async () => {
-                    /* TODO: implement */
+                    const position = normalPosition
+                    const price = normalPrice
+
+                    const actualNetValue = await libBalances.margin(
+                        position,
+                        price
+                    )
+
+                    const expectedNetValue = ethers.utils.parseEther("9912")
+
+                    expect(actualNetValue).to.equal(expectedNetValue)
                 })
             }
         )
