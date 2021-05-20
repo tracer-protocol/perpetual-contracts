@@ -5,7 +5,7 @@ describe("Unit tests: LibBalances.sol", function () {
     let libBalances
     let accounts
 
-    let positions 
+    let positions
     let prices
 
     before(async function () {
@@ -18,53 +18,27 @@ describe("Unit tests: LibBalances.sol", function () {
         )
         accounts = await ethers.getSigners()
 
+        const minimumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(2)).mul(
+            ethers.BigNumber.from(-1)
+        )
+        const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
+
+        console.log(minimumInt); // DEBUG
+
         positions = {
             min: {
-                min: [
-                    ethers.constants.MaxUint256.add(
-                        ethers.utils.parseEther("1")
-                    ),
-                    ethers.constants.MaxUint256.add(
-                        ethers.utils.parseEther("1")
-                    ),
-                ],
-                max: [
-                    ethers.constants.MaxUint256.add(
-                        ethers.utils.parseEther("1")
-                    ),
-                    ethers.constants.MaxUint256,
-                ],
-                norm: [
-                    ethers.constants.MaxUint256.add(
-                        ethers.utils.parseEther("1")
-                    ),
-                    ethers.utils.parseEther("330"),
-                ],
+                min: [minimumInt, minimumInt],
+                max: [minimumInt, maximumInt],
+                norm: [minimumInt, ethers.utils.parseEther("330")],
             },
             max: {
-                min: [
-                    ethers.constants.MaxUint256,
-                    ethers.constants.MaxUint256.add(
-                        ethers.utils.parseEther("1")
-                    ),
-                ],
-                max: [ethers.constants.MaxUint256, ethers.constants.MaxUint256],
-                norm: [
-                    ethers.constants.MaxUint256,
-                    ethers.utils.parseEther("330"),
-                ],
+                min: [maximumInt, minimumInt],
+                max: [maximumInt, maximumInt],
+                norm: [maximumInt, ethers.utils.parseEther("-5490")],
             },
             norm: {
-                min: [
-                    ethers.utils.parseEther("450"),
-                    ethers.constants.MaxUint256.add(
-                        ethers.utils.parseEther("1")
-                    ),
-                ],
-                max: [
-                    ethers.utils.parseEther("450"),
-                    ethers.constants.MaxUint256,
-                ],
+                min: [ethers.utils.parseEther("450"), minimumInt],
+                max: [ethers.utils.parseEther("450"), maximumInt],
                 norm: [
                     ethers.utils.parseEther("450"),
                     ethers.utils.parseEther("-880"),
@@ -75,7 +49,7 @@ describe("Unit tests: LibBalances.sol", function () {
         prices = {
             min: ethers.utils.parseEther("0"),
             max: ethers.constants.MaxUint256,
-            norm: ethers.utils.parseEther("7709")
+            norm: ethers.utils.parseEther("7709"),
         }
 
         const normalBase = ethers.utils.parseEther("33")
@@ -88,16 +62,16 @@ describe("Unit tests: LibBalances.sol", function () {
     })
 
     describe("netValue", async () => {
-        it(
-            "When called with (minimum, minimum) position and minimum price",
-            async () => {
-                /* TODO: (min, min, min) */
-                const actualNetValue = libBalances.netValue(positions["min"]["min"], prices["min"]);
-                const expectedNetValue = ethers.utils.parseEther("444");
+        it("When called with (minimum, minimum) position and minimum price", async () => {
+            /* TODO: (min, min, min) */
+            const actualNetValue = libBalances.netValue(
+                positions["min"]["min"],
+                prices["min"]
+            )
+            const expectedNetValue = ethers.utils.parseEther("444")
 
-                await expect(actualNetValue).to.equal(expectedNetValue);
-            }
-        )
+            await expect(actualNetValue).to.equal(expectedNetValue)
+        })
 
         context(
             "When called with (minimum, minimum) position and normal price",
