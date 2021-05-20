@@ -21,16 +21,8 @@ interface ITrader {
 
     function verifySignature(
         address signer,
-        Perpetuals.Order memory order,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
+        Types.SignedLimitOrder memory order
     ) external view returns (bool);
-
-    function verifyNonce(Types.SignedLimitOrder memory order)
-        external
-        view
-        returns (bool);
 
     function getOrder(Perpetuals.Order memory order)
         external
