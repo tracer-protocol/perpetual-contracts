@@ -57,7 +57,7 @@
         "lint": "prettier --check . && yarn hardhat check",
         "lint:fix": "prettier . --write",
         "clean": "npm-run-all -p clean:artifacts clean:cache clean:types",
-	"clean:types": "rimraf ./types/",
+        "clean:types": "rimraf ./types/",
         "clean:artifacts": "rimraf ./artifacts/",
         "clean:cache": "rimraf ./cache/",
         "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol"
