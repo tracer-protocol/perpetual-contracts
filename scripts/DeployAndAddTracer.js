@@ -32,6 +32,7 @@ async function main() {
             "uint256", //_maxLeverage,
             "uint256", //_fundingRateSensitivity,
             "uint256", //_feeRate
+            "address", // _feeReceiver
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -41,6 +42,7 @@ async function main() {
             maxLeverage,
             fundingRateSensitivity,
             feeRate,
+            deployer.address,
         ]
     )
     await factoryInstance.deployTracer(

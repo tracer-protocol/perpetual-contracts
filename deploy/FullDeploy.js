@@ -24,6 +24,10 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
     })
+    const libPricing = await deploy("Prices", {
+        from: deployer,
+        log: true,
+    })
 
     // deploy trader
     const trader = await deploy("Trader", {
@@ -122,6 +126,10 @@ module.exports = async function (hre) {
 
     const pricingDeployer = await deploy("PricingDeployerV1", {
         from: deployer,
+        libraries: {
+            LibMath: libMath.address,
+            Prices: libPricing.address,
+        },
         log: true,
     })
 
@@ -133,6 +141,7 @@ module.exports = async function (hre) {
             LibMath: libMath.address,
             SafetyWithdraw: safetyWithdraw.address,
             Balances: libBalances.address,
+            Prices: libPricing.address,
         },
         log: true,
     })
