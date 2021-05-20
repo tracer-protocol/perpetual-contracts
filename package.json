@@ -1,6 +1,6 @@
 {
     "name": "@tracer-protocol/contracts",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "description": "Tracer Protocol",
     "main": "truffle-config.js",
     "directories": {
@@ -69,7 +69,7 @@
     "license": "ISC",
     "bugs": {},
     "files": [
-        "types",
+        "artifacts",
         "build"
     ],
     "engines": {
