@@ -31,7 +31,8 @@ library Perpetuals {
         bool opposingSides = a.side != b.side;
         bool notExpired = currentTime < a.expires && currentTime < b.expires;
         bool notFilled = aFilled < a.amount && bFilled < b.amount;
-        bool createdBefore = currentTime >= a.created && currentTime >= b.created;
+        bool createdBefore =
+            currentTime >= a.created && currentTime >= b.created;
 
         return
             pricesMatch &&

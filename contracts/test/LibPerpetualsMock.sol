@@ -8,7 +8,7 @@ contract LibPerpetualsMock {
         uint256 aFilled,
         Perpetuals.Order calldata b,
         uint256 bFilled
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         return Perpetuals.canMatch(a, aFilled, b, bFilled);
     }
 }
