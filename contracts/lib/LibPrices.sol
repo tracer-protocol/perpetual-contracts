@@ -44,6 +44,9 @@ library Prices {
         pure
         returns (uint256)
     {
+        if (price.trades == 0) {
+            return 0;
+        }
         return price.cumulativePrice / price.trades;
     }
 
