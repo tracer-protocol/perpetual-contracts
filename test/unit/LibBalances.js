@@ -23,8 +23,6 @@ describe("Unit tests: LibBalances.sol", function () {
         )
         const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
 
-        console.log(minimumInt); // DEBUG
-
         positions = {
             min: {
                 min: [minimumInt, minimumInt],
@@ -63,12 +61,11 @@ describe("Unit tests: LibBalances.sol", function () {
 
     describe("netValue", async () => {
         it("When called with (minimum, minimum) position and minimum price", async () => {
-            /* TODO: (min, min, min) */
-            const actualNetValue = libBalances.netValue(
+            const actualNetValue = await libBalances.netValue(
                 positions["min"]["min"],
                 prices["min"]
             )
-            const expectedNetValue = ethers.utils.parseEther("444")
+            const expectedNetValue = ethers.utils.parseEther("0")
 
             await expect(actualNetValue).to.equal(expectedNetValue)
         })
