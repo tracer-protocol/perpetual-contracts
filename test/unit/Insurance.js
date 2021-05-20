@@ -1,11 +1,19 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
+import { smockit } from '@eth-optimism/smock'
+const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 describe("Unit tests: Insurance.sol", function () {
     before(async function () {
-        // todo
         // deploy mock tracer
+        const tracerContractFactory = await ethers.getContractFactory('TracerPerpetualSwap')
+        const tracer = await tracerContractFactory.deploy(
+            ["TEST/USD", zeroAddress, 18, zeroAddress, 1, 1, 1, zeroAddress]
+        )
+
+        // mock tracer calls that are needed
+
         // deploy insurance using mock tracer
     })
 

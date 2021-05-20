@@ -12,6 +12,11 @@ module.exports = {
                 enabled: true,
                 runs: 1000,
             },
+            outputSelection: {
+                "*": {
+                    "*": ["storageLayout"],
+                },
+            },
         },
     },
     networks: {
