@@ -311,11 +311,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        if (hour >= hourlyTracerPrices.length) {
-            return 0;
-        } else {
-            return Prices.averagePrice(hourlyTracerPrices[hour]);
-        }
+        return Prices.averagePrice(hourlyTracerPrices[hour]);
     }
 
     /**
@@ -328,11 +324,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        if (hour >= hourlyOraclePrices.length) {
-            return 0;
-        } else {
-            return Prices.averagePrice(hourlyOraclePrices[hour]);
-        }
+        return Prices.averagePrice(hourlyOraclePrices[hour]);
     }
 
     function transferOwnership(address newOwner)
