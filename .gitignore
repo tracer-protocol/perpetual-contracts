@@ -6,7 +6,8 @@ yarn.lock
 .env
 build/
 migrations/
-types
+types/
+abi/
 contract-addresses.json
 .vscode/
 *.secret

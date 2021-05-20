@@ -1,6 +1,6 @@
 {
     "name": "@tracer-protocol/contracts",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "Tracer Protocol",
     "main": "truffle-config.js",
     "directories": {
@@ -33,6 +33,7 @@
         "chai": "^4.3.4",
         "ganache-cli": "^6.12.0",
         "hardhat": "^2.2.1",
+        "hardhat-abi-exporter": "^2.2.1",
         "hardhat-contract-sizer": "^2.0.3",
         "hardhat-deploy": "^0.7.5",
         "hardhat-typechain": "^0.3.5",
@@ -69,8 +70,8 @@
     "license": "ISC",
     "bugs": {},
     "files": [
-        "artifacts",
-        "build"
+        "types",
+        "abi"
     ],
     "engines": {
         "node": ">=10"
