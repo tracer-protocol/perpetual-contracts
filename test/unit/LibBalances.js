@@ -81,10 +81,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (minimum, minimum) position and normal price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["min"]["min"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["min"]["min"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -93,10 +95,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (minimum, minimum) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["min"]["min"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["min"]["min"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -135,10 +139,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (minimum, normal) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["min"]["norm"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["min"]["norm"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -147,10 +153,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (minimum, maximum) position and minimum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["min"]["max"],
-                        prices["min"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["min"]["max"],
+                            prices["min"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -159,10 +167,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (minimum, maximum) position and normal price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["min"]["max"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["min"]["max"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -171,10 +181,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (minimum, maximum) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["min"]["max"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["min"]["max"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -188,7 +200,7 @@ describe("Unit tests: LibBalances.sol", function () {
                         prices["min"]
                     )
 
-                    const expectedNetValue = ethers.utils.parseEther("3");
+                    const expectedNetValue = ethers.utils.parseEther("3")
                 })
             }
         )
@@ -197,10 +209,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (normal, minimum) position and normal price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["norm"]["min"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["norm"]["min"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -209,10 +223,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (normal, minimum) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["norm"]["min"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["norm"]["min"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -251,10 +267,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (normal, normal) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["norm"]["norm"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["norm"]["norm"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -263,10 +281,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (normal, maximum) position and minimum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["norm"]["max"],
-                        prices["min"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["norm"]["max"],
+                            prices["min"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -275,10 +295,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (normal, maximum) position and normal price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["norm"]["max"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["norm"]["max"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -287,10 +309,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (normal, maximum) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["norm"]["max"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["norm"]["max"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -299,10 +323,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, minimum) position and minimum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["min"],
-                        prices["min"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["min"],
+                            prices["min"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -311,10 +337,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, minimum) position and normal price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["min"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["min"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -323,10 +351,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, minimum) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["min"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["min"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -335,10 +365,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, normal) position and minimum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["norm"],
-                        prices["min"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["norm"],
+                            prices["min"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -347,10 +379,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, normal) position and normal price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["norm"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["norm"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -359,10 +393,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, normal) position and maximum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["norm"],
-                        prices["max"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["norm"],
+                            prices["max"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -371,10 +407,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, maximum) position and minimum price",
             async () => {
                 it("Reverts", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["max"],
-                        prices["min"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["max"],
+                            prices["min"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -383,10 +421,12 @@ describe("Unit tests: LibBalances.sol", function () {
             "When called with (maximum, maximum) position and normal price",
             async () => {
                 it("Returns the correct value", async () => {
-                    await expect(libBalances.netValue(
-                        positions["max"]["max"],
-                        prices["norm"]
-                    )).to.be.reverted;
+                    await expect(
+                        libBalances.netValue(
+                            positions["max"]["max"],
+                            prices["norm"]
+                        )
+                    ).to.be.reverted
                 })
             }
         )
@@ -394,10 +434,9 @@ describe("Unit tests: LibBalances.sol", function () {
         context(
             "When called with (maximum, maximum) position and maximum price",
             async () => {
-                await expect(libBalances.netValue(
-                    positions["max"]["max"],
-                    prices["max"]
-                )).to.be.reverted;
+                await expect(
+                    libBalances.netValue(positions["max"]["max"], prices["max"])
+                ).to.be.reverted
             }
         )
     })
