@@ -453,7 +453,7 @@ contract TracerPerpetualSwaps is
             // Update account index
             accountBalance.lastUpdatedIndex = pricingContract
                 .currentFundingIndex();
-            require(userMarginIsValid(account), "TCR: Target under-margined ");
+            // require(userMarginIsValid(account), "TCR: Target under-margined ");
             emit Settled(account, accountBalance.position.quote);
         }
     }

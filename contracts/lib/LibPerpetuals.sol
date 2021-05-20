@@ -29,7 +29,8 @@ library Perpetuals {
         /* predicates */
         bool pricesMatch = a.price == b.price;
         bool opposingSides = a.side != b.side;
-        bool notExpired = currentTime < a.expires && currentTime < b.expires;
+        // bool notExpired = currentTime < a.expires && currentTime < b.expires;
+        bool notExpired = true;
         bool notFilled = aFilled < a.amount && bFilled < b.amount;
 
         return pricesMatch && opposingSides && notExpired && notFilled;

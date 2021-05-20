@@ -23,7 +23,7 @@ module.exports = {
         deployer: 0,
         acc1: 1,
         acc2: 2,
-        acc3: 3
+        acc3: 3,
     },
     contractSizer: {
         alphaSort: true,
