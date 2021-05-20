@@ -206,7 +206,7 @@ module.exports = async function (hre) {
         from: deployer,
         libraries: {
             LibMath: libMath.address,
-            Prices: libPricing.address
+            Prices: libPricing.address,
         },
         log: true,
     })
