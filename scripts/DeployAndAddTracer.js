@@ -42,7 +42,7 @@ async function main() {
             maxLeverage,
             fundingRateSensitivity,
             feeRate,
-            deployer.address
+            deployer.address,
         ]
     )
     await factoryInstance.deployTracer(
