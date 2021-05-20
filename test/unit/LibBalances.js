@@ -1,14 +1,14 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 
-describe("Unit tests: LibBalances.sol", async () => {
+describe("Unit tests: LibBalances.sol", function () {
     let libBalances
     let accounts
 
     let positions 
     let prices
 
-    before(async () => {
+    before(async function () {
         await deployments.fixture(["LibBalancesMock"])
         const { deployer } = await getNamedAccounts()
         const deployment = await deployments.get("LibBalancesMock")
@@ -87,8 +87,8 @@ describe("Unit tests: LibBalances.sol", async () => {
         normalPrice = ethers.utils.parseEther("300")
     })
 
-    describe("netValue", async () => {
-        context(
+    context("netValue", async () => {
+        it(
             "When called with (minimum, minimum) position and minimum price",
             async () => {
                 /* TODO: (min, min, min) */
@@ -282,7 +282,7 @@ describe("Unit tests: LibBalances.sol", async () => {
         )
     })
 
-    describe("margin", async () => {
+    context("margin", async () => {
         context(
             "When called with (minimum, minimum) position and minimum price",
             async () => {
@@ -473,7 +473,7 @@ describe("Unit tests: LibBalances.sol", async () => {
         )
     })
 
-    describe("leveragedNotionalValue", async () => {
+    context("leveragedNotionalValue", async () => {
         context(
             "When called with (minimum, minimum) position and minimum price",
             async () => {
