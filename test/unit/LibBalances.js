@@ -5,8 +5,8 @@ describe("Unit tests: LibBalances.sol", async () => {
     let libBalances
     let accounts
 
-    let normalPosition
-    let minimumPrice
+    let positions 
+    let prices
 
     before(async () => {
         await deployments.fixture(["LibBalancesMock"])
@@ -17,6 +17,66 @@ describe("Unit tests: LibBalances.sol", async () => {
             deployment.address
         )
         accounts = await ethers.getSigners()
+
+        positions = {
+            min: {
+                min: [
+                    ethers.constants.MaxUint256.add(
+                        ethers.utils.parseEther("1")
+                    ),
+                    ethers.constants.MaxUint256.add(
+                        ethers.utils.parseEther("1")
+                    ),
+                ],
+                max: [
+                    ethers.constants.MaxUint256.add(
+                        ethers.utils.parseEther("1")
+                    ),
+                    ethers.constants.MaxUint256,
+                ],
+                norm: [
+                    ethers.constants.MaxUint256.add(
+                        ethers.utils.parseEther("1")
+                    ),
+                    ethers.utils.parseEther("330"),
+                ],
+            },
+            max: {
+                min: [
+                    ethers.constants.MaxUint256,
+                    ethers.constants.MaxUint256.add(
+                        ethers.utils.parseEther("1")
+                    ),
+                ],
+                max: [ethers.constants.MaxUint256, ethers.constants.MaxUint256],
+                norm: [
+                    ethers.constants.MaxUint256,
+                    ethers.utils.parseEther("330"),
+                ],
+            },
+            norm: {
+                min: [
+                    ethers.utils.parseEther("450"),
+                    ethers.constants.MaxUint256.add(
+                        ethers.utils.parseEther("1")
+                    ),
+                ],
+                max: [
+                    ethers.utils.parseEther("450"),
+                    ethers.constants.MaxUint256,
+                ],
+                norm: [
+                    ethers.utils.parseEther("450"),
+                    ethers.utils.parseEther("-880"),
+                ],
+            },
+        }
+
+        prices = {
+            min: ethers.utils.parseEther("0"),
+            max: ethers.constants.MaxUint256,
+            norm: ethers.utils.parseEther("7709")
+        }
 
         const normalBase = ethers.utils.parseEther("33")
         const normalQuote = ethers.utils.parseEther("12")
@@ -32,6 +92,10 @@ describe("Unit tests: LibBalances.sol", async () => {
             "When called with (minimum, minimum) position and minimum price",
             async () => {
                 /* TODO: (min, min, min) */
+                const actualNetValue = libBalances.netValue(positions["min"]["min"], prices["min"]);
+                const expectedNetValue = ethers.utils.parseEther("444");
+
+                await expect(actualNetValue).to.equal(expectedNetValue);
             }
         )
 
