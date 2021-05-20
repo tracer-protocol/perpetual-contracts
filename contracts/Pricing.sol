@@ -311,7 +311,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        if (hour >= hourlyTracerPrices.length) {
+        if (hourlyTracerPrices[hour].trades == 0) {
             return 0;
         } else {
             return Prices.averagePrice(hourlyTracerPrices[hour]);
@@ -328,7 +328,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        if (hour >= hourlyOraclePrices.length) {
+        if (hourlyOraclePrices[hour].trades == 0) {
             return 0;
         } else {
             return Prices.averagePrice(hourlyOraclePrices[hour]);
