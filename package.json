@@ -48,6 +48,7 @@
         "test:functional": "npx hardhat test test/functional/*.js",
         "test:unit": "npx hardhat test test/unit/*.js",
         "compile": "npx hardhat compile",
+        "deploy": "npx hardhat deploy",
         "ganache": "ganache-cli -l 8500000",
         "lint": "prettier --check . && yarn hardhat check",
         "lint:fix": "prettier . --write",
