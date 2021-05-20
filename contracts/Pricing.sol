@@ -10,6 +10,8 @@ import "./Interfaces/IOracle.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "hardhat/console.sol";
+
 contract Pricing is IPricing, Ownable {
     using LibMath for uint256;
     using LibMath for int256;

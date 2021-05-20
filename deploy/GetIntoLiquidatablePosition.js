@@ -6,7 +6,7 @@ module.exports = async function (hre) {
     await deployments.fixture("FullDeploy")
     const perps = await deployments.get("TracerPerpetualSwaps")
     const oracle = await deployments.get("PriceOracleAdapter")
-    const price = await read("PriceOracleAdapter", "latestAnswer")
+    const price = ethers.utils.parseEther((await read("PriceOracleAdapter", "latestAnswer")).toString())
     console.log(price.toString())
     console.log(acc1)
     console.log(deployer)
@@ -15,29 +15,29 @@ module.exports = async function (hre) {
         { from: deployer, log: true },
         "approve",
         perps.address,
-        "1000"
+        ethers.utils.parseEther("1000")
     )
     await execute(
         "QuoteToken",
         { from: acc1, log: true },
         "approve",
         perps.address,
-        "1000"
+        ethers.utils.parseEther("1000")
     )
     // console.log(await read("TracerPerpetualSwaps", "balances", deployer))
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
         "deposit",
-        "1000"
+        ethers.utils.parseEther("1000")
     )
     await execute(
         "TracerPerpetualSwaps",
         { from: acc1, log: true },
         "deposit",
-        "1000"
+        ethers.utils.parseEther("1000")
     )
-    // console.log((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString())
+    console.log((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString())
     console.log("deployer and acc1 have deposited into perp swaps market")
 
     /*
@@ -45,24 +45,25 @@ module.exports = async function (hre) {
     const block = await provider.getBlock("latest")
     */
     const block = await ethers.provider.getBlock("latest")
+    console.log((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString())
 
     const makerOrder = [
         deployer, // maker
         perps.address, // market
         price, // price
-        50, // amount
+        ethers.utils.parseEther("50"), // amount
         0, // side (0 == Long)
-        block.timestamp,
-        123, // expiry
+        block.timestamp + 100, // expiry
+        0, // created
     ]
     const takerOrder = [
         acc1, // maker
         perps.address, // market
         price, // price
-        50, // amount
+        ethers.utils.parseEther("50"), // amount
         1, // side (1 == Short)
-        block.timestamp,
-        123, // expiry
+        block.timestamp + 100, // expiry
+        0, // created
     ]
 
     await execute(
@@ -71,18 +72,12 @@ module.exports = async function (hre) {
         "matchOrders",
         makerOrder,
         takerOrder,
-        50
+        ethers.utils.parseEther("50"), // amount
     )
 
-    /*
-    struct Order {
-        address maker;
-        address market;
-        uint256 price;
-        uint256 amount;
-        Side side;
-        uint256 expires;
-        uint256 created;
-    }
-    */
+    console.log("quote and base after trade")
+    console.log(ethers.utils.formatEther((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString()))
+    console.log(ethers.utils.formatEther((await read("TracerPerpetualSwaps", "balances", deployer)).position.base.toString()))
+    console.log((await read("TracerPerpetualSwaps", "balances", deployer)).lastUpdatedGasPrice.toString())
+
 }

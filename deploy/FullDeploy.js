@@ -62,6 +62,20 @@ module.exports = async function (hre) {
         contract: "Oracle",
     })
 
+    await execute(
+        "GasOracle",
+        { from: deployer, log: true },
+        "setDecimals",
+        "9"
+    )
+
+    await execute(
+        "GasOracle",
+        { from: deployer, log: true },
+        "setPrice",
+        "1000000000" // 1 Gwei
+    )
+
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
@@ -84,7 +98,7 @@ module.exports = async function (hre) {
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: ["100000000000000000000000"],
+        args: [ethers.utils.parseEther("100000")],
         from: deployer,
         log: true,
         contract: "TestToken",
@@ -95,21 +109,21 @@ module.exports = async function (hre) {
         { from: deployer, log: true },
         "transfer",
         acc1,
-        "10000"
+        ethers.utils.parseEther("1000")
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc2,
-        "10000"
+        ethers.utils.parseEther("1000")
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc3,
-        "10000"
+        ethers.utils.parseEther("1000")
     )
 
     // deploy deployers

@@ -44,6 +44,9 @@ library Prices {
         pure
         returns (uint256)
     {
+        if (price.trades == 0) {
+            return 0;
+        }
         return price.cumulativePrice / price.trades;
     }
 
@@ -91,8 +94,8 @@ library Prices {
             uint256 currTimeWeight = 8 - i;
             uint256 j = 8 - i;
 
-            uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
-            uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
+            uint256 currDerivativePrice = 100; // averagePrice(tracerPrices[j]);
+            uint256 currUnderlyingPrice = 100; // averagePrice(oraclePrices[j]);
 
             if (currDerivativePrice > 0) {
                 instantDerivative += currTimeWeight;
