@@ -1,5 +1,5 @@
 module.exports = async function (hre) {
-    const { deployments, getNamedAccounts } = hre
+    const { deployments, getNamedAccounts, ethers } = hre
     const { read, execute } = deployments
     const { deployer, acc1 } = await getNamedAccounts()
 
@@ -44,8 +44,7 @@ module.exports = async function (hre) {
     const provider = ethers.getDefaultProvider("http://localhost:8545")
     const block = await provider.getBlock("latest")
     */
-    const block = ethers.provider.getBlock("latest")
-
+    const block = await ethers.provider.getBlock("latest")
 
     const makerOrder = [
         deployer, // maker
@@ -53,7 +52,7 @@ module.exports = async function (hre) {
         price, // price
         50, // amount
         0, // side (0 == Long)
-        0, // created TODO update with block.timestamp
+        block.timestamp, 
         123, // expiry
     ]
     const takerOrder = [
@@ -62,7 +61,7 @@ module.exports = async function (hre) {
         price, // price
         50, // amount
         1, // side (1 == Short)
-        0, // created TODO update with block.timestamp
+        block.timestamp, 
         123, // expiry
     ]
 

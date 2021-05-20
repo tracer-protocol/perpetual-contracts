@@ -204,6 +204,10 @@ module.exports = async function (hre) {
     const pricing = await deploy("Pricing", {
         args: [tracer.address, insurance.address, oracleAdapter.address],
         from: deployer,
+        libraries: {
+            LibMath: libMath.address,
+            Prices: libPricing.address
+        },
         log: true,
     })
 
