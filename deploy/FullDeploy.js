@@ -229,6 +229,7 @@ module.exports = async function (hre) {
         },
     })
 
+    // Set insurance, pricing, liquidation contracts
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
@@ -248,6 +249,7 @@ module.exports = async function (hre) {
         liquidation.address
     )
 
+    // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
