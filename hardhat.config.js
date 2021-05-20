@@ -3,6 +3,7 @@ require("@nomiclabs/hardhat-ethers")
 require("hardhat-contract-sizer")
 require("hardhat-deploy")
 require("hardhat-prettier")
+require("hardhat-typechain")
 
 module.exports = {
     solidity: {
@@ -26,5 +27,8 @@ module.exports = {
         alphaSort: true,
         runOnCompile: true,
         disambiguatePaths: false,
+    },
+    typechain: {
+        outDir: "./types",
     },
 }

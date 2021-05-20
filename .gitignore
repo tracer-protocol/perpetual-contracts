@@ -6,8 +6,7 @@ yarn.lock
 .env
 build/
 migrations/
-types/truffle-contracts/
-types/web3-v1-contracts/
+types
 contract-addresses.json
 .vscode/
 *.secret
