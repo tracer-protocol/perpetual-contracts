@@ -18,10 +18,12 @@ describe("Unit tests: LibBalances.sol", function () {
         )
         accounts = await ethers.getSigners()
 
-        const minimumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(2)).mul(
-            ethers.BigNumber.from(-1)
+        const minimumInt = ethers.constants.MaxUint256.div(
+            ethers.BigNumber.from(2)
+        ).mul(ethers.BigNumber.from(-1))
+        const maximumInt = ethers.constants.MaxUint256.div(
+            ethers.BigNumber.from(1)
         )
-        const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
 
         positions = {
             min: {
@@ -60,195 +62,342 @@ describe("Unit tests: LibBalances.sol", function () {
     })
 
     describe("netValue", async () => {
-        it("When called with (minimum, minimum) position and minimum price", async () => {
-            const actualNetValue = await libBalances.netValue(
-                positions["min"]["min"],
-                prices["min"]
-            )
-            const expectedNetValue = ethers.utils.parseEther("0")
+        context(
+            "When called with (minimum, minimum) position and minimum price",
+            async () => {
+                it("Returns the correct value", async () => {
+                    const actualNetValue = await libBalances.netValue(
+                        positions["min"]["min"],
+                        prices["min"]
+                    )
+                    const expectedNetValue = ethers.utils.parseEther("0")
 
-            await expect(actualNetValue).to.equal(expectedNetValue)
-        })
+                    await expect(actualNetValue).to.equal(expectedNetValue)
+                })
+            }
+        )
 
         context(
             "When called with (minimum, minimum) position and normal price",
             async () => {
-                /* TODO: (min, min, norm) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["min"]["min"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (minimum, minimum) position and maximum price",
             async () => {
-                /* TODO: (min, min, max) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["min"]["min"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (minimum, normal) position and minimum price",
             async () => {
-                /* TODO: (min, norm, min) */
+                it("Returns the correct value", async () => {
+                    const actualNetValue = await libBalances.netValue(
+                        positions["min"]["norm"],
+                        prices["min"]
+                    )
+                    const expectedNetValue = ethers.utils.parseEther("0")
+
+                    await expect(actualNetValue).to.equal(expectedNetValue)
+                })
             }
         )
 
         context(
             "When called with (minimum, normal) position and normal price",
             async () => {
-                /* TODO: (min, norm, norm) */
+                it("Returns the correct value", async () => {
+                    const actualNetValue = await libBalances.netValue(
+                        positions["min"]["norm"],
+                        prices["norm"]
+                    )
+                    const expectedNetValue = ethers.utils.parseEther("2543970")
+
+                    await expect(actualNetValue).to.equal(expectedNetValue)
+                })
             }
         )
 
         context(
             "When called with (minimum, normal) position and maximum price",
             async () => {
-                /* TODO: (min, norm, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["min"]["norm"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (minimum, maximum) position and minimum price",
             async () => {
-                /* TODO: (min, max, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["min"]["max"],
+                        prices["min"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (minimum, maximum) position and normal price",
             async () => {
-                /* TODO: (min, max, norm) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["min"]["max"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (minimum, maximum) position and maximum price",
             async () => {
-                /* TODO: (min, max, max) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["min"]["max"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (normal, minimum) position and minimum price",
             async () => {
-                /* TODO: (norm, min, min) */
+                it("Reverts", async () => {
+                    const actualNetValue = await libBalances.netValue(
+                        positions["norm"]["min"],
+                        prices["min"]
+                    )
+
+                    const expectedNetValue = ethers.utils.parseEther("3");
+                })
             }
         )
 
         context(
             "When called with (normal, minimum) position and normal price",
             async () => {
-                /* TODO: (norm, min, norm) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["norm"]["min"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (normal, minimum) position and maximum price",
             async () => {
-                /* TODO: (norm, min, max) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["norm"]["min"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (normal, normal) position and minimum price",
             async () => {
-                /* TODO: (norm, norm, min) */
+                it("Returns the correct value", async () => {
+                    const actualNetValue = await libBalances.netValue(
+                        positions["norm"]["norm"],
+                        prices["min"]
+                    )
+                    const expectedNetValue = ethers.utils.parseEther("0")
+
+                    await expect(actualNetValue).to.equal(expectedNetValue)
+                })
             }
         )
 
         context(
             "When called with (normal, normal) position and normal price",
             async () => {
-                /* TODO: (norm, norm, norm) */
+                it("Returns the correct value", async () => {
+                    const actualNetValue = await libBalances.netValue(
+                        positions["norm"]["norm"],
+                        prices["norm"]
+                    )
+                    const expectedNetValue = ethers.utils.parseEther("6783920")
+
+                    await expect(actualNetValue).to.equal(expectedNetValue)
+                })
             }
         )
 
         context(
             "When called with (normal, normal) position and maximum price",
             async () => {
-                /* TODO: (norm, norm, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["norm"]["norm"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (normal, maximum) position and minimum price",
             async () => {
-                /* TODO: (norm, max, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["norm"]["max"],
+                        prices["min"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (normal, maximum) position and normal price",
             async () => {
-                /* TODO: (norm, max, norm) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["norm"]["max"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (normal, maximum) position and maximum price",
             async () => {
-                /* TODO: (norm, max, max) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["norm"]["max"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, minimum) position and minimum price",
             async () => {
-                /* TODO: (max, min, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["min"],
+                        prices["min"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, minimum) position and normal price",
             async () => {
-                /* TODO: (max, min, norm) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["min"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, minimum) position and maximum price",
             async () => {
-                /* TODO: (max, min, max) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["min"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, normal) position and minimum price",
             async () => {
-                /* TODO: (max, norm, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["norm"],
+                        prices["min"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, normal) position and normal price",
             async () => {
-                /* TODO: (max, norm, norm) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["norm"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, normal) position and maximum price",
             async () => {
-                /* TODO: (max, norm, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["norm"],
+                        prices["max"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, maximum) position and minimum price",
             async () => {
-                /* TODO: (max, max, min) */
+                it("Reverts", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["max"],
+                        prices["min"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, maximum) position and normal price",
             async () => {
-                /* TODO: (max, max, norm) */
+                it("Returns the correct value", async () => {
+                    await expect(libBalances.netValue(
+                        positions["max"]["max"],
+                        prices["norm"]
+                    )).to.be.reverted;
+                })
             }
         )
 
         context(
             "When called with (maximum, maximum) position and maximum price",
             async () => {
-                /* TODO: (max, max, max) */
+                await expect(libBalances.netValue(
+                    positions["max"]["max"],
+                    prices["max"]
+                )).to.be.reverted;
             }
         )
     })
