@@ -87,7 +87,7 @@ describe("Unit tests: LibBalances.sol", function () {
         normalPrice = ethers.utils.parseEther("300")
     })
 
-    context("netValue", async () => {
+    describe("netValue", async () => {
         it(
             "When called with (minimum, minimum) position and minimum price",
             async () => {
@@ -282,7 +282,7 @@ describe("Unit tests: LibBalances.sol", function () {
         )
     })
 
-    context("margin", async () => {
+    describe("margin", async () => {
         context(
             "When called with (minimum, minimum) position and minimum price",
             async () => {
@@ -473,7 +473,7 @@ describe("Unit tests: LibBalances.sol", function () {
         )
     })
 
-    context("leveragedNotionalValue", async () => {
+    describe("leveragedNotionalValue", async () => {
         context(
             "When called with (minimum, minimum) position and minimum price",
             async () => {
