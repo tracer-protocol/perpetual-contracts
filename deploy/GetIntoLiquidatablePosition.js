@@ -52,7 +52,7 @@ module.exports = async function (hre) {
         price, // price
         50, // amount
         0, // side (0 == Long)
-        block.timestamp, 
+        block.timestamp,
         123, // expiry
     ]
     const takerOrder = [
@@ -61,7 +61,7 @@ module.exports = async function (hre) {
         price, // price
         50, // amount
         1, // side (1 == Short)
-        block.timestamp, 
+        block.timestamp,
         123, // expiry
     ]
 

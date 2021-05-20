@@ -47,7 +47,7 @@ library Prices {
         return price.cumulativePrice / price.trades;
     }
 
-    function averagePriceForPeriod(PriceInstant[] memory prices)
+    function averagePriceForPeriod(PriceInstant[24] memory prices)
         public
         pure
         returns (uint256)
@@ -79,8 +79,8 @@ library Prices {
 
     function calculateTWAP(
         uint256 hour,
-        PriceInstant[] memory tracerPrices,
-        PriceInstant[] memory oraclePrices
+        PriceInstant[24] memory tracerPrices,
+        PriceInstant[24] memory oraclePrices
     ) public pure returns (TWAP memory) {
         uint256 instantDerivative = 0;
         uint256 cumulativeDerivative = 0;
