@@ -10,4 +10,10 @@ contract InsurancePoolToken is ERC20, Ownable, ERC20Burnable {
     function mint(address to, uint256 amount) external onlyOwner() {
         _mint(to, amount);
     }
+
+    function burnFrom(address from, uint amount) public override onlyOwner() {
+        // override the burnFrom function and allow only the owner to burn
+        // pool tokens on behalf of a holder
+        _burn(from, amount);
+    }
 }
