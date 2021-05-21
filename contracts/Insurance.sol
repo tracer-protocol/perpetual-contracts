@@ -182,7 +182,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     /**
      * @notice Gets the 8 hour funding rate for an insurance pool
-     * @dev the funding rate is represented as 
+     * @dev the funding rate is represented as
      *      0.0036523 * (insurance_fund_target - insurance_fund_holdings) / leveraged_notional_value)
      */
     function getPoolFundingRate() external view override returns (uint256) {
