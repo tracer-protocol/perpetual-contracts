@@ -7,8 +7,6 @@ import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @dev The following is a sample Gas Price Oracle Implementation for a Tracer Oracle.
  *      It references the Chainlink fast gas price and ETH/USD price to get a gas cost
@@ -18,7 +16,7 @@ contract GasOracle is IOracle, Ownable {
     using LibMath for uint256;
     IChainlinkOracle public gasOracle;
     IChainlinkOracle public priceOracle;
-    uint8 public override decimals = 18; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
+    uint8 public override decimals = 18;
     uint256 private constant MAX_DECIMALS = 18;
 
     constructor(address _priceOracle, address _gasOracle) {
@@ -30,9 +28,10 @@ contract GasOracle is IOracle, Ownable {
      * @notice Calculates the latest USD/Gas price
      * @dev Returned value is USD/Gas * 10^18 for compatibility with rest of calculations
      */
-    function latestAnswer() external override returns (uint256) {
+    function latestAnswer() external view override returns (uint256) {
         uint256 gasPrice = toWad(uint256(gasOracle.latestAnswer()), gasOracle);
-        uint256 ethPrice = toWad(uint256(priceOracle.latestAnswer()), priceOracle);
+        uint256 ethPrice =
+            toWad(uint256(priceOracle.latestAnswer()), priceOracle);
 
         uint256 result = PRBMathUD60x18.mul(gweiToWei(gasPrice), ethPrice);
         return result;
@@ -52,11 +51,15 @@ contract GasOracle is IOracle, Ownable {
      *      and allows oracles to have their decimals changed withou affecting
      *      the market itself
      */
-    function toWad(uint256 raw, IChainlinkOracle _oracle) internal view returns (uint256) {
+    function toWad(uint256 raw, IChainlinkOracle _oracle)
+        internal
+        view
+        returns (uint256)
+    {
         IChainlinkOracle oracle = IChainlinkOracle(_oracle);
         // reset the scaler for consistency
         uint8 _decimals = oracle.decimals(); // 9
-        require(_decimals <= MAX_DECIMALS, "COA: too many decimals");
+        require(_decimals <= MAX_DECIMALS, "GAS: too many decimals");
         uint256 scaler = uint256(10**(MAX_DECIMALS - _decimals));
         return raw * scaler;
     }
