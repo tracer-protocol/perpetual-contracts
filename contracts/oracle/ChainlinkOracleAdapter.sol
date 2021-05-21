@@ -6,6 +6,8 @@ import "../Interfaces/IChainlinkOracle.sol";
 import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "hardhat/console.sol";
+
 /**
  * The Chainlink oracle adapter allows you to wrap a Chainlink oracle feed
  * and ensure that the price is always returned in a wad format.
@@ -26,7 +28,7 @@ contract OracleAdapter is IOracle, Ownable {
      * @notice Gets the latest anwser from the oracle
      * @dev converts the price to a WAD price before returning
      */
-    function latestAnswer() external view override returns (uint256) {
+    function latestAnswer() external override returns (uint256) {
         return toWad(uint256(oracle.latestAnswer()));
     }
 

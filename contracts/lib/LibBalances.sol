@@ -97,6 +97,9 @@ library Balances {
         uint256 maximumLeverage
     ) public pure returns (uint256) {
         uint256 notionalValue = netValue(position, price);
+        if (notionalValue == 0) {
+            return 0;
+        }
 
         uint256 liquidationGasCost = liquidationCost * 6;
 

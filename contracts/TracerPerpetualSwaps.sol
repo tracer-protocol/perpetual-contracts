@@ -402,6 +402,7 @@ contract TracerPerpetualSwaps is
                 accountBalance.position.quote -
                 PRBMathSD59x18.mul(fundingDiff, accountBalance.position.base);
             // Update account gas price
+            console.log("GAS PRICE ACCESSED");
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
                 .latestAnswer();
 
@@ -448,7 +449,7 @@ contract TracerPerpetualSwaps is
         int256 base,
         uint256 gasPrice
     ) public returns (bool) {
-        console.log("AYO");
+        console.log("A");
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
         Balances.Position memory pos = Balances.Position(quote, base);
@@ -460,6 +461,7 @@ contract TracerPerpetualSwaps is
         console.logInt(pos.base);
         console.logInt(margin);
         console.logUint(minMargin);
+        console.logUint(gasCost);
         if (margin < 0) {
             /* Margin being less than 0 is always invalid, even if position is 0.
                This could happen if user attempts to over-withdraw */

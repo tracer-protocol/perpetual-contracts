@@ -82,12 +82,33 @@ module.exports = async function (hre) {
         contract: "Oracle",
     })
 
+    await execute(
+        "EthOracle",
+        { from: deployer, log: true },
+        "setDecimals",
+        "18" // https://etherscan.io/address/0xe5bbbdb2bb953371841318e1edfbf727447cef2e#readContract
+    )
+
+    await execute(
+        "EthOracle",
+        { from: deployer, log: true },
+        "setPrice",
+        ethers.utils.parseEther("3000"), // 3000 USD / ETH
+    )
+
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
         args: [ethOracle.address, gasOracle.address],
         contract: "GasOracle",
     })
+
+    await execute(
+        "EthOracle",
+        { from: deployer, log: true },
+        "setDecimals",
+        "18" // https://etherscan.io/address/0xe5bbbdb2bb953371841318e1edfbf727447cef2e#readContract
+    )
 
     const gasPriceOracleAdapter = await deploy("GasPriceOracleAdapter", {
         from: deployer,

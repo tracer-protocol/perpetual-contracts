@@ -1,13 +1,13 @@
 module.exports = async function (hre) {
-    const { deployments, getNamedAccounts, ethers } = hre
+    const { deployments, getNamedAccounts, ethers, BigNumber } = hre
     const { read, execute } = deployments
     const { deployer, acc1 } = await getNamedAccounts()
 
     await deployments.fixture("FullDeploy")
     const perps = await deployments.get("TracerPerpetualSwaps")
     const oracle = await deployments.get("PriceOracleAdapter")
-    const price = ethers.utils.parseEther((await read("PriceOracleAdapter", "latestAnswer")).toString())
-    console.log(price.toString())
+    const price = (await read("PriceOracleAdapter", "latestAnswer")).toString()
+    console.log("Price: " + price.toString())
     console.log(acc1)
     console.log(deployer)
     await execute(
@@ -15,27 +15,33 @@ module.exports = async function (hre) {
         { from: deployer, log: true },
         "approve",
         perps.address,
-        ethers.utils.parseEther("1000")
+        ethers.BigNumber.from(1000 * 10**8)
+        // ethers.utils.parseEther("1000")
     )
+    console.log(1000 * 10**8)
     await execute(
         "QuoteToken",
         { from: acc1, log: true },
         "approve",
         perps.address,
-        ethers.utils.parseEther("1000")
+        ethers.BigNumber.from(1000 * 10**8)
+        // ethers.utils.parseEther("1000")
     )
+    console.log(10**8)
     // console.log(await read("TracerPerpetualSwaps", "balances", deployer))
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
         "deposit",
-        ethers.utils.parseEther("1000")
+        ethers.BigNumber.from(1000 * 10**8)
+        // ethers.utils.parseEther("1000")
     )
     await execute(
         "TracerPerpetualSwaps",
         { from: acc1, log: true },
         "deposit",
-        ethers.utils.parseEther("1000")
+        ethers.BigNumber.from(1000 * 10**8)
+        // ethers.utils.parseEther("1000")
     )
     console.log((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString())
     console.log("deployer and acc1 have deposited into perp swaps market")
