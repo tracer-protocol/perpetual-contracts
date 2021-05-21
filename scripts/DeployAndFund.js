@@ -11,7 +11,7 @@ async function main() {
     await deployments.fixture(["FullDeploy"])
 
     // get the deployed gov token and send it out
-    let govToken = await deployments.get("TestToken")
+    let govToken = await deployments.get("QuoteToken")
     govToken = await TestToken.at(govToken.address)
     for (var i = 0; i < 6; i++) {
         await govToken.transfer(accounts[i], web3.utils.toWei("200"))

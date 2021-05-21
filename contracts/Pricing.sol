@@ -20,8 +20,8 @@ contract Pricing is IPricing, Ownable {
     IOracle public oracle;
 
     // pricing metrics
-    Prices.PriceInstant[] internal hourlyTracerPrices;
-    Prices.PriceInstant[] internal hourlyOraclePrices;
+    Prices.PriceInstant[24] internal hourlyTracerPrices;
+    Prices.PriceInstant[24] internal hourlyOraclePrices;
 
     // funding index => funding rate
     mapping(uint256 => Prices.FundingRateInstant) public fundingRates;
