@@ -1,6 +1,34 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 
+/* integer bounds */
+const minimumInt = ethers.constants.MaxUint256.div(
+    ethers.BigNumber.from(2)
+).mul(ethers.BigNumber.from(-1))
+const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
+
+/* result set methods */
+function generateResultsForNetValue(positions, prices) {
+    var expectedNetValue = {}
+    for (const position in positions) {
+        for (const price in prices) {
+            if (shouldNetValueRevert(position, price)) {
+                expectedNetValue[position.toString()][price.toString()] = null
+            } else {
+                expectedNetValue[position.toString()][price.toString()] =
+                    position[1].abs().mul(price)
+            }
+        }
+    }
+
+    return expectedNetValue
+}
+
+/* reversion deciders */
+let shouldNetValueRevert = (position, price) => {
+    position[1] == minimumInt || price == maximumInt
+}
+
 describe("Unit tests: LibBalances.sol", function () {
     let libBalances
     let accounts
@@ -17,48 +45,27 @@ describe("Unit tests: LibBalances.sol", function () {
             deployment.address
         )
         accounts = await ethers.getSigners()
-
-        const minimumInt = ethers.constants.MaxUint256.div(
-            ethers.BigNumber.from(2)
-        ).mul(ethers.BigNumber.from(-1))
-        const maximumInt = ethers.constants.MaxUint256.div(
-            ethers.BigNumber.from(1)
-        )
-
-        positions = {
-            min: {
-                min: [minimumInt, minimumInt],
-                max: [minimumInt, maximumInt],
-                norm: [minimumInt, ethers.utils.parseEther("330")],
-            },
-            max: {
-                min: [maximumInt, minimumInt],
-                max: [maximumInt, maximumInt],
-                norm: [maximumInt, ethers.utils.parseEther("-5490")],
-            },
-            norm: {
-                min: [ethers.utils.parseEther("450"), minimumInt],
-                max: [ethers.utils.parseEther("450"), maximumInt],
-                norm: [
-                    ethers.utils.parseEther("450"),
-                    ethers.utils.parseEther("-880"),
-                ],
-            },
-        }
-
-        prices = {
-            min: ethers.utils.parseEther("0"),
-            max: ethers.constants.MaxUint256,
-            norm: ethers.utils.parseEther("7709"),
-        }
-
-        const normalBase = ethers.utils.parseEther("33")
-        const normalQuote = ethers.utils.parseEther("12")
-        normalPosition = [normalQuote, normalBase]
-
-        minimumPrice = ethers.utils.parseEther("0")
-        maximumPrice = ethers.constants.MaxInt256
-        normalPrice = ethers.utils.parseEther("300")
+    
+        /* sample sets */
+        positions = [
+            [minimumInt, minimumInt],
+            [minimumInt, maximumInt],
+            [minimumInt, ethers.utils.parseEther("330")],
+            [maximumInt, minimumInt],
+            [maximumInt, maximumInt],
+            [maximumInt, ethers.utils.parseEther("-4320")],
+            [ethers.utils.parseEther("88605"), minimumInt],
+            [ethers.utils.parseEther("-777584"), maximumInt],
+            [ethers.utils.parseEther("8889"), ethers.utils.parseEther("99763")],
+        ]
+        prices = [
+            ethers.utils.parseEther("0"),
+            ethers.constants.MaxUint256,
+            ethers.utils.parseEther("785321"),
+        ]
+        
+        /* expected result sets */
+        expectedNetValue = generateResultsForNetValue(positions, prices)
     })
 
     describe("netValue", async () => {
@@ -439,6 +446,35 @@ describe("Unit tests: LibBalances.sol", function () {
                 ).to.be.reverted
             }
         )
+
+        context("Test Parameterised", async () => {
+            it("Reverts", async () => {
+                for (position in positions) {
+                    for (price in prices) {
+                        if (shouldNetValueRevert(position, price)) {
+                            await expect(libBalances.netValue(position, price))
+                                .to.be.reverted
+                        }
+                    }
+                }
+            })
+
+            it("Returns the correct value", async () => {
+                for (position in positions) {
+                    for (price in prices) {
+                        if (!shouldNetValueRevert(position, price)) {
+                            await expect(
+                                libBalances.netValue(position, price)
+                            ).to.equal(
+                                expectedNetValue[position.toString()][
+                                    price.toString()
+                                ]
+                            )
+                        }
+                    }
+                }
+            })
+        })
     })
 
     describe("margin", async () => {
