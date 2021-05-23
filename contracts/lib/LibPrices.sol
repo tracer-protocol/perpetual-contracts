@@ -28,6 +28,7 @@ library Prices {
         pure
         returns (uint256)
     {
+        // todo should we enforce timeValue <= oraclePrice?
         return uint256(LibMath.abs(oraclePrice.toInt256() - timeValue));
     }
 
@@ -36,6 +37,8 @@ library Prices {
         pure
         returns (int256)
     {
+        // todo if averageOraclePrice > averageTracerPrice this will cast to zero
+        // this shouldn't be the case imo
         return int256((averageTracerPrice - averageOraclePrice) / 90);
     }
 
@@ -77,6 +80,7 @@ library Prices {
         }
     }
 
+    // todo it looks like this functionality is now wrong?
     function calculateTWAP(
         uint256 hour,
         PriceInstant[24] memory tracerPrices,
@@ -94,6 +98,7 @@ library Prices {
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
+            // todo since average price should return >= 0, these ifs should not be needed
             if (currDerivativePrice > 0) {
                 instantDerivative += currTimeWeight;
                 cumulativeDerivative += currTimeWeight * currDerivativePrice;
