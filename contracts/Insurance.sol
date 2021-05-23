@@ -22,6 +22,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     address public collateralAsset; // Address of collateral asset
     uint256 public collateralAmount; // amount of underlying collateral in pool, in WAD format
     address public token; // token representation of a users holding in the pool
+    uint256 public bufferAmount; // amount of buffer collateral in pool, in WAD format
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
@@ -98,6 +99,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 collateralAmount,
                 amount
             );
+
+        // TODO: add withdrawal fee for withdrawing from insurance pool
+        // uint256 poolTarget = getPoolTarget();
+        // uint256 withdrawalFee = PRBMathUD60x18.div(poolTarget - collateralAmount + wadTokensToSend, poolTarget);
 
         // convert token amount to raw amount from WAD
         uint256 tokensToSend =
