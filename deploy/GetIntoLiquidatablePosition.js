@@ -84,6 +84,6 @@ module.exports = async function (hre) {
     console.log("quote and base after trade")
     console.log(ethers.utils.formatEther((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString()))
     console.log(ethers.utils.formatEther((await read("TracerPerpetualSwaps", "balances", deployer)).position.base.toString()))
-    console.log((await read("TracerPerpetualSwaps", "balances", deployer)).lastUpdatedGasPrice.toString())
+    // console.log((await read("TracerPerpetualSwaps", "balances", deployer)).lastUpdatedGasPrice.toString())
 
 }
