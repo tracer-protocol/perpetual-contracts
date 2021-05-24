@@ -5,89 +5,104 @@ const { smockit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
+// create hardhat optimised feature
+const setup = deployments.createFixture(async () => {
+    const { deployer } = await getNamedAccounts()
+    _deployer = deployer
+    // deploy a test token
+    const TestToken = await ethers.getContractFactory("TestToken")
+    let testToken = await TestToken.deploy(ethers.utils.parseEther("100000000"))
+    await testToken.deployed()
+
+    // deploy mock tracer and libs
+    let libBalances = await deploy("Balances", {
+        from: deployer,
+        log: true,
+    })
+
+    let libPerpetuals = await deploy("Perpetuals", {
+        from: deployer,
+        log: true,
+    })
+
+    let libPrices = await deploy("Prices", {
+        from: deployer,
+        log: true,
+    })
+
+    // this deploy method is needed for mocking
+    const tracerContractFactory = await ethers.getContractFactory(
+        "TracerPerpetualSwaps",
+        {
+            libraries: {
+                Balances: libBalances.address,
+                Perpetuals: libPerpetuals.address,
+                Prices: libPrices.address,
+            },
+        }
+    )
+    const tracer = await tracerContractFactory.deploy(
+        ethers.utils.formatBytes32String("TEST/USD"),
+        testToken.address,
+        18,
+        zeroAddress,
+        1,
+        1,
+        1,
+        zeroAddress
+    )
+
+    let mockTracer = await smockit(tracer)
+
+    // mock tracer calls that are needed
+    // get balance for this account to return 0
+    // NOTE: If any test changes mocks, due to Hardhat fixture optimisations,
+    // the mock defaults set here WILL NOT be returned. You need to manually
+    // change the mock state back to its expected value at the end of the test.
+    mockTracer.smocked.getBalance.will.return.with({
+        position: { quote: 0, base: 0 }, //quote, base
+        totalLeveragedValue: 0, //total leverage
+        lastUpdatedIndex: 0, //last updated index
+        lastUpdatedGasPrice: 0, //last updated gas price
+    })
+
+    // token to return the testToken address
+    mockTracer.smocked.tracerQuoteToken.will.return.with(testToken.address)
+
+    // leveraged notional value to return 100
+    mockTracer.smocked.leveragedNotionalValue.will.return.with(
+        ethers.utils.parseEther("100")
+    )
+
+    // quote token decimals
+    mockTracer.smocked.quoteTokenDecimals.will.return.with(18)
+
+    // deposit and withdraw to return nothing
+    mockTracer.smocked.deposit.will.return()
+    mockTracer.smocked.withdraw.will.return()
+
+    // deploy insurance using mock tracer
+    const Insurance = await ethers.getContractFactory("Insurance")
+    let insurance = await Insurance.deploy(mockTracer.address)
+    await insurance.deployed()
+    return {
+        testToken,
+        mockTracer,
+        insurance,
+    }
+})
+
 describe("Unit tests: Insurance.sol", function () {
-    let testToken
-    let insurance
-    let mockTracer
     let accounts
-    let _deployer
+    let testToken
+    let mockTracer
+    let insurance
 
     beforeEach(async function () {
-        const { deployer } = await getNamedAccounts()
-        _deployer = deployer
-        // deploy a test token
-        const TestToken = await ethers.getContractFactory("TestToken")
-        testToken = await TestToken.deploy(ethers.utils.parseEther("100000000"))
-        await testToken.deployed()
-
-        // deploy mock tracer and libs
-        let libBalances = await deploy("Balances", {
-            from: deployer,
-            log: true,
-        })
-
-        let libPerpetuals = await deploy("Perpetuals", {
-            from: deployer,
-            log: true,
-        })
-
-        let libPrices = await deploy("Prices", {
-            from: deployer,
-            log: true,
-        })
-
-        // this deploy method is needed for mocking
-        const tracerContractFactory = await ethers.getContractFactory(
-            "TracerPerpetualSwaps",
-            {
-                libraries: {
-                    Balances: libBalances.address,
-                    Perpetuals: libPerpetuals.address,
-                    Prices: libPrices.address,
-                },
-            }
-        )
-        const tracer = await tracerContractFactory.deploy(
-            ethers.utils.formatBytes32String("TEST/USD"),
-            testToken.address,
-            18,
-            zeroAddress,
-            1,
-            1,
-            1,
-            zeroAddress
-        )
-
-        mockTracer = await smockit(tracer)
-
-        // mock tracer calls that are needed
-        // get balance for this account to return 0
-        mockTracer.smocked.getBalance.will.return.with({
-            position: { quote: 0, base: 0 }, //quote, base
-            totalLeveragedValue: 0, //total leverage
-            lastUpdatedIndex: 0, //last updated index
-            lastUpdatedGasPrice: 0, //last updated gas price
-        })
-
-        // token to return the testToken address
-        mockTracer.smocked.tracerQuoteToken.will.return.with(testToken.address)
-
-        // leveraged notional value to return 100
-        mockTracer.smocked.leveragedNotionalValue.will.return.with(
-            ethers.utils.parseEther("100")
-        )
-
-        // quote token decimals
-        mockTracer.smocked.quoteTokenDecimals.will.return.with(18)
-
-        // deposit and withdraw to return nothing
-        mockTracer.smocked.deposit.will.return()
-        mockTracer.smocked.withdraw.will.return()
-
-        // deploy insurance using mock tracer
-        const Insurance = await ethers.getContractFactory("Insurance")
-        insurance = await Insurance.deploy(mockTracer.address)
-        await insurance.deployed()
+        const _setup = await setup()
+        testToken = _setup.testToken
+        mockTracer = _setup.mockTracer
+        insurance = _setup.insurance
         accounts = await ethers.getSigners()
     })
 
@@ -210,6 +225,15 @@ describe("Unit tests: Insurance.sol", function () {
                 expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
                     ethers.utils.parseEther("1")
                 )
+
+                // reset the mock to its previous state
+                // override the mock to show tokens to pull
+                mockTracer.smocked.getBalance.will.return.with({
+                    position: { quote: 0, base: 0 }, //quote, base
+                    totalLeveragedValue: 0, //total leverage
+                    lastUpdatedIndex: 0, //last updated index
+                    lastUpdatedGasPrice: 0, //last updated gas price
+                })
             })
         })
 
@@ -235,6 +259,13 @@ describe("Unit tests: Insurance.sol", function () {
                 // mock ourselvse as the liquidation contract
                 mockTracer.smocked.liquidationContract.will.return.with(
                     accounts[0].address
+                )
+            })
+
+            after(async () => {
+                // return mock to its previous state
+                mockTracer.smocked.liquidationContract.will.return.with(
+                    zeroAddress
                 )
             })
             it("does nothing if there is less than 1 unit of collateral", async () => {
