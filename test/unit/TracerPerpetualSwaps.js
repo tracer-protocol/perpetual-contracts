@@ -8,6 +8,61 @@ const zeroAddress = "0x0000000000000000000000000000000000000000"
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
     // todo setup and mock appropriate functions
+    const { deployer } = await getNamedAccounts()
+
+    // deploy a test token
+    const TestToken = await ethers.getContractFactory("TestToken")
+    let testToken = await TestToken.deploy(ethers.utils.parseEther("100000000"))
+    await testToken.deployed()
+
+    // deploy libs
+    let libBalances = await deploy("Balances", {
+        from: deployer,
+        log: true,
+    })
+
+    let libPerpetuals = await deploy("Perpetuals", {
+        from: deployer,
+        log: true,
+    })
+
+    let libPrices = await deploy("Prices", {
+        from: deployer,
+        log: true,
+    })
+
+    // deploy mock insurance
+    
+    // deploy mock pricing
+
+    // deploy mock gas oracle
+
+    // deploy mock liquidation
+
+    // deploy the tracer
+    const tracerContractFactory = await ethers.getContractFactory(
+        "TracerPerpetualSwaps",
+        {
+            libraries: {
+                Balances: libBalances.address,
+                Perpetuals: libPerpetuals.address,
+                Prices: libPrices.address,
+            },
+        }
+    )
+    const tracer = await tracerContractFactory.deploy(
+        ethers.utils.formatBytes32String("TEST/USD"),
+        testToken.address,
+        18,
+        zeroAddress,
+        1,
+        1,
+        1,
+        zeroAddress
+    )
+
+    // mock calls for all our mocks that are needed
+
 })
 
 describe("Unit tests: Insurance.sol", function () {
