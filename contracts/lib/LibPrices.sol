@@ -23,12 +23,12 @@ library Prices {
         uint256 derivative;
     }
 
-    function fairPrice(uint256 oraclePrice, int256 timeValue)
+    function fairPrice(uint256 oraclePrice, int256 _timeValue)
         public
         pure
         returns (uint256)
     {
-        return uint256(LibMath.abs(oraclePrice.toInt256() - timeValue));
+        return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
@@ -67,19 +67,28 @@ library Prices {
     }
 
     function globalLeverage(
-        uint256 globalLeverage,
+        uint256 _globalLeverage,
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
         bool leverageHasIncreased = newLeverage > oldLeverage;
 
         if (leverageHasIncreased) {
-            return globalLeverage + (newLeverage - oldLeverage);
+            return _globalLeverage + (newLeverage - oldLeverage);
         } else {
-            return globalLeverage - (newLeverage - oldLeverage);
+            return _globalLeverage - (newLeverage - oldLeverage);
         }
     }
 
+    /**
+     * @notice calculates an 8 hour TWAP starting at the hour index amd moving
+     * backwards in time.
+     * @param hour the 24 hour index to start at
+     * @param tracerPrices the average hourly prices of the derivative over the last
+     * 24 hours
+     * @param oraclePrices the average hourly prices of the oracle over the last
+     * 24 hours
+     */
     function calculateTWAP(
         uint256 hour,
         PriceInstant[24] memory tracerPrices,
@@ -92,7 +101,9 @@ library Prices {
 
         for (uint256 i = 0; i < 8; i++) {
             uint256 currTimeWeight = 8 - i;
-            uint256 j = 8 - i;
+            // if hour < i loop back towards 0 from 23.
+            // otherwise move from hour towards 0
+            uint256 j = hour < i ? 23 - i + hour : hour - i;
 
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
