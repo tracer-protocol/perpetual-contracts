@@ -101,6 +101,11 @@ library Balances {
             return 0;
         }
 
+        // There should be no Minimum margin when user has no position
+        if (notionalValue == 0) {
+            return 0;
+        }
+
         uint256 liquidationGasCost = liquidationCost * 6;
 
         uint256 minimumMarginWithoutGasCost = notionalValue / maximumLeverage;
