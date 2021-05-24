@@ -445,7 +445,7 @@ contract TracerPerpetualSwaps is
         int256 quote,
         int256 base,
         uint256 gasPrice
-    ) public view returns (bool) {
+    ) public  returns (bool) {
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
         Balances.Position memory pos = Balances.Position(quote, base);
@@ -471,7 +471,7 @@ contract TracerPerpetualSwaps is
      * @param account The address of the account whose margin is to be checked
      * @return true if the margin is valid or false otherwise
      */
-    function userMarginIsValid(address account) public view returns (bool) {
+    function userMarginIsValid(address account) public  returns (bool) {
         Balances.Account memory accountBalance = balances[account];
         return
             marginIsValid(
@@ -483,7 +483,7 @@ contract TracerPerpetualSwaps is
 
     function getBalance(address account)
         public
-        view
+        
         override
         returns (Balances.Account memory)
     {

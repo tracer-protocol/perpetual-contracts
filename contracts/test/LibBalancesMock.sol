@@ -6,7 +6,7 @@ import "../lib/LibBalances.sol";
 contract LibBalancesMock {
     function netValue(Balances.Position calldata position, uint256 price)
         external
-        pure
+        
         returns (uint256)
     {
         return Balances.netValue(position, price);
@@ -14,7 +14,7 @@ contract LibBalancesMock {
 
     function margin(Balances.Position calldata position, uint256 price)
         external
-        pure
+        
         returns (int256)
     {
         return Balances.margin(position, price);
@@ -23,7 +23,7 @@ contract LibBalancesMock {
     function leveragedNotionalValue(
         Balances.Position calldata position,
         uint256 price
-    ) external pure returns (uint256) {
+    ) external  returns (uint256) {
         return Balances.leveragedNotionalValue(position, price);
     }
 
@@ -32,7 +32,7 @@ contract LibBalancesMock {
         uint256 price,
         uint256 liquidationCost,
         uint256 maximumLeverage
-    ) external pure returns (uint256) {
+    ) external  returns (uint256) {
         return
             Balances.minimumMargin(
                 position,
@@ -46,7 +46,7 @@ contract LibBalancesMock {
         Balances.Position calldata position,
         Balances.Trade calldata trade,
         uint256 feeRate
-    ) external pure returns (Balances.Position memory) {
+    ) external  returns (Balances.Position memory) {
         return Balances.applyTrade(position, trade, feeRate);
     }
 }

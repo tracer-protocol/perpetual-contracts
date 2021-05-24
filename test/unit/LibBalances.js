@@ -7,6 +7,21 @@ const minimumInt = ethers.constants.MaxUint256.div(
 ).mul(ethers.BigNumber.from(-1))
 const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
 
+function generateResults(func, params) {
+    /* dynamic dispatch! */
+    switch (func) {
+        case "netValue":
+            return generateResultsForNetValue(
+                params["positions"],
+                params["prices"]
+            )
+            break
+        default:
+            return {} /* error, invalid function! */
+            break
+    }
+}
+
 /* result set methods */
 function generateResultsForNetValue(positions, prices) {
     var expectedNetValue = {}
@@ -53,6 +68,7 @@ describe("Unit tests: LibBalances.sol", function () {
 
     let positions
     let prices
+    let expectedValues
 
     before(async function () {
         await deployments.fixture(["LibBalancesMock"])
@@ -91,8 +107,20 @@ describe("Unit tests: LibBalances.sol", function () {
             norm: ethers.utils.parseEther("785321"),
         }
 
-        /* expected result sets */
-        expectedNetValue = generateResultsForNetValue(positions, prices)
+        /* generate result sets */
+        expectedValues = {}
+        var functionsUnderTest = ["netValue"]
+
+        for (let i = 0; i < functionsUnderTest.length; i++) {
+            var func = functionsUnderTest[i]
+
+            expectedValues[func] = generateResults(func, {
+                positions: positions,
+                prices: prices,
+            })
+        }
+
+        expectedValues = generateResults()
     })
 
     describe("netValue", async () => {
@@ -487,8 +515,10 @@ describe("Unit tests: LibBalances.sol", function () {
             })
 
             it("Returns the correct value", async () => {
+                var expectedNetValue = expectedValues["netValue"]
+
                 for (const quoteType in positions) {
-                    for (const baseType in position[quoteType]) {
+                    for (const baseType in positions[quoteType]) {
                         for (const priceType in prices) {
                             var position = positions[quoteType][baseType]
                             var price = prices[priceType]
