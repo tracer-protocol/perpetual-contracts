@@ -101,7 +101,9 @@ library Prices {
 
         for (uint256 i = 0; i < 8; i++) {
             uint256 currTimeWeight = 8 - i;
-            uint256 j = hour < i ? 23 : hour - i;
+            // if hour < i loop back towards 0 from 23.
+            // otherwise move from hour towards 0
+            uint256 j = hour < i ? 23 - i + hour : hour - i;
 
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
