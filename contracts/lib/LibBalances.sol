@@ -96,12 +96,12 @@ library Balances {
         uint256 liquidationCost,
         uint256 maximumLeverage
     ) public pure returns (uint256) {
-        uint256 notionalValue = netValue(position, price);
-
         // There should be no Minimum margin when user has no position
-        if (notionalValue == 0) {
+        if (position.base == 0) {
             return 0;
         }
+
+        uint256 notionalValue = netValue(position, price);
 
         uint256 liquidationGasCost = liquidationCost * 6;
 
