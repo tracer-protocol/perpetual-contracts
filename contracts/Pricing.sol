@@ -7,13 +7,13 @@ import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
-import "prb-math/contracts/PRBMathUD60x18.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Pricing is IPricing, Ownable {
     using LibMath for uint256;
     using LibMath for int256;
-    using PRBMathUD60x18 for uint256;
+    using PRBMathSD59x18 for int256;
 
     address public tracer;
     IInsurance public insurance;
@@ -87,20 +87,10 @@ contract Pricing is IPricing, Ownable {
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // Update the price to a new entry and funding rate every hour
-            // Check current hour and loop around if need be
-            if (currentHour == 23) {
-                currentHour = 0;
-            } else {
-                currentHour = currentHour + 1;
-            }
             // Update pricing and funding rate states
             updatePrice(tradePrice, currentOraclePrice, true);
 
-            // todo contract needs to take in the insurance pool
-            int256 poolFundingRate = insurance.getPoolFundingRate().toInt256();
-
-            updateFundingRate(currentOraclePrice, poolFundingRate);
+            updateFundingRate(currentOraclePrice);
 
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
@@ -108,7 +98,14 @@ contract Pricing is IPricing, Ownable {
                 startLast24Hours = block.timestamp;
             }
 
+            // update time metrics after all other state
             startLastHour = block.timestamp;
+            // Check current hour and loop around if need be
+            if (currentHour == 23) {
+                currentHour = 0;
+            } else {
+                currentHour = currentHour + 1;
+            }
         } else {
             // Update old pricing entry
             updatePrice(tradePrice, currentOraclePrice, false);
@@ -158,20 +155,23 @@ contract Pricing is IPricing, Ownable {
     /**
      * @notice Updates the funding rate and the insurance funding rate
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
-     * @param iPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
      */
-    function updateFundingRate(uint256 oraclePrice, int256 iPoolFundingRate)
-        internal
-    {
+    function updateFundingRate(uint256 oraclePrice) internal {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
         Prices.TWAP memory twapPrices = getTWAPs(currentHour);
+        int256 iPoolFundingRate = insurance.getPoolFundingRate().toInt256();
         uint256 underlyingTWAP = twapPrices.underlying;
         uint256 derivativeTWAP = twapPrices.derivative;
+
         int256 newFundingRate =
-            (derivativeTWAP.toInt256() -
-                underlyingTWAP.toInt256() -
-                timeValue) * (_tracer.fundingRateSensitivity().toInt256());
+            PRBMathSD59x18.mul(
+                derivativeTWAP.toInt256() -
+                    underlyingTWAP.toInt256() -
+                    timeValue,
+                _tracer.fundingRateSensitivity().toInt256()
+            );
+
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex - 1;
 
@@ -179,7 +179,8 @@ contract Pricing is IPricing, Ownable {
         int256 currentFundingRateValue =
             fundingRates[fundingIndex].cumulativeFundingRate;
         int256 cumulativeFundingRate =
-            currentFundingRateValue + (newFundingRate * oraclePrice.toInt256());
+            currentFundingRateValue +
+                PRBMathSD59x18.mul(newFundingRate, oraclePrice.toInt256());
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue =
