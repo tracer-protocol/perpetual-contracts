@@ -72,6 +72,10 @@ module.exports = async function (hre) {
         0, // created
     ]
 
+    console.log("quote and base before trade")
+    console.log(ethers.utils.formatEther((await read("TracerPerpetualSwaps", "balances", deployer)).position.quote.toString()))
+    console.log(ethers.utils.formatEther((await read("TracerPerpetualSwaps", "balances", deployer)).position.base.toString()))
+
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
