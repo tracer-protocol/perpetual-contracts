@@ -129,11 +129,13 @@ describe("Unit tests: LibPrices.sol", function () {
                 let average = 0;
 
                 for (i = 0; i < 24; i++) {
-                    let yeet = [ethers.utils.parseEther(i.toString()), ethers.BigNumber.from(i.toString())];
-                    prices += yeet;
+                    prices.push([ethers.utils.parseEther(i.toString()), ethers.BigNumber.from(i.toString())]);
+                    average += 1;
                 }
 
-                // expect(libPrices.averagePriceForPeriod(prices)).to.equal(ethers.BigNumber.from("24"));
+                let result = await libPrices.averagePriceForPeriod(prices);
+
+                expect(result.toString()).to.equal((ethers.BigNumber.from(24)).toString());
             })
         })
 
@@ -181,7 +183,7 @@ describe("Unit tests: LibPrices.sol", function () {
     describe("calculateTwap", async () => {
         context("returns as expected"), async() => {
             it("", async() => {
-
+                
             })
         }
     })

@@ -163,9 +163,9 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    let maxLeverage = new ethers.BigNumber.from("125000").toString()
+    let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("8").toString()
-    let feeRate = "5000000000000000000" // 5 percent
+    let feeRate = 0 // 0 percent
     let fundingRateSensitivity = 1
 
     const tracer = await deploy("TracerPerpetualSwaps", {

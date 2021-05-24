@@ -14,7 +14,7 @@ contract LibPricesMock {
 
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
         public
-        pure
+        view
         returns (int256)
     {
         return Prices.timeValue(averageTracerPrice, averageOraclePrice);
