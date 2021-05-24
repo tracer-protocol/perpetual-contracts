@@ -1,12 +1,69 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 
+const halfLiquidate = deployments.createFixture(async () => {
+    const { deployer } = await getNamedAccounts()
+    accounts = await ethers.getSigners()
+    const { tracerPerps, liquidation } = await baseLiquidatablePosition()
+    console.log("1")
+    const halfBase = (await tracerPerps.getBalance(deployer)).position.base.div(
+        2
+    )
+    console.log("2")
+    console.log(halfBase.toString())
+    const tx = await liquidation
+        .connect(accounts[1])
+        .liquidate(halfBase, deployer)
+    console.log("3")
+    console.log(tx)
+    const base = (await tracerPerps.getBalance(deployer)).position.base
+
+    return { tracerPerps, liquidation }
+})
+
+const baseLiquidatablePosition = async () => {
+    await deployments.fixture("GetIntoLiquidatablePosition")
+    const { deployer } = await getNamedAccounts()
+    accounts = await ethers.getSigners()
+    const tracerPerpsDeployment = await deployments.get("TracerPerpetualSwaps")
+    let tracerPerpsInstance = await ethers.getContractAt(
+        tracerPerpsDeployment.abi,
+        tracerPerpsDeployment.address
+    )
+    tracerPerpsInstance.connect(deployer)
+    const liquidationDeployment = await deployments.get("Liquidation")
+    let liquidationInstance = await ethers.getContractAt(
+        liquidationDeployment.abi,
+        liquidationDeployment.address
+    )
+    // liquidationInstance.connect(deployer)
+    const contracts = {
+        tracerPerps: tracerPerpsInstance,
+        liquidation: liquidationInstance,
+    }
+
+    return contracts
+}
+
 describe("Liquidation functional tests", async () => {
+    let accounts
+    let tracerPerps
+    let liquidation
+    before(async function () {
+        accounts = await ethers.getSigners()
+    })
+    beforeEach(async function () {
+        const liquidateState = await halfLiquidate()
+        tracerPerps = liquidateState.tracerPerps
+        liquidation = liquidateState.liquidation
+    })
     context("calcAmountToReturn", async () => {
         context(
             "when units sold is greater than liquidation amount",
             async () => {
-                it("Reverts ", async () => {})
+                it("Reverts ", async () => {
+                    console.log(await liquidation.liquidationReceipts(0))
+                })
             }
         )
 

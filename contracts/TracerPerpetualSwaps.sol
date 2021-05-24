@@ -305,6 +305,10 @@ contract TracerPerpetualSwaps is
         Balances.Account storage liquidatorBalance = balances[liquidator];
         Balances.Account storage liquidateeBalance = balances[liquidatee];
 
+        console.log("liquidator balance: ");
+        // console.logInt(liquidatorBalance.position.quote);
+        console.logInt(liquidatorBalance.position.base);
+        console.logInt(liquidatorBaseChange);
         // update liquidators balance
         liquidatorBalance.lastUpdatedGasPrice = gasPrice;
         liquidatorBalance.position.quote =
@@ -314,6 +318,22 @@ contract TracerPerpetualSwaps is
         liquidatorBalance.position.base =
             liquidatorBalance.position.base +
             liquidatorBaseChange;
+        console.log("AFTER");
+        // console.logInt(liquidatorBalance.position.quote);
+        console.logInt(liquidatorBalance.position.base);
+
+        uint256 gasCost =
+            liquidatorBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST;
+        uint256 price = pricingContract.fairPrice();
+
+        /*
+        console.logUint(Balances.minimumMargin(liquidatorBalance.position, price, gasCost, maxLeverage));
+        console.logInt(Balances.margin(liquidatorBalance.position, price));
+        */
+
+        console.log("liquidatee balance: ");
+        // console.logInt(liquidateeBalance.position.quote);
+        console.logInt(liquidateeBalance.position.base);
 
         // update liquidatee balance
         liquidateeBalance.position.quote =
@@ -322,6 +342,9 @@ contract TracerPerpetualSwaps is
         liquidateeBalance.position.base =
             liquidateeBalance.position.base +
             liquidateeBaseChange;
+        console.log("AFTER");
+        // console.logInt(liquidateeBalance.position.quote);
+        console.logInt(liquidateeBalance.position.base);
 
         // Checks if the liquidator is in a valid position to process the liquidation
         require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
@@ -447,7 +470,7 @@ contract TracerPerpetualSwaps is
         int256 quote,
         int256 base,
         uint256 gasPrice
-    ) public view returns (bool) {
+    ) public returns (bool) {
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
         Balances.Position memory pos = Balances.Position(quote, base);
@@ -463,6 +486,11 @@ contract TracerPerpetualSwaps is
         if (minMargin == 0) {
             return true;
         }
+        /*
+        console.log("margin");
+        console.logInt(margin);
+        console.logUint(minMargin);
+        */
 
         // todo CASTING CHECK
         return margin > minMargin.toInt256();
@@ -473,7 +501,7 @@ contract TracerPerpetualSwaps is
      * @param account The address of the account whose margin is to be checked
      * @return true if the margin is valid or false otherwise
      */
-    function userMarginIsValid(address account) public view returns (bool) {
+    function userMarginIsValid(address account) public returns (bool) {
         Balances.Account memory accountBalance = balances[account];
         return
             marginIsValid(

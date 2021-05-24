@@ -105,21 +105,21 @@ module.exports = async function (hre) {
     console.log(
         ethers.utils.formatEther(
             (
-                await read("TracerPerpetualSwaps", "balances", deployer)
+                await read("TracerPerpetualSwaps", "balances", acc1)
             ).position.quote.toString()
         )
     )
     console.log(
         ethers.utils.formatEther(
             (
-                await read("TracerPerpetualSwaps", "balances", deployer)
+                await read("TracerPerpetualSwaps", "balances", acc1)
             ).position.base.toString()
         )
     )
     console.log(
         ethers.utils.formatEther(
             (
-                await read("TracerPerpetualSwaps", "balances", deployer)
+                await read("TracerPerpetualSwaps", "balances", acc1)
             ).lastUpdatedGasPrice.toString()
         )
     )
@@ -137,3 +137,5 @@ module.exports = async function (hre) {
     ).toString()
     console.log(marginIsValid)
 }
+
+module.exports.tags = ["GetIntoLiquidatablePosition"]

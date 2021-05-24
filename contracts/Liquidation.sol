@@ -12,6 +12,8 @@ import "./Interfaces/IOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
+import "hardhat/console.sol";
+
 /**
  * Each call enforces that the contract calling the account is only updating the balance
  * of the account for that contract.
@@ -253,6 +255,17 @@ contract Liquidation is ILiquidation, Ownable {
     function liquidate(int256 amount, address account) external override {
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
+        console.log("");
+        console.log("liquidatedBase");
+        console.logInt(liquidatedBalance.position.base);
+        console.log("");
+
+        Balances.Account memory liquidatorBalance =
+            tracer.getBalance(msg.sender);
+        console.log("");
+        console.log("liquidatorBase");
+        console.logInt(liquidatorBalance.position.base);
+        console.log("");
 
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
@@ -275,6 +288,15 @@ contract Liquidation is ILiquidation, Ownable {
                 liquidatedBalance.position.base,
                 amount
             );
+        console.log();
+        console.log("liquidatorQuoteChange");
+        console.logInt(liquidatorQuoteChange);
+        console.log("liquidatorBaseChange");
+        console.logInt(liquidatorBaseChange);
+        console.log("liquidateeQuoteChange");
+        console.logInt(liquidateeQuoteChange);
+        console.log("liquidateeBaseChange");
+        console.logInt(liquidateeBaseChange);
 
         tracer.updateAccountsOnLiquidation(
             msg.sender,
