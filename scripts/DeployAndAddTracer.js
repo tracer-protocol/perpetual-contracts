@@ -8,8 +8,8 @@ async function main() {
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
     let maxLeverage = new ethers.BigNumber.from("125000").toString()
-    let tokenDecimals = new ethers.BigNumber.from("1000000").toString()
-    let feeRate = "5000000000000000000" // 5 percent
+    let maxLeverage = ethers.utils.parseEther("12.5")
+    let feeRate = 0 // 0 percent
     let maxLiquidationSlippage = "50000000000000000000" // 50 percent
     let fundingRateSensitivity = 1
     let gasPriceOracle = await deployments.get("Oracle")
@@ -20,7 +20,7 @@ async function main() {
         factory.address,
         factory.abi
     ).connect(deployer)
-    let token = await deployments.get("TestToken")
+    let token = await deployments.get("QuoteToken")
 
     //Deploy a new Tracer contract per test
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
@@ -32,6 +32,7 @@ async function main() {
             "uint256", //_maxLeverage,
             "uint256", //_fundingRateSensitivity,
             "uint256", //_feeRate
+            "address", // _feeReceiver
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -41,6 +42,7 @@ async function main() {
             maxLeverage,
             fundingRateSensitivity,
             feeRate,
+            deployer.address,
         ]
     )
     await factoryInstance.deployTracer(

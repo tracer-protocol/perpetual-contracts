@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "hardhat/console.sol";
 
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using LibMath for uint256;
@@ -37,13 +38,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     );
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
-    constructor(address _tracer, address _perpsFactory) Ownable() {
-        perpsFactory = ITracerPerpetualsFactory(_perpsFactory);
-        require(
-            perpsFactory.validTracers(_tracer),
-            "Pool not deployed by perpsFactory"
-        );
-
+    constructor(address _tracer) Ownable() {
         tracer = ITracerPerpetualSwaps(_tracer);
         InsurancePoolToken _token =
             new InsurancePoolToken("Tracer Pool Token", "TPT");
@@ -187,8 +182,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     /**
      * @notice Gets the 8 hour funding rate for an insurance pool
-     * @dev the funding rate is represented as 0.0036523 * (insurance_fund_target - insurance_fund_holdings) / leveraged_notional_value)
-     *      To preserve precision, the rate is multiplied by 10^7.
+     * @dev the funding rate is represented as
+     *      0.0036523 * (insurance_fund_target - insurance_fund_holdings) / leveraged_notional_value)
      */
     function getPoolFundingRate() external view override returns (uint256) {
         // 0.0036523 as a WAD = 36523 * (10**11)

@@ -5,6 +5,7 @@ import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
+import "./lib/LibPrices.sol";
 import "./lib/LibPerpetuals.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
@@ -25,7 +26,7 @@ contract TracerPerpetualSwaps is
     using PRBMathSD59x18 for int256;
     using PRBMathUD60x18 for uint256;
 
-    uint256 public override fundingRateSensitivity;
+    uint256 public override fundingRateSensitivity; //WAD value. sensitivity of 1 = 1*10^18
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     // todo ensure these are fine being immutable
     address public immutable override tracerQuoteToken;
@@ -35,6 +36,8 @@ contract TracerPerpetualSwaps is
     IInsurance public insuranceContract;
     address public override liquidationContract;
     uint256 public override feeRate;
+    uint256 public fees;
+    address public feeReceiver;
 
     // Config variables
     address public override gasPriceOracle;
@@ -52,6 +55,7 @@ contract TracerPerpetualSwaps is
     mapping(address => bool) public override tradingWhitelist;
 
     event FeeReceiverUpdated(address receiver);
+    event FeeWithdrawn(address receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
@@ -64,7 +68,7 @@ contract TracerPerpetualSwaps is
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market. Min margin is derived from this
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
-     * @param _feeRate the fee to be taken on trades in this market
+     * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      */
     constructor(
         bytes32 _marketId,
@@ -73,7 +77,8 @@ contract TracerPerpetualSwaps is
         address _gasPriceOracle,
         uint256 _maxLeverage,
         uint256 _fundingRateSensitivity,
-        uint256 _feeRate
+        uint256 _feeRate,
+        address _feeReceiver
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
         tracerQuoteToken = _tracerQuoteToken;
@@ -83,6 +88,7 @@ contract TracerPerpetualSwaps is
         feeRate = _feeRate;
         maxLeverage = _maxLeverage;
         fundingRateSensitivity = _fundingRateSensitivity;
+        feeReceiver = _feeReceiver;
     }
 
     /**
@@ -204,24 +210,44 @@ contract TracerPerpetualSwaps is
         Balances.Account storage account1 = balances[order1.maker];
         Balances.Account storage account2 = balances[order2.maker];
 
+        int256 fee =
+            PRBMathUD60x18
+                .mul(uint256(quoteChange), uint256(feeRate))
+                .toInt256();
+
         /* TODO: handle every enum arm! */
         if (order1.side == Perpetuals.Side.Long) {
             // user 1 is long. Increase base, decrease quote
-            account1.position.quote = account1.position.quote - quoteChange;
+            account1.position.quote =
+                account1.position.quote -
+                quoteChange -
+                fee;
             account1.position.base = account1.position.base + _fillAmount;
 
             // user 2 is short. Increase quote, decrease base
-            account2.position.quote = account2.position.quote + quoteChange;
+            account2.position.quote =
+                account2.position.quote +
+                quoteChange -
+                fee;
             account2.position.base = account2.position.base - _fillAmount;
         } else {
             // user 1 is short. Increase quote, decrease base
-            account1.position.quote = account1.position.quote + quoteChange;
+            account1.position.quote =
+                account1.position.quote +
+                quoteChange -
+                fee;
             account1.position.base = account1.position.base - _fillAmount;
 
             // user 2 is long. Increase base, decrease quote
-            account2.position.quote = account2.position.quote - quoteChange;
+            account2.position.quote =
+                account2.position.quote -
+                quoteChange -
+                fee;
             account2.position.base = account2.position.base + _fillAmount;
         }
+
+        // Add fee into fees
+        fees = fees + uint256(fee * 2);
     }
 
     /**
@@ -254,39 +280,11 @@ contract TracerPerpetualSwaps is
         uint256 accountNewLeveragedNotional,
         uint256 accountOldLeveragedNotional
     ) internal {
-        /*
-        Update notional value
-        Method:
-        For both maker and taker, calculate the new leveraged notional value, as well as their change
-        in leverage. In 3 cases, this should update the global leverage. There are only 3 cases since we don"t
-        want the contract to store negative leverage (over collateralized accounts should not zero out leveraged accounts)
-        
-        Cases are:
-        a. New leverage is positive and the accounts previous leveraged was positive (leverage increase)
-        total contract leverage has increased by the difference between these two (delta)
-        b. new leveraged is positive, and old leverage was negative (leverage increase)
-        total contract leverage has increased by the difference between zero and the new leverage
-        c. new leverage is negative, the change in leverage is negative, but the old leverage was positive (leverage decrease)
-        total contract leverage has decreased by the difference between the old leverage and zero
-        (which is the old leveraged value)
-        */
-
-        // todo CASTING CHECK
-        int256 _newLeverage = accountNewLeveragedNotional.toInt256();
-        int256 _oldLeverage = accountOldLeveragedNotional.toInt256();
-        int256 accountDelta = _newLeverage - _oldLeverage;
-        int256 _levNotionalValue = 0;
-        if (_newLeverage > 0 && _oldLeverage >= 0) {
-            _levNotionalValue = _levNotionalValue + accountDelta;
-        } else if (_newLeverage > 0 && _oldLeverage < 0) {
-            _levNotionalValue = _levNotionalValue + _newLeverage;
-        } else if (_newLeverage <= 0 && accountDelta < 0 && _oldLeverage > 0) {
-            _levNotionalValue = _levNotionalValue - _oldLeverage;
-        }
-
-        leveragedNotionalValue = _levNotionalValue > 0
-            ? uint256(_levNotionalValue)
-            : 0;
+        leveragedNotionalValue = Prices.globalLeverage(
+            leveragedNotionalValue,
+            accountOldLeveragedNotional,
+            accountNewLeveragedNotional
+        );
     }
 
     function updateAccountsOnLiquidation(
@@ -356,7 +354,7 @@ contract TracerPerpetualSwaps is
      * @dev Ensures the account remains in a valid margin position. Will throw if account is under margin
      *      and the account must then be liquidated.
      * @param account the address to settle.
-     * @dev This function aggregates data to feed into account.sol"s settle function which sets
+     * @dev This function aggregates data to feed into account.sols settle function which sets
      */
     function settle(address account) public override {
         // Get account and global last updated indexes
@@ -371,17 +369,17 @@ contract TracerPerpetualSwaps is
              Note: global rates reference the last fully established rate (hence the -1), and not
              the current global rate. User rates reference the last saved user rate
             */
-            (, , , int256 currentGlobalRate) =
+            Prices.FundingRateInstant memory currGlobalRate =
                 pricingContract.getFundingRate(
                     pricingContract.currentFundingIndex() - 1
                 );
-            (, , , int256 currentUserRate) =
+            Prices.FundingRateInstant memory currUserRate =
                 pricingContract.getFundingRate(accountLastUpdatedIndex);
-            (, , , int256 currentInsuranceGlobalRate) =
+            Prices.FundingRateInstant memory currInsuranceGlobalRate =
                 pricingContract.getInsuranceFundingRate(
                     pricingContract.currentFundingIndex() - 1
                 );
-            (, , , int256 currentInsuranceUserRate) =
+            Prices.FundingRateInstant memory currInsuranceUserRate =
                 pricingContract.getInsuranceFundingRate(
                     accountLastUpdatedIndex
                 );
@@ -394,7 +392,8 @@ contract TracerPerpetualSwaps is
             // todo pretty much all of the below should be in a library
 
             // Calc the difference in funding rates, remove price multiply factor
-            int256 fundingDiff = currentGlobalRate - currentUserRate;
+            int256 fundingDiff =
+                currGlobalRate.fundingRate - currUserRate.fundingRate;
 
             // quote - (fundingDiff * base)
             accountBalance.position.quote =
@@ -409,7 +408,8 @@ contract TracerPerpetualSwaps is
                 // todo CASTING CHECK
                 int256 changeInInsuranceBalance =
                     PRBMathSD59x18.mul(
-                        currentInsuranceGlobalRate - currentInsuranceUserRate,
+                        currInsuranceGlobalRate.fundingRate -
+                            currInsuranceUserRate.fundingRate,
                         accountBalance.totalLeveragedValue.toInt256()
                     );
 
@@ -508,6 +508,25 @@ contract TracerPerpetualSwaps is
 
     function setGasOracle(address _gasOracle) public override onlyOwner {
         gasPriceOracle = _gasOracle;
+    }
+
+    function setFeeReceiver(address receiver) public override onlyOwner {
+        feeReceiver = receiver;
+        emit FeeReceiverUpdated(receiver);
+    }
+
+    function withdrawFee() public override {
+        require(
+            feeReceiver == msg.sender,
+            "Only feeReceiver can withdraw fees"
+        );
+
+        uint256 tempFees = fees;
+        fees = 0;
+
+        // Withdraw from the account
+        IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees);
+        emit FeeWithdrawn(feeReceiver, tempFees);
     }
 
     function setFeeRate(uint256 _feeRate) public override onlyOwner {

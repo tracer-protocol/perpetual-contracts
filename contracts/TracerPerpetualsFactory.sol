@@ -89,7 +89,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
         // Instantiate Insurance contract for tracer
         address insurance =
-            IInsuranceDeployer(insuranceDeployer).deploy(market, address(this));
+            IInsuranceDeployer(insuranceDeployer).deploy(market);
         address pricing =
             IPricingDeployer(pricingDeployer).deploy(market, insurance, oracle);
         address liquidation =

@@ -2,7 +2,5 @@
 pragma solidity ^0.8.0;
 
 interface IInsuranceDeployer {
-    function deploy(address tracer, address perpsFactory)
-        external
-        returns (address);
+    function deploy(address tracer) external returns (address);
 }

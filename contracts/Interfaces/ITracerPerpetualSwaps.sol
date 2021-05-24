@@ -61,6 +61,10 @@ interface ITracerPerpetualSwaps {
 
     function setFeeRate(uint256 _feeRate) external;
 
+    function setFeeReceiver(address receiver) external;
+
+    function withdrawFee() external;
+
     function setMaxLeverage(uint256 _maxLeverage) external;
 
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity)

@@ -30,7 +30,8 @@ contract PerpsDeployerV1 is IPerpsDeployer {
                 _gasPriceOracle,
                 _maxLeverage,
                 _fundingRateSensitivity,
-                _feeRate
+                _feeRate,
+                msg.sender
             );
         tracer.transferOwnership(msg.sender);
         return address(tracer);
