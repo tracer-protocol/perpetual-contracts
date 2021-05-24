@@ -7,12 +7,31 @@ const minimumInt = ethers.constants.MaxUint256.div(
 ).mul(ethers.BigNumber.from(-1))
 const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
 
+function generateResults(func, params) {
+    /* dynamic dispatch! */
+    switch (func) {
+        case "netValue":
+            return generateResultsForNetValue(
+                params["positions"],
+                params["prices"]
+            )
+            break
+        default:
+            return {} /* error, invalid function! */
+            break
+    }
+}
+
 /* result set methods */
 function generateResultsForNetValue(positions, prices) {
-    var expectedNetValue = {}
+    let expectedNetValue = {}
 
     for (const quoteType in positions) {
+        expectedNetValue[quoteType] = {}
+
         for (const baseType in positions[quoteType]) {
+            expectedNetValue[quoteType][baseType] = {}
+
             for (const priceType in prices) {
                 var position = positions[quoteType][baseType]
                 var base = position[1]
@@ -20,14 +39,8 @@ function generateResultsForNetValue(positions, prices) {
 
                 /* if the current test case should revert, mark with sentinel */
                 if (shouldNetValueRevert(position, price)) {
-                    expectedNetValue[quoteType][priceType] = null
+                    expectedNetValue[quoteType][baseType][priceType] = null 
                 } else {
-                    /* avoids `undefined` below */
-                    expectedNetValue[quoteType] = {}
-
-                    /* avoids `undefined` below */
-                    expectedNetValue[quoteType][baseType] = {}
-
                     /* essentially reproducing `netValue`'s body - I feel this is
                      * justified as the code subject to testing here is guaranteed
                      * to be pure */
@@ -53,6 +66,7 @@ describe("Unit tests: LibBalances.sol", function () {
 
     let positions
     let prices
+    let expectedValues
 
     before(async function () {
         await deployments.fixture(["LibBalancesMock"])
@@ -91,8 +105,18 @@ describe("Unit tests: LibBalances.sol", function () {
             norm: ethers.utils.parseEther("785321"),
         }
 
-        /* expected result sets */
-        expectedNetValue = generateResultsForNetValue(positions, prices)
+        /* generate result sets */
+        expectedValues = {}
+        var functionsUnderTest = ["netValue"]
+
+        for (let i = 0; i < functionsUnderTest.length; i++) {
+            var func = functionsUnderTest[i]
+
+            expectedValues[func] = generateResults(func, {
+                positions: positions,
+                prices: prices,
+            })
+        }
     })
 
     describe("netValue", async () => {
@@ -487,9 +511,12 @@ describe("Unit tests: LibBalances.sol", function () {
             })
 
             it("Returns the correct value", async () => {
+                expectedNetValue = expectedValues["netValue"]
                 for (const quoteType in positions) {
-                    for (const baseType in position[quoteType]) {
+                    for (const baseType in positions[quoteType]) {
                         for (const priceType in prices) {
+                            console.log(expectedNetValue[quoteType][baseType][priceType]); // DEBUG
+
                             var position = positions[quoteType][baseType]
                             var price = prices[priceType]
 
@@ -497,7 +524,7 @@ describe("Unit tests: LibBalances.sol", function () {
                                 await expect(
                                     libBalances.netValue(position, price)
                                 ).to.equal(
-                                    expectedNetValue[quoteType][baseType][price]
+                                    expectedNetValue[quoteType][baseType][priceType]
                                 )
                             }
                         }
