@@ -6,7 +6,6 @@ import "../Interfaces/Types.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "./LibPerpetuals.sol";
-import "hardhat/console.sol";
 
 library Balances {
     using LibMath for int256;
@@ -36,10 +35,9 @@ library Balances {
 
     function netValue(Position calldata position, uint256 price)
         public
+        pure
         returns (uint256)
     {
-        console.logInt(position.base);
-        console.logUint(price);
         /* cast is safe due to semantics of `abs` */
         return PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price);
     }
@@ -51,7 +49,7 @@ library Balances {
      */
     function margin(Position calldata position, uint256 price)
         public
-        
+        pure
         returns (int256)
     {
         /*
@@ -77,7 +75,7 @@ library Balances {
      */
     function leveragedNotionalValue(Position calldata position, uint256 price)
         public
-        
+        pure
         returns (uint256)
     {
         uint256 notionalValue = netValue(position, price);
@@ -97,7 +95,7 @@ library Balances {
         uint256 price,
         uint256 liquidationCost,
         uint256 maximumLeverage
-    ) public  returns (uint256) {
+    ) public pure returns (uint256) {
         uint256 notionalValue = netValue(position, price);
 
         uint256 liquidationGasCost = liquidationCost * 6;
@@ -111,7 +109,7 @@ library Balances {
         Position calldata position,
         Trade calldata trade,
         uint256 feeRate
-    ) public  returns (Position memory) {
+    ) public pure returns (Position memory) {
         int256 signedAmount = LibMath.toInt256(trade.amount);
         int256 signedPrice = LibMath.toInt256(trade.price);
         int256 signedFeeRate = LibMath.toInt256(feeRate);
@@ -141,7 +139,7 @@ library Balances {
      */
     function tokenToWad(uint256 tokenDecimals, uint256 amount)
         internal
-        
+        pure
         returns (int256)
     {
         int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
@@ -153,7 +151,7 @@ library Balances {
      */
     function wadToToken(uint256 tokenDecimals, uint256 wadAmount)
         internal
-        
+        pure
         returns (uint256)
     {
         uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));

@@ -48,6 +48,7 @@ interface ITracerPerpetualSwaps {
 
     function getBalance(address account)
         external
+        view
         returns (Balances.Account memory);
 
     function setLiquidationContract(address liquidation) external;
