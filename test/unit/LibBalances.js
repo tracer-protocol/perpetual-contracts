@@ -162,7 +162,7 @@ describe("Unit tests: LibBalances.sol", function () {
                         positions["min"]["norm"],
                         prices["norm"]
                     )
-                    const expectedNetValue = ethers.utils.parseEther("2543970")
+                    const expectedNetValue = ethers.utils.parseEther("259155930")
 
                     await expect(actualNetValue).to.equal(expectedNetValue)
                 })
@@ -290,7 +290,7 @@ describe("Unit tests: LibBalances.sol", function () {
                         positions["norm"]["norm"],
                         prices["norm"]
                     )
-                    const expectedNetValue = ethers.utils.parseEther("6783920")
+                    const expectedNetValue = ethers.utils.parseEther("78345978923")
 
                     await expect(actualNetValue).to.equal(expectedNetValue)
                 })
