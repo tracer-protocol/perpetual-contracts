@@ -38,7 +38,14 @@ library Balances {
         pure
         returns (uint256)
     {
+<<<<<<< Updated upstream
+=======
+        console.logInt(position.base);
+        console.logUint(price);
+        console.logUint(uint256(LibMath.abs(position.base)));
+>>>>>>> Stashed changes
         /* cast is safe due to semantics of `abs` */
+        console.logUint(PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price));
         return PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price);
     }
 
