@@ -108,7 +108,8 @@ library Balances {
 
         uint256 liquidationGasCost = liquidationCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = notionalValue / maximumLeverage;
+        uint256 minimumMarginWithoutGasCost =
+            PRBMathUD60x18.div(notionalValue, maximumLeverage);
 
         return liquidationGasCost + minimumMarginWithoutGasCost;
     }

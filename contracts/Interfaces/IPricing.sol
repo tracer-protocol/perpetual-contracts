@@ -16,7 +16,7 @@ interface IPricing {
 
     function currentFundingIndex() external view returns (uint256);
 
-    function fairPrice() external returns (uint256);
+    function fairPrice() external view returns (uint256);
 
     function timeValue() external view returns (int256);
 

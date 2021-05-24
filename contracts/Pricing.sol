@@ -204,7 +204,7 @@ contract Pricing is IPricing, Ownable {
     /**
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
-    function fairPrice() public override returns (uint256) {
+    function fairPrice() public view override returns (uint256) {
         return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 

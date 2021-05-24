@@ -93,7 +93,7 @@ module.exports = async function (hre) {
         "EthOracle",
         { from: deployer, log: true },
         "setPrice",
-        ethers.utils.parseEther("3000"), // 3000 USD / ETH
+        ethers.utils.parseEther("3000") // 3000 USD / ETH
     )
 
     const gasPriceOracle = await deploy("GasPriceOracle", {
@@ -198,7 +198,7 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    let maxLeverage = new ethers.BigNumber.from("125000").toString()
+    let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("8").toString()
     let feeRate = 0 // 0 percent
     let fundingRateSensitivity = 1

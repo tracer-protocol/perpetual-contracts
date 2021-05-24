@@ -7,7 +7,7 @@ async function main() {
     const [deployer, ...accounts] = await ethers.getSigners()
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
-    let maxLeverage = new ethers.BigNumber.from("125000").toString()
+    let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("1000000").toString()
     let feeRate = 0 // 0 percent
     let maxLiquidationSlippage = "50000000000000000000" // 50 percent
