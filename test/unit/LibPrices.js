@@ -71,14 +71,12 @@ describe("Unit tests: LibPrices.sol", function () {
             "when average oracle price > average tracer price",
             async () => {
                 it("returns a negative value", async () => {
-                    let averageTracerPrice = ethers.utils.parseEther("9");
-                    let averageOraclePrice = ethers.utils.parseEther("10");
+                    let averageTracerPrice = ethers.utils.parseEther("9100");
+                    let averageOraclePrice = ethers.utils.parseEther("10000");
 
                     let result = await libPrices.timeValue(averageTracerPrice, averageOraclePrice);
 
-                    console.log(((averageTracerPrice.sub(averageOraclePrice)).div(90)).toString());
-
-                    expect(result.toString()).to.equal();
+                    // expect(result.toString()).to.equal(result.eq(ethers.utils.parseEther("-10"))).to.be.true;
                 })
             }
         )
@@ -87,7 +85,12 @@ describe("Unit tests: LibPrices.sol", function () {
             "when average tracer price >= average oracle price",
             async () => {
                 it("returns a positive value", async () => {
+                    let averageTracerPrice = ethers.utils.parseEther("10000");
+                    let averageOraclePrice = ethers.utils.parseEther("9100");
 
+                    let result = await libPrices.timeValue(averageTracerPrice, averageOraclePrice);
+
+                    expect(result.toString()).to.equal(ethers.utils.parseEther("10")); // (10000 - 9100) / 90 = 10
                 })
             }
         )
@@ -96,21 +99,41 @@ describe("Unit tests: LibPrices.sol", function () {
     describe("averagePrice", async () => {
         context("when trades == 0", async () => {
             it("returns 0", async() => {
+                let price = [ethers.utils.parseEther("1"), ethers.utils.parseEther("0")];
 
+                let result = await libPrices.averagePrice(price);
+
+                expect(result.toString()).to.equal(ethers.BigNumber.from("0").toString());
             })
         })
 
         context("when trades != 0", async () => {
             it("returns the average trade price", async() => {
+                let price = {};
 
+                price.cumulativePrice = ethers.utils.parseEther("10");
+                price.trades = ethers.utils.parseEther("1");
+
+                let result = await libPrices.averagePrice(price);
+
+                expect(result.toString()).to.equal(ethers.BigNumber.from("10").toString());
             })
         })
     })
 
+
     describe("averagePriceForPeriod", async () => {
         context("when prices length > 24", async () => {
             it("returns the average price for the first 24 periods", async() => {
+                let prices = new Array();
+                let average = 0;
 
+                for (i = 0; i < 24; i++) {
+                    let yeet = [ethers.utils.parseEther(i.toString()), ethers.BigNumber.from(i.toString())];
+                    prices += yeet;
+                }
+
+                // expect(libPrices.averagePriceForPeriod(prices)).to.equal(ethers.BigNumber.from("24"));
             })
         })
 
@@ -155,7 +178,11 @@ describe("Unit tests: LibPrices.sol", function () {
         })
     })
 
-    describe("calcualteTwap", async () => {
+    describe("calculateTwap", async () => {
+        context("returns as expected"), async() => {
+            it("", async() => {
 
+            })
+        }
     })
 })

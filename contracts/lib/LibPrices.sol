@@ -47,6 +47,10 @@ library Prices {
         pure
         returns (uint256)
     {
+        if (price.trades == 0) {
+            return 0;
+        }
+        
         return price.cumulativePrice / price.trades;
     }
 
@@ -55,7 +59,7 @@ library Prices {
         pure
         returns (uint256)
     {
-        uint256 n = prices.length <= 24 ? prices.length : 24;
+        uint256 n = (prices.length <= 24) ? prices.length : 24;
         uint256[] memory averagePrices = new uint256[](24);
 
         for (uint256 i = 0; i < n; i++) {
