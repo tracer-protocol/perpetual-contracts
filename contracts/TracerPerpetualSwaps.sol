@@ -210,11 +210,14 @@ contract TracerPerpetualSwaps is
                 Balances.Trade(order2.price, order2.amount, order2.side)
             );
 
+        bytes32 orderId1 = Perpetuals.orderId(order1);
+        bytes32 orderId2 = Perpetuals.orderId(order2);
+
         // Calculate new account state
         (Balances.Position memory newPos1, Balances.Position memory newPos2) =
             (
-                Balances.applyTrade(account1.position, trade1, feeRate),
-                Balances.applyTrade(account2.position, trade2, feeRate)
+                Balances.applyTrade(account1.position, trade1, Balances.fillAmount(trade1, filled[orderId1], filled[orderId2]), feeRate),
+                Balances.applyTrade(account2.position, trade2, Balances.fillAmount(trade2, filled[orderId1], filled[orderId2]), feeRate)
             );
 
         // Update account state with results of above calculation
