@@ -62,7 +62,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
 
         // amount in wad format after being converted from token format
-        uint256 wadAmount = uint(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
+        uint256 wadAmount =
+            uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);

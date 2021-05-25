@@ -123,7 +123,7 @@ contract TracerPerpetualSwaps is
         _updateAccountLeverage(msg.sender);
 
         // update market TVL
-        tvl = tvl + uint(convertedWadAmount);
+        tvl = tvl + uint256(convertedWadAmount);
         emit Deposit(msg.sender, amount);
     }
 
