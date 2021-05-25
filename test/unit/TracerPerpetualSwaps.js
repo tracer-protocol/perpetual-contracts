@@ -7,76 +7,98 @@ const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
-    // todo setup and mock appropriate functions
     const { deployer } = await getNamedAccounts()
 
-    // deploy a test token
-    const TestToken = await ethers.getContractFactory("TestToken")
-    let testToken = await TestToken.deploy(ethers.utils.parseEther("100000000"))
-    await testToken.deployed()
-
-    // deploy libs
-    let libBalances = await deploy("Balances", {
-        from: deployer,
-        log: true,
-    })
-
-    let libPerpetuals = await deploy("Perpetuals", {
-        from: deployer,
-        log: true,
-    })
-
-    let libPrices = await deploy("Prices", {
-        from: deployer,
-        log: true,
-    })
-
-    // deploy mock insurance
+    // deploy contracts
+    await deployments.fixture(["FullDeploy"])
+    const Tracer = await deployments.get("TracerPerpetualSwaps")
+    let tracer = await ethers.getContractAt(
+        Tracer.abi,
+        Tracer.address
+    )
     
-    // deploy mock pricing
-
-    // deploy mock gas oracle
-
-    // deploy mock liquidation
-
-    // deploy the tracer
-    const tracerContractFactory = await ethers.getContractFactory(
-        "TracerPerpetualSwaps",
-        {
-            libraries: {
-                Balances: libBalances.address,
-                Perpetuals: libPerpetuals.address,
-                Prices: libPrices.address,
-            },
-        }
-    )
-    const tracer = await tracerContractFactory.deploy(
-        ethers.utils.formatBytes32String("TEST/USD"),
-        testToken.address,
-        18,
-        zeroAddress,
-        1,
-        1,
-        1,
-        zeroAddress
+    // setup mocks for the contracts and relink
+    const Insurance = await deployments.get("Insurance")
+    let insurance = await ethers.getContractAt(
+        Insurance.abi,
+        Insurance.address
     )
 
-    // mock calls for all our mocks that are needed
+    const Pricing = await deployments.get("Pricing")
+    let pricing = await ethers.getContractAt(
+        Pricing.abi,
+        Pricing.address
+    )
 
+    const Liquidation = await deployments.get("Liquidation")
+    let liquidation = await ethers.getContractAt(
+        Liquidation.abi,
+        Liquidation.address
+    )
+
+    const QuoteToken = await deployments.get("QuoteToken")
+    let quoteToken = await ethers.getContractAt(
+        QuoteToken.abi,
+        QuoteToken.address
+    )
+
+    insurance = await smockit(insurance)
+    pricing = await smockit(pricing)
+    liquidation = await smockit(liquidation)
+    
+    // mock function calls for insurance
+    // pricing.smocked.currentFundingIndex.will.return
+    // pricing.smocked.currentInsuranceFundingIndex.will.return
+    // pricing.smocked.getFundingRate.will.return
+    // pricing.smocked.getInsuranceFundingRate.will.return
+    
+
+    await tracer.setInsuranceContract(insurance.address, { from: deployer })
+    return {
+        tracer,
+        insurance,
+        pricing,
+        liquidation,
+        quoteToken,
+        deployer
+    }
 })
 
-describe("Unit tests: Insurance.sol", function () {
+describe("Unit tests: TracerPerpetualSwaps.sol", function () {
+    let tracer;
+    let insurance;
+    let pricing;
+    let liquidation;
+    let quoteToken;
+    let deployer;
+
     beforeEach(async function () {
         // todo call setup
+        let _setup = await setup()
+        tracer = _setup.tracer
+        insurance = _setup.insurance
+        pricing = _setup.pricing
+        liquidation = _setup.liquidation
+        quoteToken = _setup.quoteToken
+        deployer = _setup.deployer
+        console.log(quoteToken.address)
     })
 
     describe("deposit", async () => {
         context("when the user has set allowance", async () => {
-            it("updates their quote", async () => {})
+            beforeEach(async() => {
+                await quoteToken.approve(tracer.address, ethers.utils.parseEther("5"))
+                await tracer.deposit(ethers.utils.parseEther("5"))
+            })
+            it("updates their quote", async () => {
+                let balance = await tracer.balances(deployer)
+                await expect(balance.position.quote).to.equal(ethers.utils.parseEther("5"))
+            })
 
-            it("updates their leverage", async () => {})
-
-            it("updates the total TVL", async () => {})
+            it("updates the total TVL", async () => {
+                let tvl = await tracer.tvl()
+                expect(tvl).to.equal(ethers.utils.parseEther("5"))
+            })
         })
 
         context("when the user has not set allowance", async () => {
