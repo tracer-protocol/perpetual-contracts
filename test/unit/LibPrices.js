@@ -4,9 +4,6 @@ const { deploy } = deployments
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 describe("Unit tests: LibPrices.sol", function () {
-    let accounts
-    let libPerpetuals
-
     before(async function () {
         const { deployer } = await getNamedAccounts()
 
@@ -76,7 +73,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                     let result = await libPrices.timeValue(averageTracerPrice, averageOraclePrice);
 
-                    // expect(result.toString()).to.equal(result.eq(ethers.utils.parseEther("-10"))).to.be.true;
+                    expect(result.toString()).to.equal(ethers.utils.parseEther("-10").toString());
                 })
             }
         )
@@ -90,7 +87,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                     let result = await libPrices.timeValue(averageTracerPrice, averageOraclePrice);
 
-                    expect(result.toString()).to.equal(ethers.utils.parseEther("10")); // (10000 - 9100) / 90 = 10
+                    expect(result.toString()).to.equal(ethers.utils.parseEther("10").toString()); // (10000 - 9100) / 90 = 10
                 })
             }
         )
@@ -125,23 +122,33 @@ describe("Unit tests: LibPrices.sol", function () {
     describe("averagePriceForPeriod", async () => {
         context("when prices length > 24", async () => {
             it("returns the average price for the first 24 periods", async() => {
+                let n = 26
                 let prices = new Array();
-                let average = 0;
 
-                for (i = 0; i < 24; i++) {
-                    prices.push([ethers.utils.parseEther(i.toString()), ethers.BigNumber.from(i.toString())]);
-                    average += 1;
+                for (i = 0; i <= n; i++) {
+                    prices.push([ethers.BigNumber.from((i * 100000).toString()), ethers.BigNumber.from(50 - i)]);
                 }
 
-                let result = await libPrices.averagePriceForPeriod(prices);
-
-                expect(result.toString()).to.equal((ethers.BigNumber.from(24)).toString());
+                await expect(libPrices.averagePriceForPeriod(prices)).to.be.reverted;
             })
         })
 
-        context("when prices length < 24", async () => {
+        context("when prices length <= 24", async () => {
             it("returns the average price for the number of periods present", async() => {
+                let n = 24
+                let prices = new Array();
+                let priceAverages = ethers.constants.Zero;
+
+                for (i = 0; i < n; i++) {
+                    prices.push([ethers.utils.parseEther((i + 1).toString()), ethers.BigNumber.from(i + 1)]);
+                    let dayAverage = ethers.utils.parseEther((i + 1).toString()).div(ethers.BigNumber.from(i + 1));
+                    priceAverages = priceAverages.add(dayAverage.toString());
+                }
                 
+                let averagePriceForPeriod = priceAverages.div(ethers.BigNumber.from(n));
+                let result = await libPrices.averagePriceForPeriod(prices);
+
+                expect(result.toString()).to.equal(averagePriceForPeriod.toString());
             })
         })
     })
@@ -181,9 +188,44 @@ describe("Unit tests: LibPrices.sol", function () {
     })
 
     describe("calculateTwap", async () => {
-        context("returns as expected"), async() => {
-            it("", async() => {
+        // broken right now
+        context("when hour is greater than or equal to seven"), async() => {
+            it("returns as expected", async() => {
+                let tracerPrices = new Array();
+                let oraclePrices = new Array();
+                let cumulativeDerivative = ethers.BigNumber.from("0");
+                let cumulativeUnderlying = ethers.BigNumber.from("0");
+                let totalTimeWeight = ethers.BigNumber.from("0");
+
+                for (i = 0; i < 24; i++) {
+                    oraclePrices.add([ethers.utils.parseUnits(1 + 0.05 * i, 18), ethers.BigNumber.from("1")]);
+                    tracerPrices.add([ethers.utils.parseUnits(1 + 0.04 * i, 18), ethers.BigNumber.from("1")]);
+                    ethers.utils.parseUnits(1 + 0.04 * i, 18).div(ethers.BigNumber.from("1"));
+                }
+
+                for (i = 0; i < 8; i++) {
+                    let currTimeWeight = 8 - i;
+                    let j = (hour < i) ? 24 - i + hour : hour - i;
+
+                    totalTimeWeight = totalTimeWeight.add(ethers.BigNumber.from(currTimeWeight));
+                    cumulativeDerivative = cumulativeDerivative.add((tracerPrices[j][0].div(tracerPrices[j][1])).mul(currTimeWeight));
+                    cumulativeUnderlying = cumulativeUnderlying.add((oraclePrices[j][0].div(oraclePrices[j][1])).mul(currTimeWeight));
+                }
+
                 
+                let result = libPrices.calculateTWAP(ethers.BigNumber.from("10"), tracerPrices, oraclePrices);
+                let cumulativeFinal1 = cumulativeUnderlying.div(totalTimeWeight);
+                let cumulativeFinal2 = cumulativeDerivative.div(totalTimeWeight);
+
+                expect(result[0].toString()).to.be(cumulativeFinal1.toString());
+                expect(result[1].toString()).to.be(cumulativeFinal2.toString());
+            })
+        }
+
+        context("when hour is less than seven"), async() => {
+            // Index < 8
+            it("returns as expected", async() => {
+                ethers.utils.parseUnits("23.241", 18);
             })
         }
     })
