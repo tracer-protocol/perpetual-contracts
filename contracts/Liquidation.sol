@@ -150,7 +150,6 @@ contract Liquidation is ILiquidation, Ownable {
             if (
                 order.created < receipt.time || // Order made before receipt
                 order.maker != receipt.liquidator || // Order made by someone who isn't liquidator
-                // todo alter liquidations side to be a Side type, then re add this comparison
                 order.side == receipt.liquidationSide // Order is in same direction as liquidation
                 /* Order should be the opposite to the position acquired on liquidation */
             ) {
