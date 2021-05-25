@@ -57,12 +57,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 collateralToken = IERC20(collateralAsset);
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
-        uint256 amountToUpdate =
+        uint256 rawTokenAmount =
             Balances.wadToToken(quoteTokenDecimals, amount);
-        collateralToken.transferFrom(msg.sender, address(this), amountToUpdate);
+        collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
 
         // amount in wad format after being converted from token format
-        uint256 _amount = uint(Balances.tokenToWad(quoteTokenDecimals, amountToUpdate));
+        uint256 wadAmount = uint(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -72,13 +72,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
                 collateralAmount,
-                _amount
+                wadAmount
             );
 
         // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
-        collateralAmount = collateralAmount + _amount;
-        emit InsuranceDeposit(address(tracer), msg.sender, _amount);
+        collateralAmount = collateralAmount + wadAmount;
+        emit InsuranceDeposit(address(tracer), msg.sender, wadAmount);
     }
 
     /**
@@ -103,12 +103,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             );
 
         // convert token amount to raw amount from WAD
-        uint256 tokensToSend =
+        uint256 rawTokenAmount =
             Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, tokensToSend);
+        collateralToken.transfer(msg.sender, rawTokenAmount);
 
         // pool amount is always in WAD format
         collateralAmount = collateralAmount - wadTokensToSend;

@@ -103,27 +103,27 @@ contract TracerPerpetualSwaps is
         // convert the WAD amount to the correct token amount to transfer
         // cast is safe since amount is a uint, and wadToToken can only
         // scale down the value
-        uint256 amountToTransfer =
+        uint256 rawTokenAmount =
             uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
         IERC20(tracerQuoteToken).transferFrom(
             msg.sender,
             address(this),
-            amountToTransfer
+            rawTokenAmount
         );
 
         // this prevents dust from being added to the user account
         // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
-        int256 amountFormatted =
-            Balances.tokenToWad(quoteTokenDecimals, amountToTransfer);
+        int256 convertedWadAmount =
+            Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
 
         // update user state
         userBalance.position.quote =
             userBalance.position.quote +
-            amountFormatted;
+            convertedWadAmount;
         _updateAccountLeverage(msg.sender);
 
         // update market TVL
-        tvl = tvl + amount;
+        tvl = tvl + uint(convertedWadAmount);
         emit Deposit(msg.sender, amount);
     }
 
