@@ -374,25 +374,10 @@ contract TracerPerpetualSwaps is
                 .latestAnswer();
 
             if (accountBalance.totalLeveragedValue > 0) {
-                // calc and pay insurance funding rate
-                // todo CASTING CHECK
-                int256 changeInInsuranceBalance =
-                    PRBMathSD59x18.mul(
-                        currInsuranceGlobalRate.fundingRate -
-                            currInsuranceUserRate.fundingRate,
-                        accountBalance.totalLeveragedValue.toInt256()
-                    );
+                (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) = Prices.applyInsurance(accountBalance.position, insuranceBalance.position, currGlobalRate, currUserRate, accountBalance.totalLeveragedValue);
 
-                if (changeInInsuranceBalance > 0) {
-                    // Only pay insurance fund if required
-                    accountBalance.position.quote =
-                        accountBalance.position.quote -
-                        changeInInsuranceBalance;
-                    insuranceBalance.position.quote =
-                        insuranceBalance.position.quote +
-                        changeInInsuranceBalance;
-                    // uint is safe since changeInInsuranceBalance > 0
-                }
+                balances[account].position = newUserPos;
+                balances[(address(insuranceContract))].position = newInsurancePos;
             }
 
             // Update account index
