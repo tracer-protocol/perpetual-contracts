@@ -95,7 +95,7 @@ contract TracerPerpetualSwaps is
      * @notice Allows a user to deposit into their margin account
      * @dev this contract must be an approved spender of the markets quote token on behalf of the depositer.
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
-     * should be given with the correct decimal units of the token
+     * should be given in WAD format.
      */
     function deposit(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
@@ -106,14 +106,14 @@ contract TracerPerpetualSwaps is
         );
 
         // update user state
-        int256 amountToUpdate = Balances.tokenToWad(quoteTokenDecimals, amount);
+        int256 amountToUpdate = Balances.wadToToken(quoteTokenDecimals, amount).toInt256();
         userBalance.position.quote =
             userBalance.position.quote +
             amountToUpdate;
         _updateAccountLeverage(msg.sender);
 
         // update market TVL
-        // this cast is safe since amount > 0 on deposit and tokenToWad simply
+        // this cast is safe since amount > 0 on deposit and wadToToken simply
         // multiplies the amount up to a WAD value
         tvl = tvl + uint256(amountToUpdate);
         emit Deposit(msg.sender, amount);

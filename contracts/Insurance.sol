@@ -51,7 +51,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     /**
      * @notice Allows a user to stake to a given tracer market insurance pool
      * @dev Mints amount of the pool token to the user
-     * @param amount the amount of tokens to stake. Provided in token native units
+     * @param amount the amount of tokens to stake. Provided in WAD format
      */
     function stake(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
@@ -59,7 +59,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         // convert token amount to WAD
         uint256 amountToUpdate =
-            uint256(Balances.tokenToWad(tracer.quoteTokenDecimals(), amount));
+            Balances.wadToToken(tracer.quoteTokenDecimals(), amount);
 
         // Update pool balances and user
         updatePoolAmount();
