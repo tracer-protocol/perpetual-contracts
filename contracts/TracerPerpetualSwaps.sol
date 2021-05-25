@@ -453,13 +453,10 @@ contract TracerPerpetualSwaps is
             Balances.minimumMargin(pos, price, gasCost, maxLeverage);
         int256 margin = Balances.margin(pos, price);
 
-        if (margin < 0) {
-            /* Margin being less than 0 is always invalid, even if position is 0.
-               This could happen if user attempts to over-withdraw */
-            return false;
-        }
         if (minMargin == 0) {
-            return true;
+            // minMargin = 0 only occurs when user has no base (positions)
+            // if they have no base, their quote must be > 0.
+            return quote >= 0;
         }
 
         // todo CASTING CHECK
