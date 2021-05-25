@@ -104,7 +104,7 @@ contract TracerPerpetualSwaps is
         // cast is safe since amount is a uint, and wadToToken can only
         // scale down the value
         uint256 amountToTransfer =
-            uint(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
+            uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
         IERC20(tracerQuoteToken).transferFrom(
             msg.sender,
             address(this),
@@ -113,8 +113,9 @@ contract TracerPerpetualSwaps is
 
         // this prevents dust from being added to the user account
         // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
-        int256 amountFormatted = Balances.tokenToWad(quoteTokenDecimals, amountToTransfer);
-        
+        int256 amountFormatted =
+            Balances.tokenToWad(quoteTokenDecimals, amountToTransfer);
+
         // update user state
         userBalance.position.quote =
             userBalance.position.quote +
