@@ -51,16 +51,18 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     /**
      * @notice Allows a user to deposit to a given tracer market insurance pool
      * @dev Mints amount of the pool token to the user
-     * @param amount the amount of tokens to stake. Provided in WAD format
+     * @param amount the amount of tokens to deposit. Provided in WAD format
      */
     function deposit(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.transferFrom(msg.sender, address(this), amount);
-
         // convert token amount to WAD
+        uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 amountToUpdate =
-            Balances.wadToToken(tracer.quoteTokenDecimals(), amount);
+            Balances.wadToToken(quoteTokenDecimals, amount);
+        collateralToken.transferFrom(msg.sender, address(this), amountToUpdate);
 
+        // amount in wad format after being converted from token format
+        uint256 _amount = uint(Balances.tokenToWad(quoteTokenDecimals, amountToUpdate));
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -70,13 +72,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
                 collateralAmount,
-                amountToUpdate
+                _amount
             );
 
         // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
-        collateralAmount = collateralAmount + amountToUpdate;
-        emit InsuranceDeposit(address(tracer), msg.sender, amountToUpdate);
+        collateralAmount = collateralAmount + _amount;
+        emit InsuranceDeposit(address(tracer), msg.sender, _amount);
     }
 
     /**
