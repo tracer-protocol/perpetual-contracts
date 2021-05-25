@@ -155,12 +155,10 @@ contract TracerPerpetualSwaps is
      * @notice Match two orders that exist on chain against each other
      * @param order1 the first order
      * @param order2 the second order
-     * @param fillAmount the amount to be filled as sent by the trader
      */
     function matchOrders(
         Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
-        uint256 fillAmount
+        Perpetuals.Order memory order2
     ) public override onlyWhitelisted {
         uint256 filled1 = filled[Perpetuals.orderId(order1)];
         uint256 filled2 = filled[Perpetuals.orderId(order2)];
@@ -184,7 +182,7 @@ contract TracerPerpetualSwaps is
 
         // Update internal trade state
         // note: price has already been validated here, so order 1 price can be used
-        pricingContract.recordTrade(order1.price, fillAmount);
+        pricingContract.recordTrade(order1.price, LibMath.min(order1.amount, order2.amount));
 
         // Ensures that you are in a position to take the trade
         require(
