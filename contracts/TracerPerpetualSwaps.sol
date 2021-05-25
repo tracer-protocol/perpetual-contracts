@@ -367,14 +367,8 @@ contract TracerPerpetualSwaps is
             Balances.Account storage insuranceBalance =
                 balances[address(insuranceContract)];
 
-            // Calc the difference in funding rates, remove price multiply factor
-            int256 fundingDiff =
-                currGlobalRate.fundingRate - currUserRate.fundingRate;
+            accountBalance.position = Prices.applyFunding(accountBalance.position, currGlobalRate, currUserRate);
 
-            // quote - (fundingDiff * base)
-            accountBalance.position.quote =
-                accountBalance.position.quote -
-                PRBMathSD59x18.mul(fundingDiff, accountBalance.position.base);
             // Update account gas price
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
                 .latestAnswer();
@@ -404,7 +398,7 @@ contract TracerPerpetualSwaps is
             // Update account index
             accountBalance.lastUpdatedIndex = pricingContract
                 .currentFundingIndex();
-            require(userMarginIsValid(account), "TCR: Target under-margined ");
+            require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
     }

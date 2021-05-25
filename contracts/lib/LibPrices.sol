@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
+import "./LibBalances.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
 
 library Prices {
     using LibMath for uint256;
@@ -134,5 +136,16 @@ library Prices {
                     );
             }
         }
+    }
+
+    function applyFunding(
+        Balances.Position memory position,
+        FundingRateInstant memory globalRate,
+        FundingRateInstant memory userRate
+    ) internal pure returns (Balances.Position memory) {
+        return Balances.Position(
+            position.quote - PRBMathSD59x18.mul(globalRate.fundingRate - userRate.fundingRate, position.base),
+            position.base
+        );
     }
 }
