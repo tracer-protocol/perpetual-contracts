@@ -144,7 +144,9 @@ library Balances {
         uint256 liquidationCost,
         uint256 maximumLeverage
     ) internal pure returns (bool) {
-        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
+        return
+            uint256(margin(position, price)) >=
+            minimumMargin(position, price, liquidationCost, maximumLeverage);
     }
 
     /**

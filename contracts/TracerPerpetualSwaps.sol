@@ -128,12 +128,10 @@ contract TracerPerpetualSwaps is
     function withdraw(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
         int256 newQuote = userBalance.position.quote - amount.toInt256();
-        Balances.Position memory newPosition = Balances.Position(newQuote, userBalance.position.base);
+        Balances.Position memory newPosition =
+            Balances.Position(newQuote, userBalance.position.base);
         require(
-            marginIsValid(
-                newPosition,
-                userBalance.lastUpdatedGasPrice
-            ),
+            marginIsValid(newPosition, userBalance.lastUpdatedGasPrice),
             "TCR: Withdraw below valid Margin"
         );
 
@@ -182,7 +180,10 @@ contract TracerPerpetualSwaps is
 
         // Update internal trade state
         // note: price has already been validated here, so order 1 price can be used
-        pricingContract.recordTrade(order1.price, LibMath.min(order1.amount, order2.amount));
+        pricingContract.recordTrade(
+            order1.price,
+            LibMath.min(order1.amount, order2.amount)
+        );
 
         // Ensures that you are in a position to take the trade
         require(
@@ -203,16 +204,18 @@ contract TracerPerpetualSwaps is
         Balances.Account storage account2 = balances[order2.maker];
 
         // Construct `Trade` types suitable for use with LibBalances
-        (Balances.Trade memory trade1, Balances.Trade memory trade2) = (
-            Balances.Trade(order1.price, order1.amount, order1.side),
-            Balances.Trade(order2.price, order2.amount, order2.side)
-        );
+        (Balances.Trade memory trade1, Balances.Trade memory trade2) =
+            (
+                Balances.Trade(order1.price, order1.amount, order1.side),
+                Balances.Trade(order2.price, order2.amount, order2.side)
+            );
 
         // Calculate new account state
-        (Balances.Position memory newPos1, Balances.Position memory newPos2) = (
-            Balances.applyTrade(account1.position, trade1, feeRate),
-            Balances.applyTrade(account2.position, trade2, feeRate)
-        );
+        (Balances.Position memory newPos1, Balances.Position memory newPos2) =
+            (
+                Balances.applyTrade(account1.position, trade1, feeRate),
+                Balances.applyTrade(account2.position, trade2, feeRate)
+            );
 
         // Update account state with results of above calculation
         account1.position = newPos1;
@@ -367,17 +370,32 @@ contract TracerPerpetualSwaps is
             Balances.Account storage insuranceBalance =
                 balances[address(insuranceContract)];
 
-            accountBalance.position = Prices.applyFunding(accountBalance.position, currGlobalRate, currUserRate);
+            accountBalance.position = Prices.applyFunding(
+                accountBalance.position,
+                currGlobalRate,
+                currUserRate
+            );
 
             // Update account gas price
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
                 .latestAnswer();
 
             if (accountBalance.totalLeveragedValue > 0) {
-                (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) = Prices.applyInsurance(accountBalance.position, insuranceBalance.position, currGlobalRate, currUserRate, accountBalance.totalLeveragedValue);
+                (
+                    Balances.Position memory newUserPos,
+                    Balances.Position memory newInsurancePos
+                ) =
+                    Prices.applyInsurance(
+                        accountBalance.position,
+                        insuranceBalance.position,
+                        currGlobalRate,
+                        currUserRate,
+                        accountBalance.totalLeveragedValue
+                    );
 
                 balances[account].position = newUserPos;
-                balances[(address(insuranceContract))].position = newInsurancePos;
+                balances[(address(insuranceContract))]
+                    .position = newInsurancePos;
             }
 
             // Update account index
@@ -395,10 +413,11 @@ contract TracerPerpetualSwaps is
      * @param gasPrice The gas price
      * @return a bool representing the validity of a margin
      */
-    function marginIsValid(
-        Balances.Position memory position,
-        uint256 gasPrice
-    ) public view returns (bool) {
+    function marginIsValid(Balances.Position memory position, uint256 gasPrice)
+        public
+        view
+        returns (bool)
+    {
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
 
