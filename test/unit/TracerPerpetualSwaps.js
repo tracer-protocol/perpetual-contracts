@@ -12,23 +12,14 @@ const setup = deployments.createFixture(async () => {
     // deploy contracts
     await deployments.fixture(["FullDeploy"])
     const Tracer = await deployments.get("TracerPerpetualSwaps")
-    let tracer = await ethers.getContractAt(
-        Tracer.abi,
-        Tracer.address
-    )
-    
+    let tracer = await ethers.getContractAt(Tracer.abi, Tracer.address)
+
     // setup mocks for the contracts and relink
     const Insurance = await deployments.get("Insurance")
-    let insurance = await ethers.getContractAt(
-        Insurance.abi,
-        Insurance.address
-    )
+    let insurance = await ethers.getContractAt(Insurance.abi, Insurance.address)
 
     const Pricing = await deployments.get("Pricing")
-    let pricing = await ethers.getContractAt(
-        Pricing.abi,
-        Pricing.address
-    )
+    let pricing = await ethers.getContractAt(Pricing.abi, Pricing.address)
 
     const Liquidation = await deployments.get("Liquidation")
     let liquidation = await ethers.getContractAt(
@@ -45,13 +36,12 @@ const setup = deployments.createFixture(async () => {
     insurance = await smockit(insurance)
     pricing = await smockit(pricing)
     liquidation = await smockit(liquidation)
-    
+
     // mock function calls for insurance
     // pricing.smocked.currentFundingIndex.will.return
     // pricing.smocked.currentInsuranceFundingIndex.will.return
     // pricing.smocked.getFundingRate.will.return
     // pricing.smocked.getInsuranceFundingRate.will.return
-    
 
     await tracer.setInsuranceContract(insurance.address, { from: deployer })
     return {
@@ -60,17 +50,17 @@ const setup = deployments.createFixture(async () => {
         pricing,
         liquidation,
         quoteToken,
-        deployer
+        deployer,
     }
 })
 
 describe("Unit tests: TracerPerpetualSwaps.sol", function () {
-    let tracer;
-    let insurance;
-    let pricing;
-    let liquidation;
-    let quoteToken;
-    let deployer;
+    let tracer
+    let insurance
+    let pricing
+    let liquidation
+    let quoteToken
+    let deployer
 
     beforeEach(async function () {
         // todo call setup
@@ -86,13 +76,18 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
     describe("deposit", async () => {
         context("when the user has set allowance", async () => {
-            beforeEach(async() => {
-                await quoteToken.approve(tracer.address, ethers.utils.parseEther("5"))
+            beforeEach(async () => {
+                await quoteToken.approve(
+                    tracer.address,
+                    ethers.utils.parseEther("5")
+                )
                 await tracer.deposit(ethers.utils.parseEther("5"))
             })
             it("updates their quote", async () => {
                 let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(ethers.utils.parseEther("5"))
+                await expect(balance.position.quote).to.equal(
+                    ethers.utils.parseEther("5")
+                )
             })
 
             it("updates the total TVL", async () => {
@@ -102,17 +97,32 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("when the user has not set allowance", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                await expect(
+                    tracer.deposit(ethers.utils.parseEther("5"))
+                ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
+            })
         })
 
         context("when the token amount is not a WAD value", async () => {
-            it("update their quote as a WAD value", async () => {})
+            it("update their quote as a WAD value", async () => {
+                // todo once deposit changes are propogated
+            })
         })
     })
 
     describe("withdraw", async () => {
+        beforeEach(async() => {
+            await quoteToken.approve(
+                tracer.address,
+                ethers.utils.parseEther("5")
+            )
+            await tracer.deposit(ethers.utils.parseEther("5"))
+        })
         context("when the user is withdrawing to below margin", async () => {
-            it("reverts", async () => {})
+            it.only("reverts", async () => {
+                await expect(tracer.withdraw(ethers.utils.parseEther("6"))).to.be.revertedWith("TCR: Withdraw below valid Margin")
+            })
         })
 
         context("when the user is making a valid withdraw", async () => {
