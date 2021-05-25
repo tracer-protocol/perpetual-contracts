@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
-import "hardhat/console.sol";
 
 library Prices {
     using LibMath for uint256;
@@ -34,16 +33,10 @@ library Prices {
 
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
         public
-        view
+        pure
         returns (int256)
     {
-        // todo if averageOraclePrice > averageTracerPrice this will cast to zero
-        // this shouldn't be the case imo
-        // int256 yeet = int256((averageTracerPrice - averageOraclePrice) / 90);
-        console.log("%s %s %s", averageTracerPrice, averageOraclePrice, (averageTracerPrice - averageOraclePrice) / 90);
-        // console.logInt(yeet);
-
-        return int256((averageTracerPrice - averageOraclePrice) / 90);
+        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
     }
 
     function averagePrice(PriceInstant memory price)
@@ -78,13 +71,7 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        bool leverageHasIncreased = newLeverage > oldLeverage;
-
-        if (leverageHasIncreased) {
-            return _globalLeverage + (newLeverage - oldLeverage);
-        } else {
-            return _globalLeverage - (newLeverage - oldLeverage);
-        }
+        return uint256(int256(_globalLeverage) + (int256(newLeverage) - int256(oldLeverage)));
     }
 
     /**
@@ -101,46 +88,34 @@ library Prices {
         PriceInstant[24] memory tracerPrices,
         PriceInstant[24] memory oraclePrices
     ) public pure returns (TWAP memory) {
-        uint256 instantDerivative = 0;
+        uint256 totalTimeWeight = 0;
         uint256 cumulativeDerivative = 0;
-        uint256 instantUnderlying = 0;
         uint256 cumulativeUnderlying = 0;
 
         for (uint256 i = 0; i < 8; i++) {
             uint256 currTimeWeight = 8 - i;
             // if hour < i loop back towards 0 from 23.
             // otherwise move from hour towards 0
-            uint256 j = hour < i ? 23 - i + hour : hour - i;
+            uint256 j = hour < i ? 24 - i + hour : hour - i;
 
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
-            // todo since average price should return >= 0, these ifs should not be needed
-            if (currDerivativePrice > 0) {
-                instantDerivative += currTimeWeight;
-                cumulativeDerivative += currTimeWeight * currDerivativePrice;
-            }
-
-            if (currUnderlyingPrice > 0) {
-                instantUnderlying += currTimeWeight;
-                cumulativeUnderlying += currTimeWeight * currUnderlyingPrice;
-            }
-
-            if (instantDerivative == 0) {
-                return TWAP(0, 0);
-            } else {
-                return
-                    TWAP(
-                        PRBMathUD60x18.div(
-                            cumulativeUnderlying,
-                            instantUnderlying
-                        ),
-                        PRBMathUD60x18.div(
-                            cumulativeDerivative,
-                            instantDerivative
-                        )
-                    );
-            }
+            totalTimeWeight += currTimeWeight;
+            cumulativeDerivative += currTimeWeight * currDerivativePrice;
+            cumulativeUnderlying += currTimeWeight * currUnderlyingPrice;
         }
+
+        return
+            TWAP(
+                PRBMathUD60x18.div(
+                    cumulativeUnderlying,
+                    totalTimeWeight
+                ),
+                PRBMathUD60x18.div(
+                    cumulativeDerivative,
+                    totalTimeWeight
+                )
+            );
     }
 }
