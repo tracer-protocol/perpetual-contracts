@@ -39,7 +39,7 @@ library Balances {
         returns (uint256)
     {
         /* cast is safe due to semantics of `abs` */
-        return PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price);
+        return PRBMathUD60x18.mul(uint256(PRBMathSD59x18.abs(position.base)), price);
     }
 
     /**
@@ -103,6 +103,7 @@ library Balances {
 
         uint256 notionalValue = netValue(position, price);
 
+        // todo confirm that liquidation gas cost should be a WAD value
         uint256 liquidationGasCost = liquidationCost * 6;
 
         uint256 minimumMarginWithoutGasCost = notionalValue / maximumLeverage;

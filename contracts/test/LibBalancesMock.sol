@@ -49,4 +49,20 @@ contract LibBalancesMock {
     ) external pure returns (Balances.Position memory) {
         return Balances.applyTrade(position, trade, feeRate);
     }
+
+    function tokenToWad(uint256 tokenDecimals, uint256 amount)
+        external
+        pure
+        returns (int256)
+    {
+        return Balances.tokenToWad(tokenDecimals, amount);
+    }
+
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount)
+        external
+        pure
+        returns (uint256)
+    {
+        return Balances.wadToToken(tokenDecimals, wadAmount);
+    }
 }
