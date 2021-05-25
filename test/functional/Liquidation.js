@@ -168,18 +168,18 @@ describe("Liquidation functional tests", async () => {
                 const invalidOrder1 = [
                     accounts[1].address,
                     tracerPerps.address,
-                    ethers.utils.parseEther("0"),
+                    ethers.utils.parseEther("1"),
                     liquidationAmount,
-                    "0", // Short, because original position liquidated was long
+                    "0", // Long, which is invalid
                     (await ethers.provider.getBlock("latest")).timestamp + 100,
                     (await ethers.provider.getBlock("latest")).timestamp,
                 ]
                 const invalidOrder2 = [
                     accounts[1].address,
                     tracerPerps.address,
-                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("0"), // $0, which is invalid
                     liquidationAmount,
-                    "1", // Short, because original position liquidated was long
+                    "0", // Short, because original position liquidated was long
                     (await ethers.provider.getBlock("latest")).timestamp + 100,
                     (await ethers.provider.getBlock("latest")).timestamp,
                 ]
@@ -189,8 +189,8 @@ describe("Liquidation functional tests", async () => {
                     trader.address,
                     0
                 )
-                await expect(tx[0]).to.equal(ethers.utils.parseEther("0"))
-                await expect(tx[1]).to.equal(ethers.utils.parseEther("0"))
+                await expect(ethers.utils.parseEther("0")).to.equal(tx[0])
+                await expect(ethers.utils.parseEther("0")).to.equal(tx[1])
             })
         })
 

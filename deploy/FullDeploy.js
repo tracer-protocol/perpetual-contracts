@@ -261,6 +261,7 @@ module.exports = async function (hre) {
             LibMath: libMath.address,
             Balances: libBalances.address,
             LibLiquidation: libLiquidation.address,
+            Perpetuals: libPerpetuals.address,
         },
     })
 
