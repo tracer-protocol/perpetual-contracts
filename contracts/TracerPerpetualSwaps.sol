@@ -176,7 +176,7 @@ contract TracerPerpetualSwaps is
         settle(order2.maker);
 
         // update account states
-        executeTrade(order1, order2, fillAmount);
+        executeTrade(order1, order2);
 
         // update leverage
         _updateAccountLeverage(order1.maker);
@@ -198,55 +198,36 @@ contract TracerPerpetualSwaps is
      */
     function executeTrade(
         Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
-        uint256 fillAmount
+        Perpetuals.Order memory order2
     ) internal {
-        // fill amount > 0. Overflow occurs when fillAmount > 2^256 - 1
-        int256 _fillAmount = fillAmount.toInt256();
-        int256 quoteChange =
-            PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
-
-        // Update account states
+        // Retrieve account state
         Balances.Account storage account1 = balances[order1.maker];
         Balances.Account storage account2 = balances[order2.maker];
 
+        // Construct `Trade` types suitable for use with LibBalances
+        (Balances.Trade memory trade1, Balances.Trade memory trade2) = (
+            Balances.Trade(order1.price, order1.amount, order1.side),
+            Balances.Trade(order2.price, order2.amount, order2.side)
+        );
+
+        // Calculate new account state
+        (Balances.Position memory newPos1, Balances.Position memory newPos2) = (
+            Balances.applyTrade(account1.position, trade1, feeRate),
+            Balances.applyTrade(account2.position, trade2, feeRate)
+        );
+
+        // Update account state with results of above calculation
+        account1.position = newPos1;
+        account2.position = newPos2;
+
+        // Add fee into cumulative fees
+        uint256 fillAmount = LibMath.min(order1.amount, order2.amount);
+        int256 quoteChange =
+            PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
         int256 fee =
             PRBMathUD60x18
                 .mul(uint256(quoteChange), uint256(feeRate))
                 .toInt256();
-
-        /* TODO: handle every enum arm! */
-        if (order1.side == Perpetuals.Side.Long) {
-            // user 1 is long. Increase base, decrease quote
-            account1.position.quote =
-                account1.position.quote -
-                quoteChange -
-                fee;
-            account1.position.base = account1.position.base + _fillAmount;
-
-            // user 2 is short. Increase quote, decrease base
-            account2.position.quote =
-                account2.position.quote +
-                quoteChange -
-                fee;
-            account2.position.base = account2.position.base - _fillAmount;
-        } else {
-            // user 1 is short. Increase quote, decrease base
-            account1.position.quote =
-                account1.position.quote +
-                quoteChange -
-                fee;
-            account1.position.base = account1.position.base - _fillAmount;
-
-            // user 2 is long. Increase base, decrease quote
-            account2.position.quote =
-                account2.position.quote -
-                quoteChange -
-                fee;
-            account2.position.base = account2.position.base + _fillAmount;
-        }
-
-        // Add fee into fees
         fees = fees + uint256(fee * 2);
     }
 
