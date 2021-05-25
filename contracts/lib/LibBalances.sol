@@ -33,7 +33,7 @@ library Balances {
         uint256 lastUpdatedGasPrice;
     }
 
-    function netValue(Position calldata position, uint256 price)
+    function netValue(Position memory position, uint256 price)
         public
         pure
         returns (uint256)
@@ -47,7 +47,7 @@ library Balances {
      * @param position the position the account is currently in
      * @param price The price of the base asset
      */
-    function margin(Position calldata position, uint256 price)
+    function margin(Position memory position, uint256 price)
         public
         pure
         returns (int256)
@@ -73,7 +73,7 @@ library Balances {
      * @param position The position the account is currently in
      * @param price The price of the base asset
      */
-    function leveragedNotionalValue(Position calldata position, uint256 price)
+    function leveragedNotionalValue(Position memory position, uint256 price)
         public
         pure
         returns (uint256)
@@ -91,7 +91,7 @@ library Balances {
     }
 
     function minimumMargin(
-        Position calldata position,
+        Position memory position,
         uint256 price,
         uint256 liquidationCost,
         uint256 maximumLeverage
@@ -111,8 +111,8 @@ library Balances {
     }
 
     function applyTrade(
-        Position calldata position,
-        Trade calldata trade,
+        Position memory position,
+        Trade memory trade,
         uint256 feeRate
     ) public pure returns (Position memory) {
         int256 signedAmount = LibMath.toInt256(trade.amount);
@@ -136,6 +136,15 @@ library Balances {
         Position memory newPosition = Position(newQuote, newBase);
 
         return newPosition;
+    }
+
+    function marginValid(
+        Position memory position,
+        uint256 price,
+        uint256 liquidationCost,
+        uint256 maximumLeverage
+    ) internal pure returns (bool) {
+        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
     }
 
     /**

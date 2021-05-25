@@ -128,13 +128,13 @@ contract TracerPerpetualSwaps is
     function withdraw(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
         int256 newQuote = userBalance.position.quote - amount.toInt256();
+        Balances.Position memory newPosition = Balances.Position(newQuote, userBalance.position.base);
         require(
             marginIsValid(
-                newQuote,
-                userBalance.position.base,
+                newPosition,
                 userBalance.lastUpdatedGasPrice
             ),
-            "TCR: Withdraw below valid Margin "
+            "TCR: Withdraw below valid Margin"
         );
 
         // update user state
@@ -249,7 +249,6 @@ contract TracerPerpetualSwaps is
         _updateTracerLeverage(newLeverage, originalLeverage);
     }
 
-    // todo these calcs can be in a library function
     /**
      * @notice Updates the global leverage value given an accounts new leveraged value and old leveraged value
      * @param accountNewLeveragedNotional The future notional value of the account
@@ -368,8 +367,6 @@ contract TracerPerpetualSwaps is
             Balances.Account storage insuranceBalance =
                 balances[address(insuranceContract)];
 
-            // todo pretty much all of the below should be in a library
-
             // Calc the difference in funding rates, remove price multiply factor
             int256 fundingDiff =
                 currGlobalRate.fundingRate - currUserRate.fundingRate;
@@ -415,34 +412,18 @@ contract TracerPerpetualSwaps is
     // todo this function should be in a lib
     /**
      * @notice Checks the validity of a potential margin given the necessary parameters
-     * @param quote The quote value to be assessed (positive or negative)
-     * @param base The accounts base units
+     * @param position The position
      * @param gasPrice The gas price
      * @return a bool representing the validity of a margin
      */
     function marginIsValid(
-        int256 quote,
-        int256 base,
+        Balances.Position memory position,
         uint256 gasPrice
     ) public view returns (bool) {
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
-        Balances.Position memory pos = Balances.Position(quote, base);
-        uint256 minMargin =
-            Balances.minimumMargin(pos, price, gasCost, maxLeverage);
-        int256 margin = Balances.margin(pos, price);
 
-        if (margin < 0) {
-            /* Margin being less than 0 is always invalid, even if position is 0.
-               This could happen if user attempts to over-withdraw */
-            return false;
-        }
-        if (minMargin == 0) {
-            return true;
-        }
-
-        // todo CASTING CHECK
-        return margin > minMargin.toInt256();
+        return Balances.marginValid(position, price, gasCost, maxLeverage);
     }
 
     /**
@@ -454,8 +435,7 @@ contract TracerPerpetualSwaps is
         Balances.Account memory accountBalance = balances[account];
         return
             marginIsValid(
-                accountBalance.position.quote,
-                accountBalance.position.base,
+                accountBalance.position,
                 accountBalance.lastUpdatedGasPrice
             );
     }
