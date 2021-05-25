@@ -130,52 +130,6 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
-     * @notice Calculates the number of units sold and the average price of those units by a trader
-     *         given multiple order
-     * @param orders a list of orders for which the units sold is being calculated from
-     * @param traderContract The trader contract with which the orders were made
-     * @param receiptId the id of the liquidation receipt the orders are being claimed against
-     */
-    function calcUnitsSold(
-        Perpetuals.Order[] memory orders,
-        address traderContract,
-        uint256 receiptId
-    ) public override returns (uint256, uint256) {
-        LibLiquidation.LiquidationReceipt memory receipt =
-            liquidationReceipts[receiptId];
-        uint256 unitsSold;
-        uint256 avgPrice;
-        for (uint256 i; i < orders.length; i++) {
-            Perpetuals.Order memory order =
-                ITrader(traderContract).getOrder(orders[i]);
-            if (
-                order.created < receipt.time || // Order made before receipt
-                order.maker != receipt.liquidator // Order made by someone who isn't liquidator
-                // todo alter liquidations side to be a Side type, then re add this comparison
-                // || order.side == receipt.liquidationSide // Order is in same direction as liquidation
-                /* Order should be the opposite to the position acquired on liquidation */
-            ) {
-                emit InvalidClaimOrder(receiptId, receipt.liquidator);
-                continue;
-            }
-
-            uint256 orderFilled = ITrader(traderContract).filledAmount(order);
-
-            /* order.created >= receipt.time
-             * && order.maker == receipt.liquidator
-             * && order.side != receipt.liquidationSide */
-            unitsSold = unitsSold + orderFilled;
-            avgPrice = avgPrice + (order.price * orderFilled);
-        }
-
-        // Avoid divide by 0 if no orders sold
-        if (unitsSold == 0) {
-            return (0, 0);
-        }
-        return (unitsSold, avgPrice / unitsSold);
-    }
-
-    /**
      * @notice Returns liquidation receipt data for a given receipt id.
      * @param id the receipt id to get data for
      */
@@ -255,17 +209,9 @@ contract Liquidation is ILiquidation, Ownable {
     function liquidate(int256 amount, address account) external override {
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
-        console.log("");
-        console.log("liquidatedBase");
-        console.logInt(liquidatedBalance.position.base);
-        console.log("");
 
         Balances.Account memory liquidatorBalance =
             tracer.getBalance(msg.sender);
-        console.log("");
-        console.log("liquidatorBase");
-        console.logInt(liquidatorBalance.position.base);
-        console.log("");
 
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
@@ -288,15 +234,6 @@ contract Liquidation is ILiquidation, Ownable {
                 liquidatedBalance.position.base,
                 amount
             );
-        console.log();
-        console.log("liquidatorQuoteChange");
-        console.logInt(liquidatorQuoteChange);
-        console.log("liquidatorBaseChange");
-        console.logInt(liquidatorBaseChange);
-        console.log("liquidateeQuoteChange");
-        console.logInt(liquidateeQuoteChange);
-        console.log("liquidateeBaseChange");
-        console.logInt(liquidateeBaseChange);
 
         tracer.updateAccountsOnLiquidation(
             msg.sender,
@@ -316,6 +253,52 @@ contract Liquidation is ILiquidation, Ownable {
             address(tracer),
             currentLiquidationId - 1
         );
+    }
+
+    /**
+     * @notice Calculates the number of units sold and the average price of those units by a trader
+     *         given multiple order
+     * @param orders a list of orders for which the units sold is being calculated from
+     * @param traderContract The trader contract with which the orders were made
+     * @param receiptId the id of the liquidation receipt the orders are being claimed against
+     */
+    function calcUnitsSold(
+        Perpetuals.Order[] memory orders,
+        address traderContract,
+        uint256 receiptId
+    ) public override returns (uint256, uint256) {
+        LibLiquidation.LiquidationReceipt memory receipt =
+            liquidationReceipts[receiptId];
+        uint256 unitsSold;
+        uint256 avgPrice;
+        for (uint256 i; i < orders.length; i++) {
+            Perpetuals.Order memory order =
+                ITrader(traderContract).getOrder(orders[i]);
+            if (
+                order.created < receipt.time || // Order made before receipt
+                order.maker != receipt.liquidator // Order made by someone who isn't liquidator
+                // todo alter liquidations side to be a Side type, then re add this comparison
+                // || order.side == receipt.liquidationSide // Order is in same direction as liquidation
+                /* Order should be the opposite to the position acquired on liquidation */
+            ) {
+                emit InvalidClaimOrder(receiptId, receipt.liquidator);
+                continue;
+            }
+
+            uint256 orderFilled = ITrader(traderContract).filledAmount(order);
+
+            /* order.created >= receipt.time
+             * && order.maker == receipt.liquidator
+             * && order.side != receipt.liquidationSide */
+            unitsSold = unitsSold + orderFilled;
+            avgPrice = avgPrice + (order.price * orderFilled);
+        }
+
+        // Avoid divide by 0 if no orders sold
+        if (unitsSold == 0) {
+            return (0, 0);
+        }
+        return (unitsSold, avgPrice / unitsSold);
     }
 
     /**

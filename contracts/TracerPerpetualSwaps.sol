@@ -305,10 +305,6 @@ contract TracerPerpetualSwaps is
         Balances.Account storage liquidatorBalance = balances[liquidator];
         Balances.Account storage liquidateeBalance = balances[liquidatee];
 
-        console.log("liquidator balance: ");
-        // console.logInt(liquidatorBalance.position.quote);
-        console.logInt(liquidatorBalance.position.base);
-        console.logInt(liquidatorBaseChange);
         // update liquidators balance
         liquidatorBalance.lastUpdatedGasPrice = gasPrice;
         liquidatorBalance.position.quote =
@@ -318,22 +314,10 @@ contract TracerPerpetualSwaps is
         liquidatorBalance.position.base =
             liquidatorBalance.position.base +
             liquidatorBaseChange;
-        console.log("AFTER");
-        // console.logInt(liquidatorBalance.position.quote);
-        console.logInt(liquidatorBalance.position.base);
 
         uint256 gasCost =
             liquidatorBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST;
         uint256 price = pricingContract.fairPrice();
-
-        /*
-        console.logUint(Balances.minimumMargin(liquidatorBalance.position, price, gasCost, maxLeverage));
-        console.logInt(Balances.margin(liquidatorBalance.position, price));
-        */
-
-        console.log("liquidatee balance: ");
-        // console.logInt(liquidateeBalance.position.quote);
-        console.logInt(liquidateeBalance.position.base);
 
         // update liquidatee balance
         liquidateeBalance.position.quote =
@@ -342,9 +326,6 @@ contract TracerPerpetualSwaps is
         liquidateeBalance.position.base =
             liquidateeBalance.position.base +
             liquidateeBaseChange;
-        console.log("AFTER");
-        // console.logInt(liquidateeBalance.position.quote);
-        console.logInt(liquidateeBalance.position.base);
 
         // Checks if the liquidator is in a valid position to process the liquidation
         require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
@@ -486,11 +467,6 @@ contract TracerPerpetualSwaps is
         if (minMargin == 0) {
             return true;
         }
-        /*
-        console.log("margin");
-        console.logInt(margin);
-        console.logUint(minMargin);
-        */
 
         // todo CASTING CHECK
         return margin > minMargin.toInt256();

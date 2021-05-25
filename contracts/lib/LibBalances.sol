@@ -39,7 +39,6 @@ library Balances {
         returns (uint256)
     {
         /* cast is safe due to semantics of `abs` */
-        console.logUint(PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price));
         return PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price);
     }
 
