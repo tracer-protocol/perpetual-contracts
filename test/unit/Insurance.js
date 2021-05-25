@@ -122,11 +122,11 @@ describe("Unit tests: Insurance.sol", function () {
         })
     })
 
-    describe("stake", async () => {
+    describe("deposit", async () => {
         context("when the user does not have enough tokens", async () => {
             it("reverts", async () => {
                 await expect(
-                    insurance.stake(ethers.utils.parseEther("1"))
+                    insurance.deposit(ethers.utils.parseEther("1"))
                 ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
             })
         })
@@ -137,7 +137,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("1")
                 )
-                await insurance.stake(ethers.utils.parseEther("1"))
+                await insurance.deposit(ethers.utils.parseEther("1"))
             })
 
             it("mints them pool tokens", async () => {
@@ -177,7 +177,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("2")
                 )
-                await insurance.stake(ethers.utils.parseEther("2"))
+                await insurance.deposit(ethers.utils.parseEther("2"))
                 // get user to burn some pool tokens
                 await insurance.withdraw(ethers.utils.parseEther("1"))
             })
@@ -284,7 +284,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("5")
                 )
-                await insurance.stake(ethers.utils.parseEther("5"))
+                await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
                 let collateralAmountPre = await insurance.collateralAmount()
@@ -303,7 +303,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("5")
                 )
-                await insurance.stake(ethers.utils.parseEther("5"))
+                await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
                 let collateralAmountPre = await insurance.collateralAmount()
@@ -321,7 +321,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("5")
                 )
-                await insurance.stake(ethers.utils.parseEther("5"))
+                await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
                 await insurance.drainPool(ethers.utils.parseEther("1"))
@@ -333,7 +333,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("5")
                 )
-                await insurance.stake(ethers.utils.parseEther("5"))
+                await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // withdraw from pool
                 await insurance.drainPool(ethers.utils.parseEther("2"))
@@ -361,7 +361,7 @@ describe("Unit tests: Insurance.sol", function () {
                     insurance.address,
                     ethers.utils.parseEther("2")
                 )
-                await insurance.stake(ethers.utils.parseEther("2"))
+                await insurance.deposit(ethers.utils.parseEther("2"))
                 let poolBalance = await insurance.getPoolUserBalance(
                     accounts[0].address
                 )

@@ -106,7 +106,8 @@ contract TracerPerpetualSwaps is
         );
 
         // update user state
-        int256 amountToUpdate = Balances.wadToToken(quoteTokenDecimals, amount).toInt256();
+        int256 amountToUpdate =
+            Balances.wadToToken(quoteTokenDecimals, amount).toInt256();
         userBalance.position.quote =
             userBalance.position.quote +
             amountToUpdate;

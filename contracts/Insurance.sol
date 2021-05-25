@@ -49,11 +49,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice Allows a user to stake to a given tracer market insurance pool
+     * @notice Allows a user to deposit to a given tracer market insurance pool
      * @dev Mints amount of the pool token to the user
      * @param amount the amount of tokens to stake. Provided in WAD format
      */
-    function stake(uint256 amount) external override {
+    function deposit(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
         collateralToken.transferFrom(msg.sender, address(this), amount);
 
