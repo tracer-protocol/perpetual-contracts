@@ -49,18 +49,21 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
-     * @notice Allows a user to stake to a given tracer market insurance pool
+     * @notice Allows a user to deposit to a given tracer market insurance pool
      * @dev Mints amount of the pool token to the user
-     * @param amount the amount of tokens to stake. Provided in token native units
+     * @param amount the amount of tokens to deposit. Provided in WAD format
      */
-    function stake(uint256 amount) external override {
+    function deposit(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.transferFrom(msg.sender, address(this), amount);
-
         // convert token amount to WAD
-        uint256 amountToUpdate =
-            uint256(Balances.tokenToWad(tracer.quoteTokenDecimals(), amount));
+        uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
+        uint256 rawTokenAmount =
+            Balances.wadToToken(quoteTokenDecimals, amount);
+        collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
 
+        // amount in wad format after being converted from token format
+        uint256 wadAmount =
+            uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -70,13 +73,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
                 collateralAmount,
-                amountToUpdate
+                wadAmount
             );
 
         // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
-        collateralAmount = collateralAmount + amountToUpdate;
-        emit InsuranceDeposit(address(tracer), msg.sender, amountToUpdate);
+        collateralAmount = collateralAmount + wadAmount;
+        emit InsuranceDeposit(address(tracer), msg.sender, wadAmount);
     }
 
     /**
@@ -101,12 +104,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             );
 
         // convert token amount to raw amount from WAD
-        uint256 tokensToSend =
+        uint256 rawTokenAmount =
             Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, tokensToSend);
+        collateralToken.transfer(msg.sender, rawTokenAmount);
 
         // pool amount is always in WAD format
         collateralAmount = collateralAmount - wadTokensToSend;
