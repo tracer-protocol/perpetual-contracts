@@ -99,24 +99,30 @@ contract TracerPerpetualSwaps is
      */
     function deposit(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
+
+        // convert the WAD amount to the correct token amount to transfer
+        // cast is safe since amount is a uint, and wadToToken can only
+        // scale down the value
+        uint256 amountToTransfer =
+            uint(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
         IERC20(tracerQuoteToken).transferFrom(
             msg.sender,
             address(this),
-            amount
+            amountToTransfer
         );
 
+        // this prevents dust from being added to the user account
+        // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
+        int256 amountFormatted = Balances.tokenToWad(quoteTokenDecimals, amountToTransfer);
+        
         // update user state
-        int256 amountToUpdate =
-            Balances.wadToToken(quoteTokenDecimals, amount).toInt256();
         userBalance.position.quote =
             userBalance.position.quote +
-            amountToUpdate;
+            amountFormatted;
         _updateAccountLeverage(msg.sender);
 
         // update market TVL
-        // this cast is safe since amount > 0 on deposit and wadToToken simply
-        // multiplies the amount up to a WAD value
-        tvl = tvl + uint256(amountToUpdate);
+        tvl = tvl + amount;
         emit Deposit(msg.sender, amount);
     }
 
