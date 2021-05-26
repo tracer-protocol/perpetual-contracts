@@ -148,19 +148,23 @@ describe("Liquidation functional tests", async () => {
                     await contracts.liquidation.liquidationReceipts(0)
                 ).amountLiquidated
                 
-                const order = [
-                    accounts[1].address,
-                    contracts.tracerPerps.address,
-                    ethers.utils.parseEther("1").toString(),
-                    liquidationAmount,
-                    1, // Short, because original position liquidated was long
-                    (await ethers.provider.getBlock("latest")).timestamp + 100,
-                    (await ethers.provider.getBlock("latest")).timestamp,
-                ]
-                const hash = await modifiableTrader.hashOrder(order)
+                const order = {
+                    maker: accounts[1].address,
+                    market: contracts.tracerPerps.address,
+                    price: ethers.utils.parseEther("1").toString(),
+                    amount: liquidationAmount,
+                    side: 1, // Short, because original position liquidated was long
+                    expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+                    created: (await ethers.provider.getBlock("latest")).timestamp,
+                }
+                // const hash = ethers.BigNumber.from((await modifiableTrader.hashOrder(order)).substring(2))
+                const hash = (await modifiableTrader.hashOrder(order))
 
                 console.log("HASH")
+                console.log(order)
                 console.log(hash)
+                // console.log(hash2)
+                console.log(hash.length)
 
                 await modifiableTrader.smodify.put({
                     orders: {
@@ -178,6 +182,32 @@ describe("Liquidation functional tests", async () => {
                 console.log(orderRes)
 
                 console.log("Hello")
+
+                const invalidOrder1 = [
+                    accounts[1].address,
+                    contracts.tracerPerps.address,
+                    ethers.utils.parseEther("1"),
+                    liquidationAmount,
+                    "0", // Long, which is invalid
+                    (await ethers.provider.getBlock("latest")).timestamp + 100,
+                    (await ethers.provider.getBlock("latest")).timestamp,
+                ]
+                const invalidOrder2 = [
+                    accounts[1].address,
+                    contracts.tracerPerps.address,
+                    ethers.utils.parseEther("0"), // $0, which is invalid
+                    liquidationAmount,
+                    "0", // Short, because original position liquidated was long
+                    (await ethers.provider.getBlock("latest")).timestamp + 100,
+                    (await ethers.provider.getBlock("latest")).timestamp,
+                ]
+
+                const tx = await contracts.liquidation.callStatic.calcUnitsSold(
+                    [invalidOrder1, invalidOrder2, invalidOrder2, invalidOrder1],
+                    modifiableTrader.address,
+                    0
+                )
+                console.log(tx)
                 
                 /*
                 await modifiableTrader.smodify.put({
