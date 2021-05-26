@@ -153,7 +153,7 @@ describe("Liquidation functional tests", async () => {
                     contracts.tracerPerps.address,
                     ethers.utils.parseEther("1").toString(),
                     liquidationAmount,
-                    "1", // Short, because original position liquidated was long
+                    1, // Short, because original position liquidated was long
                     (await ethers.provider.getBlock("latest")).timestamp + 100,
                     (await ethers.provider.getBlock("latest")).timestamp,
                 ]
