@@ -59,6 +59,12 @@ contract TracerPerpetualSwaps is
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
+    event MatchedOrders(
+        address indexed long,
+        address indexed short,
+        uint256 amount,
+        uint256 price
+    );
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -95,27 +101,35 @@ contract TracerPerpetualSwaps is
      * @notice Allows a user to deposit into their margin account
      * @dev this contract must be an approved spender of the markets quote token on behalf of the depositer.
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
-     * should be given with the correct decimal units of the token
+     * should be given in WAD format.
      */
     function deposit(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
+
+        // convert the WAD amount to the correct token amount to transfer
+        // cast is safe since amount is a uint, and wadToToken can only
+        // scale down the value
+        uint256 rawTokenAmount =
+            uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
         IERC20(tracerQuoteToken).transferFrom(
             msg.sender,
             address(this),
-            amount
+            rawTokenAmount
         );
 
+        // this prevents dust from being added to the user account
+        // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
+        int256 convertedWadAmount =
+            Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
+
         // update user state
-        int256 amountToUpdate = Balances.tokenToWad(quoteTokenDecimals, amount);
         userBalance.position.quote =
             userBalance.position.quote +
-            amountToUpdate;
+            convertedWadAmount;
         _updateAccountLeverage(msg.sender);
 
         // update market TVL
-        // this cast is safe since amount > 0 on deposit and tokenToWad simply
-        // multiplies the amount up to a WAD value
-        tvl = tvl + uint256(amountToUpdate);
+        tvl = tvl + uint256(convertedWadAmount);
         emit Deposit(msg.sender, amount);
     }
 
@@ -191,6 +205,22 @@ contract TracerPerpetualSwaps is
             userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
             "TCR: Margin Invalid post trade "
         );
+
+        if (order1.side == Perpetuals.Side.Long) {
+            emit MatchedOrders(
+                order1.maker,
+                order2.maker,
+                order1.amount,
+                order1.price
+            );
+        } else {
+            emit MatchedOrders(
+                order2.maker,
+                order1.maker,
+                order1.amount,
+                order1.price
+            );
+        }
     }
 
     /**
