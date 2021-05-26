@@ -106,7 +106,7 @@ async function main() {
 
         console.log(`Updating Oracle price to $${newPrice.toString()}\n`)
         await deployments.execute(
-            "EthOracle",
+            "PriceOracle",
             { from: deployer.address, log: true },
             "setPrice",
             newPrice
