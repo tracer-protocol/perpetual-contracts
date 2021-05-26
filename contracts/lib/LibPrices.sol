@@ -67,10 +67,9 @@ library Prices {
 
         for (uint256 i = 0; i < n; i++) {
             PriceInstant memory currPrice = prices[i];
-            uint256 _averagePrice = averagePrice(currPrice);
 
             // dont inclue periods that have no trades
-            if (_averagePrice == 0 && currPrice.trades == 0) {
+            if (currPrice.trades == 0) {
                 continue;
             } else {
                 averagePrices[i] = averagePrice(currPrice);
