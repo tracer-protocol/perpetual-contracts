@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
+import "./LibBalances.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
 
 library Prices {
     using LibMath for uint256;
@@ -147,5 +149,57 @@ library Prices {
                 cumulativeUnderlying / totalUnderlyingTimeWeight,
                 cumulativeDerivative / totalDerivativeTimeWeight
             );
+    }
+
+    function applyFunding(
+        Balances.Position memory position,
+        FundingRateInstant memory globalRate,
+        FundingRateInstant memory userRate
+    ) internal pure returns (Balances.Position memory) {
+        return
+            Balances.Position(
+                position.quote -
+                    PRBMathSD59x18.mul(
+                        globalRate.fundingRate - userRate.fundingRate,
+                        position.base
+                    ),
+                position.base
+            );
+    }
+
+    function applyInsurance(
+        Balances.Position memory userPosition,
+        Balances.Position memory insurancePosition,
+        FundingRateInstant memory globalRate,
+        FundingRateInstant memory userRate,
+        uint256 totalLeveragedValue
+    )
+        internal
+        pure
+        returns (Balances.Position memory, Balances.Position memory)
+    {
+        int256 insuranceDelta =
+            PRBMathSD59x18.mul(
+                globalRate.fundingRate - userRate.fundingRate,
+                int256(totalLeveragedValue)
+            );
+
+        if (insuranceDelta > 0) {
+            Balances.Position memory newUserPos =
+                Balances.Position(
+                    userPosition.quote - insuranceDelta,
+                    userPosition.base
+                );
+
+            Balances.Position memory newInsurancePos =
+                Balances.Position(
+                    insurancePosition.quote + insuranceDelta,
+                    insurancePosition.base
+                );
+
+            return (newUserPos, newInsurancePos);
+        } else {
+            return (userPosition, insurancePosition);
+        }
     }
 }
