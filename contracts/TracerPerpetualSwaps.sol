@@ -488,8 +488,11 @@ contract TracerPerpetualSwaps is
                This could happen if user attempts to over-withdraw */
             return false;
         }
+
         if (minMargin == 0) {
-            return true;
+            // minMargin = 0 only occurs when user has no base (positions)
+            // if they have no base, their quote must be > 0.
+            return quote >= 0;
         }
 
         // todo CASTING CHECK
