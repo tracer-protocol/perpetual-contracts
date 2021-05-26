@@ -133,7 +133,7 @@ library Prices {
                 cumulativeDerivative += currTimeWeight * currDerivativePrice;
             }
 
-            // dont inclue periods that have no trades
+            // dont include periods that have no trades
             if (currUnderlyingPrice == 0 && oraclePrices[j].trades == 0) {
                 continue;
             } else {
