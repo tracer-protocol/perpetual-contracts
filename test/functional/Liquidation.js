@@ -45,8 +45,6 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
     )
     // liquidationInstance.connect(deployer)
     const libPerpetuals = await deployments.get("Perpetuals")
-    console.log("libPerpetuals")
-    console.log(libPerpetuals)
     const contracts = {
         tracerPerps: tracerPerpsInstance,
         liquidation: liquidationInstance,
