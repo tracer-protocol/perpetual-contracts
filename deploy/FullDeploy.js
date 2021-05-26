@@ -45,19 +45,6 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
-    const priceOracle = await deploy("PriceOracle", {
-        from: deployer,
-        log: true,
-        contract: "Oracle",
-    })
-
-    const oracleAdapter = await deploy("PriceOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [priceOracle.address],
-        contract: "OracleAdapter",
-    })
-
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
@@ -68,6 +55,13 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
         contract: "Oracle",
+    })
+
+    const oracleAdapter = await deploy("PriceOracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [ethOracle.address],
+        contract: "OracleAdapter",
     })
 
     const gasPriceOracle = await deploy("GasPriceOracle", {

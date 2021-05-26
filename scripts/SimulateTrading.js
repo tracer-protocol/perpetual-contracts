@@ -57,7 +57,11 @@ async function main() {
             await deployments.read("PriceOracleAdapter", "latestAnswer")
         )
         let block = await ethers.provider.getBlock("latest")
-        console.log(`Current price: ${price} at block: ${block.timestamp}`)
+        console.log(
+            `Current price: ${ethers.utils.formatEther(price)} at block: ${
+                block.timestamp
+            }`
+        )
         // generate random number between 15 and 1
         // Math.floor(Math.random() * (max - min + 1) + min)
         let amount = ethers.utils.parseEther(
@@ -96,19 +100,17 @@ async function main() {
         console.log("Matching orders")
         await tracerInstance.matchOrders(makerOrder, takerOrder, amount)
         console.log("Successfully matched orders")
-        let newPrice = price.add(
-            Math.random() > 0.5 ? smallAmount : smallAmount.mul(-1)
-        )
-        console.log(
-            `Updating Oracle price to $${ethers.utils.formatEther(newPrice)}\n`
-        )
+        let newPrice = price
+            .add(Math.random() > 0.5 ? smallAmount : smallAmount.mul(-1))
+            .div(ethers.BigNumber.from("10000000000")) // convert back to 10^8
 
-        // await deployments.execute(
-        //     "EthOracle",
-        //     { from: deployer.address, log: true },
-        //     "setPrice",
-        //     newPrice.toString()
-        // )
+        console.log(`Updating Oracle price to $${newPrice.toString()}\n`)
+        await deployments.execute(
+            "EthOracle",
+            { from: deployer.address, log: true },
+            "setPrice",
+            newPrice
+        )
     }
 
     let factory = await deployments.get("TracerPerpetualsFactory")
