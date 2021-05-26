@@ -1,12 +1,12 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { smockit } = require("@eth-optimism/smock")
+const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 
 const halfLiquidate = deployments.createFixture(async () => {
     const { deployer } = await getNamedAccounts()
     accounts = await ethers.getSigners()
-    const { tracerPerps, liquidation, trader } =
+    const { tracerPerps, liquidation, trader, libPerpetuals } =
         await baseLiquidatablePosition()
 
     // Get half the base. Liquidate this amount
@@ -19,7 +19,7 @@ const halfLiquidate = deployments.createFixture(async () => {
         .liquidate(halfBase, deployer)
     const base = (await tracerPerps.getBalance(deployer)).position.base
 
-    return { tracerPerps, liquidation, trader }
+    return { tracerPerps, liquidation, trader, libPerpetuals }
 })
 
 const baseLiquidatablePosition = deployments.createFixture(async () => {
@@ -44,10 +44,14 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
         traderDeployment.address
     )
     // liquidationInstance.connect(deployer)
+    const libPerpetuals = await deployments.get("Perpetuals")
+    console.log("libPerpetuals")
+    console.log(libPerpetuals)
     const contracts = {
         tracerPerps: tracerPerpsInstance,
         liquidation: liquidationInstance,
         trader: traderInstance,
+        libPerpetuals: libPerpetuals
     }
 
     return contracts
@@ -57,37 +61,12 @@ const sellForSlippage = deployments.createFixture(async () => {
     const contracts = await halfLiquidate()
 })
 
-const smockCalcAmountToReturn = deployments.createFixture(async () => {
-    const contracts = await halfLiquidate()
-    let mockTrader = await smockit(contracts.trader)
-    accounts = await ethers.getSigners()
-
-    // Get half the base. Liquidated this amount, so trade should return this amount
-    const liquidationAmount = (
-        await contracts.liquidation.liquidationReceipts(0)
-    ).amountLiquidated
-
-    await mockTrader.smocked.getOrder.will.return.with({
-        maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
-        price: ethers.utils.parseEther("1"),
-        amount: liquidationAmount,
-        side: 1, // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp,
-    })
-
-    mockTrader.smocked.filledAmount.will.return.with(liquidationAmount)
-    const liquidation = contracts.liquidation
-    const tracerPerps = contracts.tracerPerps
-    return { mockTrader, liquidation, tracerPerps }
-})
-
 describe("Liquidation functional tests", async () => {
     let accounts
     let tracerPerps
     let liquidation
     let trader
+    let libPerpetuals
     before(async function () {
         accounts = await ethers.getSigners()
     })
@@ -128,7 +107,7 @@ describe("Liquidation functional tests", async () => {
 
         context("in the normal case", async () => {
             it("Calculates correctly", async () => {
-                const smocked = await smockCalcAmountToReturn()
+                const smocked = await halfLiquidate()
                 tracerPerps = smocked.tracerPerps
                 liquidation = smocked.liquidation
                 trader = smocked.mockTrader
@@ -141,7 +120,7 @@ describe("Liquidation functional tests", async () => {
                     tracerPerps.address,
                     ethers.utils.parseEther("1"),
                     liquidationAmount,
-                    "0", // Short, because original position liquidated was long
+                    "1", // Short, because original position liquidated was long
                     (await ethers.provider.getBlock("latest")).timestamp + 100,
                     (await ethers.provider.getBlock("latest")).timestamp,
                 ]
@@ -157,6 +136,55 @@ describe("Liquidation functional tests", async () => {
 
         context("when all invalid orders", async () => {
             it.only("Returns nothing ", async () => {
+                const contracts = await baseLiquidatablePosition()
+                const ModifiableTraderContract = await smoddit(
+                    'Trader',
+                    {
+                        libraries: {
+                            Perpetuals: contracts.libPerpetuals.address
+                        }
+                    }
+                )
+                const modifiableTrader = await ModifiableTraderContract.deploy()
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).amountLiquidated
+                
+                const order = [
+                    accounts[1].address,
+                    contracts.tracerPerps.address,
+                    1, // ethers.utils.parseEther("1"),
+                    liquidationAmount,
+                    "1", // Short, because original position liquidated was long
+                    (await ethers.provider.getBlock("latest")).timestamp + 100,
+                    (await ethers.provider.getBlock("latest")).timestamp,
+                ]
+                const hash = await modifiableTrader.hashOrder(order)
+
+                console.log("HASH")
+                console.log(hash)
+
+                await modifiableTrader.smodify.put({
+                    orders: {
+                      hash: order,
+                    },
+                });
+                console.log("modified")
+
+                const orderMapping = await modifiableTrader.orders(hash)
+                console.log("orderMapping")
+                console.log(orderMapping)
+
+                const orderRes = await modifiableTrader.getOrder(order)
+                console.log("orderRes")
+                console.log(orderRes)
+
+                console.log("Hello")
+                
+                /*
+                await modifiableTrader.smodify.put({
+                  myInternalUint256: 1234
+                })
                 const smocked = await smockCalcAmountToReturn()
                 tracerPerps = smocked.tracerPerps
                 liquidation = smocked.liquidation
@@ -191,6 +219,7 @@ describe("Liquidation functional tests", async () => {
                 )
                 await expect(ethers.utils.parseEther("0")).to.equal(tx[0])
                 await expect(ethers.utils.parseEther("0")).to.equal(tx[1])
+                */
             })
         })
 
