@@ -95,21 +95,21 @@ module.exports = async function (hre) {
         { from: deployer, log: true },
         "transfer",
         acc1,
-        "10000"
+        ethers.BigNumber.from(10000 * 10 ** 8)
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc2,
-        "10000"
+        ethers.BigNumber.from(10000 * 10 ** 8)
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc3,
-        "10000"
+        ethers.BigNumber.from(10000 * 10 ** 8)
     )
 
     // deploy deployers
