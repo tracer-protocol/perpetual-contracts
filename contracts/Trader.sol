@@ -142,7 +142,7 @@ contract Trader is ITrader {
     ) internal returns (Perpetuals.Order storage) {
         Perpetuals.Order memory rawOrder = signedOrders[index].order;
 
-        bytes32 orderHash = hashOrder(rawOrder);
+        bytes32 orderHash = Perpetuals.orderId(rawOrder);
         // check if order exists on chain, if not, create it
         if (orders[orderHash].maker == address(0)) {
             // store this order to keep track of state
@@ -251,6 +251,6 @@ contract Trader is ITrader {
         override
         returns (Perpetuals.Order memory)
     {
-        return orders[hashOrder(order)];
+        return orders[Perpetuals.orderId(order)];
     }
 }
