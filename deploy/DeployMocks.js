@@ -4,9 +4,17 @@ module.exports = async function (hre) {
 
     const { deployer } = await getNamedAccounts()
 
+    const libPerpetuals = await deploy("Perpetuals", {
+        from: deployer,
+        log: true,
+    })
+
     const libLiquidation = await deploy("LibLiquidation", {
         from: deployer,
         log: true,
+        libraries: {
+            Perpetuals: libPerpetuals.address,
+        },
     })
 
     const libBalances = await deploy("Balances", {
@@ -19,6 +27,7 @@ module.exports = async function (hre) {
         log: true,
         libraries: {
             LibLiquidation: libLiquidation.address,
+            Perpetuals: libPerpetuals.address,
         },
     })
 

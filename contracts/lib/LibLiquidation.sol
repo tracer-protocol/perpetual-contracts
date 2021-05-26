@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
+import "./LibPerpetuals.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 
@@ -21,7 +22,7 @@ library LibLiquidation {
         uint256 releaseTime;
         int256 amountLiquidated;
         bool escrowClaimed;
-        bool liquidationSide;
+        Perpetuals.Side liquidationSide;
         bool liquidatorRefundClaimed;
     }
 
@@ -92,8 +93,10 @@ library LibLiquidation {
         // Check price slippage and update account states
         if (
             avgPrice == receipt.price || // No price change
-            (avgPrice < receipt.price && !receipt.liquidationSide) || // Price dropped, but position is short
-            (avgPrice > receipt.price && receipt.liquidationSide) // Price jumped, but position is long
+            (avgPrice < receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Short) || // Price dropped, but position is short
+            (avgPrice > receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Long) // Price jumped, but position is long
         ) {
             // No slippage
             return 0;
@@ -108,9 +111,15 @@ library LibLiquidation {
             // todo this can probably be further simplified
             uint256 amountToReturn = 0;
             uint256 percentSlippage = 0;
-            if (avgPrice < receipt.price && receipt.liquidationSide) {
+            if (
+                avgPrice < receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Long
+            ) {
                 amountToReturn = amountExpectedFor - amountSoldFor;
-            } else if (avgPrice > receipt.price && !receipt.liquidationSide) {
+            } else if (
+                avgPrice > receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Short
+            ) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
             if (amountToReturn <= 0) {
