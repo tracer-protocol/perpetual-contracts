@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../lib/LibLiquidation.sol";
+import "../lib/LibPerpetuals.sol";
 
 library LibLiquidationMock {
     function calcEscrowLiquidationAmount(
@@ -45,7 +46,7 @@ library LibLiquidationMock {
         uint256 maxSlippage,
         uint256 avgPrice,
         uint256 receiptPrice,
-        bool receiptSide
+        uint256 receiptSide
     ) external pure returns (uint256 result) {
         /* Create a struct LibLiquidation with only price and liquidationSide set,
            as they are the only ones used in calculateSlippage */
@@ -60,7 +61,7 @@ library LibLiquidationMock {
                 0,
                 0,
                 false, // Not used
-                receiptSide,
+                Perpetuals.Side(receiptSide),
                 false // Not used
             );
 
