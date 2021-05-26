@@ -65,7 +65,14 @@ library Prices {
 
         for (uint256 i = 0; i < n; i++) {
             PriceInstant memory currPrice = prices[i];
-            averagePrices[i] = averagePrice(currPrice);
+            uint256 _averagePrice = averagePrice(currPrice);
+
+            // dont inclue periods that have no trades
+            if (_averagePrice == 0 && currPrice.trades == 0) {
+                continue;
+            } else {
+                averagePrices[i] = averagePrice(currPrice);
+            }
         }
 
         return LibMath.mean(averagePrices);
@@ -104,7 +111,8 @@ library Prices {
         PriceInstant[24] memory tracerPrices,
         PriceInstant[24] memory oraclePrices
     ) public pure returns (TWAP memory) {
-        uint256 totalTimeWeight = 0;
+        uint256 totalDerivativeTimeWeight = 0;
+        uint256 totalUnderlyingTimeWeight = 0;
         uint256 cumulativeDerivative = 0;
         uint256 cumulativeUnderlying = 0;
 
@@ -117,15 +125,27 @@ library Prices {
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
-            totalTimeWeight += currTimeWeight;
-            cumulativeDerivative += currTimeWeight * currDerivativePrice;
-            cumulativeUnderlying += currTimeWeight * currUnderlyingPrice;
+            // dont inclue periods that have no trades
+            if (currDerivativePrice == 0 && tracerPrices[j].trades == 0) {
+                continue;
+            } else {
+                totalDerivativeTimeWeight += currTimeWeight;
+                cumulativeDerivative += currTimeWeight * currDerivativePrice;
+            }
+
+            // dont inclue periods that have no trades
+            if (currUnderlyingPrice == 0 && oraclePrices[j].trades == 0) {
+                continue;
+            } else {
+                totalUnderlyingTimeWeight += currTimeWeight;
+                cumulativeUnderlying += currTimeWeight * currUnderlyingPrice;
+            }
         }
 
         return
             TWAP(
-                cumulativeUnderlying / totalTimeWeight,
-                cumulativeDerivative / totalTimeWeight
+                cumulativeUnderlying / totalUnderlyingTimeWeight,
+                cumulativeDerivative / totalDerivativeTimeWeight
             );
     }
 }

@@ -289,7 +289,7 @@ describe("Unit tests: LibPrices.sol", function () {
         context(
             "when leverage has decreased by more than the global leverage",
             async () => {
-                it.only("caps global leverage at 0", async () => {
+                it("caps global leverage at 0", async () => {
                     let globalLeverageInitial = ethers.utils.parseEther("100")
                     let oldAccountLeverage = ethers.utils.parseEther("110")
                     let newAccountLeverage = ethers.utils.parseEther("0")
@@ -317,11 +317,11 @@ describe("Unit tests: LibPrices.sol", function () {
                 // generate 24 hour oracle and tracer prices
                 for (i = 0; i < 24; i++) {
                     oraclePrices.push([
-                        ethers.utils.parseUnits((1 + 0.05 * i).toString(), 18),
+                        ethers.utils.parseUnits((1 + 1 * i).toString(), 18),
                         ethers.BigNumber.from("1"),
                     ])
                     tracerPrices.push([
-                        ethers.utils.parseUnits((1 + 0.04 * i).toString(), 18),
+                        ethers.utils.parseUnits((1 + 0.5 * i).toString(), 18),
                         ethers.BigNumber.from("1"),
                     ])
                 }
