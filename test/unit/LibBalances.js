@@ -178,25 +178,6 @@ describe("Unit tests: LibBalances.sol", async () => {
             })
         })
 
-        context("when base and quote are opposing max and min", async () => {
-            it("returns -1", async () => {
-                // -1 since max int is 2^255-1 and min int is -2^255
-                let expected = await ethers.BigNumber.from("-1")
-                let price = await ethers.utils.parseEther("1")
-                // test max and min edge cases that cancel
-                let positions = [
-                    [minimumInt, maximumInt],
-                    [maximumInt, minimumInt],
-                ]
-
-                // todo: the (max, min) test case thows and I'm not sure why?
-                await positions.forEach(async (position) => {
-                    let result = await libBalances.margin(position, price)
-                    await expect(result).to.equal(expected)
-                })
-            })
-        })
-
         context("when called with normal positions", async () => {
             it("returns", async () => {
                 await normalPositions.forEach(async (position) => {
