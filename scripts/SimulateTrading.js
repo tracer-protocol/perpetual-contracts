@@ -1,4 +1,4 @@
-const { BigNumber } = require("@ethersproject/bignumber")
+const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json");
 const hre = require("hardhat")
 
 // small sample script for using deploys and then deploying a trace
@@ -10,7 +10,8 @@ async function main() {
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
 
-    let tracer = await deployments.get("TracerPerpetualSwaps")
+    let tracer = await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0)
+    let tracerInstance = new ethers.Contract(tracer, tracerAbi)
 
     // approve for deployer
     console.log(`Approving tokens for the deployer: ${deployer.address}`)
@@ -18,35 +19,34 @@ async function main() {
         "QuoteToken",
         { from: deployer.address, log: true },
         "approve",
-        tracer.address,
+        tracer,
         ethers.BigNumber.from(1000 * 10 ** 8)
     )
 
     // approve and deposit for 2 accounts
     for (let i = 0; i < 2; i++) {
+        // I know this is lame but connect returns a new instance
+        tracerInstance = await tracerInstance.connect(accounts[i])
         console.log(`Approving and depositing for ${accounts[i].address}`)
         await deployments.execute(
             "QuoteToken",
             { from: accounts[i].address, log: true },
             "approve",
-            tracer.address,
-            ethers.BigNumber.from(10000 * 10 ** 8)
+            tracer,
+            ethers.utils.parseEther('10000')
         )
-        await deployments.execute(
-            "TracerPerpetualSwaps",
-            { from: accounts[i].address, log: true },
-            "deposit",
-            ethers.BigNumber.from(10000 * 10 ** 8)
-        )
+        await tracerInstance.deposit(ethers.utils.parseEther('10000'))
     }
 
+    // attach the deployer
+    tracerInstance = await tracerInstance.connect(deployer)
     // create 40 matched orders between acc1 and acc2
     // randomly increase/decrease price by 0.01 each loop
     // the first 20 orders will have accounts[0] as maker and accounts[1] as taker
     // the last 20 orders will have accounts[1] as maker and accounts[0] as taker
     // the traders swap between long and short incrementally
     // amount is randomly between 30 and 70
-    console.log(`Simulating orders for market: ${tracer.address}`)
+    console.log(`Simulating orders for market: ${tracer}`)
     let smallAmount = ethers.BigNumber.from("10000000000000000") // this is 0.01 in WAD
     for (let i = 0; i < 40; i++) {
         let price = ethers.BigNumber.from(
@@ -72,7 +72,7 @@ async function main() {
         // side (0 === long, 1 === short)
         let makerOrder = [
             maker,
-            tracer.address, // market
+            tracer, // market
             price.toString(), // price
             amount.toString(), // amount
             makerSide, // side long on even numbers
@@ -81,7 +81,7 @@ async function main() {
         ]
         let takerOrder = [
             taker, // taker
-            tracer.address, // market
+            tracer, // market
             price.toString(), // price
             amount.toString(), // amount
             takerSide, // side long on odd numbers
@@ -90,14 +90,16 @@ async function main() {
         ]
 
         console.log("Executing trade")
-        await deployments.execute(
-            "TracerPerpetualSwaps",
-            { from: deployer.address, log: true },
-            "matchOrders",
+        await tracerInstance.matchOrders(
             makerOrder,
             takerOrder,
             amount
         )
+        // await deployments.execute(
+        //     "TracerPerpetualSwaps",
+        //     { from: deployer.address, log: true },
+        //     "matchOrders",
+        // )
         console.log("Successfully executed trade")
         let newPrice = price.add(
             Math.random() > 0.5 ? smallAmount : smallAmount.mul(-1)
@@ -112,6 +114,10 @@ async function main() {
         //     newPrice.toString()
         // )
     }
+
+    let factory = await deployments.get("TracerPerpetualsFactory")
+    console.log(`Factory: ${factory.address}`)
+    console.log(`Traded on tracer: ${tracer}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
