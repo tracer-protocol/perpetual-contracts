@@ -93,22 +93,18 @@ async function main() {
             0, // created
         ]
 
-        console.log("Executing trade")
+        console.log("Matching orders")
         await tracerInstance.matchOrders(makerOrder, takerOrder, amount)
-        // await deployments.execute(
-        //     "TracerPerpetualSwaps",
-        //     { from: deployer.address, log: true },
-        //     "matchOrders",
-        // )
-        console.log("Successfully executed trade")
+        console.log("Successfully matched orders")
         let newPrice = price.add(
             Math.random() > 0.5 ? smallAmount : smallAmount.mul(-1)
         )
         console.log(
             `Updating Oracle price to $${ethers.utils.formatEther(newPrice)}\n`
         )
+
         // await deployments.execute(
-        //     "PriceOracle",
+        //     "EthOracle",
         //     { from: deployer.address, log: true },
         //     "setPrice",
         //     newPrice.toString()
