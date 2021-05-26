@@ -1,4 +1,4 @@
-const { expect } = require("chai")
+const { expect, assert } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const { smockit } = require("@eth-optimism/smock")
@@ -220,8 +220,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await expect(
                     tracer.matchOrders(
                         order1,
-                        order2,
-                        ethers.utils.parseEther("1")
+                        order2
                     )
                 ).to.be.revertedWith("TCR: Orders cannot be matched")
             })
@@ -263,31 +262,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await expect(
                     tracer.matchOrders(
                         order1,
-                        order2,
-                        ethers.utils.parseEther("1")
+                        order2
                     )
                 ).to.be.revertedWith("TCR: Margin Invalid post trade")
             })
-        })
-    })
-
-    describe("_executeTrade", async () => {
-        context("when fill amount = 0", async () => {
-            it("does nothing", async () => {})
-        })
-
-        context("when fill amount > 0", async () => {
-            it("updates quote and base appropriately", async () => {})
-
-            it("takes a fee if set", async () => {})
-        })
-    })
-
-    describe("_updateAccountLeverage", async () => {
-        context("when called", async () => {
-            it("updates the accounts leverage", async () => {})
-
-            it("updates the markets total leverage", async () => {})
         })
     })
 
@@ -347,10 +325,15 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 pricing.smocked.getFundingRate.will.return([
                     0,
                     ethers.utils.parseEther("1"),
-                    ethers.utils.parseEther("!"),
+                    ethers.utils.parseEther("1"),
                 ])
+
+                // todo get into funding position?
             })
-            it("pays the funding rate", async () => {})
+
+            it("pays the funding rate", async () => {
+
+            })
 
             it("pays the insurance funding rate", async () => {})
 
@@ -366,7 +349,17 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
     describe("marginIsValid", async () => {
         context("when margin >= minMargin", async () => {
-            it("returns true", async () => {})
+            it.only("returns true", async () => {
+                // margin = quote + base * price
+                // min margin = net value / max lev
+                let pos = [
+                    ethers.utils.parseEther("-5"),// quote
+                    ethers.utils.parseEther("100")// base
+                ]
+
+                let result = await tracer.marginIsValid(pos, ethers.utils.parseEther("0.001"))
+                expect(result).to.equal(true)
+            })
         })
 
         context("when margin < minMargin", async () => {
