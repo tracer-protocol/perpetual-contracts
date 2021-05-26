@@ -15,7 +15,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
             log: true,
         })
 
-        await deploy("LibPerpetualsMock", {
+        await deploy("PerpetualsMock", {
             from: deployer,
             log: true,
             libraries: {
@@ -23,7 +23,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
             },
         })
 
-        let deployment = await deployments.get("LibPerpetualsMock")
+        let deployment = await deployments.get("PerpetualsMock")
         libPerpetuals = await ethers.getContractAt(
             deployment.abi,
             deployment.address
