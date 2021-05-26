@@ -59,6 +59,12 @@ contract TracerPerpetualSwaps is
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
+    event MatchedOrders(
+        address indexed long,
+        address indexed short,
+        uint256 amount,
+        uint256 price
+    );
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -199,6 +205,22 @@ contract TracerPerpetualSwaps is
             userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
             "TCR: Margin Invalid post trade "
         );
+
+        if (order1.side == Perpetuals.Side.Long) {
+            emit MatchedOrders(
+                order1.maker,
+                order2.maker,
+                order1.amount,
+                order1.price
+            );
+        } else {
+            emit MatchedOrders(
+                order2.maker,
+                order1.maker,
+                order1.amount,
+                order1.price
+            );
+        }
     }
 
     /**
