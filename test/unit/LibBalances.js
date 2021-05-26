@@ -514,13 +514,10 @@ describe("Unit tests: LibBalances.sol", async () => {
             })
         })
 
-        context("when params are normal", async() => {
-            it("returns", async() => {
+        context("when params are normal", async () => {
+            it("returns", async () => {
                 let expected = ethers.utils.parseEther("100")
-                let result = await libBalances.tokenToWad(
-                    6,
-                    "100000000"
-                )
+                let result = await libBalances.tokenToWad(6, "100000000")
                 expect(result).to.equal(expected)
             })
         })
@@ -546,8 +543,8 @@ describe("Unit tests: LibBalances.sol", async () => {
             })
         })
 
-        context("when params are normal", async() => {
-            it("returns", async() => {
+        context("when params are normal", async () => {
+            it("returns", async () => {
                 let expected = ethers.BigNumber.from("100000000")
                 let result = await libBalances.wadToToken(
                     6,

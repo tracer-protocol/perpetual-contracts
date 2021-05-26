@@ -72,7 +72,7 @@ contract TracerPerpetualSwaps is
      * @param _marketId the id of the market, given as BASE/QUOTE
      * @param _tracerQuoteToken the address of the token used for margin accounts (i.e. The margin token)
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
-     * @param _maxLeverage the max leverage of the market. Min margin is derived from this
+     * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
      * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      */
