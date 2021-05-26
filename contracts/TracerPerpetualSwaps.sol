@@ -471,7 +471,8 @@ contract TracerPerpetualSwaps is
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
 
-        Balances.Position memory pos = Balances.Position(quote, base);
+        Balances.Position memory pos =
+            Balances.Position(position.quote, position.base);
         uint256 minMargin =
             Balances.minimumMargin(pos, price, gasCost, maxLeverage);
         int256 margin = Balances.margin(pos, price);
@@ -485,7 +486,7 @@ contract TracerPerpetualSwaps is
         if (minMargin == 0) {
             // minMargin = 0 only occurs when user has no base (positions)
             // if they have no base, their quote must be > 0.
-            return quote >= 0;
+            return position.quote >= 0;
         }
 
         return Balances.marginValid(position, price, gasCost, maxLeverage);
