@@ -4,8 +4,8 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 describe("Unit tests: LibLiquidation.sol", function () {
     let libLiquidation
     let accounts
-    const long = true
-    const short = false
+    const long = 0
+    const short = 1
 
     before(async function () {
         await deployments.fixture(["LibLiquidationMock"])
