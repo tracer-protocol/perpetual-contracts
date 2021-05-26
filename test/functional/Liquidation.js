@@ -151,7 +151,7 @@ describe("Liquidation functional tests", async () => {
                 const order = [
                     accounts[1].address,
                     contracts.tracerPerps.address,
-                    1, // ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("1").toString(),
                     liquidationAmount,
                     "1", // Short, because original position liquidated was long
                     (await ethers.provider.getBlock("latest")).timestamp + 100,
@@ -164,7 +164,7 @@ describe("Liquidation functional tests", async () => {
 
                 await modifiableTrader.smodify.put({
                     orders: {
-                      hash: order,
+                      [hash]: order,
                     },
                 });
                 console.log("modified")
