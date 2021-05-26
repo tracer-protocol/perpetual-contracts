@@ -328,7 +328,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 // generate expected results
                 expectedTwaps = new Array()
-                for (var hour = 0; hour < 23; hour++) {
+                for (var hour = 0; hour < 24; hour++) {
                     let expectedTWAP = calcExpectedTwaps(
                         oraclePrices,
                         tracerPrices,
@@ -368,7 +368,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 // generate expected results
                 expectedTwaps = new Array()
-                for (var hour = 0; hour < 23; hour++) {
+                for (var hour = 0; hour < 24; hour++) {
                     let expectedTWAP = calcExpectedTwaps(
                         oraclePrices,
                         tracerPrices,
