@@ -125,7 +125,7 @@ library Prices {
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
-            // dont inclue periods that have no trades
+            // dont include periods that have no trades
             if (currDerivativePrice == 0 && tracerPrices[j].trades == 0) {
                 continue;
             } else {
