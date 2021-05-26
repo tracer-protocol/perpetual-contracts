@@ -216,8 +216,26 @@ contract TracerPerpetualSwaps is
         // Calculate new account state
         (Balances.Position memory newPos1, Balances.Position memory newPos2) =
             (
-                Balances.applyTrade(account1.position, trade1, Balances.fillAmount(trade1, filled[orderId1], filled[orderId2]), feeRate),
-                Balances.applyTrade(account2.position, trade2, Balances.fillAmount(trade2, filled[orderId1], filled[orderId2]), feeRate)
+                Balances.applyTrade(
+                    account1.position,
+                    trade1,
+                    Balances.fillAmount(
+                        trade1,
+                        filled[orderId1],
+                        filled[orderId2]
+                    ),
+                    feeRate
+                ),
+                Balances.applyTrade(
+                    account2.position,
+                    trade2,
+                    Balances.fillAmount(
+                        trade2,
+                        filled[orderId1],
+                        filled[orderId2]
+                    ),
+                    feeRate
+                )
             );
 
         // Update account state with results of above calculation
