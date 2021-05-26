@@ -111,11 +111,12 @@ library Balances {
     }
 
     function fillAmount(
-        Trade memory trade,
-        uint256 a,
-        uint256 b
+        Trade memory tradeA,
+        uint256 fillA,
+        Trade memory tradeB,
+        uint256 fillB
     ) internal pure returns (uint256) {
-        return LibMath.min(trade.amount - a, trade.amount - b);
+        return LibMath.min(tradeA.amount - fillA, tradeB.amount - fillB);
     }
 
     function applyTrade(

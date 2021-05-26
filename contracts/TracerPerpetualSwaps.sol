@@ -213,27 +213,27 @@ contract TracerPerpetualSwaps is
         bytes32 orderId1 = Perpetuals.orderId(order1);
         bytes32 orderId2 = Perpetuals.orderId(order2);
 
+        uint256 fillAmount =
+            Balances.fillAmount(
+                trade1,
+                filled[orderId1],
+                trade2,
+                filled[orderId2]
+            );
+
         // Calculate new account state
         (Balances.Position memory newPos1, Balances.Position memory newPos2) =
             (
                 Balances.applyTrade(
                     account1.position,
                     trade1,
-                    Balances.fillAmount(
-                        trade1,
-                        filled[orderId1],
-                        filled[orderId2]
-                    ),
+                    fillAmount,
                     feeRate
                 ),
                 Balances.applyTrade(
                     account2.position,
                     trade2,
-                    Balances.fillAmount(
-                        trade2,
-                        filled[orderId1],
-                        filled[orderId2]
-                    ),
+                    fillAmount,
                     feeRate
                 )
             );
@@ -243,7 +243,6 @@ contract TracerPerpetualSwaps is
         account2.position = newPos2;
 
         // Add fee into cumulative fees
-        uint256 fillAmount = LibMath.min(order1.amount, order2.amount);
         int256 quoteChange =
             PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
         int256 fee =
