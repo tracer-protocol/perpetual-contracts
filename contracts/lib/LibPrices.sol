@@ -36,7 +36,9 @@ library Prices {
         pure
         returns (int256)
     {
-        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
+        return
+            (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) /
+            90;
     }
 
     function averagePrice(PriceInstant memory price)
@@ -44,7 +46,7 @@ library Prices {
         pure
         returns (uint256)
     {
-        // todo double check safety of this. 
+        // todo double check safety of this.
         // average price == 0 is not neccesarily the
         // same as no trades in average
         if (price.trades == 0) {
@@ -74,7 +76,9 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        int256 newGlobalLeverage = int256(_globalLeverage) + (int256(newLeverage) - int256(oldLeverage));
+        int256 newGlobalLeverage =
+            int256(_globalLeverage) +
+                (int256(newLeverage) - int256(oldLeverage));
 
         // note: this would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
@@ -83,7 +87,7 @@ library Prices {
             return 0;
         }
 
-        return uint(newGlobalLeverage);
+        return uint256(newGlobalLeverage);
     }
 
     /**

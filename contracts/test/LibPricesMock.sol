@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 import "../lib/LibPrices.sol";
 
 contract LibPricesMock {
-
     function fairPrice(uint256 oraclePrice, int256 timeValue)
         public
         pure

@@ -145,7 +145,9 @@ describe("Unit tests: LibPrices.sol", function () {
 
         context("when average tracer price > max int", async () => {
             it("reverts", async () => {
-                let averageTracerPrice = MAX_INT256.add(ethers.BigNumber.from("1"))
+                let averageTracerPrice = MAX_INT256.add(
+                    ethers.BigNumber.from("1")
+                )
                 let averageOraclePrice = ethers.utils.parseEther("9100")
 
                 await expect(
@@ -156,7 +158,9 @@ describe("Unit tests: LibPrices.sol", function () {
 
         context("when average oracle price > max int", async () => {
             it("reverts", async () => {
-                let averageOraclePrice = MAX_INT256.add(ethers.BigNumber.from("1"))
+                let averageOraclePrice = MAX_INT256.add(
+                    ethers.BigNumber.from("1")
+                )
                 let averageTracerPrice = ethers.utils.parseEther("9100")
 
                 await expect(
@@ -282,23 +286,26 @@ describe("Unit tests: LibPrices.sol", function () {
             })
         })
 
-        context("when leverage has decreased by more than the global leverage", async() => {
-            it.only("caps global leverage at 0", async() => {
-                let globalLeverageInitial = ethers.utils.parseEther("100")
-                let oldAccountLeverage = ethers.utils.parseEther("110")
-                let newAccountLeverage = ethers.utils.parseEther("0")
+        context(
+            "when leverage has decreased by more than the global leverage",
+            async () => {
+                it.only("caps global leverage at 0", async () => {
+                    let globalLeverageInitial = ethers.utils.parseEther("100")
+                    let oldAccountLeverage = ethers.utils.parseEther("110")
+                    let newAccountLeverage = ethers.utils.parseEther("0")
 
-                let result = await libPrices.globalLeverage(
-                    globalLeverageInitial,
-                    oldAccountLeverage,
-                    newAccountLeverage
-                )
+                    let result = await libPrices.globalLeverage(
+                        globalLeverageInitial,
+                        oldAccountLeverage,
+                        newAccountLeverage
+                    )
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("0").toString()
-                )
-            })
-        })
+                    expect(result.toString()).to.equal(
+                        ethers.utils.parseEther("0").toString()
+                    )
+                })
+            }
+        )
     })
 
     describe("calculateTwap", async () => {
