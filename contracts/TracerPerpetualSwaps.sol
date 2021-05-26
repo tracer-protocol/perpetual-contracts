@@ -134,8 +134,13 @@ contract TracerPerpetualSwaps is
      * should be given in WAD format
      */
     function withdraw(uint256 amount) external override {
+        uint256 rawTokenAmount =
+            Balances.wadToToken(quoteTokenDecimals, amount);
+        int256 convertedWadAmount = Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
+        
         Balances.Account storage userBalance = balances[msg.sender];
-        int256 newQuote = userBalance.position.quote - amount.toInt256();
+        int256 newQuote = userBalance.position.quote - convertedWadAmount;
+
         require(
             marginIsValid(
                 newQuote,
@@ -153,10 +158,8 @@ contract TracerPerpetualSwaps is
         tvl = tvl - amount;
 
         // perform transfer
-        uint256 transferAmount =
-            Balances.wadToToken(quoteTokenDecimals, amount);
-        IERC20(tracerQuoteToken).transfer(msg.sender, transferAmount);
-        emit Withdraw(msg.sender, amount);
+        IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount);
+        emit Withdraw(msg.sender, uint(convertedWadAmount));
     }
 
     /**
@@ -184,7 +187,7 @@ contract TracerPerpetualSwaps is
         settle(order2.maker);
 
         // update account states
-        executeTrade(order1, order2, fillAmount);
+        _executeTrade(order1, order2, fillAmount);
 
         // update leverage
         _updateAccountLeverage(order1.maker);
@@ -197,14 +200,14 @@ contract TracerPerpetualSwaps is
         // Ensures that you are in a position to take the trade
         require(
             userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
-            "TCR: Margin Invalid post trade "
+            "TCR: Margin Invalid post trade"
         );
     }
 
     /**
      * @notice Updates account states of two accounts given two orders that are being executed
      */
-    function executeTrade(
+    function _executeTrade(
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
         uint256 fillAmount

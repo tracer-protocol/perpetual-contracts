@@ -38,12 +38,14 @@ const setup = deployments.createFixture(async () => {
     liquidation = await smockit(liquidation)
 
     // mock function calls for insurance
-    // pricing.smocked.currentFundingIndex.will.return
-    // pricing.smocked.currentInsuranceFundingIndex.will.return
+    pricing.smocked.currentFundingIndex.will.return(0)
     // pricing.smocked.getFundingRate.will.return
     // pricing.smocked.getInsuranceFundingRate.will.return
 
+    // setup tracer contract
     await tracer.setInsuranceContract(insurance.address, { from: deployer })
+    await tracer.setPricingContract(pricing.address, { from: deployer })
+    await tracer.setWhitelist(deployer, true)
     return {
         tracer,
         insurance,
@@ -61,6 +63,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let liquidation
     let quoteToken
     let deployer
+    let accounts
 
     beforeEach(async function () {
         // todo call setup
@@ -71,7 +74,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         liquidation = _setup.liquidation
         quoteToken = _setup.quoteToken
         deployer = _setup.deployer
-        console.log(quoteToken.address)
+        accounts = await ethers.getSigners()
     })
 
     describe("deposit", async () => {
@@ -106,13 +109,32 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
         context("when the token amount is not a WAD value", async () => {
             it("update their quote as a WAD value", async () => {
-                // todo once deposit changes are propogated
+                let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
+
+                // deposit 1 token with dust
+                await quoteToken.approve(
+                    tracer.address,
+                    ethers.utils.parseEther("1.000000001")
+                )
+                await tracer.deposit(ethers.utils.parseEther("1.000000001"))
+
+                // ensure that token amount has decreased by correct units
+                let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
+                let difference = tokenBalanceBefore.sub(tokenBalanceAfter)
+                // default token only uses 8 decimals, so the last bit should be ignored
+                expect(difference).to.equal("100000000")
+
+                // ensure balance in contract has updated by a WAD amount
+                let balance = await tracer.balances(deployer)
+                await expect(balance.position.quote).to.equal(
+                    ethers.utils.parseEther("1")
+                )
             })
         })
     })
 
     describe("withdraw", async () => {
-        beforeEach(async() => {
+        beforeEach(async () => {
             await quoteToken.approve(
                 tracer.address,
                 ethers.utils.parseEther("5")
@@ -120,30 +142,93 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             await tracer.deposit(ethers.utils.parseEther("5"))
         })
         context("when the user is withdrawing to below margin", async () => {
-            it.only("reverts", async () => {
-                await expect(tracer.withdraw(ethers.utils.parseEther("6"))).to.be.revertedWith("TCR: Withdraw below valid Margin")
+            it("reverts", async () => {
+                await expect(
+                    tracer.withdraw(ethers.utils.parseEther("6"))
+                ).to.be.revertedWith("TCR: Withdraw below valid Margin")
             })
         })
 
         context("when the user is making a valid withdraw", async () => {
-            it("updates their quote", async () => {})
+            beforeEach(async () => {
+                await tracer.withdraw(ethers.utils.parseEther("1"))
+            })
+            it("updates their quote", async () => {
+                let balance = await tracer.balances(deployer)
+                expect(balance.position.quote).to.equal(
+                    ethers.utils.parseEther("4")
+                )
+            })
 
             it("updates their leverage", async () => {})
 
-            it("updates the total TVL", async () => {})
+            it("updates the total TVL", async () => {
+                let tvl = await tracer.tvl()
+                expect(tvl).to.equal(ethers.utils.parseEther("4"))
+            })
         })
 
         context("when the token amount is not a WAD value", async () => {
-            it("returns the correct amount of tokens", async () => {})
+            it("returns the correct amount of tokens", async () => {
+                let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
+
+                // withdraw 1 token with dust
+                await tracer.withdraw(ethers.utils.parseEther("1.000000001"))
+
+                // ensure that token amount has decreased by correct units
+                let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
+                let difference = tokenBalanceAfter.sub(tokenBalanceBefore)
+                // default token only uses 8 decimals, so the last bit should be ignored
+                expect(difference).to.equal("100000000")
+
+                // ensure balance in contract has updated by a WAD amount
+                let balance = await tracer.balances(deployer)
+                await expect(balance.position.quote).to.equal(
+                    ethers.utils.parseEther("4")
+                )
+            })
         })
     })
 
     describe("matchOrders", async () => {
+        beforeEach(async () => {
+            // whitelist so we can submit trades
+        })
+
         context("when the orders can't match", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                let order1 = [
+                    deployer,
+                    tracer.address,
+                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("1"),
+                    0,
+                    3621988237, //unrealistic unix timestamp
+                    1621988237,
+                ]
+
+                let order2 = [
+                    deployer,
+                    tracer.address,
+                    ethers.utils.parseEther("3"),
+                    ethers.utils.parseEther("1"),
+                    0,
+                    3621988237, //unrealistic unix timestamp
+                    1621988237,
+                ]
+
+                await expect(
+                    tracer.matchOrders(
+                        order1,
+                        order2,
+                        ethers.utils.parseEther("1")
+                    )
+                ).to.be.revertedWith("TCR: Orders cannot be matched")
+            })
         })
 
         context("when the orders can match", async () => {
+            beforeEach(async () => {})
             it("settles the accounts", async () => {})
 
             it("executes the trades", async () => {})
@@ -154,11 +239,39 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("when the users don't have enough margin", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                let order1 = [
+                    deployer,
+                    tracer.address,
+                    ethers.utils.parseEther("3"),
+                    ethers.utils.parseEther("1"),
+                    0,
+                    3621988237, //unrealistic unix timestamp
+                    1621988237,
+                ]
+
+                let order2 = [
+                    accounts[1].address,
+                    tracer.address,
+                    ethers.utils.parseEther("3"),
+                    ethers.utils.parseEther("1"),
+                    1,
+                    3621988237, //unrealistic unix timestamp
+                    1621988237,
+                ]
+
+                await expect(
+                    tracer.matchOrders(
+                        order1,
+                        order2,
+                        ethers.utils.parseEther("1")
+                    )
+                ).to.be.revertedWith("TCR: Margin Invalid post trade")
+            })
         })
     })
 
-    describe("executeTrade", async () => {
+    describe("_executeTrade", async () => {
         context("when fill amount = 0", async () => {
             it("does nothing", async () => {})
         })
@@ -216,10 +329,27 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
     describe("settle", async () => {
         context("if the account is on the latest global index", async () => {
-            it("does nothing", async () => {})
+            it("does nothing", async () => {
+                let balanceBefore = await tracer.balances(deployer)
+                await tracer.settle(deployer)
+                let balanceAfter = await tracer.balances(deployer)
+                expect(balanceAfter.toString()).to.equal(
+                    balanceBefore.toString()
+                )
+                // expect(pricing.smocked.currentFundingIndex.calls.length).to.equal(1)
+            })
         })
 
         context("if the account isn't up to date", async () => {
+            beforeEach(async () => {
+                // mock funding index and rates
+                pricing.smocked.currentFundingIndex.will.return(1)
+                pricing.smocked.getFundingRate.will.return([
+                    0,
+                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("!"),
+                ])
+            })
             it("pays the funding rate", async () => {})
 
             it("pays the insurance funding rate", async () => {})
