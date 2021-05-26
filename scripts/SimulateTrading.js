@@ -1,4 +1,4 @@
-const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json");
+const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const hre = require("hardhat")
 
 // small sample script for using deploys and then deploying a trace
@@ -10,7 +10,11 @@ async function main() {
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
 
-    let tracer = await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0)
+    let tracer = await deployments.read(
+        "TracerPerpetualsFactory",
+        "tracersByIndex",
+        0
+    )
     let tracerInstance = new ethers.Contract(tracer, tracerAbi)
 
     // approve for deployer
@@ -33,9 +37,9 @@ async function main() {
             { from: accounts[i].address, log: true },
             "approve",
             tracer,
-            ethers.utils.parseEther('10000')
+            ethers.utils.parseEther("10000")
         )
-        await tracerInstance.deposit(ethers.utils.parseEther('10000'))
+        await tracerInstance.deposit(ethers.utils.parseEther("10000"))
     }
 
     // attach the deployer
@@ -90,11 +94,7 @@ async function main() {
         ]
 
         console.log("Executing trade")
-        await tracerInstance.matchOrders(
-            makerOrder,
-            takerOrder,
-            amount
-        )
+        await tracerInstance.matchOrders(makerOrder, takerOrder, amount)
         // await deployments.execute(
         //     "TracerPerpetualSwaps",
         //     { from: deployer.address, log: true },
@@ -117,7 +117,7 @@ async function main() {
 
     let factory = await deployments.get("TracerPerpetualsFactory")
     console.log(`Factory: ${factory.address}`)
-    console.log(`Traded on tracer: ${tracer}`);
+    console.log(`Traded on tracer: ${tracer}`)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

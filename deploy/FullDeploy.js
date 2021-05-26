@@ -1,10 +1,10 @@
-const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json");
+const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 
 module.exports = async function (hre) {
     const { deployments, getNamedAccounts, ethers } = hre
     const { deploy, execute } = deployments
     const { deployer, acc1, acc2, acc3 } = await getNamedAccounts()
-    const signers = await ethers.getSigners();
+    const signers = await ethers.getSigners()
     // deploy libs
     const safetyWithdraw = await deploy("SafetyWithdraw", {
         from: deployer,
@@ -97,21 +97,21 @@ module.exports = async function (hre) {
         { from: deployer, log: true },
         "transfer",
         acc1,
-        ethers.utils.parseEther('10000')
+        ethers.utils.parseEther("10000")
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc2,
-        ethers.utils.parseEther('10000')
+        ethers.utils.parseEther("10000")
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc3,
-        ethers.utils.parseEther('10000')
+        ethers.utils.parseEther("10000")
     )
 
     // deploy deployers
@@ -195,8 +195,8 @@ module.exports = async function (hre) {
     )
     await deployments.execute(
         "TracerPerpetualsFactory",
-        { 
-            from: deployer, 
+        {
+            from: deployer,
             log: true,
         },
         "deployTracer",
@@ -207,7 +207,7 @@ module.exports = async function (hre) {
 
     const tracerInstance = new ethers.Contract(
         await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
-        tracerAbi 
+        tracerAbi
     ).connect(signers[0])
 
     const insurance = await deploy("Insurance", {
@@ -222,7 +222,11 @@ module.exports = async function (hre) {
     })
 
     const pricing = await deploy("Pricing", {
-        args: [tracerInstance.address, insurance.address, oracleAdapter.address],
+        args: [
+            tracerInstance.address,
+            insurance.address,
+            oracleAdapter.address,
+        ],
         from: deployer,
         libraries: {
             LibMath: libMath.address,
@@ -230,7 +234,6 @@ module.exports = async function (hre) {
         },
         log: true,
     })
-
 
     const liquidation = await deploy("Liquidation", {
         args: [
