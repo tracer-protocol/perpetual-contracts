@@ -39,12 +39,12 @@ contract Liquidation is ILiquidation, Ownable {
     event ClaimedReceipts(
         address indexed liquidator,
         address indexed market,
-        uint256 receiptId
+        uint256 indexed receiptId
     );
     event ClaimedEscrow(
         address indexed liquidatee,
         address indexed market,
-        uint256 id
+        uint256 indexed id
     );
     event Liquidate(
         address indexed account,
@@ -54,7 +54,7 @@ contract Liquidation is ILiquidation, Ownable {
         address indexed market,
         uint256 liquidationId
     );
-    event InvalidClaimOrder(uint256 receiptId, address indexed liquidator);
+    event InvalidClaimOrder(uint256 indexed receiptId);
 
     constructor(
         address _pricing,
@@ -88,19 +88,19 @@ contract Liquidation is ILiquidation, Ownable {
         Perpetuals.Side liquidationSide
     ) internal {
         liquidationReceipts[currentLiquidationId] = LibLiquidation
-            .LiquidationReceipt(
-            address(tracer),
-            liquidator,
-            liquidatee,
-            price,
-            block.timestamp,
-            escrowedAmount,
-            block.timestamp + releaseTime,
-            amountLiquidated,
-            false,
-            liquidationSide,
-            false
-        );
+            .LiquidationReceipt({
+            tracer: address(tracer),
+            liquidator: liquidator,
+            liquidatee: liquidatee,
+            price: price,
+            time: block.timestamp,
+            escrowedAmount: escrowedAmount,
+            releaseTime: block.timestamp + releaseTime,
+            amountLiquidated: amountLiquidated,
+            escrowClaimed: false,
+            liquidationSide: liquidationSide,
+            liquidatorRefundClaimed: false
+        });
         currentLiquidationId += 1;
     }
 
@@ -276,16 +276,30 @@ contract Liquidation is ILiquidation, Ownable {
         for (uint256 i; i < orders.length; i++) {
             Perpetuals.Order memory order =
                 ITrader(traderContract).getOrder(orders[i]);
+
             if (
                 order.created < receipt.time || // Order made before receipt
                 order.maker != receipt.liquidator || // Order made by someone who isn't liquidator
                 order.side == receipt.liquidationSide // Order is in same direction as liquidation
                 /* Order should be the opposite to the position acquired on liquidation */
             ) {
-                emit InvalidClaimOrder(receiptId, receipt.liquidator);
+                emit InvalidClaimOrder(receiptId);
                 continue;
             }
-
+            if (
+                (receipt.liquidationSide == Perpetuals.Side.Long &&
+                    order.price >= receipt.price) ||
+                (receipt.liquidationSide == Perpetuals.Side.Short &&
+                    order.price <= receipt.price)
+            ) {
+                // Liquidation position was long
+                // Price went up, so not a slippage order
+                // or
+                // Liquidation position was short
+                // Price went down, so not a slippage order
+                emit InvalidClaimOrder(receiptId);
+                continue;
+            }
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
 
             /* order.created >= receipt.time
@@ -301,6 +315,7 @@ contract Liquidation is ILiquidation, Ownable {
         }
         return (unitsSold, avgPrice / unitsSold);
     }
+
     /**
      * @notice Marks receipts as claimed and returns the refund amount
      * @param escrowId the id of the receipt created during the liquidation event

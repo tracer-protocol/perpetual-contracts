@@ -38,7 +38,7 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
         libraries: {
-            Perpetuals: libPerpetuals.address,
+            // Perpetuals: libPerpetuals.address,
         },
     })
 

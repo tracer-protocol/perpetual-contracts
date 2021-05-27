@@ -7,9 +7,6 @@ module.exports = async function (hre) {
     const perps = await deployments.get("TracerPerpetualSwaps")
     const priceOracle = await deployments.get("PriceOracle")
     const price = (await read("PriceOracleAdapter", "latestAnswer")).toString()
-    console.log("Price: " + price.toString())
-    console.log(acc1)
-    console.log(deployer)
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
@@ -18,7 +15,6 @@ module.exports = async function (hre) {
         ethers.BigNumber.from(1000 * 10 ** 8)
         // ethers.utils.parseEther("1000")
     )
-    console.log(1000 * 10 ** 8)
     await execute(
         "QuoteToken",
         { from: acc1, log: true },
@@ -27,8 +23,6 @@ module.exports = async function (hre) {
         ethers.BigNumber.from(1000 * 10 ** 8)
         // ethers.utils.parseEther("1000")
     )
-    console.log(10 ** 8)
-    // console.log(await read("TracerPerpetualSwaps", "balances", deployer))
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
@@ -43,19 +37,8 @@ module.exports = async function (hre) {
         ethers.BigNumber.from(1000 * 10 ** 8)
         // ethers.utils.parseEther("1000")
     )
-    console.log(
-        (
-            await read("TracerPerpetualSwaps", "balances", deployer)
-        ).position.quote.toString()
-    )
-    console.log("deployer and acc1 have deposited into perp swaps market")
 
     const block = await ethers.provider.getBlock("latest")
-    console.log(
-        (
-            await read("TracerPerpetualSwaps", "balances", deployer)
-        ).position.quote.toString()
-    )
 
     const makerOrder = [
         deployer, // maker
@@ -76,22 +59,6 @@ module.exports = async function (hre) {
         0, // created
     ]
 
-    console.log("quote and base before trade")
-    console.log(
-        ethers.utils.formatEther(
-            (
-                await read("TracerPerpetualSwaps", "balances", deployer)
-            ).position.quote.toString()
-        )
-    )
-    console.log(
-        ethers.utils.formatEther(
-            (
-                await read("TracerPerpetualSwaps", "balances", deployer)
-            ).position.base.toString()
-        )
-    )
-
     await execute(
         "TracerPerpetualSwaps",
         { from: deployer, log: true },
@@ -99,29 +66,6 @@ module.exports = async function (hre) {
         makerOrder,
         takerOrder,
         ethers.utils.parseEther("10000") // amount
-    )
-
-    console.log("quote and base after trade")
-    console.log(
-        ethers.utils.formatEther(
-            (
-                await read("TracerPerpetualSwaps", "balances", acc1)
-            ).position.quote.toString()
-        )
-    )
-    console.log(
-        ethers.utils.formatEther(
-            (
-                await read("TracerPerpetualSwaps", "balances", acc1)
-            ).position.base.toString()
-        )
-    )
-    console.log(
-        ethers.utils.formatEther(
-            (
-                await read("TracerPerpetualSwaps", "balances", acc1)
-            ).lastUpdatedGasPrice.toString()
-        )
     )
 
     // Reduce price by 5%
@@ -135,7 +79,6 @@ module.exports = async function (hre) {
     const marginIsValid = (
         await read("TracerPerpetualSwaps", "userMarginIsValid", deployer)
     ).toString()
-    console.log(marginIsValid)
 }
 
 module.exports.tags = ["GetIntoLiquidatablePosition"]

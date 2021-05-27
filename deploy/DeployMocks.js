@@ -9,6 +9,14 @@ module.exports = async function (hre) {
         log: true,
     })
 
+    await deploy("PerpetualsMock", {
+        from: deployer,
+        log: true,
+        libraries: {
+            Perpetuals: libPerpetuals.address,
+        },
+    })
+
     const libLiquidation = await deploy("LibLiquidation", {
         from: deployer,
         log: true,
@@ -26,4 +34,4 @@ module.exports = async function (hre) {
         },
     })
 }
-module.exports.tags = ["LibLiquidationMock"]
+module.exports.tags = ["LibLiquidationMock", "PerpetualsMock"]
