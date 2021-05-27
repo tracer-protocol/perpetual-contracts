@@ -96,7 +96,9 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    console.log(`Gas Price Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`)
+    console.log(
+        `Gas Price Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
+    )
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
@@ -151,7 +153,7 @@ module.exports = async function (hre) {
             LibMath: libMath.address,
             Balances: libBalances.address,
             SafetyWithdraw: safetyWithdraw.address,
-            Insurance: libInsurance.address
+            Insurance: libInsurance.address,
         },
         log: true,
     })
@@ -221,7 +223,7 @@ module.exports = async function (hre) {
             deployer,
         ]
     )
- 
+
     // this deploys a tracer, insurance, pricing and liquidation contract
     await deployments.execute(
         "TracerPerpetualsFactory",
