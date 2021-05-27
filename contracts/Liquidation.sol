@@ -158,19 +158,19 @@ contract Liquidation is ILiquidation, Ownable {
             }
 
             if (
-                receipt.liquidationSide == Perpetuals.Side.Short &&
+                receipt.liquidationSide == Perpetuals.Side.Long &&
                 order.price >= receipt.price
             ) {
-                // The order is short -> Liquidation position was long
+                // Liquidation position was long
                 // Price went up, so not a slippage order
                 emit InvalidClaimOrder(receiptId, receipt.liquidator);
                 continue;
             }
             if (
-                receipt.liquidationSide == Perpetuals.Side.Long &&
+                receipt.liquidationSide == Perpetuals.Side.Short &&
                 order.price <= receipt.price
             ) {
-                // The order is long -> Liquidation position was short
+                // Liquidation position was short
                 // Price went down, so not a slippage order
                 emit InvalidClaimOrder(receiptId, receipt.liquidator);
                 continue;
