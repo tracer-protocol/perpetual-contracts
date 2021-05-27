@@ -158,7 +158,7 @@ contract Liquidation is ILiquidation, Ownable {
             }
 
             if (
-                order.side == Perpetuals.Side.Short &&
+                receipt.liquidationSide == Perpetuals.Side.Short &&
                 order.price >= receipt.price
             ) {
                 // The order is short -> Liquidation position was long
@@ -167,7 +167,7 @@ contract Liquidation is ILiquidation, Ownable {
                 continue;
             }
             if (
-                order.side == Perpetuals.Side.Long &&
+                receipt.liquidationSide == Perpetuals.Side.Long &&
                 order.price <= receipt.price
             ) {
                 // The order is long -> Liquidation position was short
