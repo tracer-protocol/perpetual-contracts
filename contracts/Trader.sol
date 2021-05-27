@@ -87,8 +87,8 @@ contract Trader is ITrader {
 
             // retrieve orders
             // if the order does not exist, it is created here
-            Perpetuals.Order storage makeOrder = grabOrder(makers, i);
-            Perpetuals.Order storage takeOrder = grabOrder(takers, i);
+            Perpetuals.Order memory makeOrder = grabOrder(makers, i);
+            Perpetuals.Order memory takeOrder = grabOrder(takers, i);
 
             uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
             uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
@@ -139,7 +139,7 @@ contract Trader is ITrader {
     function grabOrder(
         Types.SignedLimitOrder[] memory signedOrders,
         uint256 index
-    ) internal returns (Perpetuals.Order storage) {
+    ) internal returns (Perpetuals.Order memory) {
         Perpetuals.Order memory rawOrder = signedOrders[index].order;
 
         bytes32 orderHash = Perpetuals.orderId(rawOrder);
@@ -245,7 +245,7 @@ contract Trader is ITrader {
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order memory order)
+    function getOrder(Perpetuals.Order calldata order)
         public
         view
         override

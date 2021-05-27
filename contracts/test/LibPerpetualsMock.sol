@@ -2,7 +2,11 @@ pragma solidity ^0.8.0;
 
 import "../lib/LibPerpetuals.sol";
 
-contract LibPerpetualsMock {
+contract PerpetualsMock {
+    function orderId(Perpetuals.Order memory order) external returns (bytes32) {
+        return Perpetuals.orderId(order);
+    }
+
     function canMatch(
         Perpetuals.Order calldata a,
         uint256 aFilled,
