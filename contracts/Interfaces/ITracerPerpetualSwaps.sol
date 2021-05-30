@@ -78,7 +78,6 @@ interface ITracerPerpetualSwaps {
 
     function matchOrders(
         Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
-        uint256 fillAmount
+        Perpetuals.Order memory order2
     ) external;
 }
