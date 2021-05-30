@@ -34,7 +34,7 @@ library Balances {
     }
 
     function netValue(Position memory position, uint256 price)
-        public
+        internal
         pure
         returns (uint256)
     {
@@ -48,7 +48,7 @@ library Balances {
      * @param price The price of the base asset
      */
     function margin(Position memory position, uint256 price)
-        public
+        internal
         pure
         returns (int256)
     {
@@ -74,7 +74,7 @@ library Balances {
      * @param price The price of the base asset
      */
     function leveragedNotionalValue(Position memory position, uint256 price)
-        public
+        internal
         pure
         returns (uint256)
     {
@@ -95,7 +95,7 @@ library Balances {
         uint256 price,
         uint256 liquidationCost,
         uint256 maximumLeverage
-    ) public pure returns (uint256) {
+    ) internal pure returns (uint256) {
         // There should be no Minimum margin when user has no position
         if (position.base == 0) {
             return 0;

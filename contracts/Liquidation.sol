@@ -50,7 +50,7 @@ contract Liquidation is ILiquidation, Ownable {
         address indexed account,
         address indexed liquidator,
         int256 liquidationAmount,
-        bool side,
+        Perpetuals.Side side,
         address indexed market,
         uint256 liquidationId
     );
@@ -251,7 +251,11 @@ contract Liquidation is ILiquidation, Ownable {
             account,
             msg.sender,
             amount,
-            (liquidatedBalance.position.base < 0 ? false : true),
+            (
+                liquidatedBalance.position.base < 0
+                    ? Perpetuals.Side.Short
+                    : Perpetuals.Side.Long
+            ),
             address(tracer),
             currentLiquidationId - 1
         );
