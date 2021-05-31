@@ -19,16 +19,14 @@ module.exports = async function (hre) {
         { from: deployer, log: true },
         "approve",
         tracerInstance.address,
-        ethers.BigNumber.from(1000 * 10 ** 8)
-        // ethers.utils.parseEther("1000")
+        ethers.utils.parseEther("1000") // amount
     )
     await execute(
         "QuoteToken",
         { from: acc1, log: true },
         "approve",
         tracerInstance.address,
-        ethers.BigNumber.from(1000 * 10 ** 8)
-        // ethers.utils.parseEther("1000")
+        ethers.utils.parseEther("1000") // amount
     )
 
     // tracerInstance = await tracerInstance.connect(accounts[1])

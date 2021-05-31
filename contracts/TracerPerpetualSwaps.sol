@@ -16,8 +16,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-import "hardhat/console.sol";
-
 contract TracerPerpetualSwaps is
     ITracerPerpetualSwaps,
     Ownable,
@@ -346,10 +344,6 @@ contract TracerPerpetualSwaps is
             liquidatorBalance.position.base +
             liquidatorBaseChange;
 
-        uint256 gasCost =
-            liquidatorBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST;
-        uint256 price = pricingContract.fairPrice();
-
         // update liquidatee balance
         liquidateeBalance.position.quote =
             liquidateeBalance.position.quote +
@@ -503,7 +497,7 @@ contract TracerPerpetualSwaps is
      * @param account The address of the account whose margin is to be checked
      * @return true if the margin is valid or false otherwise
      */
-    function userMarginIsValid(address account) public returns (bool) {
+    function userMarginIsValid(address account) public view returns (bool) {
         Balances.Account memory accountBalance = balances[account];
         return
             marginIsValid(

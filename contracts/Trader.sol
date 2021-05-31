@@ -6,8 +6,6 @@ import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
 
-import "hardhat/console.sol";
-
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */

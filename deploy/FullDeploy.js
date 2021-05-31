@@ -39,9 +39,6 @@ module.exports = async function (hre) {
     const trader = await deploy("Trader", {
         from: deployer,
         log: true,
-        libraries: {
-            // Perpetuals: libPerpetuals.address,
-        },
     })
 
     // deploy oracles
@@ -105,13 +102,6 @@ module.exports = async function (hre) {
         contract: "GasOracle",
     })
 
-    await execute(
-        "EthOracle",
-        { from: deployer, log: true },
-        "setDecimals",
-        "18" // https://etherscan.io/address/0xe5bbbdb2bb953371841318e1edfbf727447cef2e#readContract
-    )
-
     const gasPriceOracleAdapter = await deploy("GasPriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -121,32 +111,33 @@ module.exports = async function (hre) {
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: [ethers.utils.parseEther("100000")],
+        args: [ethers.utils.parseEther("10000000")], //10 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
     })
 
+    const tokenAmount = ethers.utils.parseEther("1000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc1,
-        ethers.utils.parseEther("10000")
+        tokenAmount
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc2,
-        ethers.utils.parseEther("10000")
+        tokenAmount
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc3,
-        ethers.utils.parseEther("10000")
+        tokenAmount
     )
 
     // deploy deployers
@@ -201,7 +192,7 @@ module.exports = async function (hre) {
     })
 
     let maxLeverage = ethers.utils.parseEther("12.5")
-    let tokenDecimals = new ethers.BigNumber.from("8").toString()
+    let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
     let fundingRateSensitivity = 1
     let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent

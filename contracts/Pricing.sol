@@ -10,8 +10,6 @@ import "./Interfaces/IOracle.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "hardhat/console.sol";
-
 contract Pricing is IPricing, Ownable {
     using LibMath for uint256;
     using LibMath for int256;
@@ -314,11 +312,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        if (hourlyTracerPrices[hour].trades == 0) {
-            return 0;
-        } else {
-            return Prices.averagePrice(hourlyTracerPrices[hour]);
-        }
+        return Prices.averagePrice(hourlyTracerPrices[hour]);
     }
 
     /**
@@ -331,11 +325,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        if (hourlyOraclePrices[hour].trades == 0) {
-            return 0;
-        } else {
-            return Prices.averagePrice(hourlyOraclePrices[hour]);
-        }
+        return Prices.averagePrice(hourlyOraclePrices[hour]);
     }
 
     function transferOwnership(address newOwner)

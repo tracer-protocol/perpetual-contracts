@@ -8,7 +8,7 @@ async function main() {
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
     let maxLeverage = ethers.utils.parseEther("12.5")
-    let tokenDecimals = new ethers.BigNumber.from("1000000").toString()
+    let tokenDecimals = 18
     let feeRate = 0 // 0 percent
     let maxLiquidationSlippage = "50000000000000000000" // 50 percent
     let fundingRateSensitivity = 1

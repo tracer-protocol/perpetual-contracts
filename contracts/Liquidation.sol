@@ -13,8 +13,6 @@ import "./Interfaces/IOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
-import "hardhat/console.sol";
-
 /**
  * Each call enforces that the contract calling the account is only updating the balance
  * of the account for that contract.

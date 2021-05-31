@@ -107,8 +107,8 @@ library Prices {
             // otherwise move from hour towards 0
             uint256 j = hour < i ? 23 - i + hour : hour - i;
 
-            uint256 currDerivativePrice = 100; // averagePrice(tracerPrices[j]);
-            uint256 currUnderlyingPrice = 100; // averagePrice(oraclePrices[j]);
+            uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
+            uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
             if (currDerivativePrice > 0) {
                 instantDerivative += currTimeWeight;

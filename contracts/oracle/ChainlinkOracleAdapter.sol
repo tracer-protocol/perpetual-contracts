@@ -6,8 +6,6 @@ import "../Interfaces/IChainlinkOracle.sol";
 import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "hardhat/console.sol";
-
 /**
  * The Chainlink oracle adapter allows you to wrap a Chainlink oracle feed
  * and ensure that the price is always returned in a wad format.
