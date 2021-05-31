@@ -33,7 +33,6 @@ library Prices {
         return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
-
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
         public
         pure
@@ -173,6 +172,7 @@ library Prices {
             );
     }
 
+    // TODO test these
     function applyFunding(
         Balances.Position memory position,
         FundingRateInstant memory globalRate,
