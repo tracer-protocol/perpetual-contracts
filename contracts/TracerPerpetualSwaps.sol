@@ -72,7 +72,7 @@ contract TracerPerpetualSwaps is
      * @param _marketId the id of the market, given as BASE/QUOTE
      * @param _tracerQuoteToken the address of the token used for margin accounts (i.e. The margin token)
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
-     * @param _maxLeverage the max leverage of the market. Min margin is derived from this
+     * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
      * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      */
@@ -233,39 +233,29 @@ contract TracerPerpetualSwaps is
         Balances.Account storage account1 = balances[order1.maker];
         Balances.Account storage account2 = balances[order2.maker];
 
-        // Construct `Trade` types suitable for use with LibBalances
-        (Balances.Trade memory trade1, Balances.Trade memory trade2) =
-            (
-                Balances.Trade(order1.price, order1.amount, order1.side),
-                Balances.Trade(order2.price, order2.amount, order2.side)
-            );
-
         bytes32 orderId1 = Perpetuals.orderId(order1);
         bytes32 orderId2 = Perpetuals.orderId(order2);
 
         uint256 fillAmount =
             Balances.fillAmount(
-                trade1,
+                order1,
                 filled[orderId1],
-                trade2,
+                order2,
                 filled[orderId2]
+            );
+
+        // Construct `Trade` types suitable for use with LibBalances
+        (Balances.Trade memory trade1, Balances.Trade memory trade2) =
+            (
+                Balances.Trade(order1.price, fillAmount, order1.side),
+                Balances.Trade(order2.price, fillAmount, order2.side)
             );
 
         // Calculate new account state
         (Balances.Position memory newPos1, Balances.Position memory newPos2) =
             (
-                Balances.applyTrade(
-                    account1.position,
-                    trade1,
-                    fillAmount,
-                    feeRate
-                ),
-                Balances.applyTrade(
-                    account2.position,
-                    trade2,
-                    fillAmount,
-                    feeRate
-                )
+                Balances.applyTrade(account1.position, trade1, feeRate),
+                Balances.applyTrade(account2.position, trade2, feeRate)
             );
 
         // Update account state with results of above calculation

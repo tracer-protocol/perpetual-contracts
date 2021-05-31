@@ -48,7 +48,7 @@ contract Liquidation is ILiquidation, Ownable {
         address indexed account,
         address indexed liquidator,
         int256 liquidationAmount,
-        bool side,
+        Perpetuals.Side side,
         address indexed market,
         uint256 liquidationId
     );
@@ -157,6 +157,20 @@ contract Liquidation is ILiquidation, Ownable {
                 continue;
             }
 
+            if (
+                (receipt.liquidationSide == Perpetuals.Side.Long &&
+                    order.price >= receipt.price) ||
+                (receipt.liquidationSide == Perpetuals.Side.Short &&
+                    order.price <= receipt.price)
+            ) {
+                // Liquidation position was long
+                // Price went up, so not a slippage order
+                // or
+                // Liquidation position was short
+                // Price went down, so not a slippage order
+                emit InvalidClaimOrder(receiptId, receipt.liquidator);
+                continue;
+            }
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
 
             /* order.created >= receipt.time
@@ -291,7 +305,11 @@ contract Liquidation is ILiquidation, Ownable {
             account,
             msg.sender,
             amount,
-            (liquidatedBalance.position.base < 0 ? false : true),
+            (
+                liquidatedBalance.position.base < 0
+                    ? Perpetuals.Side.Short
+                    : Perpetuals.Side.Long
+            ),
             address(tracer),
             currentLiquidationId - 1
         );

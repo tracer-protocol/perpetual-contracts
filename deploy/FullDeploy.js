@@ -1,8 +1,10 @@
-module.exports = async function (hre) {
-    const { deployments, getNamedAccounts } = hre
-    const { deploy, execute } = deployments
+const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 
+module.exports = async function (hre) {
+    const { deployments, getNamedAccounts, ethers } = hre
+    const { deploy, execute } = deployments
     const { deployer, acc1, acc2, acc3 } = await getNamedAccounts()
+    const signers = await ethers.getSigners()
     // deploy libs
     const safetyWithdraw = await deploy("SafetyWithdraw", {
         from: deployer,
@@ -42,12 +44,32 @@ module.exports = async function (hre) {
         },
     })
 
+    console.log(`Trader Deployed ${trader.address}`)
+
     // deploy oracles
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
         contract: "Oracle",
     })
+
+    console.log(`Price Oracle Deployed ${priceOracle.address}`)
+
+    const gasOracle = await deploy("GasOracle", {
+        from: deployer,
+        log: true,
+        contract: "Oracle",
+    })
+
+    console.log(`Gas Oracle Deployed ${gasOracle.address}`)
+
+    const ethOracle = await deploy("EthOracle", {
+        from: deployer,
+        log: true,
+        contract: "Oracle",
+    })
+
+    console.log(`ETH Oracle Deployed ${ethOracle.address}`)
 
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
@@ -56,17 +78,7 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    const gasOracle = await deploy("GasOracle", {
-        from: deployer,
-        log: true,
-        contract: "Oracle",
-    })
-
-    const ethOracle = await deploy("EthOracle", {
-        from: deployer,
-        log: true,
-        contract: "Oracle",
-    })
+    console.log(`Oracle Adapter Deployed ${oracleAdapter.address}`)
 
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
@@ -75,6 +87,8 @@ module.exports = async function (hre) {
         contract: "GasOracle",
     })
 
+    console.log(`Gas Price Oracle Deployed ${gasPriceOracle.address}`)
+
     const gasPriceOracleAdapter = await deploy("GasPriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -82,35 +96,45 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
+    console.log(
+        `Gas Price Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
+    )
+
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: ["100000000000000000000000"],
+        args: [ethers.utils.parseEther("10000000")], //10 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
     })
 
+    console.log(`Quote Token Deployed ${token.address}`)
+
+    const tokenAmount = ethers.utils.parseEther("1000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc1,
-        "10000"
+        tokenAmount
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc2,
-        "10000"
+        tokenAmount
     )
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc3,
-        "10000"
+        tokenAmount
     )
+    console.log(`Quote Tokens transfered from ${deployer} to ${acc1}`)
+    console.log(`Quote Tokens transfered from ${deployer} to ${acc2}`)
+    console.log(`Quote Tokens transfered from ${deployer} to ${acc3}`)
 
     // deploy deployers
     const liquidationDeployer = await deploy("LiquidationDeployerV1", {
@@ -125,6 +149,12 @@ module.exports = async function (hre) {
 
     const insuranceDeployer = await deploy("InsuranceDeployerV1", {
         from: deployer,
+        libraries: {
+            LibMath: libMath.address,
+            Balances: libBalances.address,
+            SafetyWithdraw: safetyWithdraw.address,
+            Insurance: libInsurance.address,
+        },
         log: true,
     })
 
@@ -151,7 +181,7 @@ module.exports = async function (hre) {
     })
 
     // deploy Tracer perps factory
-    await deploy("TracerPerpetualsFactory", {
+    let factory = await deploy("TracerPerpetualsFactory", {
         args: [
             perpsDeployer.address,
             liquidationDeployer.address,
@@ -163,13 +193,26 @@ module.exports = async function (hre) {
         log: true,
     })
 
+    console.log(`Factory Deployed: ${factory.address}`)
+
     let maxLeverage = ethers.utils.parseEther("12.5")
-    let tokenDecimals = new ethers.BigNumber.from("8").toString()
+    let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
     let fundingRateSensitivity = 1
+    let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
 
-    const tracer = await deploy("TracerPerpetualSwaps", {
-        args: [
+    var deployTracerData = ethers.utils.defaultAbiCoder.encode(
+        [
+            "bytes32", //_marketId,a
+            "address", //_tracerQuoteToken,
+            "uint256", //_tokenDecimals,
+            "address", //_gasPriceOracle,
+            "uint256", //_maxLeverage,
+            "uint256", //_fundingRateSensitivity,
+            "uint256", //_feeRate
+            "address", // _feeReceiver
+        ],
+        [
             ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
             tokenDecimals,
@@ -178,92 +221,40 @@ module.exports = async function (hre) {
             fundingRateSensitivity,
             feeRate,
             deployer,
-        ],
-        from: deployer,
-        log: true,
-        libraries: {
-            SafetyWithdraw: safetyWithdraw.address,
-            LibMath: libMath.address,
-            Balances: libBalances.address,
-            Prices: libPricing.address,
-            Perpetuals: libPerpetuals.address,
-        },
-    })
-
-    const insurance = await deploy("Insurance", {
-        args: [tracer.address],
-        from: deployer,
-        libraries: {
-            LibMath: libMath.address,
-            SafetyWithdraw: safetyWithdraw.address,
-            Balances: libBalances.address,
-            LibInsurance: libInsurance.address,
-        },
-    })
-
-    const pricing = await deploy("Pricing", {
-        args: [tracer.address, insurance.address, oracleAdapter.address],
-        from: deployer,
-        libraries: {
-            LibMath: libMath.address,
-            Prices: libPricing.address,
-        },
-        log: true,
-    })
-
-    let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
-
-    const liquidation = await deploy("Liquidation", {
-        args: [
-            pricing.address,
-            tracer.address,
-            insurance.address,
-            maxLiquidationSlippage,
-        ],
-        from: deployer,
-        log: true,
-        libraries: {
-            LibMath: libMath.address,
-            Balances: libBalances.address,
-            LibLiquidation: libLiquidation.address,
-            Perpetuals: libPerpetuals.address,
-        },
-    })
-
-    // Set insurance, pricing, liquidation contracts
-    await execute(
-        "TracerPerpetualSwaps",
-        { from: deployer, log: true },
-        "setInsuranceContract",
-        insurance.address
+        ]
     )
-    await execute(
-        "TracerPerpetualSwaps",
-        { from: deployer, log: true },
-        "setPricingContract",
-        pricing.address
+
+    // this deploys a tracer, insurance, pricing and liquidation contract
+    await deployments.execute(
+        "TracerPerpetualsFactory",
+        {
+            from: deployer,
+            log: true,
+        },
+        "deployTracer",
+        deployTracerData,
+        ethOracle.address,
+        maxLiquidationSlippage
     )
-    await execute(
-        "TracerPerpetualSwaps",
-        { from: deployer, log: true },
-        "setLiquidationContract",
-        liquidation.address
-    )
+
+    const tracerInstance = new ethers.Contract(
+        await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
+        tracerAbi
+    ).connect(signers[0])
+
+    console.log(`Tracer Deployed ${tracerInstance.address}`)
+
+    let insurance = await tracerInstance.insuranceContract()
+    console.log(`Insurance Deployed ${insurance}`)
+
+    let pricing = await tracerInstance.pricingContract()
+    console.log(`Pricing Deployed ${pricing}`)
+
+    let liquidation = await tracerInstance.liquidationContract()
+    console.log(`Liquidation Deployed ${liquidation}`)
 
     // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
-    await execute(
-        "TracerPerpetualSwaps",
-        { from: deployer, log: true },
-        "setWhitelist",
-        trader.address,
-        true
-    )
-    await execute(
-        "TracerPerpetualSwaps",
-        { from: deployer, log: true },
-        "setWhitelist",
-        deployer,
-        true
-    )
+    await tracerInstance.setWhitelist(trader.address, true)
+    await tracerInstance.setWhitelist(deployer, true)
 }
 module.exports.tags = ["FullDeploy", "TracerPerpetualSwaps"]
