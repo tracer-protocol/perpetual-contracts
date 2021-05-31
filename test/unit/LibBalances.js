@@ -309,7 +309,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                 ]
                 let price = ethers.utils.parseEther("1")
                 let gasCost = maximumUint
-                let maxLeverage = ethers.BigNumber.from("10")
+                let maxLeverage = ethers.utils.parseEther("10")
                 expect(
                     libBalances.minimumMargin(
                         position,
@@ -331,7 +331,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ]
                     let price = ethers.utils.parseEther("1")
                     let gasCost = maximumUint.sub(ethers.BigNumber.from("1"))
-                    let maxLeverage = ethers.BigNumber.from("10")
+                    let maxLeverage = ethers.utils.parseEther("10")
                     expect(
                         libBalances.minimumMargin(
                             position,
@@ -353,10 +353,12 @@ describe("Unit tests: LibBalances.sol", async () => {
                 let price = ethers.utils.parseEther("1")
                 let netValue = getNetValue(position, price)
                 let gasCost = ethers.utils.parseEther("1")
-                let maxLeverage = ethers.BigNumber.from("10")
+                let maxLeverage = ethers.utils.parseEther("10")
                 // minMargin = notional value / max leverage + 6 * gas cost
+                // expected = 7
                 let expected = netValue
                     .div(maxLeverage)
+                    .mul(WAD_POW) // Needs to be WAD
                     .add(gasCost.mul(ethers.BigNumber.from("6")))
                 let result = await libBalances.minimumMargin(
                     position,
