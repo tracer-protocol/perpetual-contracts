@@ -117,22 +117,19 @@ library Balances {
     }
 
     function fillAmount(
-        Trade memory tradeA,
+        Perpetuals.Order memory orderA,
         uint256 fillA,
-        Trade memory tradeB,
+        Perpetuals.Order memory orderB,
         uint256 fillB
     ) internal pure returns (uint256) {
-        return LibMath.min(tradeA.amount - fillA, tradeB.amount - fillB);
+        return LibMath.min(orderA.amount - fillA, orderB.amount - fillB);
     }
 
     function applyTrade(
         Position memory position,
         Trade memory trade,
-        uint256 fill,
         uint256 feeRate
     ) internal pure returns (Position memory) {
-        require(fill <= trade.amount);
-
         int256 signedAmount = LibMath.toInt256(trade.amount);
         int256 signedPrice = LibMath.toInt256(trade.price);
         int256 signedFeeRate = LibMath.toInt256(feeRate);
