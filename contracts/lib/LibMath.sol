@@ -24,10 +24,34 @@ library LibMath {
         return total;
     }
 
+    /// @notice Get sum of array, for the first `n` elements
+    /// @param arr Array to get the sum of
+    /// @param n The number of (first) elements you want to sum up
+    /// @return Sum of first n elements
+    function sumN(uint256[] memory arr, uint256 n) internal pure returns (uint256) {
+        uint256 total = 0;
+
+        for (uint256 i = 0; i < n; i++) {
+            total += arr[i];
+        }
+
+        return total;
+    }
+
     function mean(uint256[] memory arr) internal pure returns (uint256) {
         uint256 n = arr.length;
 
         return sum(arr) / n;
+    }
+
+    /// @notice Get mean of array
+    /// @dev Used for zero-initialised arrays that you only want to caculate 
+    ///      the mean of the first n (populated) elements; rest are 0
+    /// @param arr Array to get the mean of
+    /// @param len Divisor/number of elements to get the mean of
+    /// @return Average of first n elements
+    function meanN(uint256[] memory arr, uint256 len) internal pure returns (uint256) {
+        return sumN(arr, len) / len;
     }
 
     function min(uint256 a, uint256 b) internal pure returns (uint256) {

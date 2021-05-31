@@ -62,21 +62,23 @@ library Prices {
         pure
         returns (uint256)
     {
-        uint256 n = (prices.length <= 24) ? prices.length : 24;
         uint256[] memory averagePrices = new uint256[](24);
 
-        for (uint256 i = 0; i < n; i++) {
+        // TODO: make sure this procedure is gas-optimised
+        uint256 j = 0;
+        for (uint256 i = 0; i < 24; i++) {
             PriceInstant memory currPrice = prices[i];
 
             // dont inclue periods that have no trades
             if (currPrice.trades == 0) {
                 continue;
             } else {
-                averagePrices[i] = averagePrice(currPrice);
+                averagePrices[j] = averagePrice(currPrice);
+                j++;
             }
         }
 
-        return LibMath.mean(averagePrices);
+        return LibMath.meanN(averagePrices, j);
     }
 
     function globalLeverage(
