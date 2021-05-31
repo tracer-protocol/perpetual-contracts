@@ -1,4 +1,5 @@
 const perpsAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
+const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { smockit, smoddit } = require("@eth-optimism/smock")
@@ -122,12 +123,6 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
     const { deployer } = await getNamedAccounts()
     accounts = await ethers.getSigners()
 
-    const liquidationDeployment = await deployments.get("Liquidation")
-    let liquidationInstance = await ethers.getContractAt(
-        liquidationDeployment.abi,
-        liquidationDeployment.address
-    )
-
     let perpsAddress = await deployments.read(
         "TracerPerpetualsFactory",
         "tracersByIndex",
@@ -136,9 +131,16 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
     let tracerPerpsInstance = new ethers.Contract(
         perpsAddress,
         perpsAbi,
-        liquidationInstance.provider
+        ethers.provider
     )
     tracerPerpsInstance = await tracerPerpsInstance.connect(deployer)
+
+    let liquidationInstance = new ethers.Contract(
+        await tracerPerpsInstance.liquidationContract(),
+        liquidationAbi,
+        ethers.provider
+    )
+    liquidationInstance = await liquidationInstance.connect(accounts[0])
 
     const traderDeployment = await deployments.get("Trader")
     let traderInstance = await ethers.getContractAt(

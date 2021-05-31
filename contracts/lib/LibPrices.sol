@@ -38,7 +38,9 @@ library Prices {
         pure
         returns (int256)
     {
-        return int256((averageTracerPrice - averageOraclePrice) / 90);
+        return
+            (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) /
+            90;
     }
 
     function averagePrice(PriceInstant memory price)

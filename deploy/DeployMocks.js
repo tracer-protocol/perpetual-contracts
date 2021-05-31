@@ -47,4 +47,8 @@ module.exports = async function (hre) {
         },
     })
 }
-module.exports.tags = ["LibLiquidationMock", "PerpetualsMock", "LibBalancesMock"]
+module.exports.tags = [
+    "LibLiquidationMock",
+    "PerpetualsMock",
+    "LibBalancesMock",
+]

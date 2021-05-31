@@ -65,9 +65,9 @@ module.exports = async function (hre) {
         log: true,
         contract: "Oracle",
     })
-    
+
     console.log(`ETH Oracle Deployed ${ethOracle.address}`)
-  
+
     await execute(
         "EthOracle",
         { from: deployer, log: true },
@@ -134,7 +134,7 @@ module.exports = async function (hre) {
     })
 
     console.log(`Quote Token Deployed ${token.address}`)
-    
+
     const tokenAmount = ethers.utils.parseEther("1000")
     await execute(
         "QuoteToken",
@@ -258,7 +258,7 @@ module.exports = async function (hre) {
         },
         "deployTracer",
         deployTracerData,
-        ethOracle.address,
+        oracleAdapter.address,
         maxLiquidationSlippage
     )
 
