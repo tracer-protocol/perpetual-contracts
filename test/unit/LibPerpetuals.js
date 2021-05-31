@@ -31,6 +31,46 @@ describe("Unit tests: LibPerpetuals.sol", function () {
         accounts = await ethers.getSigners()
     })
 
+    describe("calculateTrueMaxLeverage", async () => {
+        context("With an empty pool", async () => {
+            it("Equals lowestMaxLeverage", async () => {
+                const collateralAmount = 0
+                const poolTarget = ethers.utils.parseEther("1000")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("0.2")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff
+                )
+                expect(result).to.equal(lowestMaxLeverage)
+            })
+        })
+
+        context("With an overcollateralised pool (over target)", async () => {
+            it("", async () => {})
+        })
+
+        context("With a pool over deleveragingCliff", async () => {
+            it("", async () => {})
+        })
+
+        context("With lowestMaxLeverage > defaultMaxLeverage", async () => {
+            it("", async () => {})
+        })
+
+        context("When target == 0", async () => {
+            it("Equals lowestMaxLeverage", async () => {})
+        })
+
+        context("Pool under deleveragingCliff", async () => {
+            it("Returns as expected", async () => {})
+        })
+    })
+
     describe("canMatch", async () => {
         context("when called with different order prices", async () => {
             it("returns false", async () => {

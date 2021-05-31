@@ -111,6 +111,22 @@ contract TracerPerpetualSwaps is
     }
 
     /**
+     * @notice Adjust the max leverage as insurance pool slides from 100% of target to 0% of target
+     */
+    function trueMaxLeverage() public view override returns (uint256) {
+        IInsurance insurance = IInsurance(insuranceContract);
+
+        return
+            Perpetuals.calculateTrueMaxLeverage(
+                insurance.collateralAmount(),
+                insurance.getPoolTarget(),
+                maxLeverage,
+                lowestMaxLeverage,
+                deleveragingCliff
+            );
+    }
+
+    /**
      * @notice Allows a user to deposit into their margin account
      * @dev this contract must be an approved spender of the markets quote token on behalf of the depositer.
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
@@ -477,7 +493,7 @@ contract TracerPerpetualSwaps is
         Balances.Position memory pos =
             Balances.Position(position.quote, position.base);
         uint256 minMargin =
-            Balances.minimumMargin(pos, price, gasCost, maxLeverage);
+            Balances.minimumMargin(pos, price, gasCost, trueMaxLeverage());
         int256 margin = Balances.margin(pos, price);
 
         if (margin < 0) {
@@ -492,7 +508,8 @@ contract TracerPerpetualSwaps is
             return position.quote >= 0;
         }
 
-        return Balances.marginValid(position, price, gasCost, maxLeverage);
+        return
+            Balances.marginValid(position, price, gasCost, trueMaxLeverage());
     }
 
     /**

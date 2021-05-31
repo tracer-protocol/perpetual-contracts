@@ -42,6 +42,8 @@ interface ITracerPerpetualSwaps {
 
     function maxLeverage() external view returns (uint256);
 
+    function trueMaxLeverage() external view returns (uint256);
+
     function LIQUIDATION_GAS_COST() external view returns (uint256);
 
     function fundingRateSensitivity() external view returns (uint256);

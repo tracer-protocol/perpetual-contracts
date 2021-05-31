@@ -200,6 +200,8 @@ module.exports = async function (hre) {
     let feeRate = 0 // 0 percent
     let fundingRateSensitivity = 1
     let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
+    let deleveragingCliff = ethers.utils.parseEther("0.2") // 20 percent
+    let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
@@ -223,8 +225,8 @@ module.exports = async function (hre) {
             fundingRateSensitivity,
             feeRate,
             deployer,
-            ethers.utils.parseEther("0.2"), // 20 percent
-            ethers.utils.parseEther("2"),
+            deleveragingCliff,
+            lowestMaxLeverage,
         ]
     )
 
