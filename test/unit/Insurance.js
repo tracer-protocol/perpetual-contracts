@@ -48,7 +48,9 @@ const setup = deployments.createFixture(async () => {
         1,
         1,
         1,
-        zeroAddress
+        zeroAddress,
+        ethers.utils.parseEther("0.2"), // 20 percent
+        ethers.utils.parseEther("2")
     )
 
     let mockTracer = await smockit(tracer)

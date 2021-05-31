@@ -210,7 +210,9 @@ module.exports = async function (hre) {
             "uint256", //_maxLeverage,
             "uint256", //_fundingRateSensitivity,
             "uint256", //_feeRate
-            "address", // _feeReceiver
+            "address", // _feeReceiver,
+            "uint256", // _deleveragingCliff
+            "uint256", // _lowestMaxLeverage
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -221,6 +223,8 @@ module.exports = async function (hre) {
             fundingRateSensitivity,
             feeRate,
             deployer,
+            ethers.utils.parseEther("0.2"), // 20 percent
+            ethers.utils.parseEther("2"),
         ]
     )
 

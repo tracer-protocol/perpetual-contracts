@@ -46,6 +46,10 @@ interface ITracerPerpetualSwaps {
 
     function fundingRateSensitivity() external view returns (uint256);
 
+    function deleveragingCliff() external view returns (uint256);
+
+    function lowestMaxLeverage() external view returns (uint256);
+
     function getBalance(address account)
         external
         view

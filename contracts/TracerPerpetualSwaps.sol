@@ -26,7 +26,6 @@ contract TracerPerpetualSwaps is
     using PRBMathSD59x18 for int256;
     using PRBMathUD60x18 for uint256;
 
-    uint256 public override fundingRateSensitivity; //WAD value. sensitivity of 1 = 1*10^18
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     // todo ensure these are fine being immutable
     address public immutable override tracerQuoteToken;
@@ -39,9 +38,16 @@ contract TracerPerpetualSwaps is
     uint256 public fees;
     address public feeReceiver;
 
-    // Config variables
+    /* Config variables */
     address public override gasPriceOracle;
-    uint256 public override maxLeverage; // The maximum ratio of notionalValue to margin
+    // The maximum ratio of notionalValue to margin
+    uint256 public override maxLeverage;
+    // WAD value. sensitivity of 1 = 1*10^18
+    uint256 public override fundingRateSensitivity;
+    // WAD value. The percentage for insurance pool holdings/pool target where deleveraging begins
+    uint256 public override deleveragingCliff;
+    // The lowest value that maxLeverage can be, if insurance pool is empty.
+    uint256 public override lowestMaxLeverage;
 
     // Account State Variables
     mapping(address => Balances.Account) public balances;
@@ -75,6 +81,9 @@ contract TracerPerpetualSwaps is
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
      * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
+     *                           u60.18-decimal fixed-point number. e.g. 20% = 0.2*10^18
+     * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
      */
     constructor(
         bytes32 _marketId,
@@ -84,7 +93,9 @@ contract TracerPerpetualSwaps is
         uint256 _maxLeverage,
         uint256 _fundingRateSensitivity,
         uint256 _feeRate,
-        address _feeReceiver
+        address _feeReceiver,
+        uint256 _deleveragingCliff,
+        uint256 _lowestMaxLeverage
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
         tracerQuoteToken = _tracerQuoteToken;
@@ -95,6 +106,8 @@ contract TracerPerpetualSwaps is
         maxLeverage = _maxLeverage;
         fundingRateSensitivity = _fundingRateSensitivity;
         feeReceiver = _feeReceiver;
+        deleveragingCliff = _deleveragingCliff;
+        lowestMaxLeverage = _lowestMaxLeverage;
     }
 
     /**
