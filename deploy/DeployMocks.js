@@ -25,6 +25,11 @@ module.exports = async function (hre) {
         },
     })
 
+    const libBalances = await deploy("Balances", {
+        from: deployer,
+        log: true,
+    })
+
     await deploy("LibLiquidationMock", {
         from: deployer,
         log: true,
@@ -33,5 +38,13 @@ module.exports = async function (hre) {
             Perpetuals: libPerpetuals.address,
         },
     })
+
+    await deploy("LibBalancesMock", {
+        from: deployer,
+        log: true,
+        libraries: {
+            Balances: libBalances.address,
+        },
+    })
 }
-module.exports.tags = ["LibLiquidationMock", "PerpetualsMock"]
+module.exports.tags = ["LibLiquidationMock", "PerpetualsMock", "LibBalancesMock"]

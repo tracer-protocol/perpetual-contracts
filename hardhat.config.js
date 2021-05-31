@@ -5,6 +5,9 @@ require("hardhat-deploy")
 require("hardhat-prettier")
 require("hardhat-abi-exporter")
 require("hardhat-typechain")
+require("@nomiclabs/hardhat-etherscan")
+
+const mnemonic = ""
 
 module.exports = {
     solidity: {
@@ -25,6 +28,19 @@ module.exports = {
         hardhat: {
             blockGasLimit: 12450000,
         },
+        arbitrum: {
+            url: "https://kovan5.arbitrum.io/rpc",
+            gasPrice: 0,
+            accounts: { mnemonic: mnemonic },
+        },
+        kovan: {
+            url: "KOVAN_URL",
+            gasPrice: 5000000000, //5 gwei
+            accounts: { mnemonic: mnemonic },
+        },
+        local: {
+            url: "http://localhost:8545",
+        },
     },
     namedAccounts: {
         deployer: 0,
@@ -40,5 +56,10 @@ module.exports = {
     typechain: {
         outDir: "./types",
         target: "web3-v1",
+    },
+    etherscan: {
+        // Your API key for Etherscan
+        // Obtain one at https://etherscan.io/
+        apiKey: "API_KEY",
     },
 }
