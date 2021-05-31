@@ -210,9 +210,6 @@ contract Liquidation is ILiquidation, Ownable {
         /* Liquidated account's balance */
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
 
-        Balances.Account memory liquidatorBalance =
-            tracer.getBalance(msg.sender);
-
         uint256 amountToEscrow =
             verifyAndSubmitLiquidation(
                 liquidatedBalance.position.base,
