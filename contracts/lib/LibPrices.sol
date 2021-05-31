@@ -33,6 +33,7 @@ library Prices {
         return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
+
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
         public
         pure
@@ -43,6 +44,11 @@ library Prices {
             90;
     }
 
+    /**
+     * @notice Calculate the average price of trades in a PriceInstant instance
+     * @param price Current cumulative price and number of trades in a time period
+     * @return Average price for given instance
+     */
     function averagePrice(PriceInstant memory price)
         public
         pure
@@ -57,6 +63,12 @@ library Prices {
         return price.cumulativePrice / price.trades;
     }
 
+    /**
+     * @notice Calculates average price over a time period of 24 hours
+     * @dev Ignores hours where the number of trades is zero
+     * @param prices Array of PriceInstant instances in the 24 hour period
+     * @return Average price in the time period (non-weighted)
+     */
     function averagePriceForPeriod(PriceInstant[24] memory prices)
         public
         pure
@@ -69,7 +81,7 @@ library Prices {
         for (uint256 i = 0; i < 24; i++) {
             PriceInstant memory currPrice = prices[i];
 
-            // dont inclue periods that have no trades
+            // don't include periods that have no trades
             if (currPrice.trades == 0) {
                 continue;
             } else {
@@ -81,6 +93,14 @@ library Prices {
         return LibMath.meanN(averagePrices, j);
     }
 
+    /**
+     * @notice Calculate new global leverage
+     * @param _globalLeverage Current global leverage
+     * @param oldLeverage Old leverage of account
+     * @param newLeverage New leverage of account
+     * @return New global leverage, calculated from the change from
+     *        the old to the new leverage for the account
+     */
     function globalLeverage(
         uint256 _globalLeverage,
         uint256 oldLeverage,
@@ -103,6 +123,7 @@ library Prices {
     /**
      * @notice calculates an 8 hour TWAP starting at the hour index amd moving
      * backwards in time.
+     * @dev Ignores hours where the number of trades is zero
      * @param hour the 24 hour index to start at
      * @param tracerPrices the average hourly prices of the derivative over the last
      * 24 hours
@@ -129,15 +150,15 @@ library Prices {
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
             // don't include periods that have no trades
-            if (currDerivativePrice == 0 && tracerPrices[j].trades == 0) {
+            if (tracerPrices[j].trades == 0) {
                 continue;
             } else {
                 totalDerivativeTimeWeight += currTimeWeight;
                 cumulativeDerivative += currTimeWeight * currDerivativePrice;
             }
 
-            // dont include periods that have no trades
-            if (currUnderlyingPrice == 0 && oraclePrices[j].trades == 0) {
+            // don't include periods that have no trades
+            if (oraclePrices[j].trades == 0) {
                 continue;
             } else {
                 totalUnderlyingTimeWeight += currTimeWeight;
