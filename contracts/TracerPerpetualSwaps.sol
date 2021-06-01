@@ -599,6 +599,30 @@ contract TracerPerpetualSwaps is
         fundingRateSensitivity = _fundingRateSensitivity;
     }
 
+    function setDeleveragingCliff(uint256 _deleveragingCliff)
+        public
+        override
+        onlyOwner
+    {
+        deleveragingCliff = _deleveragingCliff;
+    }
+
+    function setLowestMaxLeverage(uint256 _lowestMaxLeverage)
+        public
+        override
+        onlyOwner
+    {
+        lowestMaxLeverage = _lowestMaxLeverage;
+    }
+
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage)
+        public
+        override
+        onlyOwner
+    {
+        insurancePoolSwitchStage = _insurancePoolSwitchStage;
+    }
+
     function transferOwnership(address newOwner)
         public
         override(Ownable, ITracerPerpetualSwaps)

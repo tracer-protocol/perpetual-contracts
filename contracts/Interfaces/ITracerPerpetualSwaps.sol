@@ -78,6 +78,13 @@ interface ITracerPerpetualSwaps {
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
         external;
 
+    function setDeleveragingCliff(uint256 _deleveragingCliff) external;
+
+    function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external;
+
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage)
+        external;
+
     function transferOwnership(address newOwner) external;
 
     function deposit(uint256 amount) external;
