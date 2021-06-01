@@ -104,7 +104,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             // Deficit is zero if the insurance pool, after the withdrawal, is greater than the target
             insuranceFundDeficit = 0;
         } else {
-            insuranceFundDeficit = poolTarget + amount - bufferAmount - collateralAmount;
+            insuranceFundDeficit =
+                poolTarget +
+                amount -
+                bufferAmount -
+                collateralAmount;
         }
 
         // Fee percentage (in WAD) for withdrawing from public insurance pool
@@ -133,7 +137,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, rawTokenAmount - rawFeeTaken);
 
-        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend - wadFeeTaken);
+        emit InsuranceWithdraw(
+            address(tracer),
+            msg.sender,
+            wadTokensToSend - wadFeeTaken
+        );
     }
 
     /**
