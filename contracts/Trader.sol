@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
-
 import "./lib/LibPerpetuals.sol";
 
 /**
@@ -23,17 +22,17 @@ contract Trader is ITrader {
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
         keccak256(
-            "Order(address maker,uint256 amount,int256 price,uint256 filled,bool side,uint256 expires,uint256 created,address market)"
+            "Order(address maker,address market,uint256 price,uint256 amount,uint256 side,uint256 expires,uint256 created)"
         );
 
     uint256 public constant override chainId = 1337; // Changes per chain
     bytes32 public immutable override EIP712_DOMAIN;
 
-    // Trader => nonce
-    mapping(address => uint256) public nonces; // Prevents replay attacks
-
-    // Order hash to memory
+    // order hash to memory
     mapping(bytes32 => Perpetuals.Order) public orders;
+    // maps an order hash to its signed order if seen before
+    mapping(bytes32 => Types.SignedLimitOrder) public orderToSig;
+    // order hash to amount filled
     mapping(bytes32 => uint256) public filled;
 
     constructor() {
@@ -88,11 +87,8 @@ contract Trader is ITrader {
 
             // retrieve orders
             // if the order does not exist, it is created here
-            Perpetuals.Order storage makeOrder = grabOrder(makers, i);
-            Perpetuals.Order storage takeOrder = grabOrder(takers, i);
-
-            address maker = makers[i].order.maker;
-            address taker = takers[i].order.maker;
+            Perpetuals.Order memory makeOrder = grabOrder(makers, i);
+            Perpetuals.Order memory takeOrder = grabOrder(takers, i);
 
             uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
             uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
@@ -107,6 +103,8 @@ contract Trader is ITrader {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
+            // todo this could be succeptible to re-entrancy as
+            // market is never verified
             (bool success, ) =
                 makeOrder.market.call(
                     abi.encodePacked(
@@ -127,22 +125,6 @@ contract Trader is ITrader {
             filled[Perpetuals.orderId(takeOrder)] =
                 takeOrderFilled +
                 fillAmount;
-
-            // increment nonce if filled
-            bool completeMaker =
-                filled[Perpetuals.orderId(makeOrder)] == makeOrder.amount;
-            bool completeTaker =
-                filled[Perpetuals.orderId(takeOrder)] == takeOrder.amount;
-
-            // check if we need to increment maker's nonce
-            if (completeMaker) {
-                nonces[maker]++;
-            }
-
-            // check if we need to increment taker's nonce
-            if (completeTaker) {
-                nonces[taker]++;
-            }
         }
     }
 
@@ -157,21 +139,16 @@ contract Trader is ITrader {
     function grabOrder(
         Types.SignedLimitOrder[] memory signedOrders,
         uint256 index
-    ) internal returns (Perpetuals.Order storage) {
-        Types.SignedLimitOrder memory signedOrder = signedOrders[index];
+    ) internal returns (Perpetuals.Order memory) {
+        Perpetuals.Order memory rawOrder = signedOrders[index].order;
 
-        bytes32 orderHash = hashOrder(signedOrder.order);
+        bytes32 orderHash = Perpetuals.orderId(rawOrder);
         // check if order exists on chain, if not, create it
         if (orders[orderHash].maker == address(0)) {
             // store this order to keep track of state
-            Perpetuals.Order storage newOrder = orders[orderHash];
-            newOrder.maker = signedOrder.order.maker;
-            newOrder.amount = signedOrder.order.amount;
-            newOrder.price = signedOrder.order.price;
-            newOrder.side = signedOrder.order.side;
-            newOrder.expires = signedOrder.order.expires;
-            newOrder.created = block.timestamp;
-            newOrder.market = signedOrder.order.market;
+            orders[orderHash] = rawOrder;
+            // map the order hash to the signed order
+            orderToSig[orderHash] = signedOrders[index];
         }
 
         return orders[orderHash];
@@ -197,12 +174,12 @@ contract Trader is ITrader {
                         abi.encode(
                             ORDER_TYPE,
                             order.maker,
-                            order.amount,
+                            order.market,
                             order.price,
-                            order.side,
+                            order.amount,
+                            uint256(order.side),
                             order.expires,
-                            order.created,
-                            order.market
+                            order.created
                         )
                     )
                 )
@@ -227,13 +204,7 @@ contract Trader is ITrader {
         address signer,
         Types.SignedLimitOrder memory signedOrder
     ) internal view returns (bool) {
-        return (verifySignature(
-            signer,
-            signedOrder.order,
-            signedOrder.sigR,
-            signedOrder.sigS,
-            signedOrder.sigV
-        ) && verifyNonce(signedOrder));
+        return verifySignature(signer, signedOrder);
     }
 
     /**
@@ -253,45 +224,33 @@ contract Trader is ITrader {
     /**
      * @notice Verifies the signature component of a signed order
      * @param signer The signer who is being verified against the order
-     * @param order The unsigned order to verify the signature of
-     * @param sigR R component of the signature
-     * @param sigS S component of the signature
-     * @param sigV V component of the signature
+     * @param signedOrder The unsigned order to verify the signature of
      * @return true is signer has signed the order, else false
      */
     function verifySignature(
         address signer,
-        Perpetuals.Order memory order,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
+        Types.SignedLimitOrder memory signedOrder
     ) public view override returns (bool) {
-        return signer == ecrecover(hashOrder(order), sigV, sigR, sigS);
-    }
-
-    /**
-     * @notice Verifies that the nonce of a order is the current user nonce
-     * @param signedOrder The order being verified
-     */
-    function verifyNonce(Types.SignedLimitOrder memory signedOrder)
-        public
-        view
-        override
-        returns (bool)
-    {
-        return signedOrder.nonce == nonces[signedOrder.order.maker];
+        return
+            signer ==
+            ecrecover(
+                hashOrder(signedOrder.order),
+                signedOrder.sigV,
+                signedOrder.sigR,
+                signedOrder.sigS
+            );
     }
 
     /**
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order memory order)
+    function getOrder(Perpetuals.Order calldata order)
         public
         view
         override
         returns (Perpetuals.Order memory)
     {
-        return orders[hashOrder(order)];
+        return orders[Perpetuals.orderId(order)];
     }
 }

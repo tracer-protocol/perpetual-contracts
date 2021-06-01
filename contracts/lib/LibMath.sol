@@ -12,4 +12,29 @@ library LibMath {
     function abs(int256 x) internal pure returns (int256) {
         return x > 0 ? int256(x) : int256(-1 * x);
     }
+
+    function sum(uint256[] memory arr) internal pure returns (uint256) {
+        uint256 n = arr.length;
+        uint256 total = 0;
+
+        for (uint256 i = 0; i < n; i++) {
+            total += arr[i];
+        }
+
+        return total;
+    }
+
+    function mean(uint256[] memory arr) internal pure returns (uint256) {
+        uint256 n = arr.length;
+
+        return sum(arr) / n;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    function signedMin(int256 a, int256 b) internal pure returns (int256) {
+        return a < b ? a : b;
+    }
 }

@@ -26,7 +26,6 @@ library LibInsurance {
             // to mint, and `amount` is the amount to deposit.
             return
                 PRBMathUD60x18.mul(
-                    // todo what if pool token underlying is 0
                     PRBMathUD60x18.div(poolTokenSupply, poolTokenUnderlying),
                     wadAmount
                 );
@@ -42,7 +41,7 @@ library LibInsurance {
     function calcWithdrawAmount(
         uint256 poolTokenSupply, // the total circulating supply of pool tokens
         uint256 poolTokenUnderlying, // the holding of the insurance pool in quote tokens
-        uint256 wadAmount //the WAD amount of tokens being deposited
+        uint256 wadAmount //the WAD amount of tokens being withdrawn
     ) internal pure returns (uint256) {
         // avoid division by 0
         if (poolTokenSupply == 0) {

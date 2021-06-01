@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/LibMath.sol";
 import "./lib/LibLiquidation.sol";
 import "./lib/LibBalances.sol";
+import "./lib/LibPerpetuals.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/ITrader.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
@@ -47,7 +48,7 @@ contract Liquidation is ILiquidation, Ownable {
         address indexed account,
         address indexed liquidator,
         int256 liquidationAmount,
-        bool side,
+        Perpetuals.Side side,
         address indexed market,
         uint256 liquidationId
     );
@@ -82,7 +83,7 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 price,
         uint256 escrowedAmount,
         int256 amountLiquidated,
-        bool liquidationSide
+        Perpetuals.Side liquidationSide
     ) internal {
         liquidationReceipts[currentLiquidationId] = LibLiquidation
             .LiquidationReceipt(
@@ -148,15 +149,28 @@ contract Liquidation is ILiquidation, Ownable {
                 ITrader(traderContract).getOrder(orders[i]);
             if (
                 order.created < receipt.time || // Order made before receipt
-                order.maker != receipt.liquidator // Order made by someone who isn't liquidator
-                // todo alter liquidations side to be a Side type, then re add this comparison
-                // || order.side == receipt.liquidationSide // Order is in same direction as liquidation
+                order.maker != receipt.liquidator || // Order made by someone who isn't liquidator
+                order.side == receipt.liquidationSide // Order is in same direction as liquidation
                 /* Order should be the opposite to the position acquired on liquidation */
             ) {
                 emit InvalidClaimOrder(receiptId, receipt.liquidator);
                 continue;
             }
 
+            if (
+                (receipt.liquidationSide == Perpetuals.Side.Long &&
+                    order.price >= receipt.price) ||
+                (receipt.liquidationSide == Perpetuals.Side.Short &&
+                    order.price <= receipt.price)
+            ) {
+                // Liquidation position was long
+                // Price went up, so not a slippage order
+                // or
+                // Liquidation position was short
+                // Price went down, so not a slippage order
+                emit InvalidClaimOrder(receiptId, receipt.liquidator);
+                continue;
+            }
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
 
             /* order.created >= receipt.time
@@ -232,7 +246,8 @@ contract Liquidation is ILiquidation, Ownable {
             );
 
         // create a liquidation receipt
-        bool side = base < 0 ? false : true;
+        Perpetuals.Side side =
+            base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long;
         submitLiquidation(
             msg.sender,
             account,
@@ -290,7 +305,11 @@ contract Liquidation is ILiquidation, Ownable {
             account,
             msg.sender,
             amount,
-            (liquidatedBalance.position.base < 0 ? false : true),
+            (
+                liquidatedBalance.position.base < 0
+                    ? Perpetuals.Side.Short
+                    : Perpetuals.Side.Long
+            ),
             address(tracer),
             currentLiquidationId - 1
         );

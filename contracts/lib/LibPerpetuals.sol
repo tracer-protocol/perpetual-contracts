@@ -14,7 +14,7 @@ library Perpetuals {
         uint256 created;
     }
 
-    function orderId(Order calldata order) public pure returns (bytes32) {
+    function orderId(Order memory order) internal pure returns (bytes32) {
         return keccak256(abi.encode(order));
     }
 
@@ -31,7 +31,14 @@ library Perpetuals {
         bool opposingSides = a.side != b.side;
         bool notExpired = currentTime < a.expires && currentTime < b.expires;
         bool notFilled = aFilled < a.amount && bFilled < b.amount;
+        bool createdBefore =
+            currentTime >= a.created && currentTime >= b.created;
 
-        return pricesMatch && opposingSides && notExpired && notFilled;
+        return
+            pricesMatch &&
+            opposingSides &&
+            notExpired &&
+            notFilled &&
+            createdBefore;
     }
 }

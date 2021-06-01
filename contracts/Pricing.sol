@@ -1,32 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import {Types} from "./Interfaces/Types.sol";
 import "./lib/LibMath.sol";
+import "./lib/LibPrices.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
-import "prb-math/contracts/PRBMathUD60x18.sol";
+import "prb-math/contracts/PRBMathSD59x18.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Pricing is IPricing, Ownable {
     using LibMath for uint256;
     using LibMath for int256;
-    using PRBMathUD60x18 for uint256;
+    using PRBMathSD59x18 for int256;
 
     address public tracer;
     IInsurance public insurance;
     IOracle public oracle;
 
     // pricing metrics
-    Types.PricingMetrics internal price;
+    Prices.PriceInstant[24] internal hourlyTracerPrices;
+    Prices.PriceInstant[24] internal hourlyOraclePrices;
 
     // funding index => funding rate
-    mapping(uint256 => Types.FundingRate) public fundingRates;
+    mapping(uint256 => Prices.FundingRateInstant) public fundingRates;
 
     // funding index => insurance funding rate
-    mapping(uint256 => Types.FundingRate) public insuranceFundingRates;
+    mapping(uint256 => Prices.FundingRateInstant) public insuranceFundingRates;
 
     // market's time value
     int256 public override timeValue;
@@ -40,7 +41,7 @@ contract Pricing is IPricing, Ownable {
     uint8 public currentHour;
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
-    event FundingRateUpdated(int256 fundingRate, int256 fundingRateValue);
+    event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
     event InsuranceFundingRateUpdated(
         int256 insuranceFundingRate,
         int256 insuranceFundingRateValue
@@ -63,8 +64,8 @@ contract Pricing is IPricing, Ownable {
 
         // initialise funding rate, similar to what was done in trace perp
         uint256 oracleLatestPrice = oracle.latestAnswer();
-        setFundingRate(oracleLatestPrice, 0, 0);
-        setInsuranceFundingRate(oracleLatestPrice, 0, 0);
+        setFundingRate(0, 0);
+        setInsuranceFundingRate(0, 0);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
     }
@@ -86,20 +87,10 @@ contract Pricing is IPricing, Ownable {
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // Update the price to a new entry and funding rate every hour
-            // Check current hour and loop around if need be
-            if (currentHour == 23) {
-                currentHour = 0;
-            } else {
-                currentHour = currentHour + 1;
-            }
             // Update pricing and funding rate states
             updatePrice(tradePrice, currentOraclePrice, true);
 
-            // todo contract needs to take in the insurance pool
-            int256 poolFundingRate = insurance.getPoolFundingRate().toInt256();
-
-            updateFundingRate(currentOraclePrice, poolFundingRate);
+            updateFundingRate(currentOraclePrice);
 
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
@@ -107,7 +98,14 @@ contract Pricing is IPricing, Ownable {
                 startLast24Hours = block.timestamp;
             }
 
+            // update time metrics after all other state
             startLastHour = block.timestamp;
+            // Check current hour and loop around if need be
+            if (currentHour == 23) {
+                currentHour = 0;
+            } else {
+                currentHour = currentHour + 1;
+            }
         } else {
             // Update old pricing entry
             updatePrice(tradePrice, currentOraclePrice, false);
@@ -129,27 +127,27 @@ contract Pricing is IPricing, Ownable {
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
-            Types.HourlyPrices memory newHourly =
-                Types.HourlyPrices(marketPrice, 1);
-            price.hourlyTracerPrices[currentHour] = newHourly;
+            Prices.PriceInstant memory newHourly =
+                Prices.PriceInstant(marketPrice, 1);
+            hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Types.HourlyPrices memory oracleHour =
-                Types.HourlyPrices(oraclePrice, 1);
-            price.hourlyOraclePrices[currentHour] = oracleHour;
+            Prices.PriceInstant memory oracleHour =
+                Prices.PriceInstant(oraclePrice, 1);
+            hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the market price to a running total and increment number of trades
-            price.hourlyTracerPrices[currentHour].totalPrice =
-                price.hourlyTracerPrices[currentHour].totalPrice +
+            hourlyTracerPrices[currentHour].cumulativePrice =
+                hourlyTracerPrices[currentHour].cumulativePrice +
                 marketPrice;
-            price.hourlyTracerPrices[currentHour].numTrades =
-                price.hourlyTracerPrices[currentHour].numTrades +
+            hourlyTracerPrices[currentHour].trades =
+                hourlyTracerPrices[currentHour].trades +
                 1;
             // As above but with oracle price
-            price.hourlyOraclePrices[currentHour].totalPrice =
-                price.hourlyOraclePrices[currentHour].totalPrice +
+            hourlyOraclePrices[currentHour].cumulativePrice =
+                hourlyOraclePrices[currentHour].cumulativePrice +
                 oraclePrice;
-            price.hourlyOraclePrices[currentHour].numTrades =
-                price.hourlyOraclePrices[currentHour].numTrades +
+            hourlyOraclePrices[currentHour].trades =
+                hourlyOraclePrices[currentHour].trades +
                 1;
         }
     }
@@ -157,40 +155,43 @@ contract Pricing is IPricing, Ownable {
     /**
      * @notice Updates the funding rate and the insurance funding rate
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
-     * @param iPoolFundingRate The 8 hour funding rate for the insurance pool, returned by a tracer's insurance contract
      */
-    function updateFundingRate(uint256 oraclePrice, int256 iPoolFundingRate)
-        internal
-    {
+    function updateFundingRate(uint256 oraclePrice) internal {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
-        (uint256 underlyingTWAP, uint256 deriativeTWAP) = getTWAPs(currentHour);
+        Prices.TWAP memory twapPrices = getTWAPs(currentHour);
+        int256 iPoolFundingRate = insurance.getPoolFundingRate().toInt256();
+        uint256 underlyingTWAP = twapPrices.underlying;
+        uint256 derivativeTWAP = twapPrices.derivative;
+
         int256 newFundingRate =
-            (deriativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue) *
-                (_tracer.fundingRateSensitivity().toInt256());
+            PRBMathSD59x18.mul(
+                derivativeTWAP.toInt256() -
+                    underlyingTWAP.toInt256() -
+                    timeValue,
+                _tracer.fundingRateSensitivity().toInt256()
+            );
+
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex - 1;
 
         // Create variable with value of new funding rate value
         int256 currentFundingRateValue =
-            fundingRates[fundingIndex].fundingRateValue;
-        int256 fundingRateValue =
-            currentFundingRateValue + (newFundingRate * oraclePrice.toInt256());
+            fundingRates[fundingIndex].cumulativeFundingRate;
+        int256 cumulativeFundingRate =
+            currentFundingRateValue +
+                PRBMathSD59x18.mul(newFundingRate, oraclePrice.toInt256());
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue =
-            insuranceFundingRates[fundingIndex].fundingRateValue;
+            insuranceFundingRates[fundingIndex].cumulativeFundingRate;
         int256 iPoolFundingRateValue =
             currentInsuranceFundingRateValue + iPoolFundingRate;
 
         // Call setter functions on calculated variables
-        setFundingRate(oraclePrice, newFundingRate, fundingRateValue);
-        emit FundingRateUpdated(newFundingRate, fundingRateValue);
-        setInsuranceFundingRate(
-            oraclePrice,
-            iPoolFundingRate,
-            iPoolFundingRateValue
-        );
+        setFundingRate(newFundingRate, cumulativeFundingRate);
+        emit FundingRateUpdated(newFundingRate, cumulativeFundingRate);
+        setInsuranceFundingRate(iPoolFundingRate, iPoolFundingRateValue);
         emit InsuranceFundingRateUpdated(
             iPoolFundingRate,
             iPoolFundingRateValue
@@ -203,10 +204,7 @@ contract Pricing is IPricing, Ownable {
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
     function fairPrice() public view override returns (uint256) {
-        uint256 oraclePrice = oracle.latestAnswer();
-        // calculates fairPrice
-        // todo this can probably be optimised
-        return uint256((oraclePrice.toInt256() - timeValue).abs());
+        return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 
     ////////////////////////////
@@ -218,46 +216,38 @@ contract Pricing is IPricing, Ownable {
      */
     function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
-        timeValue =
-            timeValue +
-            ((avgPrice.toInt256() - oracleAvgPrice.toInt256()) / 90);
+
+        timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
     }
 
     /**
      * @notice Sets the values of the fundingRate struct
-     * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The funding Rate of the Tracer, calculated by updateFundingRate
-     * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
+     * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
-    function setFundingRate(
-        uint256 marketPrice,
-        int256 fundingRate,
-        int256 fundingRateValue
-    ) internal {
-        fundingRates[currentFundingIndex] = Types.FundingRate(
+    function setFundingRate(int256 fundingRate, int256 cumulativeFundingRate)
+        internal
+    {
+        fundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
-            marketPrice,
             fundingRate,
-            fundingRateValue
+            cumulativeFundingRate
         );
     }
 
     /**
      * @notice Sets the values of the fundingRate struct for a particular Tracer Marker
-     * @param marketPrice The market price of the tracer, given by the Tracer contract when an order has been filled
      * @param fundingRate The insurance funding Rate of the Tracer, calculated by updateFundingRate
-     * @param fundingRateValue The fundingRateValue, incremented each time the funding rate is updated
+     * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
     function setInsuranceFundingRate(
-        uint256 marketPrice,
         int256 fundingRate,
-        int256 fundingRateValue
+        int256 cumulativeFundingRate
     ) internal {
-        insuranceFundingRates[currentFundingIndex] = Types.FundingRate(
+        insuranceFundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
-            marketPrice,
             fundingRate,
-            fundingRateValue
+            cumulativeFundingRate
         );
     }
 
@@ -269,43 +259,21 @@ contract Pricing is IPricing, Ownable {
         public
         view
         override
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256
-        )
+        returns (Prices.FundingRateInstant memory)
     {
-        Types.FundingRate memory fundingRate = fundingRates[index];
-        return (
-            fundingRate.recordTime,
-            fundingRate.recordPrice,
-            fundingRate.fundingRate,
-            fundingRate.fundingRateValue
-        );
+        return fundingRates[index];
     }
 
     /**
-     * @return all of the vairbales in the funding rate struct (insurance rate) from a particular tracer market
+     * @return all of the variables in the funding rate struct (insurance rate) from a particular tracer market
      */
     function getInsuranceFundingRate(uint256 index)
         public
         view
         override
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256
-        )
+        returns (Prices.FundingRateInstant memory)
     {
-        Types.FundingRate memory fundingRate = insuranceFundingRates[index];
-        return (
-            fundingRate.recordTime,
-            fundingRate.recordPrice,
-            fundingRate.fundingRate,
-            fundingRate.fundingRateValue
-        );
+        return insuranceFundingRates[index];
     }
 
     /**
@@ -317,38 +285,9 @@ contract Pricing is IPricing, Ownable {
         public
         view
         override
-        returns (uint256, uint256)
+        returns (Prices.TWAP memory)
     {
-        uint256 underlyingSum = 0;
-        uint256 derivativeSum = 0;
-        uint256 derivativeInstances = 0;
-        uint256 underlyingInstances = 0;
-        for (uint256 i = 0; i < 8; i++) {
-            uint256 timeWeight = 8 - i;
-            uint256 j = hour - i; // keep moving towards 0
-            // loop back around list if required
-            if (j < 0) {
-                j = 23;
-            }
-            uint256 derivativePrice = getHourlyAvgTracerPrice(uint256(j));
-            uint256 underlyingPrice = getHourlyAvgOraclePrice(uint256(j));
-            if (derivativePrice != 0) {
-                derivativeInstances = derivativeInstances + uint256(timeWeight);
-                derivativeSum = derivativeSum + (timeWeight * derivativePrice);
-            }
-            if (underlyingPrice != 0) {
-                underlyingInstances = underlyingInstances + uint256(timeWeight);
-                underlyingSum = underlyingSum + (timeWeight * underlyingPrice);
-            }
-        }
-        if (derivativeInstances == 0) {
-            // Not enough market data yet
-            return (0, 0);
-        }
-        return (
-            underlyingSum / underlyingInstances,
-            derivativeSum / derivativeInstances
-        );
+        Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**
@@ -356,33 +295,9 @@ contract Pricing is IPricing, Ownable {
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
     function get24HourPrices() public view override returns (uint256, uint256) {
-        Types.PricingMetrics memory pricing = price;
-        uint256 runningTotal = 0;
-        uint256 oracleRunningTotal = 0;
-        uint8 numberOfHoursPresent = 0;
-        uint8 numberOfOracleHoursPresent = 0;
-        for (uint8 i = 0; i < 23; i++) {
-            Types.HourlyPrices memory hourlyPrice =
-                pricing.hourlyTracerPrices[i];
-            Types.HourlyPrices memory oracleHourlyPrice =
-                pricing.hourlyOraclePrices[i];
-            if (hourlyPrice.numTrades != 0) {
-                runningTotal =
-                    runningTotal +
-                    (uint256(hourlyPrice.totalPrice) / hourlyPrice.numTrades);
-                numberOfHoursPresent = numberOfHoursPresent + 1;
-            }
-            if (oracleHourlyPrice.numTrades != 0) {
-                oracleRunningTotal =
-                    oracleRunningTotal +
-                    (uint256(oracleHourlyPrice.totalPrice) /
-                        oracleHourlyPrice.numTrades);
-                numberOfOracleHoursPresent = numberOfOracleHoursPresent + 1;
-            }
-        }
         return (
-            runningTotal / numberOfHoursPresent,
-            oracleRunningTotal / numberOfOracleHoursPresent
+            Prices.averagePriceForPeriod(hourlyTracerPrices),
+            Prices.averagePriceForPeriod(hourlyOraclePrices)
         );
     }
 
@@ -397,23 +312,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        Types.PricingMetrics memory pricing = price;
-        Types.HourlyPrices memory hourly;
-
-        /* bounds check the provided hour (note that the cast is safe due to
-         * short-circuit evaluation of this conditional) */
-        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
-            return 0;
-        }
-
-        /* note that this cast is safe due to our above bounds check */
-        hourly = pricing.hourlyTracerPrices[uint256(hour)];
-
-        if (hourly.numTrades == 0) {
-            return 0;
-        } else {
-            return hourly.totalPrice / hourly.numTrades;
-        }
+        return Prices.averagePrice(hourlyTracerPrices[hour]);
     }
 
     /**
@@ -426,25 +325,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (uint256)
     {
-        Types.PricingMetrics memory pricing = price;
-        Types.HourlyPrices memory hourly;
-
-        /* bounds check the provided hour (note that the cast is safe due to
-         * short-circuit evaluation of this conditional) */
-        if (hour < 0 || uint256(hour) >= pricing.hourlyOraclePrices.length) {
-            return 0;
-        }
-
-        /* note that this cast is safe due to our above bounds check */
-        hourly = pricing.hourlyOraclePrices[uint256(hour)];
-
-        if (hourly.numTrades == 0) {
-            return 0;
-        } else {
-            /* On each trade, the oracle price is added to, so the average is
-               (total / number of trades) */
-            return hourly.totalPrice / hourly.numTrades;
-        }
+        return Prices.averagePrice(hourlyOraclePrices[hour]);
     }
 
     function transferOwnership(address newOwner)
