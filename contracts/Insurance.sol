@@ -96,24 +96,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 collateralToken = IERC20(collateralAsset);
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
-        uint256 poolTarget = getPoolTarget();
-        // Insurance fund deficit (amount needed to reach target) after a withdrawal
-        uint256 insuranceFundDeficit;
-
-        if (bufferAmount + collateralAmount - amount > poolTarget) {
-            // Deficit is zero if the insurance pool, after the withdrawal, is greater than the target
-            insuranceFundDeficit = 0;
-        } else {
-            insuranceFundDeficit =
-                poolTarget +
-                amount -
-                bufferAmount -
-                collateralAmount;
-        }
-
-        // Fee percentage (in WAD) for withdrawing from public insurance pool
-        uint256 fee = PRBMathUD60x18.div(insuranceFundDeficit, poolTarget);
-
         // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
         uint256 wadTokensToSend =
             LibInsurance.calcWithdrawAmount(
@@ -126,21 +108,17 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 rawTokenAmount =
             Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
-        uint256 wadFeeTaken = PRBMathUD60x18.mul(wadTokensToSend, fee);
-        uint256 rawFeeTaken = PRBMathUD60x18.mul(rawTokenAmount, fee);
-
         // pool amount is always in WAD format
         collateralAmount = collateralAmount - wadTokensToSend;
-        bufferAmount = bufferAmount + wadFeeTaken;
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, rawTokenAmount - rawFeeTaken);
+        collateralToken.transfer(msg.sender, rawTokenAmount);
 
         emit InsuranceWithdraw(
             address(tracer),
             msg.sender,
-            wadTokensToSend - wadFeeTaken
+            wadTokensToSend
         );
     }
 
