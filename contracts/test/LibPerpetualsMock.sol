@@ -3,7 +3,11 @@ pragma solidity ^0.8.0;
 import "../lib/LibPerpetuals.sol";
 
 contract PerpetualsMock {
-    function orderId(Perpetuals.Order memory order) external returns (bytes32) {
+    function orderId(Perpetuals.Order memory order)
+        external
+        pure
+        returns (bytes32)
+    {
         return Perpetuals.orderId(order);
     }
 

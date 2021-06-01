@@ -28,7 +28,7 @@
         "truffle-contract-size": "^2.0.0"
     },
     "devDependencies": {
-        "@nomiclabs/ethereumjs-vm": "^4",
+        "@nomiclabs/ethereumjs-vm": "^4.2.2",
         "@openzeppelin/test-helpers": "^0.5.10",
         "@truffle/contract": "^4.3.3",
         "@typechain/ethers-v5": "^2.0.0",

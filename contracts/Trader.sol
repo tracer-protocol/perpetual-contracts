@@ -251,6 +251,7 @@ contract Trader is ITrader {
         override
         returns (Perpetuals.Order memory)
     {
-        return orders[Perpetuals.orderId(order)];
+        bytes32 orderId = Perpetuals.orderId(order);
+        return orders[orderId];
     }
 }

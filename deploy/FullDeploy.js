@@ -39,9 +39,6 @@ module.exports = async function (hre) {
     const trader = await deploy("Trader", {
         from: deployer,
         log: true,
-        libraries: {
-            Perpetuals: libPerpetuals.address,
-        },
     })
 
     console.log(`Trader Deployed ${trader.address}`)
@@ -70,6 +67,34 @@ module.exports = async function (hre) {
     })
 
     console.log(`ETH Oracle Deployed ${ethOracle.address}`)
+
+    await execute(
+        "EthOracle",
+        { from: deployer, log: true },
+        "setDecimals",
+        "18" // https://etherscan.io/address/0xe5bbbdb2bb953371841318e1edfbf727447cef2e#readContract
+    )
+
+    await execute(
+        "EthOracle",
+        { from: deployer, log: true },
+        "setPrice",
+        ethers.utils.parseEther("3000") // 3000 USD / ETH
+    )
+
+    await execute(
+        "GasOracle",
+        { from: deployer, log: true },
+        "setDecimals",
+        "9"
+    )
+
+    await execute(
+        "GasOracle",
+        { from: deployer, log: true },
+        "setPrice",
+        "1000000000" // 1 Gwei
+    )
 
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
@@ -233,7 +258,7 @@ module.exports = async function (hre) {
         },
         "deployTracer",
         deployTracerData,
-        ethOracle.address,
+        oracleAdapter.address,
         maxLiquidationSlippage
     )
 
