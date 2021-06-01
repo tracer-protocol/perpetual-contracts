@@ -19,6 +19,18 @@ library Perpetuals {
         return keccak256(abi.encode(order));
     }
 
+    /**
+     * TODO Test in E2E context
+     * @notice Calculate the max leverage based on how full the insurance pool is
+     * @param collateralAmount Amount of collateral in insurance pool
+     * @param poolTarget Insurance target
+     * @param defaultMaxLeverage The max leverage assuming pool is sufficiently full
+     * @param lowestMaxLeverage The lowest that max leverage can ever drop to
+     * @param deleveragingCliff The point of insurance pool full-ness,
+              below which deleveraging begins
+     * @param insurancePoolSwitchStage The point of insurance pool full-ness,
+              at or below which the insurance pool switches funding rate mechanism
+     */
     function calculateTrueMaxLeverage(
         uint256 collateralAmount,
         uint256 poolTarget,

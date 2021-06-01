@@ -46,9 +46,9 @@ async function main() {
             fundingRateSensitivity,
             feeRate,
             deployer,
-            ethers.utils.parseEther("0.2"), // 20 percent
+            ethers.utils.parseEther("20"), // 20 percent
             ethers.utils.parseEther("2"),
-            ethers.utils.parseEther("0.01"), // Switches mode at 1%
+            ethers.utils.parseEther("1"), // Switches mode at 1%
         ]
     )
     await factoryInstance.deployTracer(
