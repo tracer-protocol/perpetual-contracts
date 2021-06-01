@@ -21,9 +21,9 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
-    uint256 public collateralAmount; // amount of underlying collateral in pool, in WAD format
+    uint256 public collateralAmount; // amount of underlying collateral in public pool, in WAD format
+    uint256 public bufferAmount; // amount of collateral in buffer pool, in WAD format
     address public token; // token representation of a users holding in the pool
-    uint256 public bufferAmount; // amount of buffer collateral in pool, in WAD format
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
@@ -69,11 +69,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
-        // tokens to mint = (pool token supply / collateral holdings) * collaterael amount to stake
+        // tokens to mint = (pool token supply / collateral holdings) * collateral amount to stake
         uint256 tokensToMint =
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
-                collateralAmount,
+                collateralAmount + bufferAmount,
                 wadAmount
             );
 
@@ -96,29 +96,44 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 collateralToken = IERC20(collateralAsset);
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
+        uint256 poolTarget = getPoolTarget();
+        // Insurance fund deficit (amount needed to reach target) after a withdrawal
+        uint256 insuranceFundDeficit;
+
+        if (bufferAmount + collateralAmount - amount > poolTarget) {
+            // Deficit is zero if the insurance pool, after the withdrawal, is greater than the target
+            insuranceFundDeficit = 0;
+        } else {
+            insuranceFundDeficit = poolTarget + amount - bufferAmount - collateralAmount;
+        }
+
+        // Fee percentage (in WAD) for withdrawing from public insurance pool
+        uint256 fee = PRBMathUD60x18.div(insuranceFundDeficit, poolTarget);
+
         // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
         uint256 wadTokensToSend =
             LibInsurance.calcWithdrawAmount(
                 poolToken.totalSupply(),
-                collateralAmount,
+                collateralAmount + bufferAmount,
                 amount
             );
-
-        // TODO: add withdrawal fee for withdrawing from insurance pool
-        // uint256 poolTarget = getPoolTarget();
-        // uint256 withdrawalFee = PRBMathUD60x18.div(poolTarget - collateralAmount + wadTokensToSend, poolTarget);
 
         // convert token amount to raw amount from WAD
         uint256 rawTokenAmount =
             Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
-        // burn pool tokens, return collateral tokens
-        poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, rawTokenAmount);
+        uint256 wadFeeTaken = PRBMathUD60x18.mul(wadTokensToSend, fee);
+        uint256 rawFeeTaken = PRBMathUD60x18.mul(rawTokenAmount, fee);
 
         // pool amount is always in WAD format
         collateralAmount = collateralAmount - wadTokensToSend;
-        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
+        bufferAmount = bufferAmount + wadFeeTaken;
+
+        // burn pool tokens, return collateral tokens
+        poolToken.burnFrom(msg.sender, amount);
+        collateralToken.transfer(msg.sender, rawTokenAmount - rawFeeTaken);
+
+        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend - wadFeeTaken);
     }
 
     /**
@@ -129,7 +144,12 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         int256 quote = (tracer.getBalance(address(this))).position.quote;
         if (quote > 0) {
             tracer.withdraw(uint256(quote));
-            collateralAmount = collateralAmount + uint256(quote);
+            if (collateralAmount > 0) {
+                collateralAmount = collateralAmount + uint256(quote);
+            } else {
+                // Pay to buffer if nothing in public insurance
+                bufferAmount = bufferAmount + uint256(quote);
+            }
         }
     }
 
@@ -147,24 +167,28 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             return;
         }
 
-        // Enforce a maximum at poolAmount
-        if (amount > collateralAmount) {
-            amount = collateralAmount;
+        if (amount > collateralAmount + bufferAmount) {
+            // Drain both public and buffer insurance pools if needed completely
+            amount = collateralAmount + bufferAmount;
+            collateralAmount = 0;
+            bufferAmount = 0;
+        } else if (amount > bufferAmount) {
+            // Drain buffer insurance pool completely, and then drain part of public insurance pool
+            collateralAmount = collateralAmount + bufferAmount - amount;
+            bufferAmount = 0;
+        } else {
+            // Only need to take part of buffer pool out
+            bufferAmount = bufferAmount - amount;
         }
 
-        // What the balance will be after
-        uint256 difference = collateralAmount - amount;
-        if (difference < 10**18) {
+        if (bufferAmount + collateralAmount < 10**18) {
             // Once we go below one token, social loss is required
             // This calculation caps draining so pool always has at least one token
-            amount = collateralAmount - (10**18);
-            // Use new amount to compute difference again.
-            difference = collateralAmount - amount;
+            bufferAmount = 10**18;
         }
 
         tracerMarginToken.approve(address(tracer), amount);
         tracer.deposit(amount);
-        collateralAmount = difference;
     }
 
     /**
@@ -204,7 +228,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         uint256 ratio =
             PRBMathUD60x18.div(
-                getPoolTarget() - collateralAmount,
+                getPoolTarget() - collateralAmount - bufferAmount,
                 levNotionalValue
             );
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
@@ -222,7 +246,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice returns if the insurance pool needs funding or not
      */
     function poolNeedsFunding() external view override returns (bool) {
-        return getPoolTarget() > collateralAmount;
+        return getPoolTarget() > collateralAmount + bufferAmount;
     }
 
     modifier onlyLiquidation() {
