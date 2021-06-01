@@ -19,7 +19,8 @@ contract PerpsDeployerV1 is IPerpsDeployer {
             uint256 _feeRate,
             address _feeReceiver,
             uint256 _deleveragingCliff,
-            uint256 _lowestMaxLeverage
+            uint256 _lowestMaxLeverage,
+            uint256 _insurancePoolSwitchStage
         ) =
             abi.decode(
                 _data,
@@ -32,6 +33,7 @@ contract PerpsDeployerV1 is IPerpsDeployer {
                     uint256,
                     uint256,
                     address,
+                    uint256,
                     uint256,
                     uint256
                 )
@@ -47,7 +49,8 @@ contract PerpsDeployerV1 is IPerpsDeployer {
                 _feeRate,
                 _feeReceiver,
                 _deleveragingCliff,
-                _lowestMaxLeverage
+                _lowestMaxLeverage,
+                _insurancePoolSwitchStage
             );
         tracer.transferOwnership(msg.sender);
         return address(tracer);

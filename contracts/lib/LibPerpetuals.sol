@@ -24,34 +24,55 @@ library Perpetuals {
         uint256 poolTarget,
         uint256 defaultMaxLeverage,
         uint256 lowestMaxLeverage,
-        uint256 deleveragingCliff
+        uint256 deleveragingCliff,
+        uint256 insurancePoolSwitchStage
     ) internal pure returns (uint256) {
         if (poolTarget == 0) {
             return lowestMaxLeverage;
         }
         uint256 percentFull = PRBMathUD60x18.div(collateralAmount, poolTarget);
+        percentFull = percentFull * 100; // To bring it up to the same percentage units as everything else
 
-        if (percentFull > deleveragingCliff) {
+        if (percentFull >= deleveragingCliff) {
             return defaultMaxLeverage;
         }
 
-        // Linear function intercepting points (1, 0) and (INSURANCE_DELEVERAGING_CLIFF, defaultMaxLeverage)
+        if (percentFull <= insurancePoolSwitchStage) {
+            return lowestMaxLeverage;
+        }
+
+        if (deleveragingCliff == insurancePoolSwitchStage) {
+            return lowestMaxLeverage;
+        }
+
+        // Linear function intercepting points:
+        //       (insurancePoolSwitchStage, lowestMaxLeverage) and (INSURANCE_DELEVERAGING_CLIFF, defaultMaxLeverage)
         // Where the x axis is how full the insurance pool is as a percentage,
         // and the y axis is max leverage.
         // y = mx + b,
-        // where m = (x2 - x1) / (y2 - y1) = (defaultMaxLeverage - lowestMaxLeverage)/(DELEVERAGING_CLIFF - 0)
+        // where m = (y2 - y1) / (x2 - x1)
+        //         = (defaultMaxLeverage - lowestMaxLeverage)/
+        //           (DELEVERAGING_CLIFF - insurancePoolSwitchStage)
         //       x = percentFull
         //       b = lowestMaxLeverage (since lowestMaxLeverage is the y-intercept)
         // m was reached as that is the formula for calculating the gradient of a linear function
         // (defaultMaxLeverage - LowestMaxLeverage)/cliff * percentFull + lowestMaxLeverage
 
-        uint256 maxLeverageDifference = defaultMaxLeverage - lowestMaxLeverage;
+        uint256 gradientNumerator = defaultMaxLeverage - lowestMaxLeverage;
+        uint256 gradientDenominator =
+            deleveragingCliff - insurancePoolSwitchStage;
         uint256 maxLeverageNotBumped =
             PRBMathUD60x18.mul(
-                PRBMathUD60x18.div(maxLeverageDifference, deleveragingCliff),
-                percentFull
+                PRBMathUD60x18.div(gradientNumerator, gradientDenominator), // m
+                percentFull // x
             );
-        uint256 realMaxLeverage = maxLeverageNotBumped + lowestMaxLeverage;
+        uint256 b =
+            lowestMaxLeverage -
+                PRBMathUD60x18.div(
+                    defaultMaxLeverage - lowestMaxLeverage,
+                    deleveragingCliff - insurancePoolSwitchStage
+                );
+        uint256 realMaxLeverage = maxLeverageNotBumped + b; // mx + b
 
         return realMaxLeverage;
     }

@@ -12,7 +12,8 @@ contract PerpetualsMock {
         uint256 poolTarget,
         uint256 baseMaxLeverage,
         uint256 lowestMaxLeverage,
-        uint256 deleveragingCliff
+        uint256 deleveragingCliff,
+        uint256 insurancePoolSwitchStage
     ) external pure returns (uint256) {
         return
             Perpetuals.calculateTrueMaxLeverage(
@@ -20,7 +21,8 @@ contract PerpetualsMock {
                 poolTarget,
                 baseMaxLeverage,
                 lowestMaxLeverage,
-                deleveragingCliff
+                deleveragingCliff,
+                insurancePoolSwitchStage
             );
     }
 

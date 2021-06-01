@@ -52,6 +52,8 @@ interface ITracerPerpetualSwaps {
 
     function lowestMaxLeverage() external view returns (uint256);
 
+    function insurancePoolSwitchStage() external view returns (uint256);
+
     function getBalance(address account)
         external
         view

@@ -39,36 +39,236 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 const defaultMaxLeverage = ethers.utils.parseEther("12.5")
                 const lowestMaxLeverage = ethers.utils.parseEther("2")
                 const deleveragingCliff = ethers.utils.parseEther("0.2")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("0.01")
                 let result = await libPerpetuals.calculateTrueMaxLeverage(
                     collateralAmount,
                     poolTarget,
                     defaultMaxLeverage,
                     lowestMaxLeverage,
-                    deleveragingCliff
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                expect(result).to.equal(lowestMaxLeverage)
+            })
+        })
+
+        context("With a pool at insurancePoolSwitchStage", async () => {
+            it("Equals lowestMaxLeverage", async () => {
+                const collateralAmount = ethers.utils.parseEther("1")
+                const poolTarget = ethers.utils.parseEther("100")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
                 )
                 expect(result).to.equal(lowestMaxLeverage)
             })
         })
 
         context("With an overcollateralised pool (over target)", async () => {
-            it("", async () => {})
+            it("Returns default maxLeverage", async () => {
+                const collateralAmount = ethers.utils.parseEther("10000")
+                const poolTarget = ethers.utils.parseEther("1000")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                expect(result).to.equal(defaultMaxLeverage)
+            })
         })
 
-        context("With a pool over deleveragingCliff", async () => {
-            it("", async () => {})
+        context("With a pool at deleveragingCliff", async () => {
+            it("Returns default maxLeverage", async () => {
+                const collateralAmount = ethers.utils.parseEther("200")
+                const poolTarget = ethers.utils.parseEther("1000")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                expect(result).to.equal(defaultMaxLeverage)
+            })
         })
+
+        context("With a pool above deleveragingCliff", async () => {
+            it("Returns default maxLeverage", async () => {
+                const collateralAmount = ethers.utils.parseEther("300")
+                const poolTarget = ethers.utils.parseEther("1000")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                expect(result).to.equal(defaultMaxLeverage)
+            })
+        })
+        context(
+            "With deleveragingCliff == insurancePoolSwitchStage && percentFull < deleveragingCliff",
+            async () => {
+                it("Equals lowestMaxLeverage", async () => {
+                    const collateralAmount = ethers.utils.parseEther("10")
+                    const poolTarget = ethers.utils.parseEther("1000")
+                    const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                    const lowestMaxLeverage = ethers.utils.parseEther("2")
+                    const deleveragingCliff = ethers.utils.parseEther("10")
+                    const insurancePoolSwitchStage =
+                        ethers.utils.parseEther("10")
+                    let result = await libPerpetuals.calculateTrueMaxLeverage(
+                        collateralAmount,
+                        poolTarget,
+                        defaultMaxLeverage,
+                        lowestMaxLeverage,
+                        deleveragingCliff,
+                        insurancePoolSwitchStage
+                    )
+                    await expect(result).to.equal(lowestMaxLeverage)
+                })
+            }
+        )
 
         context("With lowestMaxLeverage > defaultMaxLeverage", async () => {
-            it("", async () => {})
+            it("Reverts", async () => {
+                const collateralAmount = ethers.utils.parseEther("19") // 19%
+                const poolTarget = ethers.utils.parseEther("100")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("20")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                await expect(result).to.be.reverted
+            })
         })
 
         context("When target == 0", async () => {
-            it("Equals lowestMaxLeverage", async () => {})
+            it("Equals lowestMaxLeverage", async () => {
+                const collateralAmount = ethers.utils.parseEther("10")
+                const poolTarget = ethers.utils.parseEther("0")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                await expect(result).to.equal(lowestMaxLeverage)
+            })
         })
 
-        context("Pool under deleveragingCliff", async () => {
-            it("Returns as expected", async () => {})
-        })
+        context(
+            "When poolAmount below insurancePoolSwitchStage% of target",
+            async () => {
+                it("Equals lowestMaxLeverage", async () => {
+                    const collateralAmount = ethers.utils.parseEther("0.5")
+                    const poolTarget = ethers.utils.parseEther("100")
+                    const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                    const lowestMaxLeverage = ethers.utils.parseEther("2")
+                    const deleveragingCliff = ethers.utils.parseEther("20")
+                    const insurancePoolSwitchStage =
+                        ethers.utils.parseEther("1")
+                    let result = await libPerpetuals.calculateTrueMaxLeverage(
+                        collateralAmount,
+                        poolTarget,
+                        defaultMaxLeverage,
+                        lowestMaxLeverage,
+                        deleveragingCliff,
+                        insurancePoolSwitchStage
+                    )
+                    await expect(result).to.equal(lowestMaxLeverage)
+                })
+            }
+        )
+
+        context(
+            "Pool under deleveragingCliff and above switch stage",
+            async () => {
+                it("Returns as expected", async () => {
+                    const collateralAmount = ethers.utils.parseEther("19") // 19%
+                    const collateralAmountNormal = 19 // 19%
+                    const poolTarget = ethers.utils.parseEther("100")
+                    const poolTargetNormal = 100
+                    const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                    const defaultMaxLeverageNormal = 12.5
+                    const lowestMaxLeverage = ethers.utils.parseEther("2")
+                    const lowestMaxLeverageNormal = 2
+                    const deleveragingCliff = ethers.utils.parseEther("20")
+                    const deleveragingCliffNormal = 20
+                    const insurancePoolSwitchStage =
+                        ethers.utils.parseEther("1")
+                    const insurancePoolSwitchStageNormal = 1
+
+                    let result = await libPerpetuals.calculateTrueMaxLeverage(
+                        collateralAmount,
+                        poolTarget,
+                        defaultMaxLeverage,
+                        lowestMaxLeverage,
+                        deleveragingCliff,
+                        insurancePoolSwitchStage
+                    )
+                    let fraction =
+                        (defaultMaxLeverageNormal - lowestMaxLeverageNormal) /
+                        (deleveragingCliffNormal -
+                            insurancePoolSwitchStageNormal)
+                    fraction = fraction
+                    const expectedValue =
+                        fraction *
+                            ((collateralAmountNormal / poolTargetNormal) *
+                                100) +
+                        (lowestMaxLeverageNormal - fraction)
+
+                    const lowerBound = expectedValue - 0.001
+                    const upperBound = expectedValue + 0.001
+                    const upperWei = ethers.utils.parseEther(
+                        upperBound.toString()
+                    )
+                    const lowerWei = ethers.utils.parseEther(
+                        lowerBound.toString()
+                    )
+                    // ~ 11.947
+                    expect(result).to.be.within(lowerWei, upperWei)
+                })
+            }
+        )
     })
 
     describe("canMatch", async () => {

@@ -202,6 +202,7 @@ module.exports = async function (hre) {
     let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("0.2") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
+    let _insurancePoolSwitchStage = ethers.utils.parseEther("0.01") // Switches mode at 1%
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
@@ -215,6 +216,7 @@ module.exports = async function (hre) {
             "address", // _feeReceiver,
             "uint256", // _deleveragingCliff
             "uint256", // _lowestMaxLeverage
+            "uint256", // _insurancePoolSwitchStage
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -227,6 +229,7 @@ module.exports = async function (hre) {
             deployer,
             deleveragingCliff,
             lowestMaxLeverage,
+            _insurancePoolSwitchStage,
         ]
     )
 

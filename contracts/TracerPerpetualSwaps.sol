@@ -39,6 +39,7 @@ contract TracerPerpetualSwaps is
     address public feeReceiver;
 
     /* Config variables */
+    // The price of gas in gwei
     address public override gasPriceOracle;
     // The maximum ratio of notionalValue to margin
     uint256 public override maxLeverage;
@@ -46,6 +47,9 @@ contract TracerPerpetualSwaps is
     uint256 public override fundingRateSensitivity;
     // WAD value. The percentage for insurance pool holdings/pool target where deleveraging begins
     uint256 public override deleveragingCliff;
+    /* The percentage of insurance holdings to target at which the insurance pool
+       funding rate changes, and lowestMaxLeverage is reached */
+    uint256 public override insurancePoolSwitchStage;
     // The lowest value that maxLeverage can be, if insurance pool is empty.
     uint256 public override lowestMaxLeverage;
 
@@ -84,6 +88,8 @@ contract TracerPerpetualSwaps is
      * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
      *                           u60.18-decimal fixed-point number. e.g. 20% = 0.2*10^18
      * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
+     * @param _insurancePoolSwitchStage The percentage of insurance holdings to target at which the insurance pool
+     *                                  funding rate changes, and lowestMaxLeverage is reached
      */
     constructor(
         bytes32 _marketId,
@@ -95,7 +101,8 @@ contract TracerPerpetualSwaps is
         uint256 _feeRate,
         address _feeReceiver,
         uint256 _deleveragingCliff,
-        uint256 _lowestMaxLeverage
+        uint256 _lowestMaxLeverage,
+        uint256 _insurancePoolSwitchStage
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
         tracerQuoteToken = _tracerQuoteToken;
@@ -108,6 +115,7 @@ contract TracerPerpetualSwaps is
         feeReceiver = _feeReceiver;
         deleveragingCliff = _deleveragingCliff;
         lowestMaxLeverage = _lowestMaxLeverage;
+        insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 
     /**
@@ -122,7 +130,8 @@ contract TracerPerpetualSwaps is
                 insurance.getPoolTarget(),
                 maxLeverage,
                 lowestMaxLeverage,
-                deleveragingCliff
+                deleveragingCliff,
+                insurancePoolSwitchStage
             );
     }
 

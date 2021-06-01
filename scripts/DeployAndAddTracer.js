@@ -35,6 +35,7 @@ async function main() {
             "address", // _feeReceiver,
             "uint256", // _deleveragingCliff
             "uint256", // _lowestMaxLeverage
+            "uint256", // _insurancePoolSwitchStage
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -47,6 +48,7 @@ async function main() {
             deployer,
             ethers.utils.parseEther("0.2"), // 20 percent
             ethers.utils.parseEther("2"),
+            ethers.utils.parseEther("0.01"), // Switches mode at 1%
         ]
     )
     await factoryInstance.deployTracer(
