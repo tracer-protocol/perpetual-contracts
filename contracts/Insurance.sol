@@ -115,11 +115,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, rawTokenAmount);
 
-        emit InsuranceWithdraw(
-            address(tracer),
-            msg.sender,
-            wadTokensToSend
-        );
+        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
 
     /**
@@ -127,15 +123,29 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-        int256 quote = (tracer.getBalance(address(this))).position.quote;
-        if (quote > 0) {
-            tracer.withdraw(uint256(quote));
-            if (collateralAmount > 0) {
-                collateralAmount = collateralAmount + uint256(quote);
-            } else {
-                // Pay to buffer if nothing in public insurance
-                bufferAmount = bufferAmount + uint256(quote);
-            }
+        uint256 quote =
+            uint256((tracer.getBalance(address(this))).position.quote);
+
+        tracer.withdraw(quote);
+
+        if (collateralAmount > 0) {
+            // Amount to pay to public is the ratio of public collateral amount to total funds
+            uint256 payToCollateral =
+                PRBMathUD60x18.mul(
+                    quote,
+                    PRBMathUD60x18.div(
+                        collateralAmount,
+                        collateralAmount + bufferAmount
+                    )
+                );
+
+            collateralAmount = collateralAmount + payToCollateral;
+
+            // Amount to pay to buffer is the remainder
+            bufferAmount = bufferAmount + quote - payToCollateral;
+        } else {
+            // Pay to buffer if nothing in public insurance
+            bufferAmount = bufferAmount + uint256(quote);
         }
     }
 
