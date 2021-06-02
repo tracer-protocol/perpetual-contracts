@@ -40,9 +40,9 @@ const setup = deployments.createFixture(async () => {
             },
         }
     )
-    let deleveragingCliff = ethers.utils.parseEther("0.2") // 20 percent
+    let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let _insurancePoolSwitchStage = ethers.utils.parseEther("0.01") // Switches mode at 1%
+    let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
     const tracer = await tracerContractFactory.deploy(
         ethers.utils.formatBytes32String("TEST/USD"),
         testToken.address,
