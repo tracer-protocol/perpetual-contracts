@@ -21,8 +21,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
-    uint256 public collateralAmount; // amount of underlying collateral in public pool, in WAD format
-    uint256 public bufferAmount; // amount of collateral in buffer pool, in WAD format
+    uint256 public publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
+    uint256 public bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public token; // token representation of a users holding in the pool
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
@@ -73,13 +73,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 tokensToMint =
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
-                collateralAmount,
+                publicCollateralAmount,
                 wadAmount
             );
 
         // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
-        collateralAmount = collateralAmount + wadAmount;
+        publicCollateralAmount = publicCollateralAmount + wadAmount;
         emit InsuranceDeposit(address(tracer), msg.sender, wadAmount);
     }
 
@@ -100,7 +100,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 wadTokensToSend =
             LibInsurance.calcWithdrawAmount(
                 poolToken.totalSupply(),
-                collateralAmount,
+                publicCollateralAmount,
                 amount
             );
 
@@ -109,7 +109,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // pool amount is always in WAD format
-        collateralAmount = collateralAmount - wadTokensToSend;
+        publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
@@ -128,24 +128,24 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         tracer.withdraw(quote);
 
-        if (collateralAmount > 0) {
+        if (publicCollateralAmount > 0) {
             // Amount to pay to public is the ratio of public collateral amount to total funds
             uint256 payToCollateral =
                 PRBMathUD60x18.mul(
                     quote,
                     PRBMathUD60x18.div(
-                        collateralAmount,
-                        collateralAmount + bufferAmount
+                        publicCollateralAmount,
+                        publicCollateralAmount + bufferCollateralAmount
                     )
                 );
 
-            collateralAmount = collateralAmount + payToCollateral;
+            publicCollateralAmount = publicCollateralAmount + payToCollateral;
 
             // Amount to pay to buffer is the remainder
-            bufferAmount = bufferAmount + quote - payToCollateral;
+            bufferCollateralAmount = bufferCollateralAmount + quote - payToCollateral;
         } else {
             // Pay to buffer if nothing in public insurance
-            bufferAmount = bufferAmount + quote;
+            bufferCollateralAmount = bufferCollateralAmount + quote;
         }
     }
 
@@ -159,28 +159,28 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (collateralAmount < 10**18) {
+        if (publicCollateralAmount < 10**18) {
             return;
         }
 
-        if (amount >= collateralAmount + bufferAmount) {
+        if (amount >= publicCollateralAmount + bufferCollateralAmount) {
             // Drain both public and buffer insurance pools completely, leaving 1 token for the public pool
-            amount = collateralAmount + bufferAmount - 10**18;
-            collateralAmount = 10**18;
-            bufferAmount = 0;
-        } else if (amount > bufferAmount) {
+            amount = publicCollateralAmount + bufferCollateralAmount - 10**18;
+            publicCollateralAmount = 10**18;
+            bufferCollateralAmount = 0;
+        } else if (amount > bufferCollateralAmount) {
             // Drain buffer insurance pool completely, and then drain part of public insurance pool
-            collateralAmount = collateralAmount + bufferAmount - amount;
-            bufferAmount = 0;
+            publicCollateralAmount = publicCollateralAmount + bufferCollateralAmount - amount;
+            bufferCollateralAmount = 0;
 
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
-            if (collateralAmount < 10**18) {
-                amount = amount + collateralAmount - 10**18;
-                collateralAmount = 10**18;
+            if (publicCollateralAmount < 10**18) {
+                amount = amount + publicCollateralAmount - 10**18;
+                publicCollateralAmount = 10**18;
             }
         } else {
             // Only need to take part of buffer pool out
-            bufferAmount = bufferAmount - amount;
+            bufferCollateralAmount = bufferCollateralAmount - amount;
         }
 
         tracerMarginToken.approve(address(tracer), amount);
@@ -224,7 +224,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         uint256 ratio =
             PRBMathUD60x18.div(
-                getPoolTarget() - collateralAmount - bufferAmount,
+                getPoolTarget() - publicCollateralAmount - bufferCollateralAmount,
                 levNotionalValue
             );
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
@@ -242,7 +242,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice returns if the insurance pool needs funding or not
      */
     function poolNeedsFunding() external view override returns (bool) {
-        return getPoolTarget() > collateralAmount + bufferAmount;
+        return getPoolTarget() > publicCollateralAmount + bufferCollateralAmount;
     }
 
     modifier onlyLiquidation() {
