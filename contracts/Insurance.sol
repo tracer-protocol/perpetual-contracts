@@ -73,7 +73,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 tokensToMint =
             LibInsurance.calcMintAmount(
                 poolToken.totalSupply(),
-                collateralAmount + bufferAmount,
+                collateralAmount,
                 wadAmount
             );
 
