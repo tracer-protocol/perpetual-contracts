@@ -100,7 +100,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 wadTokensToSend =
             LibInsurance.calcWithdrawAmount(
                 poolToken.totalSupply(),
-                collateralAmount + bufferAmount,
+                collateralAmount,
                 amount
             );
 
@@ -145,7 +145,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             bufferAmount = bufferAmount + quote - payToCollateral;
         } else {
             // Pay to buffer if nothing in public insurance
-            bufferAmount = bufferAmount + uint256(quote);
+            bufferAmount = bufferAmount + quote;
         }
     }
 
