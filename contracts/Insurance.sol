@@ -162,10 +162,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         uint256 poolHoldings = publicCollateralAmount + bufferCollateralAmount;
-        // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (poolHoldings < 10**18) {
-            return;
-        }
 
         if (amount >= poolHoldings) {
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
@@ -174,27 +170,22 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 amount = poolHoldings - 10**18;
                 publicCollateralAmount = 10**18;
             } else {
-                //
                 amount = bufferCollateralAmount;
             }
 
             // Drain buffer
             bufferCollateralAmount = 0;
         } else if (amount > bufferCollateralAmount) {
-            uint256 leftAfterDrain =
-                amount - bufferCollateralAmount - publicCollateralAmount;
-
             if (publicCollateralAmount < 10**18) {
                 // If there's not enough public collateral for there to be 1 token, cap amount being drained at the buffer
                 amount = bufferCollateralAmount;
-            } else if (leftAfterDrain < 10**18) {
+            } else if (poolHoldings - amount < 10**18) {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
                 amount =
                     bufferCollateralAmount +
-                    publicCollateralAmount +
-                    10**18 -
-                    leftAfterDrain;
+                    publicCollateralAmount - 
+                    10**18;
                 publicCollateralAmount = 10**18;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
