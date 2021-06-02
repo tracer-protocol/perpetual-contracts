@@ -163,24 +163,24 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             return;
         }
 
-        if (amount > collateralAmount + bufferAmount) {
-            // Drain both public and buffer insurance pools if needed completely
-            amount = collateralAmount + bufferAmount;
-            collateralAmount = 0;
+        if (amount >= collateralAmount + bufferAmount) {
+            // Drain both public and buffer insurance pools completely, leaving 1 token for the public pool
+            amount = collateralAmount + bufferAmount - 10**18;
+            collateralAmount = 10**18;
             bufferAmount = 0;
         } else if (amount > bufferAmount) {
             // Drain buffer insurance pool completely, and then drain part of public insurance pool
             collateralAmount = collateralAmount + bufferAmount - amount;
             bufferAmount = 0;
+
+            // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
+            if (collateralAmount < 10**18) {
+                amount = amount + collateralAmount - 10**18;
+                collateralAmount = 10**18;
+            }
         } else {
             // Only need to take part of buffer pool out
             bufferAmount = bufferAmount - amount;
-        }
-
-        if (bufferAmount + collateralAmount < 10**18) {
-            // Once we go below one token, social loss is required
-            // This calculation caps draining so pool always has at least one token
-            bufferAmount = 10**18;
         }
 
         tracerMarginToken.approve(address(tracer), amount);
