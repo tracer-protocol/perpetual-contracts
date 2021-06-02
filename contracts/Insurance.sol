@@ -142,7 +142,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             publicCollateralAmount = publicCollateralAmount + payToCollateral;
 
             // Amount to pay to buffer is the remainder
-            bufferCollateralAmount = bufferCollateralAmount + quote - payToCollateral;
+            bufferCollateralAmount =
+                bufferCollateralAmount +
+                quote -
+                payToCollateral;
         } else {
             // Pay to buffer if nothing in public insurance
             bufferCollateralAmount = bufferCollateralAmount + quote;
@@ -166,32 +169,38 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         if (amount >= poolHoldings) {
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
-            if (publicCollateralAmount > 10**18) { // 
+            if (publicCollateralAmount > 10**18) {
                 // Leave 1 token for the public pool
                 amount = poolHoldings - 10**18;
                 publicCollateralAmount = 10**18;
-            } else { //
+            } else {
+                //
                 amount = bufferCollateralAmount;
             }
 
             // Drain buffer
             bufferCollateralAmount = 0;
         } else if (amount > bufferCollateralAmount) {
-            uint256 leftAfterDrain = amount - bufferCollateralAmount - publicCollateralAmount;
-            
+            uint256 leftAfterDrain =
+                amount - bufferCollateralAmount - publicCollateralAmount;
+
             if (publicCollateralAmount < 10**18) {
                 // If there's not enough public collateral for there to be 1 token, cap amount being drained at the buffer
                 amount = bufferCollateralAmount;
             } else if (leftAfterDrain < 10**18) {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
-                amount = bufferCollateralAmount + publicCollateralAmount + 10**18 - leftAfterDrain; 
+                amount =
+                    bufferCollateralAmount +
+                    publicCollateralAmount +
+                    10**18 -
+                    leftAfterDrain;
                 publicCollateralAmount = 10**18;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
                 publicCollateralAmount = poolHoldings - amount;
             }
-            
+
             // Drain buffer
             bufferCollateralAmount = 0;
         } else {
@@ -240,7 +249,9 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         uint256 ratio =
             PRBMathUD60x18.div(
-                getPoolTarget() - publicCollateralAmount - bufferCollateralAmount,
+                getPoolTarget() -
+                    publicCollateralAmount -
+                    bufferCollateralAmount,
                 levNotionalValue
             );
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
@@ -258,7 +269,8 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice returns if the insurance pool needs funding or not
      */
     function poolNeedsFunding() external view override returns (bool) {
-        return getPoolTarget() > publicCollateralAmount + bufferCollateralAmount;
+        return
+            getPoolTarget() > publicCollateralAmount + bufferCollateralAmount;
     }
 
     modifier onlyLiquidation() {

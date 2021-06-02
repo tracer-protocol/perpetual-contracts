@@ -213,9 +213,11 @@ describe("Unit tests: Insurance.sol", function () {
                     lastUpdatedGasPrice: 0, //last updated gas price
                 })
 
-                let collateralAmountPre = await insurance.publicCollateralAmount()
+                let collateralAmountPre =
+                    await insurance.publicCollateralAmount()
                 await insurance.updatePoolAmount()
-                let collateralAmountPost = await insurance.publicCollateralAmount()
+                let collateralAmountPost =
+                    await insurance.publicCollateralAmount()
 
                 // ensure tracer.withdraw was called
                 // todo not sure why this doesn't get called once
@@ -238,9 +240,11 @@ describe("Unit tests: Insurance.sol", function () {
 
         context("when there are no funds to pull", async () => {
             it("does nothing", async () => {
-                let collateralAmountPre = await insurance.publicCollateralAmount()
+                let collateralAmountPre =
+                    await insurance.publicCollateralAmount()
                 await insurance.updatePoolAmount()
-                let collateralAmountPost = await insurance.publicCollateralAmount()
+                let collateralAmountPost =
+                    await insurance.publicCollateralAmount()
 
                 // ensure tracer.withdraw was called
                 expect(mockTracer.smocked.withdraw.calls.length).to.equal(0)
@@ -268,9 +272,11 @@ describe("Unit tests: Insurance.sol", function () {
                 )
             })
             it("does nothing if there is less than 1 unit of collateral", async () => {
-                let collateralAmountPre = await insurance.publicCollateralAmount()
+                let collateralAmountPre =
+                    await insurance.publicCollateralAmount()
                 await insurance.drainPool(ethers.utils.parseEther("1"))
-                let collateralAmountPost = await insurance.publicCollateralAmount()
+                let collateralAmountPost =
+                    await insurance.publicCollateralAmount()
                 // ensure collateral hasn't changed
                 expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
                     ethers.utils.parseEther("0")
@@ -286,9 +292,11 @@ describe("Unit tests: Insurance.sol", function () {
                 await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
-                let collateralAmountPre = await insurance.publicCollateralAmount()
+                let collateralAmountPre =
+                    await insurance.publicCollateralAmount()
                 await insurance.drainPool(ethers.utils.parseEther("10"))
-                let collateralAmountPost = await insurance.publicCollateralAmount()
+                let collateralAmountPost =
+                    await insurance.publicCollateralAmount()
 
                 expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
                     ethers.utils.parseEther("-4")
@@ -305,9 +313,11 @@ describe("Unit tests: Insurance.sol", function () {
                 await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
-                let collateralAmountPre = await insurance.publicCollateralAmount()
+                let collateralAmountPre =
+                    await insurance.publicCollateralAmount()
                 await insurance.drainPool(ethers.utils.parseEther("10"))
-                let collateralAmountPost = await insurance.publicCollateralAmount()
+                let collateralAmountPost =
+                    await insurance.publicCollateralAmount()
 
                 expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
                     ethers.utils.parseEther("-4")
@@ -336,7 +346,8 @@ describe("Unit tests: Insurance.sol", function () {
 
                 // withdraw from pool
                 await insurance.drainPool(ethers.utils.parseEther("2"))
-                let collateralAmountPost = await insurance.publicCollateralAmount()
+                let collateralAmountPost =
+                    await insurance.publicCollateralAmount()
 
                 expect(collateralAmountPost).to.equal(
                     ethers.utils.parseEther("3")
