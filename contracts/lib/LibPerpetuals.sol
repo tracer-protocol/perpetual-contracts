@@ -66,7 +66,8 @@ library Perpetuals {
         //         = (defaultMaxLeverage - lowestMaxLeverage)/
         //           (DELEVERAGING_CLIFF - insurancePoolSwitchStage)
         //       x = percentFull
-        //       b = lowestMaxLeverage (since lowestMaxLeverage is the y-intercept)
+        //       b = lowestMaxLeverage -
+        //           ((defaultMaxLeverage - lowestMaxLeverage) / (deleveragingCliff - insurancePoolSwitchStage))
         // m was reached as that is the formula for calculating the gradient of a linear function
         // (defaultMaxLeverage - LowestMaxLeverage)/cliff * percentFull + lowestMaxLeverage
 

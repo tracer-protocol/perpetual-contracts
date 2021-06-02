@@ -38,8 +38,8 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 const poolTarget = ethers.utils.parseEther("1000")
                 const defaultMaxLeverage = ethers.utils.parseEther("12.5")
                 const lowestMaxLeverage = ethers.utils.parseEther("2")
-                const deleveragingCliff = ethers.utils.parseEther("0.2")
-                const insurancePoolSwitchStage = ethers.utils.parseEther("0.01")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
                 let result = await libPerpetuals.calculateTrueMaxLeverage(
                     collateralAmount,
                     poolTarget,
