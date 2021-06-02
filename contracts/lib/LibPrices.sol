@@ -134,6 +134,8 @@ library Prices {
         PriceInstant[24] memory tracerPrices,
         PriceInstant[24] memory oraclePrices
     ) public pure returns (TWAP memory) {
+        require(hour < 24, "Hour index not valid");
+
         uint256 totalDerivativeTimeWeight = 0;
         uint256 totalUnderlyingTimeWeight = 0;
         uint256 cumulativeDerivative = 0;
