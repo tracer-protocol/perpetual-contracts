@@ -42,9 +42,17 @@ interface ITracerPerpetualSwaps {
 
     function maxLeverage() external view returns (uint256);
 
+    function trueMaxLeverage() external view returns (uint256);
+
     function LIQUIDATION_GAS_COST() external view returns (uint256);
 
     function fundingRateSensitivity() external view returns (uint256);
+
+    function deleveragingCliff() external view returns (uint256);
+
+    function lowestMaxLeverage() external view returns (uint256);
+
+    function insurancePoolSwitchStage() external view returns (uint256);
 
     function getBalance(address account)
         external
@@ -68,6 +76,13 @@ interface ITracerPerpetualSwaps {
     function setMaxLeverage(uint256 _maxLeverage) external;
 
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
+        external;
+
+    function setDeleveragingCliff(uint256 _deleveragingCliff) external;
+
+    function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external;
+
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage)
         external;
 
     function transferOwnership(address newOwner) external;

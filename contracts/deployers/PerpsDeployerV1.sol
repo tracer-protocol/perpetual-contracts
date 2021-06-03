@@ -16,11 +16,27 @@ contract PerpsDeployerV1 is IPerpsDeployer {
             address _gasPriceOracle,
             uint256 _maxLeverage,
             uint256 _fundingRateSensitivity,
-            uint256 _feeRate
+            uint256 _feeRate,
+            address _feeReceiver,
+            uint256 _deleveragingCliff,
+            uint256 _lowestMaxLeverage,
+            uint256 _insurancePoolSwitchStage
         ) =
             abi.decode(
                 _data,
-                (bytes32, address, uint256, address, uint256, uint256, uint256)
+                (
+                    bytes32,
+                    address,
+                    uint256,
+                    address,
+                    uint256,
+                    uint256,
+                    uint256,
+                    address,
+                    uint256,
+                    uint256,
+                    uint256
+                )
             );
         TracerPerpetualSwaps tracer =
             new TracerPerpetualSwaps(
@@ -31,7 +47,10 @@ contract PerpsDeployerV1 is IPerpsDeployer {
                 _maxLeverage,
                 _fundingRateSensitivity,
                 _feeRate,
-                msg.sender
+                _feeReceiver,
+                _deleveragingCliff,
+                _lowestMaxLeverage,
+                _insurancePoolSwitchStage
             );
         tracer.transferOwnership(msg.sender);
         return address(tracer);

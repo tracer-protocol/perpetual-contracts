@@ -20,7 +20,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
-    uint256 public collateralAmount; // amount of underlying collateral in pool, in WAD format
+    uint256 public override collateralAmount; // amount of underlying collateral in pool, in WAD format
     address public token; // token representation of a users holding in the pool
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
