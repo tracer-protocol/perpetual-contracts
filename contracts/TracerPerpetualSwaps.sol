@@ -73,7 +73,15 @@ contract TracerPerpetualSwaps is
         address indexed long,
         address indexed short,
         uint256 amount,
-        uint256 price
+        uint256 price,
+        bytes32 longOrderId,
+        bytes32 shortOrderId
+    );
+    event FailedOrders(
+        address indexed long,
+        address indexed short,
+        bytes32 longOrderId,
+        bytes32 shortOrderId
     );
 
     /**
@@ -210,8 +218,10 @@ contract TracerPerpetualSwaps is
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2
     ) public override onlyWhitelisted {
-        uint256 filled1 = filled[Perpetuals.orderId(order1)];
-        uint256 filled2 = filled[Perpetuals.orderId(order2)];
+        bytes32 order1Id = Perpetuals.orderId(order1);
+        bytes32 order2Id = Perpetuals.orderId(order2);
+        uint256 filled1 = filled[order1Id];
+        uint256 filled2 = filled[order2Id];
 
         // guard
         require(
@@ -219,12 +229,20 @@ contract TracerPerpetualSwaps is
             "TCR: Orders cannot be matched"
         );
 
+        uint256 fillAmount =
+            Balances.fillAmount(
+                order1,
+                filled1,
+                order2,
+                filled2
+        );
+
         // settle accounts
         settle(order1.maker);
         settle(order2.maker);
 
         // update account states
-        executeTrade(order1, order2);
+        executeTrade(order1, order2, fillAmount);
 
         // update leverage
         _updateAccountLeverage(order1.maker);
@@ -248,14 +266,18 @@ contract TracerPerpetualSwaps is
                 order1.maker,
                 order2.maker,
                 order1.amount,
-                order1.price
+                order1.price,
+                order1Id,
+                order2Id
             );
         } else {
             emit MatchedOrders(
                 order2.maker,
                 order1.maker,
                 order1.amount,
-                order1.price
+                order1.price,
+                order2Id,
+                order1Id
             );
         }
     }
@@ -265,22 +287,12 @@ contract TracerPerpetualSwaps is
      */
     function executeTrade(
         Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
     ) internal {
         // Retrieve account state
         Balances.Account storage account1 = balances[order1.maker];
         Balances.Account storage account2 = balances[order2.maker];
-
-        bytes32 orderId1 = Perpetuals.orderId(order1);
-        bytes32 orderId2 = Perpetuals.orderId(order2);
-
-        uint256 fillAmount =
-            Balances.fillAmount(
-                order1,
-                filled[orderId1],
-                order2,
-                filled[orderId2]
-            );
 
         // Construct `Trade` types suitable for use with LibBalances
         (Balances.Trade memory trade1, Balances.Trade memory trade2) =
