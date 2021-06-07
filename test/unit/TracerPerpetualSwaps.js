@@ -4,6 +4,11 @@ const { deploy } = deployments
 const { smockit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 const zeroAddress = "0x0000000000000000000000000000000000000000"
+const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
+const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
+const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
+const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
+const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
@@ -11,26 +16,28 @@ const setup = deployments.createFixture(async () => {
 
     // deploy contracts
     await deployments.fixture(["FullDeploy"])
-    const Tracer = await deployments.get("TracerPerpetualSwaps")
-    let tracer = await ethers.getContractAt(Tracer.abi, Tracer.address)
+    let Factory = await deployments.get("TracerPerpetualsFactory")
+    let factory = await ethers.getContractAt(Factory.abi, Factory.address)
+    let tracerAddress = await factory.tracersByIndex(0)
+    let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
 
     // setup mocks for the contracts and relink
-    const Insurance = await deployments.get("Insurance")
-    let insurance = await ethers.getContractAt(Insurance.abi, Insurance.address)
+    const Insurance = await tracer.insuranceContract()
+    let insurance = await ethers.getContractAt(insuranceAbi, Insurance)
 
-    const Pricing = await deployments.get("Pricing")
-    let pricing = await ethers.getContractAt(Pricing.abi, Pricing.address)
-
-    const Liquidation = await deployments.get("Liquidation")
+    const Pricing = await tracer.pricingContract()
+    let pricing = await ethers.getContractAt(pricingAbi, Pricing)
+    
+    const Liquidation = await tracer.liquidationContract()
     let liquidation = await ethers.getContractAt(
-        Liquidation.abi,
-        Liquidation.address
+        liquidationAbi,
+        Liquidation
     )
 
-    const QuoteToken = await deployments.get("QuoteToken")
+    const QuoteToken = await tracer.tracerQuoteToken()
     let quoteToken = await ethers.getContractAt(
-        QuoteToken.abi,
-        QuoteToken.address
+        tokenAbi,
+        QuoteToken
     )
 
     insurance = await smockit(insurance)
@@ -42,10 +49,6 @@ const setup = deployments.createFixture(async () => {
     // pricing.smocked.getFundingRate.will.return
     // pricing.smocked.getInsuranceFundingRate.will.return
 
-    // setup tracer contract
-    await tracer.setInsuranceContract(insurance.address, { from: deployer })
-    await tracer.setPricingContract(pricing.address, { from: deployer })
-    await tracer.setWhitelist(deployer, true)
     return {
         tracer,
         insurance,

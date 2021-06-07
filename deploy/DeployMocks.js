@@ -9,12 +9,25 @@ module.exports = async function (hre) {
         log: true,
     })
 
+    await deploy("PerpetualsMock", {
+        from: deployer,
+        log: true,
+        libraries: {
+            Perpetuals: libPerpetuals.address,
+        },
+    })
+
     const libLiquidation = await deploy("LibLiquidation", {
         from: deployer,
         log: true,
         libraries: {
             Perpetuals: libPerpetuals.address,
         },
+    })
+
+    const libBalances = await deploy("Balances", {
+        from: deployer,
+        log: true,
     })
 
     await deploy("LibLiquidationMock", {
@@ -25,5 +38,17 @@ module.exports = async function (hre) {
             Perpetuals: libPerpetuals.address,
         },
     })
+
+    await deploy("LibBalancesMock", {
+        from: deployer,
+        log: true,
+        libraries: {
+            Balances: libBalances.address,
+        },
+    })
 }
-module.exports.tags = ["LibLiquidationMock"]
+module.exports.tags = [
+    "LibLiquidationMock",
+    "PerpetualsMock",
+    "LibBalancesMock",
+]

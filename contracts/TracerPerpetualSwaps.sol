@@ -27,7 +27,6 @@ contract TracerPerpetualSwaps is
     using PRBMathSD59x18 for int256;
     using PRBMathUD60x18 for uint256;
 
-    uint256 public override fundingRateSensitivity; //WAD value. sensitivity of 1 = 1*10^18
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     // todo ensure these are fine being immutable
     address public immutable override tracerQuoteToken;
@@ -40,9 +39,20 @@ contract TracerPerpetualSwaps is
     uint256 public fees;
     address public feeReceiver;
 
-    // Config variables
+    /* Config variables */
+    // The price of gas in gwei
     address public override gasPriceOracle;
-    uint256 public override maxLeverage; // The maximum ratio of notionalValue to margin
+    // The maximum ratio of notionalValue to margin
+    uint256 public override maxLeverage;
+    // WAD value. sensitivity of 1 = 1*10^18
+    uint256 public override fundingRateSensitivity;
+    // WAD value. The percentage for insurance pool holdings/pool target where deleveraging begins
+    uint256 public override deleveragingCliff;
+    /* The percentage of insurance holdings to target at which the insurance pool
+       funding rate changes, and lowestMaxLeverage is reached */
+    uint256 public override insurancePoolSwitchStage;
+    // The lowest value that maxLeverage can be, if insurance pool is empty.
+    uint256 public override lowestMaxLeverage;
 
     // Account State Variables
     mapping(address => Balances.Account) public balances;
@@ -73,9 +83,14 @@ contract TracerPerpetualSwaps is
      * @param _marketId the id of the market, given as BASE/QUOTE
      * @param _tracerQuoteToken the address of the token used for margin accounts (i.e. The margin token)
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
-     * @param _maxLeverage the max leverage of the market. Min margin is derived from this
+     * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
      * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
+     *                           u60.18-decimal fixed-point number. e.g. 20% = 20*10^18
+     * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
+     * @param _insurancePoolSwitchStage The percentage of insurance holdings to target at which the insurance pool
+     *                                  funding rate changes, and lowestMaxLeverage is reached
      */
     constructor(
         bytes32 _marketId,
@@ -85,7 +100,10 @@ contract TracerPerpetualSwaps is
         uint256 _maxLeverage,
         uint256 _fundingRateSensitivity,
         uint256 _feeRate,
-        address _feeReceiver
+        address _feeReceiver,
+        uint256 _deleveragingCliff,
+        uint256 _lowestMaxLeverage,
+        uint256 _insurancePoolSwitchStage
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
         tracerQuoteToken = _tracerQuoteToken;
@@ -96,6 +114,26 @@ contract TracerPerpetualSwaps is
         maxLeverage = _maxLeverage;
         fundingRateSensitivity = _fundingRateSensitivity;
         feeReceiver = _feeReceiver;
+        deleveragingCliff = _deleveragingCliff;
+        lowestMaxLeverage = _lowestMaxLeverage;
+        insurancePoolSwitchStage = _insurancePoolSwitchStage;
+    }
+
+    /**
+     * @notice Adjust the max leverage as insurance pool slides from 100% of target to 0% of target
+     */
+    function trueMaxLeverage() public view override returns (uint256) {
+        IInsurance insurance = IInsurance(insuranceContract);
+
+        return
+            Perpetuals.calculateTrueMaxLeverage(
+                insurance.collateralAmount(),
+                insurance.getPoolTarget(),
+                maxLeverage,
+                lowestMaxLeverage,
+                deleveragingCliff,
+                insurancePoolSwitchStage
+            );
     }
 
     /**
@@ -239,39 +277,29 @@ contract TracerPerpetualSwaps is
         Balances.Account storage account1 = balances[order1.maker];
         Balances.Account storage account2 = balances[order2.maker];
 
-        // Construct `Trade` types suitable for use with LibBalances
-        (Balances.Trade memory trade1, Balances.Trade memory trade2) =
-            (
-                Balances.Trade(order1.price, order1.amount, order1.side),
-                Balances.Trade(order2.price, order2.amount, order2.side)
-            );
-
         bytes32 orderId1 = Perpetuals.orderId(order1);
         bytes32 orderId2 = Perpetuals.orderId(order2);
 
         uint256 fillAmount =
             Balances.fillAmount(
-                trade1,
+                order1,
                 filled[orderId1],
-                trade2,
+                order2,
                 filled[orderId2]
+            );
+
+        // Construct `Trade` types suitable for use with LibBalances
+        (Balances.Trade memory trade1, Balances.Trade memory trade2) =
+            (
+                Balances.Trade(order1.price, fillAmount, order1.side),
+                Balances.Trade(order2.price, fillAmount, order2.side)
             );
 
         // Calculate new account state
         (Balances.Position memory newPos1, Balances.Position memory newPos2) =
             (
-                Balances.applyTrade(
-                    account1.position,
-                    trade1,
-                    fillAmount,
-                    feeRate
-                ),
-                Balances.applyTrade(
-                    account2.position,
-                    trade2,
-                    fillAmount,
-                    feeRate
-                )
+                Balances.applyTrade(account1.position, trade1, feeRate),
+                Balances.applyTrade(account2.position, trade2, feeRate)
             );
 
         // Update account state with results of above calculation
@@ -473,10 +501,8 @@ contract TracerPerpetualSwaps is
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
 
         uint256 minMargin =
-            Balances.minimumMargin(position, price, gasCost, maxLeverage);
+            Balances.minimumMargin(position, price, gasCost, trueMaxLeverage());
         int256 margin = Balances.margin(position, price);
-        console.log(minMargin);
-        console.log(uint(LibMath.abs(margin)));
 
         if (margin < 0) {
             /* Margin being less than 0 is always invalid, even if position is 0.
@@ -490,7 +516,8 @@ contract TracerPerpetualSwaps is
             return position.quote >= 0;
         }
 
-        return Balances.marginValid(position, price, gasCost, maxLeverage);
+        return
+            Balances.marginValid(position, price, gasCost, trueMaxLeverage());
     }
 
     /**
@@ -569,6 +596,30 @@ contract TracerPerpetualSwaps is
         onlyOwner
     {
         fundingRateSensitivity = _fundingRateSensitivity;
+    }
+
+    function setDeleveragingCliff(uint256 _deleveragingCliff)
+        public
+        override
+        onlyOwner
+    {
+        deleveragingCliff = _deleveragingCliff;
+    }
+
+    function setLowestMaxLeverage(uint256 _lowestMaxLeverage)
+        public
+        override
+        onlyOwner
+    {
+        lowestMaxLeverage = _lowestMaxLeverage;
+    }
+
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage)
+        public
+        override
+        onlyOwner
+    {
+        insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 
     function transferOwnership(address newOwner)

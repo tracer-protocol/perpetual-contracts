@@ -38,53 +38,91 @@ library Prices {
         pure
         returns (int256)
     {
-        return int256((averageTracerPrice - averageOraclePrice) / 90);
+        return
+            (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) /
+            90;
     }
 
+    /**
+     * @notice Calculate the average price of trades in a PriceInstant instance
+     * @param price Current cumulative price and number of trades in a time period
+     * @return Average price for given instance
+     */
     function averagePrice(PriceInstant memory price)
         public
         pure
         returns (uint256)
     {
+        // todo double check safety of this.
+        // average price == 0 is not neccesarily the
+        // same as no trades in average
         if (price.trades == 0) {
             return 0;
         }
         return price.cumulativePrice / price.trades;
     }
 
+    /**
+     * @notice Calculates average price over a time period of 24 hours
+     * @dev Ignores hours where the number of trades is zero
+     * @param prices Array of PriceInstant instances in the 24 hour period
+     * @return Average price in the time period (non-weighted)
+     */
     function averagePriceForPeriod(PriceInstant[24] memory prices)
         public
         pure
         returns (uint256)
     {
-        uint256 n = prices.length <= 24 ? prices.length : 24;
         uint256[] memory averagePrices = new uint256[](24);
 
-        for (uint256 i = 0; i < n; i++) {
+        // TODO: make sure this procedure is gas-optimised
+        uint256 j = 0;
+        for (uint256 i = 0; i < 24; i++) {
             PriceInstant memory currPrice = prices[i];
-            averagePrices[i] = averagePrice(currPrice);
+
+            // don't include periods that have no trades
+            if (currPrice.trades == 0) {
+                continue;
+            } else {
+                averagePrices[j] = averagePrice(currPrice);
+                j++;
+            }
         }
 
-        return LibMath.mean(averagePrices);
+        return LibMath.meanN(averagePrices, j);
     }
 
+    /**
+     * @notice Calculate new global leverage
+     * @param _globalLeverage Current global leverage
+     * @param oldLeverage Old leverage of account
+     * @param newLeverage New leverage of account
+     * @return New global leverage, calculated from the change from
+     *        the old to the new leverage for the account
+     */
     function globalLeverage(
         uint256 _globalLeverage,
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        bool leverageHasIncreased = newLeverage > oldLeverage;
+        int256 newGlobalLeverage =
+            int256(_globalLeverage) +
+                (int256(newLeverage) - int256(oldLeverage));
 
-        if (leverageHasIncreased) {
-            return _globalLeverage + (newLeverage - oldLeverage);
-        } else {
-            return _globalLeverage - (newLeverage - oldLeverage);
+        // note: this would require a bug in how account leverage was recorded
+        // as newLeverage - oldLeverage (leverage delta) would be greater than the
+        // markets leverage. This SHOULD NOT be possible, however this is here for sanity.
+        if (newGlobalLeverage < 0) {
+            return 0;
         }
+
+        return uint256(newGlobalLeverage);
     }
 
     /**
      * @notice calculates an 8 hour TWAP starting at the hour index amd moving
      * backwards in time.
+     * @dev Ignores hours where the number of trades is zero
      * @param hour the 24 hour index to start at
      * @param tracerPrices the average hourly prices of the derivative over the last
      * 24 hours
@@ -96,48 +134,47 @@ library Prices {
         PriceInstant[24] memory tracerPrices,
         PriceInstant[24] memory oraclePrices
     ) public pure returns (TWAP memory) {
-        uint256 instantDerivative = 0;
+        require(hour < 24, "Hour index not valid");
+
+        uint256 totalDerivativeTimeWeight = 0;
+        uint256 totalUnderlyingTimeWeight = 0;
         uint256 cumulativeDerivative = 0;
-        uint256 instantUnderlying = 0;
         uint256 cumulativeUnderlying = 0;
 
         for (uint256 i = 0; i < 8; i++) {
             uint256 currTimeWeight = 8 - i;
             // if hour < i loop back towards 0 from 23.
             // otherwise move from hour towards 0
-            uint256 j = hour < i ? 23 - i + hour : hour - i;
+            uint256 j = hour < i ? 24 - i + hour : hour - i;
 
             uint256 currDerivativePrice = averagePrice(tracerPrices[j]);
             uint256 currUnderlyingPrice = averagePrice(oraclePrices[j]);
 
-            if (currDerivativePrice > 0) {
-                instantDerivative += currTimeWeight;
+            // don't include periods that have no trades
+            if (tracerPrices[j].trades == 0) {
+                continue;
+            } else {
+                totalDerivativeTimeWeight += currTimeWeight;
                 cumulativeDerivative += currTimeWeight * currDerivativePrice;
             }
 
-            if (currUnderlyingPrice > 0) {
-                instantUnderlying += currTimeWeight;
+            // don't include periods that have no trades
+            if (oraclePrices[j].trades == 0) {
+                continue;
+            } else {
+                totalUnderlyingTimeWeight += currTimeWeight;
                 cumulativeUnderlying += currTimeWeight * currUnderlyingPrice;
             }
-
-            if (instantDerivative == 0) {
-                return TWAP(0, 0);
-            } else {
-                return
-                    TWAP(
-                        PRBMathUD60x18.div(
-                            cumulativeUnderlying,
-                            instantUnderlying
-                        ),
-                        PRBMathUD60x18.div(
-                            cumulativeDerivative,
-                            instantDerivative
-                        )
-                    );
-            }
         }
+
+        return
+            TWAP(
+                cumulativeUnderlying / totalUnderlyingTimeWeight,
+                cumulativeDerivative / totalDerivativeTimeWeight
+            );
     }
 
+    // TODO test these
     function applyFunding(
         Balances.Position memory position,
         FundingRateInstant memory globalRate,

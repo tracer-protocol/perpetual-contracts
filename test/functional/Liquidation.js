@@ -1,7 +1,228 @@
+const perpsAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
+const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
+const { smockit, smoddit } = require("@eth-optimism/smock")
+const { BigNumber } = require("ethers")
+
+const provideOrders = async (contracts, liquidationAmount) => {
+    const sellWholeLiquidationAmount = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: liquidationAmount,
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp + 1,
+    }
+
+    const sellHalfLiquidationAmount = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp + 1,
+    }
+
+    const sellHalfLiquidationAmountSecond = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp + 2,
+    }
+
+    const sellHalfLiquidationAmountThird = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp + 2,
+    }
+
+    const longOrder = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: liquidationAmount,
+        side: "0", // Long, which is invalid
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp,
+    }
+
+    const zeroDollarOrder = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: "0", // $0
+        amount: liquidationAmount,
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp,
+    }
+
+    const earlyCreationOrder = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: 0,
+    }
+
+    const wrongMakerOrder = {
+        maker: accounts[2].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: 0,
+    }
+
+    orders = {
+        sellWholeLiquidationAmount: sellWholeLiquidationAmount,
+        sellHalfLiquidationAmount: sellHalfLiquidationAmount,
+        sellHalfLiquidationAmountSecond: sellHalfLiquidationAmountSecond,
+        longOrder: longOrder,
+        zeroDollarOrder: zeroDollarOrder,
+        earlyCreationOrder: earlyCreationOrder,
+        wrongMakerOrder: wrongMakerOrder,
+    }
+
+    return orders
+}
+
+const halfLiquidate = deployments.createFixture(async () => {
+    const contracts = await baseLiquidatablePosition()
+    const { deployer } = await getNamedAccounts()
+    accounts = await ethers.getSigners()
+    const { tracerPerps, liquidation, trader, libPerpetuals } = contracts
+
+    // Get half the base. Liquidate this amount
+    const halfBase = (await tracerPerps.getBalance(deployer)).position.base.div(
+        2
+    )
+
+    const tx = await liquidation
+        .connect(accounts[1])
+        .liquidate(halfBase, deployer)
+    const base = (await tracerPerps.getBalance(deployer)).position.base
+
+    return { tracerPerps, liquidation, trader, libPerpetuals }
+})
+
+const baseLiquidatablePosition = deployments.createFixture(async () => {
+    await deployments.fixture("GetIntoLiquidatablePosition")
+    const { deployer } = await getNamedAccounts()
+    accounts = await ethers.getSigners()
+
+    let perpsAddress = await deployments.read(
+        "TracerPerpetualsFactory",
+        "tracersByIndex",
+        0
+    )
+    let tracerPerpsInstance = new ethers.Contract(
+        perpsAddress,
+        perpsAbi,
+        ethers.provider
+    )
+    tracerPerpsInstance = await tracerPerpsInstance.connect(deployer)
+
+    let liquidationInstance = new ethers.Contract(
+        await tracerPerpsInstance.liquidationContract(),
+        liquidationAbi,
+        ethers.provider
+    )
+    liquidationInstance = await liquidationInstance.connect(accounts[0])
+
+    const traderDeployment = await deployments.get("Trader")
+    let traderInstance = await ethers.getContractAt(
+        traderDeployment.abi,
+        traderDeployment.address
+    )
+    // liquidationInstance.connect(deployer)
+    await deployments.fixture("PerpetualsMock")
+    const libPerpetualsDeployment = await deployments.get("PerpetualsMock")
+    let libPerpetuals = await ethers.getContractAt(
+        libPerpetualsDeployment.abi,
+        libPerpetualsDeployment.address
+    )
+    const contracts = {
+        tracerPerps: tracerPerpsInstance,
+        liquidation: liquidationInstance,
+        trader: traderInstance,
+        libPerpetuals: libPerpetuals,
+    }
+
+    return contracts
+})
+
+const addOrdersToModifiedTrader = async (
+    modifiableTrader,
+    contracts,
+    liquidationAmount
+) => {
+    const orders = await provideOrders(contracts, liquidationAmount)
+    for (const [_, order] of Object.entries(orders)) {
+        let hash = await contracts.libPerpetuals.callStatic.orderId(order)
+        await modifiableTrader.smodify.put({
+            orders: {
+                [hash]: order,
+            },
+        })
+        await modifiableTrader.smodify.put({
+            filled: {
+                [hash]: order.amount,
+            },
+        })
+    }
+}
+
+const setupReceiptTest = deployments.createFixture(async () => {
+    const { modifiableTrader } = await deployModifiableTrader()
+    const contracts = await halfLiquidate()
+
+    const liquidationAmount = (
+        await contracts.liquidation.liquidationReceipts(0)
+    ).amountLiquidated.toString()
+
+    await addOrdersToModifiedTrader(
+        modifiableTrader,
+        contracts,
+        liquidationAmount
+    )
+    return { ...contracts, modifiableTrader }
+})
+
+const deployModifiableTrader = async () => {
+    const ModifiableTraderContract = await smoddit("Trader", {
+        libraries: {
+            // Perpetuals: contracts.libPerpetuals.address
+        },
+    })
+    const modifiableTrader = await ModifiableTraderContract.deploy()
+    return { modifiableTrader }
+}
 
 describe("Liquidation functional tests", async () => {
+    let accounts
+    let tracerPerps
+    let liquidation
+    let trader
+    let libPerpetuals
+    before(async function () {
+        accounts = await ethers.getSigners()
+    })
+
+    beforeEach(async function () {})
+
     context("calcAmountToReturn", async () => {
         context(
             "when units sold is greater than liquidation amount",
@@ -21,39 +242,273 @@ describe("Liquidation functional tests", async () => {
 
     context("calcUnitsSold", async () => {
         context("When no orders given", async () => {
-            it("Does nothing ", async () => {})
+            it("Returns nothing ", async () => {
+                const contracts = await setupReceiptTest()
+                const result =
+                    await contracts.liquidation.callStatic.calcUnitsSold(
+                        [],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                await expect(result[0]).to.equal(0)
+                await expect(result[1]).to.equal(0)
+            })
         })
 
         context("in the normal case", async () => {
-            it("Calculates correctly", async () => {})
+            it("Calculates correctly", async () => {
+                const contracts = await setupReceiptTest()
+                tracerPerps = contracts.tracerPerps
+                liquidation = contracts.liquidation
+                trader = contracts.modifiableTrader
+                const liquidationAmount = (
+                    await liquidation.liquidationReceipts(0)
+                ).amountLiquidated
+                const orders = await provideOrders(contracts, liquidationAmount)
+
+                const tx = await liquidation.callStatic.calcUnitsSold(
+                    [
+                        orders.sellHalfLiquidationAmount,
+                        orders.sellHalfLiquidationAmountSecond,
+                    ],
+                    trader.address,
+                    0
+                )
+                await expect(tx[0]).to.equal(ethers.utils.parseEther("5000"))
+                await expect(tx[1]).to.equal(ethers.utils.parseEther("0.5"))
+            })
         })
 
         context("when all invalid orders", async () => {
-            it("Returns nothing ", async () => {})
+            it("Returns nothing ", async () => {
+                const contracts = await setupReceiptTest()
+                const receiptId = 0
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(receiptId)
+                ).amountLiquidated
+
+                const orders = await provideOrders(contracts, liquidationAmount)
+                const receipt = await (
+                    await contracts.liquidation.calcUnitsSold(
+                        [
+                            orders.longOrder,
+                            orders.wrongMakerOrder,
+                            orders.earlyCreationOrder,
+                            orders.longOrder,
+                        ],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                ).wait()
+                let eventCounter = 0
+                // Make sure InvalidClaimOrder is emitted correct number of times
+                receipt.events.filter((x) => {
+                    if (
+                        x.event === "InvalidClaimOrder" &&
+                        x.args.receiptId == 0
+                    ) {
+                        eventCounter++
+                    }
+                })
+                const expectedNumberOfEventEmissions = 4
+                expect(eventCounter).to.equal(expectedNumberOfEventEmissions)
+                const result =
+                    await contracts.liquidation.callStatic.calcUnitsSold(
+                        [
+                            orders.longOrder,
+                            orders.wrongMakerOrder,
+                            orders.earlyCreationOrder,
+                            orders.longOrder,
+                        ],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                expect(result[0]).to.equal(0)
+                expect(result[1]).to.equal(0)
+            })
         })
 
         context("when some invalid orders", async () => {
-            it("Calculates correctly", async () => {})
+            it("Calculates correctly", async () => {
+                const contracts = await setupReceiptTest()
+                const receiptId = 0
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(receiptId)
+                ).amountLiquidated
+
+                const orders = await provideOrders(contracts, liquidationAmount)
+                const receipt = await (
+                    await contracts.liquidation.calcUnitsSold(
+                        [
+                            orders.sellHalfLiquidationAmount,
+                            orders.longOrder,
+                            orders.earlyCreationOrder,
+                        ],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                ).wait()
+                let eventCounter = 0
+                // Make sure InvalidClaimOrder is emitted correct number of times
+                receipt.events.filter((x) => {
+                    if (
+                        x.event === "InvalidClaimOrder" &&
+                        x.args.receiptId == 0
+                    ) {
+                        eventCounter++
+                    }
+                })
+                const expectedNumberOfEventEmissions = 2
+                expect(eventCounter).to.equal(expectedNumberOfEventEmissions)
+                const result =
+                    await contracts.liquidation.callStatic.calcUnitsSold(
+                        [
+                            orders.sellHalfLiquidationAmount,
+                            orders.longOrder,
+                            orders.earlyCreationOrder,
+                        ],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                expect(result[0]).to.equal(ethers.utils.parseEther("2500")) // units sold
+                expect(result[1]).to.equal(ethers.utils.parseEther("0.5")) // avg price
+            })
+        })
+
+        context("when orders were created before the receipt", async () => {
+            it("Calculates correctly", async () => {
+                const contracts = await setupReceiptTest()
+                const receiptId = 0
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(receiptId)
+                ).amountLiquidated
+
+                const orders = await provideOrders(contracts, liquidationAmount)
+                const receipt = await (
+                    await contracts.liquidation.calcUnitsSold(
+                        [orders.earlyCreationOrder, orders.earlyCreationOrder],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                ).wait()
+                let eventCounter = 0
+                // Make sure InvalidClaimOrder is emitted correct number of times
+                receipt.events.filter((x) => {
+                    if (
+                        x.event === "InvalidClaimOrder" &&
+                        x.args.receiptId == 0
+                    ) {
+                        eventCounter++
+                    }
+                })
+                const expectedNumberOfEventEmissions = 2
+                expect(eventCounter).to.equal(expectedNumberOfEventEmissions)
+                const result =
+                    await contracts.liquidation.callStatic.calcUnitsSold(
+                        [orders.earlyCreationOrder, orders.earlyCreationOrder],
+                        contracts.modifiableTrader.address,
+                        0
+                    )
+                expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
+                expect(result[1]).to.equal(ethers.utils.parseEther("0")) // avg price
+            })
         })
 
         context(
-            "when some orders were created before the receipt",
+            "when orders were created of the wrong side (e.g. long when they should be short)",
             async () => {
-                it("Calculates correctly", async () => {})
-            }
-        )
+                it("Calculates correctly", async () => {
+                    const contracts = await setupReceiptTest()
+                    const receiptId = 0
+                    const liquidationAmount = (
+                        await contracts.liquidation.liquidationReceipts(
+                            receiptId
+                        )
+                    ).amountLiquidated
 
-        context(
-            "when some orders were created of the wrong side (e.g. long when they should be short)",
-            async () => {
-                it("Calculates correctly", async () => {})
+                    const orders = await provideOrders(
+                        contracts,
+                        liquidationAmount
+                    )
+                    const receipt = await (
+                        await contracts.liquidation.calcUnitsSold(
+                            [orders.longOrder, orders.longOrder],
+                            contracts.modifiableTrader.address,
+                            0
+                        )
+                    ).wait()
+                    let eventCounter = 0
+                    // Make sure InvalidClaimOrder is emitted correct number of times
+                    receipt.events.filter((x) => {
+                        if (
+                            x.event === "InvalidClaimOrder" &&
+                            x.args.receiptId == 0
+                        ) {
+                            eventCounter++
+                        }
+                    })
+                    const expectedNumberOfEventEmissions = 2
+                    expect(eventCounter).to.equal(
+                        expectedNumberOfEventEmissions
+                    )
+                    const result =
+                        await contracts.liquidation.callStatic.calcUnitsSold(
+                            [orders.longOrder, orders.longOrder],
+                            contracts.modifiableTrader.address,
+                            0
+                        )
+                    expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
+                    expect(result[1]).to.equal(ethers.utils.parseEther("0")) // avg price
+                })
             }
         )
 
         context(
             "when some orders have different maker to liquidator",
             async () => {
-                it("Calculates correctly", async () => {})
+                it("Calculates correctly", async () => {
+                    const contracts = await setupReceiptTest()
+                    const receiptId = 0
+                    const liquidationAmount = (
+                        await contracts.liquidation.liquidationReceipts(
+                            receiptId
+                        )
+                    ).amountLiquidated
+
+                    const orders = await provideOrders(
+                        contracts,
+                        liquidationAmount
+                    )
+                    const receipt = await (
+                        await contracts.liquidation.calcUnitsSold(
+                            [orders.wrongMakerOrder, orders.wrongMakerOrder],
+                            contracts.modifiableTrader.address,
+                            0
+                        )
+                    ).wait()
+                    let eventCounter = 0
+                    // Make sure InvalidClaimOrder is emitted correct number of times
+                    receipt.events.filter((x) => {
+                        if (
+                            x.event === "InvalidClaimOrder" &&
+                            x.args.receiptId == 0
+                        ) {
+                            eventCounter++
+                        }
+                    })
+                    const expectedNumberOfEventEmissions = 2
+                    expect(eventCounter).to.equal(
+                        expectedNumberOfEventEmissions
+                    )
+                    const result =
+                        await contracts.liquidation.callStatic.calcUnitsSold(
+                            [orders.wrongMakerOrder, orders.wrongMakerOrder],
+                            contracts.modifiableTrader.address,
+                            0
+                        )
+                    expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
+                    expect(result[1]).to.equal(ethers.utils.parseEther("0")) // avg price
+                })
             }
         )
     })

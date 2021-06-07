@@ -34,12 +34,16 @@ library Balances {
     }
 
     function netValue(Position memory position, uint256 price)
-        public
+        internal
         pure
         returns (uint256)
     {
         /* cast is safe due to semantics of `abs` */
-        return PRBMathUD60x18.mul(uint256(LibMath.abs(position.base)), price);
+        return
+            PRBMathUD60x18.mul(
+                uint256(PRBMathSD59x18.abs(position.base)),
+                price
+            );
     }
 
     /**
@@ -48,7 +52,7 @@ library Balances {
      * @param price The price of the base asset
      */
     function margin(Position memory position, uint256 price)
-        public
+        internal
         pure
         returns (int256)
     {
@@ -74,7 +78,7 @@ library Balances {
      * @param price The price of the base asset
      */
     function leveragedNotionalValue(Position memory position, uint256 price)
-        public
+        internal
         pure
         returns (uint256)
     {
@@ -95,7 +99,7 @@ library Balances {
         uint256 price,
         uint256 liquidationCost,
         uint256 maximumLeverage
-    ) public pure returns (uint256) {
+    ) internal pure returns (uint256) {
         // There should be no Minimum margin when user has no position
         if (position.base == 0) {
             return 0;
@@ -103,30 +107,29 @@ library Balances {
 
         uint256 notionalValue = netValue(position, price);
 
+        // todo confirm that liquidation gas cost should be a WAD value
         uint256 liquidationGasCost = liquidationCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = notionalValue / maximumLeverage;
+        uint256 minimumMarginWithoutGasCost =
+            PRBMathUD60x18.div(notionalValue, maximumLeverage);
 
         return liquidationGasCost + minimumMarginWithoutGasCost;
     }
 
     function fillAmount(
-        Trade memory tradeA,
+        Perpetuals.Order memory orderA,
         uint256 fillA,
-        Trade memory tradeB,
+        Perpetuals.Order memory orderB,
         uint256 fillB
     ) internal pure returns (uint256) {
-        return LibMath.min(tradeA.amount - fillA, tradeB.amount - fillB);
+        return LibMath.min(orderA.amount - fillA, orderB.amount - fillB);
     }
 
     function applyTrade(
         Position memory position,
         Trade memory trade,
-        uint256 fill,
         uint256 feeRate
     ) internal pure returns (Position memory) {
-        require(fill <= trade.amount);
-
         int256 signedAmount = LibMath.toInt256(trade.amount);
         int256 signedPrice = LibMath.toInt256(trade.price);
         int256 signedFeeRate = LibMath.toInt256(feeRate);

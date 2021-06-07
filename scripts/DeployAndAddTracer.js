@@ -7,12 +7,12 @@ async function main() {
     const [deployer, ...accounts] = await ethers.getSigners()
     // deploy all contracts
     await deployments.fixture(["FullDeploy"])
-    let maxLeverage = new ethers.BigNumber.from("125000").toString()
     let maxLeverage = ethers.utils.parseEther("12.5")
+    let tokenDecimals = 18
     let feeRate = 0 // 0 percent
     let maxLiquidationSlippage = "50000000000000000000" // 50 percent
     let fundingRateSensitivity = 1
-    let gasPriceOracle = await deployments.get("Oracle")
+    let gasPriceOracleAdapter = await deployments.get("GasPriceOracleAdapter")
     let trader = await deployments.get("Trader")
     let factory = await deployments.get("TracerPerpetualsFactory")
     let oracle = await deployments.get("Oracle")
@@ -32,17 +32,23 @@ async function main() {
             "uint256", //_maxLeverage,
             "uint256", //_fundingRateSensitivity,
             "uint256", //_feeRate
-            "address", // _feeReceiver
+            "address", // _feeReceiver,
+            "uint256", // _deleveragingCliff
+            "uint256", // _lowestMaxLeverage
+            "uint256", // _insurancePoolSwitchStage
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
             tokenDecimals,
-            gasPriceOracle.address,
+            gasPriceOracleAdapter.address,
             maxLeverage,
             fundingRateSensitivity,
             feeRate,
-            deployer.address,
+            deployer,
+            ethers.utils.parseEther("20"), // 20 percent
+            ethers.utils.parseEther("2"),
+            ethers.utils.parseEther("1"), // Switches mode at 1%
         ]
     )
     await factoryInstance.deployTracer(
