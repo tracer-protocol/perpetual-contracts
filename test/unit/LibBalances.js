@@ -550,7 +550,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                 let expected = ethers.BigNumber.from("100000000")
                 let result = await libBalances.wadToToken(
                     6,
-                    ethers.utils.parseEther("100")
+                    ethers.utils.parseEther("100.0000001")
                 )
                 expect(result).to.equal(expected)
             })

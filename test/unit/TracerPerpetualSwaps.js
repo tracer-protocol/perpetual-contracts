@@ -110,7 +110,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             })
         })
 
-        context("when the token amount is not a WAD value", async () => {
+        context("when the token amount is a WAD value", async () => {
             it("update their quote as a WAD value", async () => {
                 let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
 
@@ -124,13 +124,14 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 // ensure that token amount has decreased by correct units
                 let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
                 let difference = tokenBalanceBefore.sub(tokenBalanceAfter)
+                let expected = ethers.utils.parseEther("1.000000001")
                 // default token only uses 8 decimals, so the last bit should be ignored
-                expect(difference).to.equal("100000000")
+                expect(difference.toString()).to.equal(expected)
 
                 // ensure balance in contract has updated by a WAD amount
                 let balance = await tracer.balances(deployer)
                 await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("1")
+                    ethers.utils.parseEther("1.000000001")
                 )
             })
         })
@@ -171,7 +172,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             })
         })
 
-        context("when the token amount is not a WAD value", async () => {
+        context("when the token amount is a WAD value", async () => {
             it("returns the correct amount of tokens", async () => {
                 let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
 
@@ -181,13 +182,14 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 // ensure that token amount has decreased by correct units
                 let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
                 let difference = tokenBalanceAfter.sub(tokenBalanceBefore)
+                let expected = ethers.utils.parseEther("1.000000001")
                 // default token only uses 8 decimals, so the last bit should be ignored
-                expect(difference).to.equal("100000000")
+                expect(difference).to.equal(expected)
 
                 // ensure balance in contract has updated by a WAD amount
                 let balance = await tracer.balances(deployer)
                 await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("4")
+                    ethers.utils.parseEther("3.999999999")
                 )
             })
         })
@@ -311,6 +313,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     describe("settle", async () => {
         context("if the account is on the latest global index", async () => {
             it("does nothing", async () => {
+                // ensure on current global index
+                await tracer.settle(deployer)
+
+                // settle again
                 let balanceBefore = await tracer.balances(deployer)
                 await tracer.settle(deployer)
                 let balanceAfter = await tracer.balances(deployer)
@@ -352,15 +358,17 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
     describe("marginIsValid", async () => {
         context("when margin >= minMargin", async () => {
-            it.only("returns true", async () => {
+            it("returns true", async () => {
                 // margin = quote + base * price
                 // min margin = net value / max lev
+                // margin = -5 + 100 = 95
+                // minMargin = 95 / 12.5 = 7.6
                 let pos = [
                     ethers.utils.parseEther("-5"),// quote
                     ethers.utils.parseEther("100")// base
                 ]
 
-                let result = await tracer.marginIsValid(pos, ethers.utils.parseEther("0.001"))
+                let result = await tracer.marginIsValid(pos, ethers.utils.parseEther("0"))
                 expect(result).to.equal(true)
             })
         })
