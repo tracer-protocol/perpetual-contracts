@@ -217,32 +217,53 @@ contract TracerPerpetualSwaps is
     function matchOrders(
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2
-    ) public override onlyWhitelisted {
+    ) public override onlyWhitelisted returns (bool) {
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
         uint256 filled1 = filled[order1Id];
         uint256 filled2 = filled[order2Id];
-
-        // guard
-        require(
-            Perpetuals.canMatch(order1, filled1, order2, filled2),
-            "TCR: Orders cannot be matched"
-        );
-
         uint256 fillAmount =
-            Balances.fillAmount(
-                order1,
-                filled1,
-                order2,
-                filled2
-        );
+            Balances.fillAmount(order1, filled1, order2, filled2);
 
         // settle accounts
+        // note: this can revert and hence no order events will be emitted
         settle(order1.maker);
         settle(order2.maker);
 
+        (Balances.Position memory newPos1, Balances.Position memory newPos2) =
+            executeTrade(order1, order2, fillAmount);
+
+        // validate orders can match, and outcome state is valid
+        if (
+            !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
+            !marginIsValid(
+                newPos1,
+                balances[order1.maker].lastUpdatedGasPrice
+            ) ||
+            !marginIsValid(newPos2, balances[order2.maker].lastUpdatedGasPrice)
+        ) {
+            // emit failed to match event and return false
+            if (order1.side == Perpetuals.Side.Long) {
+                emit FailedOrders(
+                    order1.maker,
+                    order2.maker,
+                    order1Id,
+                    order2Id
+                );
+            } else {
+                emit FailedOrders(
+                    order2.maker,
+                    order1.maker,
+                    order1Id,
+                    order2Id
+                );
+            }
+            return false;
+        }
+
         // update account states
-        executeTrade(order1, order2, fillAmount);
+        balances[order1.maker].position = newPos1;
+        balances[order2.maker].position = newPos2;
 
         // update leverage
         _updateAccountLeverage(order1.maker);
@@ -253,12 +274,6 @@ contract TracerPerpetualSwaps is
         pricingContract.recordTrade(
             order1.price,
             LibMath.min(order1.amount, order2.amount)
-        );
-
-        // Ensures that you are in a position to take the trade
-        require(
-            userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
-            "TCR: Margin Invalid post trade "
         );
 
         if (order1.side == Perpetuals.Side.Long) {
@@ -280,6 +295,7 @@ contract TracerPerpetualSwaps is
                 order1Id
             );
         }
+        return true;
     }
 
     /**
@@ -289,10 +305,10 @@ contract TracerPerpetualSwaps is
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
         uint256 fillAmount
-    ) internal {
+    ) internal returns (Balances.Position memory, Balances.Position memory) {
         // Retrieve account state
-        Balances.Account storage account1 = balances[order1.maker];
-        Balances.Account storage account2 = balances[order2.maker];
+        Balances.Account memory account1 = balances[order1.maker];
+        Balances.Account memory account2 = balances[order2.maker];
 
         // Construct `Trade` types suitable for use with LibBalances
         (Balances.Trade memory trade1, Balances.Trade memory trade2) =
@@ -308,18 +324,20 @@ contract TracerPerpetualSwaps is
                 Balances.applyTrade(account2.position, trade2, feeRate)
             );
 
+        // return new account state
+        return (newPos1, newPos2);
         // Update account state with results of above calculation
-        account1.position = newPos1;
-        account2.position = newPos2;
+        // account1.position = newPos1;
+        // account2.position = newPos2;
 
-        // Add fee into cumulative fees
-        int256 quoteChange =
-            PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
-        int256 fee =
-            PRBMathUD60x18
-                .mul(uint256(quoteChange), uint256(feeRate))
-                .toInt256();
-        fees = fees + uint256(fee * 2);
+        // // Add fee into cumulative fees
+        // int256 quoteChange =
+        //     PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
+        // int256 fee =
+        //     PRBMathUD60x18
+        //         .mul(uint256(quoteChange), uint256(feeRate))
+        //         .toInt256();
+        // fees = fees + uint256(fee * 2);
     }
 
     /**
