@@ -105,9 +105,8 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        int256 newGlobalLeverage =
-            int256(_globalLeverage) +
-                (int256(newLeverage) - int256(oldLeverage));
+        int256 newGlobalLeverage = int256(_globalLeverage) +
+            (int256(newLeverage) - int256(oldLeverage));
 
         // note: this would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
@@ -202,24 +201,21 @@ library Prices {
         pure
         returns (Balances.Position memory, Balances.Position memory)
     {
-        int256 insuranceDelta =
-            PRBMathSD59x18.mul(
-                globalRate.fundingRate - userRate.fundingRate,
-                int256(totalLeveragedValue)
-            );
+        int256 insuranceDelta = PRBMathSD59x18.mul(
+            globalRate.fundingRate - userRate.fundingRate,
+            int256(totalLeveragedValue)
+        );
 
         if (insuranceDelta > 0) {
-            Balances.Position memory newUserPos =
-                Balances.Position(
-                    userPosition.quote - insuranceDelta,
-                    userPosition.base
-                );
+            Balances.Position memory newUserPos = Balances.Position(
+                userPosition.quote - insuranceDelta,
+                userPosition.base
+            );
 
-            Balances.Position memory newInsurancePos =
-                Balances.Position(
-                    insurancePosition.quote + insuranceDelta,
-                    insurancePosition.base
-                );
+            Balances.Position memory newInsurancePos = Balances.Position(
+                insurancePosition.quote + insuranceDelta,
+                insurancePosition.base
+            );
 
             return (newUserPos, newInsurancePos);
         } else {

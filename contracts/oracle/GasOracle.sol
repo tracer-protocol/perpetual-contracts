@@ -30,8 +30,10 @@ contract GasOracle is IOracle, Ownable {
      */
     function latestAnswer() external view override returns (uint256) {
         uint256 gasPrice = toWad(uint256(gasOracle.latestAnswer()), gasOracle);
-        uint256 ethPrice =
-            toWad(uint256(priceOracle.latestAnswer()), priceOracle);
+        uint256 ethPrice = toWad(
+            uint256(priceOracle.latestAnswer()),
+            priceOracle
+        );
 
         uint256 result = PRBMathUD60x18.mul(gweiToWei(gasPrice), ethPrice);
         return result;

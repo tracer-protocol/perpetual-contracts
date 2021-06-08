@@ -273,9 +273,39 @@ describe("Unit tests: LibPerpetuals.sol", function () {
 
     describe("canMatch", async () => {
         context("when called with different order prices", async () => {
-            it("returns false", async () => {
-                let priceA = ethers.utils.parseEther("1")
-                let priceB = ethers.utils.parseEther("2")
+            it("returns true if prices do cross", async () => {
+                let priceA = ethers.utils.parseEther("1") // short order
+                let priceB = ethers.utils.parseEther("2") // long order
+                let amount = ethers.utils.parseEther("1")
+                let sideA = 1
+                let sideB = 0
+                let expires = 3021382897 // large unix timestamp
+                let created = 0
+                let orderA = [
+                    zeroAddress,
+                    zeroAddress,
+                    priceA,
+                    amount,
+                    sideA,
+                    expires,
+                    created,
+                ]
+                let orderB = [
+                    zeroAddress,
+                    zeroAddress,
+                    priceB,
+                    amount,
+                    sideB,
+                    expires,
+                    created,
+                ]
+                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
+                expect(result).to.equal(true)
+            })
+
+            it("returns false if prices don't cross", async () => {
+                let priceA = ethers.utils.parseEther("2") // short order
+                let priceB = ethers.utils.parseEther("1") // long order
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
                 let sideB = 0
