@@ -219,12 +219,14 @@ contract TracerPerpetualSwaps is
             "TCR: Orders cannot be matched"
         );
 
+        uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
+
         // settle accounts
         settle(order1.maker);
         settle(order2.maker);
 
         // update account states
-        executeTrade(order1, order2);
+        executeTrade(order1, order2, executionPrice);
 
         // update leverage
         _updateAccountLeverage(order1.maker);
@@ -233,7 +235,7 @@ contract TracerPerpetualSwaps is
         // Update internal trade state
         // note: price has already been validated here, so order 1 price can be used
         pricingContract.recordTrade(
-            order1.price,
+            executionPrice,
             LibMath.min(order1.amount, order2.amount)
         );
 
@@ -265,7 +267,8 @@ contract TracerPerpetualSwaps is
      */
     function executeTrade(
         Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2
+        Perpetuals.Order memory order2,
+        uint256 executionPrice
     ) internal {
         // Retrieve account state
         Balances.Account storage account1 = balances[order1.maker];
@@ -285,8 +288,8 @@ contract TracerPerpetualSwaps is
         // Construct `Trade` types suitable for use with LibBalances
         (Balances.Trade memory trade1, Balances.Trade memory trade2) =
             (
-                Balances.Trade(order1.price, fillAmount, order1.side),
-                Balances.Trade(order2.price, fillAmount, order2.side)
+                Balances.Trade(executionPrice, fillAmount, order1.side),
+                Balances.Trade(executionPrice, fillAmount, order2.side)
             );
 
         // Calculate new account state
@@ -302,7 +305,7 @@ contract TracerPerpetualSwaps is
 
         // Add fee into cumulative fees
         int256 quoteChange =
-            PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
+            PRBMathUD60x18.mul(fillAmount, executionPrice).toInt256();
         int256 fee =
             PRBMathUD60x18
                 .mul(uint256(quoteChange), uint256(feeRate))
