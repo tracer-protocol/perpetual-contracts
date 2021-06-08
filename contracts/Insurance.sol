@@ -184,7 +184,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 // from the public insurance such that 1 token is left in the public buffer
                 amount =
                     bufferCollateralAmount +
-                    publicCollateralAmount - 
+                    publicCollateralAmount -
                     10**18;
                 publicCollateralAmount = 10**18;
             } else {

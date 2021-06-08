@@ -5,6 +5,51 @@ const { smockit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
+const getCollaterals = async (myClass) => [
+    await myClass.bufferCollateralAmount(),
+    await myClass.publicCollateralAmount(),
+]
+
+const putAndTakeCollateral = async (
+    tracer,
+    testToken,
+    insurance,
+    bufferValue,
+    publicValue,
+    amountToDrain
+) => {
+    tracer.smocked.getBalance.will.return.with({
+        position: { quote: ethers.utils.parseEther(bufferValue), base: 0 }, // quote, base
+        totalLeveragedValue: 0, // total leverage
+        lastUpdatedIndex: 0, // last updated index
+        lastUpdatedGasPrice: 0, // last updated gas price
+    })
+
+    await insurance.updatePoolAmount()
+    
+    // return await getCollaterals(insurance)
+
+    tracer.smocked.getBalance.will.return.with({
+        position: { quote: ethers.utils.parseEther(publicValue), base: 0 }, // quote, base
+        totalLeveragedValue: 0, // total leverage
+        lastUpdatedIndex: 0, // last updated index
+        lastUpdatedGasPrice: 0, // last updated gas price
+    })
+
+    await testToken.approve(
+        insurance.address,
+        ethers.utils.parseEther(publicValue)
+    )
+
+    await insurance.deposit(ethers.utils.parseEther(publicValue))
+
+    await insurance.updatePoolAmount()
+
+    // await insurance.drainPool(amountToDrain)
+
+    return await getCollaterals(insurance)
+}
+
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
     const { deployer } = await getNamedAccounts()
@@ -204,52 +249,30 @@ describe("Unit tests: Insurance.sol", function () {
 
     describe("updatePoolAmount", async () => {
         context("when there are funds to pull", async () => {
-            it("pulls funds and updates the collateral holding of the pool", async () => {
-                // override the mock to show tokens to pull
-                mockTracer.smocked.getBalance.will.return.with({
-                    position: { quote: ethers.utils.parseEther("1"), base: 0 }, //quote, base
-                    totalLeveragedValue: 0, //total leverage
-                    lastUpdatedIndex: 0, //last updated index
-                    lastUpdatedGasPrice: 0, //last updated gas price
-                })
-
-                let collateralAmountPre =
-                    await insurance.publicCollateralAmount()
-                await insurance.updatePoolAmount()
-                let collateralAmountPost =
-                    await insurance.publicCollateralAmount()
-
-                // ensure tracer.withdraw was called
-                // todo not sure why this doesn't get called once
-                // expect(mockTracer.smocked.withdraw.calls.length).to.equal(1)
-                // ensure collateral amount has increased by 1
-                expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
-                    ethers.utils.parseEther("1")
-                )
-
-                // reset the mock to its previous state
-                // override the mock to show tokens to pull
-                mockTracer.smocked.getBalance.will.return.with({
-                    position: { quote: 0, base: 0 }, //quote, base
-                    totalLeveragedValue: 0, //total leverage
-                    lastUpdatedIndex: 0, //last updated index
-                    lastUpdatedGasPrice: 0, //last updated gas price
-                })
-            })
+            it("pulls funds and updates the collateral holding of the pool", async () => {})
         })
 
         context("when there are no funds to pull", async () => {
             it("does nothing", async () => {
-                let collateralAmountPre =
+                let publicCollateralAmountPre =
                     await insurance.publicCollateralAmount()
+                let bufferCollateralAmountPre =
+                    await insurance.bufferCollateralAmount()
+
                 await insurance.updatePoolAmount()
-                let collateralAmountPost =
+
+                let publicCollateralAmountPost =
                     await insurance.publicCollateralAmount()
+                let bufferCollateralAmountPost =
+                    await insurance.bufferCollateralAmount()
 
                 // ensure tracer.withdraw was called
                 expect(mockTracer.smocked.withdraw.calls.length).to.equal(0)
-                // ensure collateral amount has increased by 1
-                expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
+
+                expect(publicCollateralAmountPost).to.equal(
+                    ethers.utils.parseEther("0")
+                )
+                expect(bufferCollateralAmountPost).to.equal(
                     ethers.utils.parseEther("0")
                 )
             })
@@ -271,19 +294,54 @@ describe("Unit tests: Insurance.sol", function () {
                     zeroAddress
                 )
             })
-            it("does nothing if there is less than 1 unit of collateral", async () => {
-                let collateralAmountPre =
+
+            it.only("drains everything but 1 unit of public collateral when amount wanted is greater than the pool amount", async () => {
+                let bufferCollateralAmountPre = "1",
+                    publicCollateralAmountPre = "1",
+                    amountToDrain = "0"
+                let bufferCollateralAmountPost, publicCollateralAmountPost
+
+                mockTracer.smocked.getBalance.will.return.with()
+
+                [bufferCollateralAmountPost, publicCollateralAmountPost] =
+                    await putAndTakeCollateral(
+                        mockTracer,
+                        testToken,
+                        insurance,
+                        bufferCollateralAmountPre,
+                        publicCollateralAmountPre,
+                        amountToDrain
+                    )
+
+                expect(bufferCollateralAmountPost).to.equal(
+                    // bufferCollateralAmountPre
+                    ethers.utils.parseEther("1")
+                )
+                expect(publicCollateralAmountPost).to.equal(
+                    // publicCollateralAmountPre
+                    ethers.utils.parseEther("1")
+                )
+            })
+
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {
+                let publicCollateralAmountPre =
                     await insurance.publicCollateralAmount()
                 await insurance.drainPool(ethers.utils.parseEther("1"))
-                let collateralAmountPost =
+                let publicCollateralAmountPost =
                     await insurance.publicCollateralAmount()
                 // ensure collateral hasn't changed
-                expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
-                    ethers.utils.parseEther("0")
-                )
+                expect(
+                    publicCollateralAmountPost.sub(publicCollateralAmountPre)
+                ).to.equal(ethers.utils.parseEther("0"))
             })
 
-            it("caps the amount to drain to the pools collateral holding", async () => {
+            it("caps the amount to drain to the pool's collateral holding + no public buffer", async () => {
                 // set collateral holdings to 5
                 await testToken.approve(
                     insurance.address,
@@ -292,19 +350,18 @@ describe("Unit tests: Insurance.sol", function () {
                 await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
-                let collateralAmountPre =
+                let publicCollateralAmountPre =
                     await insurance.publicCollateralAmount()
                 await insurance.drainPool(ethers.utils.parseEther("10"))
-                let collateralAmountPost =
+                let publicCollateralAmountPost =
                     await insurance.publicCollateralAmount()
 
-                expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
-                    ethers.utils.parseEther("-4")
-                )
+                expect(
+                    publicCollateralAmountPre.sub(publicCollateralAmountPost)
+                ).to.equal(ethers.utils.parseEther("4"))
             })
 
-            it("ensures 1 unit of collateral is left in the pool", async () => {
-                // todo is there a way to differ this test from above?
+            it("caps the amount to drain to the pools public collateral holding + no public buffer", async () => {
                 // set collateral holdings to 5
                 await testToken.approve(
                     insurance.address,
@@ -313,14 +370,19 @@ describe("Unit tests: Insurance.sol", function () {
                 await insurance.deposit(ethers.utils.parseEther("5"))
 
                 // try withdraw 10 from the pool
-                let collateralAmountPre =
+                let publicCollateralAmountPre =
                     await insurance.publicCollateralAmount()
                 await insurance.drainPool(ethers.utils.parseEther("10"))
-                let collateralAmountPost =
+                let publicCollateralAmountPost =
                     await insurance.publicCollateralAmount()
 
-                expect(collateralAmountPost.sub(collateralAmountPre)).to.equal(
-                    ethers.utils.parseEther("-4")
+                // Only take out 4 tokens
+                expect(
+                    publicCollateralAmountPre.sub(publicCollateralAmountPost)
+                ).to.equal(ethers.utils.parseEther("4"))
+                // Expect there to be one left
+                expect(publicCollateralAmountPost).to.equal(
+                    ethers.utils.parseEther("1")
                 )
             })
 
@@ -346,10 +408,10 @@ describe("Unit tests: Insurance.sol", function () {
 
                 // withdraw from pool
                 await insurance.drainPool(ethers.utils.parseEther("2"))
-                let collateralAmountPost =
+                let publicCollateralAmountPost =
                     await insurance.publicCollateralAmount()
 
-                expect(collateralAmountPost).to.equal(
+                expect(publicCollateralAmountPost).to.equal(
                     ethers.utils.parseEther("3")
                 )
             })
