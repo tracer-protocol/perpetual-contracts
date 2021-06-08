@@ -185,6 +185,22 @@ const addOrdersToModifiedTrader = async (
     }
 }
 
+const setupReceiptTestNoFixture = async (modifiableTrader) => {
+    // const { modifiableTrader } = await deployModifiableTrader()
+    const contracts = await halfLiquidate()
+
+    const liquidationAmount = (
+        await contracts.liquidation.liquidationReceipts(0)
+    ).amountLiquidated.toString()
+
+    await addOrdersToModifiedTrader(
+        modifiableTrader,
+        contracts,
+        liquidationAmount
+    )
+    return { ...contracts, modifiableTrader }
+}
+
 const setupReceiptTest = deployments.createFixture(async () => {
     const { modifiableTrader } = await deployModifiableTrader()
     const contracts = await halfLiquidate()
@@ -208,7 +224,9 @@ const deployModifiableTrader = async () => {
         },
     })
     const modifiableTrader = await ModifiableTraderContract.deploy()
-    return { modifiableTrader }
+    console.log("modifiableTrader.address")
+    console.log(modifiableTrader.address)
+    return modifiableTrader
 }
 
 describe("Liquidation functional tests", async () => {
@@ -216,9 +234,10 @@ describe("Liquidation functional tests", async () => {
     let tracerPerps
     let liquidation
     let trader
-    let libPerpetuals
+    let modifiableTrader
     before(async function () {
         accounts = await ethers.getSigners()
+        modifiableTrader = await deployModifiableTrader()
     })
 
     beforeEach(async function () {})
@@ -241,26 +260,12 @@ describe("Liquidation functional tests", async () => {
     })
 
     context("calcUnitsSold", async () => {
-        context("When no orders given", async () => {
-            it("Returns nothing ", async () => {
-                const contracts = await setupReceiptTest()
-                const result =
-                    await contracts.liquidation.callStatic.calcUnitsSold(
-                        [],
-                        contracts.modifiableTrader.address,
-                        0
-                    )
-                await expect(result[0]).to.equal(0)
-                await expect(result[1]).to.equal(0)
-            })
-        })
-
         context("in the normal case", async () => {
             it("Calculates correctly", async () => {
-                const contracts = await setupReceiptTest()
+                const contracts = await setupReceiptTestNoFixture(modifiableTrader)
                 tracerPerps = contracts.tracerPerps
                 liquidation = contracts.liquidation
-                trader = contracts.modifiableTrader
+                trader = modifiableTrader
                 const liquidationAmount = (
                     await liquidation.liquidationReceipts(0)
                 ).amountLiquidated
@@ -281,7 +286,7 @@ describe("Liquidation functional tests", async () => {
 
         context("when all invalid orders", async () => {
             it("Returns nothing ", async () => {
-                const contracts = await setupReceiptTest()
+                const contracts = await setupReceiptTestNoFixture(modifiableTrader)
                 const receiptId = 0
                 const liquidationAmount = (
                     await contracts.liquidation.liquidationReceipts(receiptId)
@@ -296,7 +301,7 @@ describe("Liquidation functional tests", async () => {
                             orders.earlyCreationOrder,
                             orders.longOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        modifiableTrader.address,
                         0
                     )
                 ).wait()
@@ -320,7 +325,7 @@ describe("Liquidation functional tests", async () => {
                             orders.earlyCreationOrder,
                             orders.longOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        modifiableTrader.address,
                         0
                     )
                 expect(result[0]).to.equal(0)
@@ -330,13 +335,20 @@ describe("Liquidation functional tests", async () => {
 
         context("when some invalid orders", async () => {
             it("Calculates correctly", async () => {
-                const contracts = await setupReceiptTest()
+                console.log("1")
+                const contracts = await setupReceiptTestNoFixture(modifiableTrader)
+                console.log("2")
                 const receiptId = 0
+                console.log("3")
                 const liquidationAmount = (
                     await contracts.liquidation.liquidationReceipts(receiptId)
                 ).amountLiquidated
+                console.log("4")
 
                 const orders = await provideOrders(contracts, liquidationAmount)
+                console.log("5")
+                console.log()
+                console.log()
                 const receipt = await (
                     await contracts.liquidation.calcUnitsSold(
                         [
@@ -344,10 +356,11 @@ describe("Liquidation functional tests", async () => {
                             orders.longOrder,
                             orders.earlyCreationOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        modifiableTrader.address,
                         0
                     )
                 ).wait()
+                console.log("6")
                 let eventCounter = 0
                 // Make sure InvalidClaimOrder is emitted correct number of times
                 receipt.events.filter((x) => {
@@ -358,6 +371,7 @@ describe("Liquidation functional tests", async () => {
                         eventCounter++
                     }
                 })
+                console.log("7")
                 const expectedNumberOfEventEmissions = 2
                 expect(eventCounter).to.equal(expectedNumberOfEventEmissions)
                 const result =
@@ -367,17 +381,19 @@ describe("Liquidation functional tests", async () => {
                             orders.longOrder,
                             orders.earlyCreationOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        modifiableTrader.address,
                         0
                     )
+                console.log("8")
                 expect(result[0]).to.equal(ethers.utils.parseEther("2500")) // units sold
                 expect(result[1]).to.equal(ethers.utils.parseEther("0.5")) // avg price
+                console.log("9")
             })
         })
 
         context("when orders were created before the receipt", async () => {
             it("Calculates correctly", async () => {
-                const contracts = await setupReceiptTest()
+                const contracts = await setupReceiptTestNoFixture(modifiableTrader)
                 const receiptId = 0
                 const liquidationAmount = (
                     await contracts.liquidation.liquidationReceipts(receiptId)
@@ -387,7 +403,7 @@ describe("Liquidation functional tests", async () => {
                 const receipt = await (
                     await contracts.liquidation.calcUnitsSold(
                         [orders.earlyCreationOrder, orders.earlyCreationOrder],
-                        contracts.modifiableTrader.address,
+                        modifiableTrader.address,
                         0
                     )
                 ).wait()
@@ -406,7 +422,7 @@ describe("Liquidation functional tests", async () => {
                 const result =
                     await contracts.liquidation.callStatic.calcUnitsSold(
                         [orders.earlyCreationOrder, orders.earlyCreationOrder],
-                        contracts.modifiableTrader.address,
+                        modifiableTrader.address,
                         0
                     )
                 expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
@@ -418,7 +434,7 @@ describe("Liquidation functional tests", async () => {
             "when orders were created of the wrong side (e.g. long when they should be short)",
             async () => {
                 it("Calculates correctly", async () => {
-                    const contracts = await setupReceiptTest()
+                    const contracts = await setupReceiptTestNoFixture(modifiableTrader)
                     const receiptId = 0
                     const liquidationAmount = (
                         await contracts.liquidation.liquidationReceipts(
@@ -433,7 +449,7 @@ describe("Liquidation functional tests", async () => {
                     const receipt = await (
                         await contracts.liquidation.calcUnitsSold(
                             [orders.longOrder, orders.longOrder],
-                            contracts.modifiableTrader.address,
+                            modifiableTrader.address,
                             0
                         )
                     ).wait()
@@ -454,7 +470,7 @@ describe("Liquidation functional tests", async () => {
                     const result =
                         await contracts.liquidation.callStatic.calcUnitsSold(
                             [orders.longOrder, orders.longOrder],
-                            contracts.modifiableTrader.address,
+                            modifiableTrader.address,
                             0
                         )
                     expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
@@ -467,7 +483,7 @@ describe("Liquidation functional tests", async () => {
             "when some orders have different maker to liquidator",
             async () => {
                 it("Calculates correctly", async () => {
-                    const contracts = await setupReceiptTest()
+                    const contracts = await setupReceiptTestNoFixture(modifiableTrader)
                     const receiptId = 0
                     const liquidationAmount = (
                         await contracts.liquidation.liquidationReceipts(
@@ -482,7 +498,7 @@ describe("Liquidation functional tests", async () => {
                     const receipt = await (
                         await contracts.liquidation.calcUnitsSold(
                             [orders.wrongMakerOrder, orders.wrongMakerOrder],
-                            contracts.modifiableTrader.address,
+                            modifiableTrader.address,
                             0
                         )
                     ).wait()
@@ -503,7 +519,7 @@ describe("Liquidation functional tests", async () => {
                     const result =
                         await contracts.liquidation.callStatic.calcUnitsSold(
                             [orders.wrongMakerOrder, orders.wrongMakerOrder],
-                            contracts.modifiableTrader.address,
+                            modifiableTrader.address,
                             0
                         )
                     expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
@@ -511,6 +527,21 @@ describe("Liquidation functional tests", async () => {
                 })
             }
         )
+
+        context("When no orders given", async () => {
+            it("Returns nothing ", async () => {
+                console.log("1")
+                const contracts = await setupReceiptTestNoFixture(modifiableTrader)
+                const result =
+                    await contracts.liquidation.callStatic.calcUnitsSold(
+                        [],
+                        modifiableTrader.address,
+                        0
+                    )
+                await expect(result[0]).to.equal(0)
+                await expect(result[1]).to.equal(0)
+            })
+        })
     })
 
     context("getLiquidationReceipt", async () => {

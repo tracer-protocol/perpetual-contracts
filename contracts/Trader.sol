@@ -6,6 +6,8 @@ import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
 
+import "hardhat/console.sol";
+
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
@@ -247,10 +249,10 @@ contract Trader is ITrader {
      */
     function getOrder(Perpetuals.Order calldata order)
         public
-        view
         override
         returns (Perpetuals.Order memory)
     {
+        console.log("hi");
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
     }

@@ -2,6 +2,7 @@ const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpe
 
 module.exports = async function (hre) {
     const { deployments, getNamedAccounts, ethers } = hre
+    const { BigNumber } = require("ethers")
     const { deploy, execute } = deployments
     const { deployer, acc1, acc2, acc3 } = await getNamedAccounts()
     const signers = await ethers.getSigners()
@@ -127,7 +128,7 @@ module.exports = async function (hre) {
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: [ethers.utils.parseEther("10000000")], //10 mil supply
+        args: [ethers.utils.parseEther("100000000")], //100 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
@@ -135,13 +136,13 @@ module.exports = async function (hre) {
 
     console.log(`Quote Token Deployed ${token.address}`)
 
-    const tokenAmount = ethers.utils.parseEther("1000")
+    const tokenAmount = ethers.utils.parseEther("10000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
         "transfer",
         acc1,
-        tokenAmount
+        tokenAmount.mul(BigNumber.from("10"))
     )
     await execute(
         "QuoteToken",

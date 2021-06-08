@@ -175,6 +175,26 @@ describe("Unit tests: LibPerpetuals.sol", function () {
             })
         })
 
+        context("With lowestMaxLeverage == defaultMaxLeverage", async () => {
+            it("Returns defaultMaxLeverage", async () => {
+                const collateralAmount = ethers.utils.parseEther("10") // 10%
+                const poolTarget = ethers.utils.parseEther("100")
+                const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                const lowestMaxLeverage = ethers.utils.parseEther("12.5")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insurancePoolSwitchStage = ethers.utils.parseEther("1")
+                let result = await libPerpetuals.calculateTrueMaxLeverage(
+                    collateralAmount,
+                    poolTarget,
+                    defaultMaxLeverage,
+                    lowestMaxLeverage,
+                    deleveragingCliff,
+                    insurancePoolSwitchStage
+                )
+                expect(result).to.equal(defaultMaxLeverage)
+            })
+        })
+
         context("When target == 0", async () => {
             it("Equals lowestMaxLeverage", async () => {
                 const collateralAmount = ethers.utils.parseEther("10")

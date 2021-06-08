@@ -16,6 +16,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
+import "hardhat/console.sol";
+
 contract TracerPerpetualSwaps is
     ITracerPerpetualSwaps,
     Ownable,
@@ -212,6 +214,7 @@ contract TracerPerpetualSwaps is
     ) public override onlyWhitelisted {
         uint256 filled1 = filled[Perpetuals.orderId(order1)];
         uint256 filled2 = filled[Perpetuals.orderId(order2)];
+        console.log("---------------");
 
         // guard
         require(
@@ -240,7 +243,7 @@ contract TracerPerpetualSwaps is
         // Ensures that you are in a position to take the trade
         require(
             userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
-            "TCR: Margin Invalid post trade "
+            "TCR: Margin Invalid post trade"
         );
 
         if (order1.side == Perpetuals.Side.Long) {

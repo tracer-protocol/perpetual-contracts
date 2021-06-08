@@ -12,7 +12,6 @@ module.exports = async function (hre) {
         perpsAbi
     ).connect(signers[0])
     // let tracerInstance = new ethers.Contract(perpsAddress, perpsAbi)
-    const priceOracle = await deployments.get("PriceOracle")
     const price = (await read("PriceOracleAdapter", "latestAnswer")).toString()
     await execute(
         "QuoteToken",

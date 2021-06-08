@@ -13,6 +13,8 @@ import "./Interfaces/IOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
+import "hardhat/console.sol";
+
 /**
  * Each call enforces that the contract calling the account is only updating the balance
  * of the account for that contract.
@@ -272,9 +274,16 @@ contract Liquidation is ILiquidation, Ownable {
             liquidationReceipts[receiptId];
         uint256 unitsSold;
         uint256 avgPrice;
+        console.log("========");
+        console.log("1");
+        console.log(traderContract);
         for (uint256 i; i < orders.length; i++) {
+            console.log("1.5");
+            console.log(ITrader(traderContract).chainId());
+            console.log("1.75");
             Perpetuals.Order memory order =
                 ITrader(traderContract).getOrder(orders[i]);
+            console.log("2");
 
             if (
                 order.created < receipt.time || // Order made before receipt
@@ -283,8 +292,12 @@ contract Liquidation is ILiquidation, Ownable {
                 /* Order should be the opposite to the position acquired on liquidation */
             ) {
                 emit InvalidClaimOrder(receiptId);
+                console.log("3");
                 continue;
             }
+
+            console.log("4");
+
             if (
                 (receipt.liquidationSide == Perpetuals.Side.Long &&
                     order.price >= receipt.price) ||
@@ -297,21 +310,28 @@ contract Liquidation is ILiquidation, Ownable {
                 // Liquidation position was short
                 // Price went down, so not a slippage order
                 emit InvalidClaimOrder(receiptId);
+                console.log("5");
                 continue;
             }
+            console.log("6");
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
+            console.log("7");
 
             /* order.created >= receipt.time
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + orderFilled;
+            console.log("8");
             avgPrice = avgPrice + (order.price * orderFilled);
+            console.log("9");
         }
 
+        console.log("10");
         // Avoid divide by 0 if no orders sold
         if (unitsSold == 0) {
             return (0, 0);
         }
+        console.log("11");
         return (unitsSold, avgPrice / unitsSold);
     }
 
