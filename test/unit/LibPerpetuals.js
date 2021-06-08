@@ -303,7 +303,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 expect(result).to.equal(true)
             })
 
-            it("returns false if prices don't cross", async() => {
+            it("returns false if prices don't cross", async () => {
                 let priceA = ethers.utils.parseEther("2") // short order
                 let priceB = ethers.utils.parseEther("1") // long order
                 let amount = ethers.utils.parseEther("1")

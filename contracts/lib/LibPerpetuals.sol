@@ -101,7 +101,8 @@ library Perpetuals {
         /* predicates */
         bool opposingSides = a.side != b.side;
         // long order must have a price >= short order
-        bool pricesMatch = a.side == Side.Long ? a.price >= b.price : a.price <= b.price;
+        bool pricesMatch =
+            a.side == Side.Long ? a.price >= b.price : a.price <= b.price;
         bool notExpired = currentTime < a.expires && currentTime < b.expires;
         bool notFilled = aFilled < a.amount && bFilled < b.amount;
         bool createdBefore =
@@ -115,10 +116,11 @@ library Perpetuals {
             createdBefore;
     }
 
-    function getExecutionPrice(
-        Order calldata a,
-        Order calldata b
-    ) public pure returns (uint) {
+    function getExecutionPrice(Order calldata a, Order calldata b)
+        public
+        pure
+        returns (uint256)
+    {
         bool aIsFirst = a.created <= b.created;
         if (aIsFirst) {
             return a.price;
