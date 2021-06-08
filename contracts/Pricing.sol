@@ -62,12 +62,13 @@ contract Pricing is IPricing, Ownable {
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
 
-        // initialise funding rate, similar to what was done in trace perp
-        uint256 oracleLatestPrice = oracle.latestAnswer();
+        // initialise funding rate
         setFundingRate(0, 0);
         setInsuranceFundingRate(0, 0);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
+        startLastHour = block.timestamp;
+        startLast24Hours = block.timestamp;
     }
 
     /**
@@ -87,11 +88,10 @@ contract Pricing is IPricing, Ownable {
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // Update pricing and funding rate states
-            updatePrice(tradePrice, currentOraclePrice, true);
-
+            // update funding rate for the previous hour
             updateFundingRate(currentOraclePrice);
 
+            // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
                 updateTimeValue();
@@ -100,12 +100,16 @@ contract Pricing is IPricing, Ownable {
 
             // update time metrics after all other state
             startLastHour = block.timestamp;
+
             // Check current hour and loop around if need be
             if (currentHour == 23) {
                 currentHour = 0;
             } else {
                 currentHour = currentHour + 1;
             }
+
+            // add new pricing entry for new hour
+            updatePrice(tradePrice, currentOraclePrice, true);
         } else {
             // Update old pricing entry
             updatePrice(tradePrice, currentOraclePrice, false);
@@ -289,7 +293,8 @@ contract Pricing is IPricing, Ownable {
         override
         returns (Prices.TWAP memory)
     {
-        Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
+        return
+            Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**
