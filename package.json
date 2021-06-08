@@ -60,7 +60,7 @@
         "compile": "npx hardhat compile",
         "deploy": "npx hardhat deploy",
         "ganache": "ganache-cli -l 8500000",
-        "lint": "prettier --check . && yarn hardhat check",
+        "lint": "prettier --check .",
         "lint:fix": "prettier . --write",
         "clean": "npm-run-all -p clean:artifacts clean:cache clean:types",
         "clean:types": "rimraf ./types/",
