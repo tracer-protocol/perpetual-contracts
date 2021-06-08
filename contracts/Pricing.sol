@@ -293,7 +293,8 @@ contract Pricing is IPricing, Ownable {
         override
         returns (Prices.TWAP memory)
     {
-        return Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
+        return
+            Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**

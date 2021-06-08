@@ -52,9 +52,13 @@ const forwardTime = async (seconds) => {
 const compareAccountState = (state, expectedState) => {
     expect(state.position.quote).to.equal(expectedState.position.quote)
     expect(state.position.base).to.equal(expectedState.position.base)
-    expect(state.totalLeveragedValue).to.equal(expectedState.totalLeveragedValue)
+    expect(state.totalLeveragedValue).to.equal(
+        expectedState.totalLeveragedValue
+    )
     expect(state.lastUpdatedIndex).to.equal(expectedState.lastUpdatedIndex)
-    expect(state.lastUpdatedGasPrice).to.equal(expectedState.lastUpdatedGasPrice)
+    expect(state.lastUpdatedGasPrice).to.equal(
+        expectedState.lastUpdatedGasPrice
+    )
 }
 
 describe("Functional tests: TracerPerpetualSwaps.sol", function () {
@@ -166,40 +170,40 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 let account1Expected = {
                     position: {
                         quote: ethers.utils.parseEther("950"),
-                        base:  ethers.utils.parseEther("50")
+                        base: ethers.utils.parseEther("50"),
                     },
                     totalLeveragedValue: 0,
                     lastUpdatedIndex: 1,
-                    lastUpdatedGasPrice: lastUpdatedGas
+                    lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account2Expected = {
                     position: {
                         quote: ethers.utils.parseEther("1040"),
-                        base:  ethers.utils.parseEther("-40")
+                        base: ethers.utils.parseEther("-40"),
                     },
                     totalLeveragedValue: 0,
                     lastUpdatedIndex: 1,
-                    lastUpdatedGasPrice: lastUpdatedGas
+                    lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account3Expected = {
                     position: {
                         quote: ethers.utils.parseEther("1010"),
-                        base:  ethers.utils.parseEther("-10")
+                        base: ethers.utils.parseEther("-10"),
                     },
                     totalLeveragedValue: 0,
                     lastUpdatedIndex: 1,
-                    lastUpdatedGasPrice: lastUpdatedGas
+                    lastUpdatedGasPrice: lastUpdatedGas,
                 }
 
                 compareAccountState(account1, account1Expected)
                 compareAccountState(account2, account2Expected)
                 compareAccountState(account3, account3Expected)
-                
+
                 // time travel forward to check pricing state
-                await forwardTime(60*60 + 100)
+                await forwardTime(60 * 60 + 100)
                 // make trade in new hour to tick over funding index
                 await tracer.connect(accounts[0]).matchOrders(order4, order5)
-                
+
                 // check pricing is in hour 1
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(1)
@@ -215,11 +219,15 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 let twap = await pricing.getTWAPs(0)
                 let expectedUnderlying = ethers.utils.parseEther("1")
                 let expectedDerivative = ethers.utils.parseEther("1")
-                expect(twap[0].toString()).to.equal(expectedUnderlying.toString())
-                expect(twap[1].toString()).to.equal(expectedDerivative.toString())
+                expect(twap[0].toString()).to.equal(
+                    expectedUnderlying.toString()
+                )
+                expect(twap[1].toString()).to.equal(
+                    expectedDerivative.toString()
+                )
 
                 // time travel forward 2 hours without any trades happening
-                await forwardTime(120*60 + 100)
+                await forwardTime(120 * 60 + 100)
                 await tracer.connect(accounts[0]).matchOrders(order1, order2)
 
                 // check pricing is in hour 2 (hours with no trades are ignored currently)
@@ -234,13 +242,18 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // derivative price should be the price of the first created trade
                 // above (eg trade 4 long price)
                 // underlying price should be oracle price of $1
-                // twap = 7 * hour 0 ($1) + 8 * hour 1 ($1.25) / 8+7 = 1.13333333333 
+                // twap = 7 * hour 0 ($1) + 8 * hour 1 ($1.25) / 8+7 = 1.13333333333
                 let twap2 = await pricing.getTWAPs(1)
                 let expectedUnderlying2 = ethers.utils.parseEther("1")
-                let expectedDerivative2 = ethers.utils.parseEther("1.133333333333333333")
-                expect(twap2[0].toString()).to.equal(expectedUnderlying2.toString())
-                expect(twap2[1].toString()).to.equal(expectedDerivative2.toString())
-
+                let expectedDerivative2 = ethers.utils.parseEther(
+                    "1.133333333333333333"
+                )
+                expect(twap2[0].toString()).to.equal(
+                    expectedUnderlying2.toString()
+                )
+                expect(twap2[1].toString()).to.equal(
+                    expectedDerivative2.toString()
+                )
             })
         })
     })
