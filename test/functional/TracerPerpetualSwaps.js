@@ -46,7 +46,7 @@ const setup = deployments.createFixture(async () => {
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
-    await network.provider.send("evm_mine")
+    await network.provider.send("evm_mine", [])
 }
 
 const compareAccountState = (state, expectedState) => {
@@ -103,7 +103,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("50"),
                     side: 0, // long,
                     expires: now + 604800, // now + 7 days
-                    created: now,
+                    created: now - 1,
                 }
 
                 let order2 = {
@@ -125,6 +125,30 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now,
                 }
+
+                let order4 = {
+                    maker: accounts[1].address,
+                    market: tracer.address,
+                    price: ethers.utils.parseEther("1.25"),
+                    amount: ethers.utils.parseEther("50"),
+                    side: 0, // long,
+                    expires: now + 604800, // now + 7 days
+                    created: now - 1,
+                }
+
+                let order5 = {
+                    maker: accounts[3].address,
+                    market: tracer.address,
+                    price: ethers.utils.parseEther("1.10"),
+                    amount: ethers.utils.parseEther("10"),
+                    side: 1, // short,
+                    expires: now + 604800, // now + 7 days
+                    created: now,
+                }
+
+                // check pricing is in hour 0
+                let currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(0)
 
                 // place trades
                 await tracer.connect(accounts[0]).matchOrders(order1, order2)
@@ -170,6 +194,53 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 compareAccountState(account1, account1Expected)
                 compareAccountState(account2, account2Expected)
                 compareAccountState(account3, account3Expected)
+                
+                // time travel forward to check pricing state
+                await forwardTime(60*60 + 100)
+                // make trade in new hour to tick over funding index
+                await tracer.connect(accounts[0]).matchOrders(order4, order5)
+                
+                // check pricing is in hour 1
+                currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(1)
+
+                // check funding index is 2
+                let fundingIndex = await pricing.currentFundingIndex()
+                expect(fundingIndex).to.equal(2)
+
+                // check pricing state
+                // derivative price should be the price of the first created trade
+                // above (eg account1 long in both trade cases)
+                // underlying price should be oracle price of $1
+                let twap = await pricing.getTWAPs(0)
+                let expectedUnderlying = ethers.utils.parseEther("1")
+                let expectedDerivative = ethers.utils.parseEther("1")
+                expect(twap[0].toString()).to.equal(expectedUnderlying.toString())
+                expect(twap[1].toString()).to.equal(expectedDerivative.toString())
+
+                // time travel forward 2 hours without any trades happening
+                await forwardTime(120*60 + 100)
+                await tracer.connect(accounts[0]).matchOrders(order1, order2)
+
+                // check pricing is in hour 2 (hours with no trades are ignored currently)
+                currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(2)
+
+                // check funding index is 3
+                fundingIndex = await pricing.currentFundingIndex()
+                expect(fundingIndex).to.equal(3)
+
+                // check pricing state
+                // derivative price should be the price of the first created trade
+                // above (eg trade 4 long price)
+                // underlying price should be oracle price of $1
+                // twap = 7 * hour 0 ($1) + 8 * hour 1 ($1.25) / 8+7 = 1.13333333333 
+                let twap2 = await pricing.getTWAPs(1)
+                let expectedUnderlying2 = ethers.utils.parseEther("1")
+                let expectedDerivative2 = ethers.utils.parseEther("1.133333333333333333")
+                expect(twap2[0].toString()).to.equal(expectedUnderlying2.toString())
+                expect(twap2[1].toString()).to.equal(expectedDerivative2.toString())
+
             })
         })
     })

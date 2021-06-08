@@ -88,11 +88,10 @@ contract Pricing is IPricing, Ownable {
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // Update pricing and funding rate states
-            updatePrice(tradePrice, currentOraclePrice, true);
-
+            // update funding rate for the previous hour
             updateFundingRate(currentOraclePrice);
 
+            // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
                 updateTimeValue();
@@ -101,12 +100,16 @@ contract Pricing is IPricing, Ownable {
 
             // update time metrics after all other state
             startLastHour = block.timestamp;
+
             // Check current hour and loop around if need be
             if (currentHour == 23) {
                 currentHour = 0;
             } else {
                 currentHour = currentHour + 1;
             }
+
+            // add new pricing entry for new hour
+            updatePrice(tradePrice, currentOraclePrice, true);
         } else {
             // Update old pricing entry
             updatePrice(tradePrice, currentOraclePrice, false);
@@ -290,7 +293,7 @@ contract Pricing is IPricing, Ownable {
         override
         returns (Prices.TWAP memory)
     {
-        Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
+        return Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**
