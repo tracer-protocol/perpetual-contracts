@@ -254,6 +254,35 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(twap2[1].toString()).to.equal(
                     expectedDerivative2.toString()
                 )
+
+                // time travel forward 24 hours and ensure all pricing state still works
+                await forwardTime(24 * 60 * 60 + 100)
+                await tracer.connect(accounts[0]).matchOrders(order1, order2)
+
+                // check pricing is in hour 3 (hours with no trades are ignored currently)
+                currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(3)
+
+                // check funding index is 3
+                fundingIndex = await pricing.currentFundingIndex()
+                expect(fundingIndex).to.equal(4)
+
+                // check pricing state
+                // derivative price should be the price of the first created trade
+                // above (eg trade 4 long price)
+                // underlying price should be oracle price of $1
+                // twap = (8 * 1 + 7 * 1.25 + 6 * 1) / (8+7+6) = 1.083
+                let twap3 = await pricing.getTWAPs(2)
+                let expectedUnderlying3 = ethers.utils.parseEther("1")
+                let expectedDerivative3 = ethers.utils.parseEther(
+                    "1.083333333333333333"
+                )
+                expect(twap3[0].toString()).to.equal(
+                    expectedUnderlying3.toString()
+                )
+                expect(twap3[1].toString()).to.equal(
+                    expectedDerivative3.toString()
+                )
             })
         })
     })
