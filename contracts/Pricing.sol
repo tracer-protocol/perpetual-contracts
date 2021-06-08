@@ -62,12 +62,13 @@ contract Pricing is IPricing, Ownable {
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
 
-        // initialise funding rate, similar to what was done in trace perp
-        uint256 oracleLatestPrice = oracle.latestAnswer();
+        // initialise funding rate
         setFundingRate(0, 0);
         setInsuranceFundingRate(0, 0);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
+        startLastHour = block.timestamp;
+        startLast24Hours = block.timestamp;
     }
 
     /**
