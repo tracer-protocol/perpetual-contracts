@@ -103,13 +103,6 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    const gasOracleAdapter = await deploy("GasOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [gasOracle.address],
-        contract: "OracleAdapter",
-    })
-
     console.log(`Oracle Adapter Deployed ${oracleAdapter.address}`)
 
     const gasPriceOracle = await deploy("GasPriceOracle", {
