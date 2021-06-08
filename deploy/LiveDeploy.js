@@ -295,11 +295,20 @@ module.exports = async function (hre) {
     })
     await hre.run("verify:verify", {
         address: pricing,
-        constructorArguments: [tracerInstance.address, insurance, oracleAdapter.address],
+        constructorArguments: [
+            tracerInstance.address,
+            insurance,
+            oracleAdapter.address,
+        ],
     })
     await hre.run("verify:verify", {
         address: liquidation,
-        constructorArguments: [pricing, tracerInstance.address, insurance, maxLiquidationSlippage],
+        constructorArguments: [
+            pricing,
+            tracerInstance.address,
+            insurance,
+            maxLiquidationSlippage,
+        ],
     })
     await hre.run("verify:verify", {
         address: tracerInstance.address,
@@ -317,6 +326,5 @@ module.exports = async function (hre) {
             _insurancePoolSwitchStage,
         ],
     })
-
 }
 module.exports.tags = ["LiveDeploy"]

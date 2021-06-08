@@ -2,15 +2,15 @@ const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpe
 
 /**
  * Verification Deployment Script
- * 
- * Use this script in tandem with the LiveDeploy deployment script to 
+ *
+ * Use this script in tandem with the LiveDeploy deployment script to
  * deploy and verify contracts.
- * 
+ *
  * This script is useful for if something goes wrong during live deploy
- * verification (such as an error with Etherscan). This script allows 
+ * verification (such as an error with Etherscan). This script allows
  * you to run only the verification side of the deployment and no actual deployment
  * and linking.
- * 
+ *
  * If you attempt to run a deployment to a new network using this script, you may
  * get weird behaviour. Please use LiveDeploy before using this script
  */
@@ -236,11 +236,20 @@ module.exports = async function (hre) {
     })
     await hre.run("verify:verify", {
         address: pricing,
-        constructorArguments: [tracerInstance.address, insurance, oracleAdapter.address],
+        constructorArguments: [
+            tracerInstance.address,
+            insurance,
+            oracleAdapter.address,
+        ],
     })
     await hre.run("verify:verify", {
         address: liquidation,
-        constructorArguments: [pricing, tracerInstance.address, insurance, maxLiquidationSlippage],
+        constructorArguments: [
+            pricing,
+            tracerInstance.address,
+            insurance,
+            maxLiquidationSlippage,
+        ],
     })
     await hre.run("verify:verify", {
         address: tracerInstance.address,
@@ -258,6 +267,5 @@ module.exports = async function (hre) {
             _insurancePoolSwitchStage,
         ],
     })
-
 }
 module.exports.tags = ["LiveVerify"]
