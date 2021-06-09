@@ -3,8 +3,11 @@ pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
 import "./LibPerpetuals.sol";
+import "./LibBalances.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
+
+import "hardhat/console.sol";
 
 library LibLiquidation {
     using LibMath for uint256;
@@ -28,14 +31,17 @@ library LibLiquidation {
 
     function calcEscrowLiquidationAmount(
         uint256 minMargin, //10^18
-        int256 currentMargin //10^18
+        int256 currentMargin, //10^18
+        int256 amount,
+        int256 totalBase
     ) internal pure returns (uint256) {
-        int256 amountToEscrow = currentMargin -
-            (minMargin.toInt256() - currentMargin);
-        if (amountToEscrow < 0) {
+        int256 amountToEscrow =
+            currentMargin - (minMargin.toInt256() - currentMargin);
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(amountToEscrow, PRBMathSD59x18.div(amount, totalBase));
+        if (amountToEscrowProportional < 0) {
             return 0;
         }
-        return uint256(amountToEscrow);
+        return uint256(amountToEscrowProportional);
     }
 
     /**
@@ -63,17 +69,25 @@ library LibLiquidation {
         if (liquidatedBase == 0) {
             return (0, 0, 0, 0);
         }
-        int256 portionOfQuote = PRBMathSD59x18.mul(
-            liquidatedQuote,
-            PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
-        );
+
+        int256 portionOfQuote =
+            PRBMathSD59x18.mul(
+                liquidatedQuote,
+                PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
+            );
 
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
+        if (liquidatedBase < 0) {
+            _liquidatorBaseChange = amount * (-1);
+            _liquidateeBaseChange = amount;
+        } else {
+            _liquidatorBaseChange = amount;
+            _liquidateeBaseChange = amount * (-1);
+        }
+
+        /* If quote is negative, liquidator always takes on negative quote */
         _liquidatorQuoteChange = portionOfQuote;
         _liquidateeQuoteChange = portionOfQuote * (-1);
-
-        _liquidatorBaseChange = amount;
-        _liquidateeBaseChange = amount * (-1);
     }
 
     /**
@@ -102,10 +116,8 @@ library LibLiquidation {
         } else {
             // Liquidator took a long position, and price dropped
             uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
-            uint256 amountExpectedFor = PRBMathUD60x18.mul(
-                receipt.price,
-                unitsSold
-            );
+            uint256 amountExpectedFor =
+                PRBMathUD60x18.mul(receipt.price, unitsSold);
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
@@ -137,5 +149,23 @@ library LibLiquidation {
             }
             return amountToReturn;
         }
+    }
+
+    function partialLiquidationIsValid(
+        int256 liquidatedBaseChange,
+        int256 liquidatedQuoteChange,
+        Balances.Account memory balanceToBeLiquidated,
+        uint256 liquidationGasCost,
+        uint256 price
+    ) internal pure returns (bool) {
+        uint256 minimumLeftoverMargin =
+            PRBMathUD60x18.mul(balanceToBeLiquidated.lastUpdatedGasPrice,liquidationGasCost) * 10;
+        Balances.Position memory updatedPosition =
+            Balances.Position(
+                balanceToBeLiquidated.position.quote + liquidatedQuoteChange,
+                balanceToBeLiquidated.position.base + liquidatedBaseChange
+            );
+        int256 margin = Balances.margin(updatedPosition, price);
+        return margin >= minimumLeftoverMargin.toInt256() || margin == 0;
     }
 }

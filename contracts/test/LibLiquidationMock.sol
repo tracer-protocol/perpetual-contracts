@@ -7,11 +7,15 @@ import "../lib/LibPerpetuals.sol";
 library LibLiquidationMock {
     function calcEscrowLiquidationAmount(
         uint256 minMargin,
-        int256 currentMargin
+        int256 currentMargin,
+        int256 amount,
+        int256 totalBase
     ) external pure returns (uint256 result) {
         result = LibLiquidation.calcEscrowLiquidationAmount(
             minMargin,
-            currentMargin
+            currentMargin,
+            amount,
+            totalBase
         );
     }
 
@@ -50,26 +54,50 @@ library LibLiquidationMock {
     ) external pure returns (uint256 result) {
         /* Create a struct LibLiquidation with only price and liquidationSide set,
            as they are the only ones used in calculateSlippage */
-        LibLiquidation.LiquidationReceipt memory minimalReceipt = LibLiquidation
-        .LiquidationReceipt(
-            address(0),
-            address(0),
-            address(0), // Not used
-            receiptPrice,
-            0,
-            0,
-            0,
-            0,
-            false, // Not used
-            Perpetuals.Side(receiptSide),
-            false // Not used
-        );
+        LibLiquidation.LiquidationReceipt memory minimalReceipt =
+            LibLiquidation.LiquidationReceipt(
+                address(0),
+                address(0),
+                address(0), // Not used
+                receiptPrice,
+                0,
+                0,
+                0,
+                0,
+                false, // Not used
+                Perpetuals.Side(receiptSide),
+                false // Not used
+            );
 
         result = LibLiquidation.calculateSlippage(
             unitsSold,
             maxSlippage,
             avgPrice,
             minimalReceipt
+        );
+    }
+
+    function partialLiquidationIsValid(
+        int256 liquidatedBaseChange,
+        int256 liquidatedQuoteChange,
+        int256 liquidatedBase,
+        int256 liquidatedQuote,
+        uint256 lastUpdatedGasPrice,
+        uint256 liquidationGasCost,
+        uint256 price
+    ) external pure returns (bool) {
+        Balances.Account memory balanceToBeLiquidated = Balances.Account(
+            Balances.Position(liquidatedQuote, liquidatedBase),
+            0,
+            0,
+            lastUpdatedGasPrice
+        );
+        return LibLiquidation.partialLiquidationIsValid(
+            liquidatedBaseChange,
+            liquidatedQuoteChange,
+            balanceToBeLiquidated,
+            liquidationGasCost,
+            price
         );
     }
 }
