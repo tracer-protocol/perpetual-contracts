@@ -199,7 +199,7 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
-     * @return true if the margin is greater than 10x liquidation
+     * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
      * @param liquidatedBaseChange How much base token to be liquidated
      * @param liquidatedQuoteChange How much quote token to be liquidated
      * @param balanceToBeLiquidated The balance of account to be liquidated

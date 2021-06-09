@@ -27,9 +27,18 @@ library LibLiquidation {
         bool liquidatorRefundClaimed;
     }
 
+    /**
+     * @return The amount a liquidator must escrow in order to liquidate a given position.
+     *         Calculated as currentMargin - (minMargin - currentMargin) * portion of whole position being liquidated
+     * @dev Assumes params are WAD
+     * @param minMargin User's minimum margin
+     * @param currentMargin User's current margin
+     * @param amount Amount being liquidated
+     * @param totalBase User's total base
+     */
     function calcEscrowLiquidationAmount(
-        uint256 minMargin, //10^18
-        int256 currentMargin, //10^18
+        uint256 minMargin,
+        int256 currentMargin,
         int256 amount,
         int256 totalBase
     ) internal pure returns (uint256) {
@@ -153,6 +162,15 @@ library LibLiquidation {
         }
     }
 
+    /**
+     * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
+     * @dev Assumes params are WAD except liquidationGasCost
+     * @param liquidatedBaseChange How much base token to be liquidated
+     * @param liquidatedQuoteChange How much quote token to be liquidated
+     * @param balanceToBeLiquidated The balance of account to be liquidated
+     * @param liquidationGasCost Approximately how much gas is used to call liquidate()
+     * @param price Current fair price
+     */
     function partialLiquidationIsValid(
         int256 liquidatedBaseChange,
         int256 liquidatedQuoteChange,

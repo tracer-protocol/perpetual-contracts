@@ -77,6 +77,9 @@ library LibLiquidationMock {
         );
     }
 
+    /**
+     * @notice call LibLiquidation.partialLiquidationIsValid
+     */
     function partialLiquidationIsValid(
         int256 liquidatedBaseChange,
         int256 liquidatedQuoteChange,
