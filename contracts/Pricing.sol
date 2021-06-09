@@ -180,7 +180,7 @@ contract Pricing is IPricing, Ownable {
             fundingRates[fundingIndex].cumulativeFundingRate;
         int256 cumulativeFundingRate =
             currentFundingRateValue +
-                PRBMathSD59x18.mul(newFundingRate, oraclePrice.toInt256());
+                newFundingRate;
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue =
