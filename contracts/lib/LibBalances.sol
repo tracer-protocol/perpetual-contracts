@@ -15,17 +15,20 @@ library Balances {
 
     uint256 public constant MAX_DECIMALS = 18;
 
+    // Size of a position
     struct Position {
         int256 quote;
         int256 base;
     }
 
+    // Information about a trade
     struct Trade {
         uint256 price;
         uint256 amount;
         Perpetuals.Side side;
     }
 
+    // Contains information about the balance of an account in a Tracer market
     struct Account {
         Position position;
         uint256 totalLeveragedValue;
@@ -33,6 +36,11 @@ library Balances {
         uint256 lastUpdatedGasPrice;
     }
 
+    /**
+     * @notice Calculates the net value of a position as base * price
+     * @param position the position the account is currently in
+     * @param price The (fair) price of the base asset
+     */
     function netValue(Position memory position, uint256 price)
         internal
         pure
@@ -94,10 +102,21 @@ library Balances {
         }
     }
 
+    /**
+     * @notice Calculates the minimum margin needed for an account.
+     * Calculated as minMargin = netValue / maxLev + liquidationGasCost
+     *                         = (base * price) / maxLev + liquidationGasCost
+     * @param position Position to calculate the minimum margin for
+     * @param price Price by which to evaluate the minimum margin
+     * @param liquidationCost Cost for liquidation
+     * @param maximumLeverage (True) maximum leverage of a market.
+     *   May be less than the set max leverage of the market because
+     *   of deleveraging
+     */
     function minimumMargin(
         Position memory position,
         uint256 price,
-        uint256 liquidationCost,
+        uint256 liquidationGasCost,
         uint256 maximumLeverage
     ) internal pure returns (uint256) {
         // There should be no Minimum margin when user has no position
@@ -108,14 +127,22 @@ library Balances {
         uint256 notionalValue = netValue(position, price);
 
         // todo confirm that liquidation gas cost should be a WAD value
-        uint256 liquidationGasCost = liquidationCost * 6;
+        uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
         uint256 minimumMarginWithoutGasCost =
             PRBMathUD60x18.div(notionalValue, maximumLeverage);
 
-        return liquidationGasCost + minimumMarginWithoutGasCost;
+        return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
     }
 
+    /**
+     * @notice Gets the amount that can be matched between two orders
+     *         Calculated as min(amountRemaining)
+     * @param orderA First order
+     * @param fillA Amount of the first order remaining to be filled
+     * @param orderB Second order
+     * @param fillB Amount of the second order remaining to be filled
+     */
     function fillAmount(
         Perpetuals.Order memory orderA,
         uint256 fillA,
@@ -151,17 +178,6 @@ library Balances {
         Position memory newPosition = Position(newQuote, newBase);
 
         return newPosition;
-    }
-
-    function marginValid(
-        Position memory position,
-        uint256 price,
-        uint256 liquidationCost,
-        uint256 maximumLeverage
-    ) internal pure returns (bool) {
-        return
-            uint256(margin(position, price)) >=
-            minimumMargin(position, price, liquidationCost, maximumLeverage);
     }
 
     /**
