@@ -73,7 +73,15 @@ contract TracerPerpetualSwaps is
         address indexed long,
         address indexed short,
         uint256 amount,
-        uint256 price
+        uint256 price,
+        bytes32 longOrderId,
+        bytes32 shortOrderId
+    );
+    event FailedOrders(
+        address indexed long,
+        address indexed short,
+        bytes32 longOrderId,
+        bytes32 shortOrderId
     );
 
     /**
@@ -216,40 +224,77 @@ contract TracerPerpetualSwaps is
     function matchOrders(
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2
-    ) public override onlyWhitelisted {
-        uint256 filled1 = filled[Perpetuals.orderId(order1)];
-        uint256 filled2 = filled[Perpetuals.orderId(order2)];
-
-        // guard
-        require(
-            Perpetuals.canMatch(order1, filled1, order2, filled2),
-            "TCR: Orders cannot be matched"
+    ) public override onlyWhitelisted returns (bool) {
+        bytes32 order1Id = Perpetuals.orderId(order1);
+        bytes32 order2Id = Perpetuals.orderId(order2);
+        uint256 filled1 = filled[order1Id];
+        uint256 filled2 = filled[order2Id];
+        uint256 fillAmount = Balances.fillAmount(
+            order1,
+            filled1,
+            order2,
+            filled2
         );
 
         uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
 
         // settle accounts
+        // note: this can revert and hence no order events will be emitted
         settle(order1.maker);
         settle(order2.maker);
 
+        (
+            Balances.Position memory newPos1,
+            Balances.Position memory newPos2
+        ) = executeTrade(order1, order2, fillAmount, executionPrice);
+
+        // validate orders can match, and outcome state is valid
+        if (
+            !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
+            !marginIsValid(
+                newPos1,
+                balances[order1.maker].lastUpdatedGasPrice
+            ) ||
+            !marginIsValid(newPos2, balances[order2.maker].lastUpdatedGasPrice)
+        ) {
+            // emit failed to match event and return false
+            if (order1.side == Perpetuals.Side.Long) {
+                emit FailedOrders(
+                    order1.maker,
+                    order2.maker,
+                    order1Id,
+                    order2Id
+                );
+            } else {
+                emit FailedOrders(
+                    order2.maker,
+                    order1.maker,
+                    order1Id,
+                    order2Id
+                );
+            }
+            return false;
+        }
+
         // update account states
-        executeTrade(order1, order2, executionPrice);
+        balances[order1.maker].position = newPos1;
+        balances[order2.maker].position = newPos2;
+
+        // update fees
+        fees =
+            fees +
+            // add 2 * fees since getFeeRate returns the fee rate for a single
+            // side of the order. Both users were charged fees
+            uint256(Balances.getFee(fillAmount, executionPrice, feeRate) * 2);
 
         // update leverage
         _updateAccountLeverage(order1.maker);
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        // note: price has already been validated here, so order 1 price can be used
         pricingContract.recordTrade(
             executionPrice,
             LibMath.min(order1.amount, order2.amount)
-        );
-
-        // Ensures that you are in a position to take the trade
-        require(
-            userMarginIsValid(order1.maker) && userMarginIsValid(order2.maker),
-            "TCR: Margin Invalid post trade "
         );
 
         if (order1.side == Perpetuals.Side.Long) {
@@ -257,16 +302,21 @@ contract TracerPerpetualSwaps is
                 order1.maker,
                 order2.maker,
                 order1.amount,
-                order1.price
+                order1.price,
+                order1Id,
+                order2Id
             );
         } else {
             emit MatchedOrders(
                 order2.maker,
                 order1.maker,
                 order1.amount,
-                order1.price
+                order1.price,
+                order2Id,
+                order1Id
             );
         }
+        return true;
     }
 
     /**
@@ -275,21 +325,16 @@ contract TracerPerpetualSwaps is
     function executeTrade(
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
+        uint256 fillAmount,
         uint256 executionPrice
-    ) internal {
+    )
+        internal
+        view
+        returns (Balances.Position memory, Balances.Position memory)
+    {
         // Retrieve account state
-        Balances.Account storage account1 = balances[order1.maker];
-        Balances.Account storage account2 = balances[order2.maker];
-
-        bytes32 orderId1 = Perpetuals.orderId(order1);
-        bytes32 orderId2 = Perpetuals.orderId(order2);
-
-        uint256 fillAmount = Balances.fillAmount(
-            order1,
-            filled[orderId1],
-            order2,
-            filled[orderId2]
-        );
+        Balances.Account memory account1 = balances[order1.maker];
+        Balances.Account memory account2 = balances[order2.maker];
 
         // Construct `Trade` types suitable for use with LibBalances
         (Balances.Trade memory trade1, Balances.Trade memory trade2) = (
@@ -303,18 +348,8 @@ contract TracerPerpetualSwaps is
             Balances.applyTrade(account2.position, trade2, feeRate)
         );
 
-        // Update account state with results of above calculation
-        account1.position = newPos1;
-        account2.position = newPos2;
-
-        // Add fee into cumulative fees
-        int256 quoteChange = PRBMathUD60x18
-        .mul(fillAmount, executionPrice)
-        .toInt256();
-        int256 fee = PRBMathUD60x18
-        .mul(uint256(quoteChange), uint256(feeRate))
-        .toInt256();
-        fees = fees + uint256(fee * 2);
+        // return new account state
+        return (newPos1, newPos2);
     }
 
     /**
