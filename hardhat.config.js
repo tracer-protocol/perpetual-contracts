@@ -6,6 +6,7 @@ require("hardhat-prettier")
 require("hardhat-abi-exporter")
 require("hardhat-typechain")
 require("@nomiclabs/hardhat-etherscan")
+require("solidity-coverage")
 
 const mnemonic = ""
 

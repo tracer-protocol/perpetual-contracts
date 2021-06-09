@@ -94,5 +94,5 @@ interface ITracerPerpetualSwaps {
     function matchOrders(
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2
-    ) external;
+    ) external returns (bool);
 }
