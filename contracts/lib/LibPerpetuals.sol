@@ -5,6 +5,7 @@ import "prb-math/contracts/PRBMathUD60x18.sol";
 library Perpetuals {
     enum Side {Long, Short}
 
+    // Information about a given order
     struct Order {
         address maker;
         address market;
@@ -15,6 +16,11 @@ library Perpetuals {
         uint256 created;
     }
 
+    /**
+     * @notice Get the hash of an order from its information, used to unique identify orders
+     *      in a market
+     * @param order Order that we're getting the hash of
+     */
     function orderId(Order memory order) internal pure returns (bytes32) {
         return keccak256(abi.encode(order));
     }
@@ -90,6 +96,15 @@ library Perpetuals {
         return realMaxLeverage;
     }
 
+    /**
+     * @notice Checks if two orders can be matched given their price, side of trade
+     *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
+     *  and time validation.
+     * @param a The first order
+     * @param aFilled Amount of the first order that has already been filled
+     * @param b The second order
+     * @param bFilled Amount of the second order that has already been filled
+     */
     function canMatch(
         Order calldata a,
         uint256 aFilled,
