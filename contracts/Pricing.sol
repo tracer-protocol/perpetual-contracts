@@ -62,12 +62,13 @@ contract Pricing is IPricing, Ownable {
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
 
-        // initialise funding rate, similar to what was done in trace perp
-        uint256 oracleLatestPrice = oracle.latestAnswer();
+        // initialise funding rate
         setFundingRate(0, 0);
         setInsuranceFundingRate(0, 0);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
+        startLastHour = block.timestamp;
+        startLast24Hours = block.timestamp;
     }
 
     /**
@@ -87,11 +88,10 @@ contract Pricing is IPricing, Ownable {
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // Update pricing and funding rate states
-            updatePrice(tradePrice, currentOraclePrice, true);
-
+            // update funding rate for the previous hour
             updateFundingRate(currentOraclePrice);
 
+            // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
                 updateTimeValue();
@@ -100,12 +100,16 @@ contract Pricing is IPricing, Ownable {
 
             // update time metrics after all other state
             startLastHour = block.timestamp;
+
             // Check current hour and loop around if need be
             if (currentHour == 23) {
                 currentHour = 0;
             } else {
                 currentHour = currentHour + 1;
             }
+
+            // add new pricing entry for new hour
+            updatePrice(tradePrice, currentOraclePrice, true);
         } else {
             // Update old pricing entry
             updatePrice(tradePrice, currentOraclePrice, false);
@@ -127,12 +131,16 @@ contract Pricing is IPricing, Ownable {
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
-            Prices.PriceInstant memory newHourly =
-                Prices.PriceInstant(marketPrice, 1);
+            Prices.PriceInstant memory newHourly = Prices.PriceInstant(
+                marketPrice,
+                1
+            );
             hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Prices.PriceInstant memory oracleHour =
-                Prices.PriceInstant(oraclePrice, 1);
+            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(
+                oraclePrice,
+                1
+            );
             hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the market price to a running total and increment number of trades
@@ -164,29 +172,27 @@ contract Pricing is IPricing, Ownable {
         uint256 underlyingTWAP = twapPrices.underlying;
         uint256 derivativeTWAP = twapPrices.derivative;
 
-        int256 newFundingRate =
-            PRBMathSD59x18.mul(
-                derivativeTWAP.toInt256() -
-                    underlyingTWAP.toInt256() -
-                    timeValue,
-                _tracer.fundingRateSensitivity().toInt256()
-            );
+        int256 newFundingRate = PRBMathSD59x18.mul(
+            derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue,
+            _tracer.fundingRateSensitivity().toInt256()
+        );
 
         // set the index to the last funding Rate confirmed funding rate (-1)
         uint256 fundingIndex = currentFundingIndex - 1;
 
         // Create variable with value of new funding rate value
-        int256 currentFundingRateValue =
-            fundingRates[fundingIndex].cumulativeFundingRate;
-        int256 cumulativeFundingRate =
-            currentFundingRateValue +
-                PRBMathSD59x18.mul(newFundingRate, oraclePrice.toInt256());
+        int256 currentFundingRateValue = fundingRates[fundingIndex]
+        .cumulativeFundingRate;
+        int256 cumulativeFundingRate = currentFundingRateValue +
+            PRBMathSD59x18.mul(newFundingRate, oraclePrice.toInt256());
 
         // as above but with insurance funding rate value
-        int256 currentInsuranceFundingRateValue =
-            insuranceFundingRates[fundingIndex].cumulativeFundingRate;
-        int256 iPoolFundingRateValue =
-            currentInsuranceFundingRateValue + iPoolFundingRate;
+        int256 currentInsuranceFundingRateValue = insuranceFundingRates[
+            fundingIndex
+        ]
+        .cumulativeFundingRate;
+        int256 iPoolFundingRateValue = currentInsuranceFundingRateValue +
+            iPoolFundingRate;
 
         // Call setter functions on calculated variables
         setFundingRate(newFundingRate, cumulativeFundingRate);
@@ -287,7 +293,8 @@ contract Pricing is IPricing, Ownable {
         override
         returns (Prices.TWAP memory)
     {
-        Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
+        return
+            Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**

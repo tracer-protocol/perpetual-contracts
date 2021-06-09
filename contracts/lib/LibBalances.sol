@@ -110,8 +110,10 @@ library Balances {
         // todo confirm that liquidation gas cost should be a WAD value
         uint256 liquidationGasCost = liquidationCost * 6;
 
-        uint256 minimumMarginWithoutGasCost =
-            PRBMathUD60x18.div(notionalValue, maximumLeverage);
+        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(
+            notionalValue,
+            maximumLeverage
+        );
 
         return liquidationGasCost + minimumMarginWithoutGasCost;
     }
@@ -132,10 +134,8 @@ library Balances {
     ) internal pure returns (Position memory) {
         int256 signedAmount = LibMath.toInt256(trade.amount);
         int256 signedPrice = LibMath.toInt256(trade.price);
-        int256 signedFeeRate = LibMath.toInt256(feeRate);
-
         int256 quoteChange = PRBMathSD59x18.mul(signedAmount, signedPrice);
-        int256 fee = PRBMathSD59x18.mul(quoteChange, signedFeeRate);
+        int256 fee = getFeeRate(trade.amount, trade.price, feeRate);
 
         int256 newQuote = 0;
         int256 newBase = 0;
@@ -151,6 +151,20 @@ library Balances {
         Position memory newPosition = Position(newQuote, newBase);
 
         return newPosition;
+    }
+
+    function getFeeRate(
+        uint256 amount,
+        uint256 executionPrice,
+        uint256 feeRate
+    ) internal pure returns (int256) {
+        int256 quoteChange = PRBMathUD60x18
+        .mul(amount, executionPrice)
+        .toInt256();
+        int256 fee = PRBMathUD60x18
+        .mul(uint256(quoteChange), feeRate)
+        .toInt256();
+        return fee;
     }
 
     function marginValid(

@@ -155,8 +155,9 @@ contract TracerPerpetualSwaps is
         // convert the WAD amount to the correct token amount to transfer
         // cast is safe since amount is a uint, and wadToToken can only
         // scale down the value
-        uint256 rawTokenAmount =
-            uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
+        uint256 rawTokenAmount = uint256(
+            Balances.wadToToken(quoteTokenDecimals, amount).toInt256()
+        );
         IERC20(tracerQuoteToken).transferFrom(
             msg.sender,
             address(this),
@@ -165,8 +166,10 @@ contract TracerPerpetualSwaps is
 
         // this prevents dust from being added to the user account
         // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
-        int256 convertedWadAmount =
-            Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
+        int256 convertedWadAmount = Balances.tokenToWad(
+            quoteTokenDecimals,
+            rawTokenAmount
+        );
 
         // update user state
         userBalance.position.quote =
@@ -188,8 +191,10 @@ contract TracerPerpetualSwaps is
     function withdraw(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
         int256 newQuote = userBalance.position.quote - amount.toInt256();
-        Balances.Position memory newPosition =
-            Balances.Position(newQuote, userBalance.position.base);
+        Balances.Position memory newPosition = Balances.Position(
+            newQuote,
+            userBalance.position.base
+        );
         require(
             marginIsValid(newPosition, userBalance.lastUpdatedGasPrice),
             "TCR: Withdraw below valid Margin"
@@ -203,8 +208,10 @@ contract TracerPerpetualSwaps is
         tvl = tvl - amount;
 
         // perform transfer
-        uint256 transferAmount =
-            Balances.wadToToken(quoteTokenDecimals, amount);
+        uint256 transferAmount = Balances.wadToToken(
+            quoteTokenDecimals,
+            amount
+        );
         IERC20(tracerQuoteToken).transfer(msg.sender, transferAmount);
         emit Withdraw(msg.sender, amount);
     }
@@ -222,16 +229,24 @@ contract TracerPerpetualSwaps is
         bytes32 order2Id = Perpetuals.orderId(order2);
         uint256 filled1 = filled[order1Id];
         uint256 filled2 = filled[order2Id];
-        uint256 fillAmount =
-            Balances.fillAmount(order1, filled1, order2, filled2);
+        uint256 fillAmount = Balances.fillAmount(
+            order1,
+            filled1,
+            order2,
+            filled2
+        );
+
+        uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
 
         // settle accounts
         // note: this can revert and hence no order events will be emitted
         settle(order1.maker);
         settle(order2.maker);
 
-        (Balances.Position memory newPos1, Balances.Position memory newPos2) =
-            executeTrade(order1, order2, fillAmount);
+        (
+            Balances.Position memory newPos1,
+            Balances.Position memory newPos2
+        ) = executeTrade(order1, order2, fillAmount, executionPrice);
 
         // validate orders can match, and outcome state is valid
         if (
@@ -265,14 +280,20 @@ contract TracerPerpetualSwaps is
         balances[order1.maker].position = newPos1;
         balances[order2.maker].position = newPos2;
 
+        // update fees
+        fees =
+            fees +
+            uint256(
+                Balances.getFeeRate(fillAmount, executionPrice, feeRate) * 2
+            );
+
         // update leverage
         _updateAccountLeverage(order1.maker);
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        // note: price has already been validated here, so order 1 price can be used
         pricingContract.recordTrade(
-            order1.price,
+            executionPrice,
             LibMath.min(order1.amount, order2.amount)
         );
 
@@ -304,40 +325,31 @@ contract TracerPerpetualSwaps is
     function executeTrade(
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
-        uint256 fillAmount
-    ) internal returns (Balances.Position memory, Balances.Position memory) {
+        uint256 fillAmount,
+        uint256 executionPrice
+    )
+        internal
+        view
+        returns (Balances.Position memory, Balances.Position memory)
+    {
         // Retrieve account state
         Balances.Account memory account1 = balances[order1.maker];
         Balances.Account memory account2 = balances[order2.maker];
 
         // Construct `Trade` types suitable for use with LibBalances
-        (Balances.Trade memory trade1, Balances.Trade memory trade2) =
-            (
-                Balances.Trade(order1.price, fillAmount, order1.side),
-                Balances.Trade(order2.price, fillAmount, order2.side)
-            );
+        (Balances.Trade memory trade1, Balances.Trade memory trade2) = (
+            Balances.Trade(executionPrice, fillAmount, order1.side),
+            Balances.Trade(executionPrice, fillAmount, order2.side)
+        );
 
         // Calculate new account state
-        (Balances.Position memory newPos1, Balances.Position memory newPos2) =
-            (
-                Balances.applyTrade(account1.position, trade1, feeRate),
-                Balances.applyTrade(account2.position, trade2, feeRate)
-            );
+        (Balances.Position memory newPos1, Balances.Position memory newPos2) = (
+            Balances.applyTrade(account1.position, trade1, feeRate),
+            Balances.applyTrade(account2.position, trade2, feeRate)
+        );
 
         // return new account state
         return (newPos1, newPos2);
-        // Update account state with results of above calculation
-        // account1.position = newPos1;
-        // account2.position = newPos2;
-
-        // // Add fee into cumulative fees
-        // int256 quoteChange =
-        //     PRBMathUD60x18.mul(fillAmount, order1.price).toInt256();
-        // int256 fee =
-        //     PRBMathUD60x18
-        //         .mul(uint256(quoteChange), uint256(feeRate))
-        //         .toInt256();
-        // fees = fees + uint256(fee * 2);
     }
 
     /**
@@ -347,13 +359,14 @@ contract TracerPerpetualSwaps is
     function _updateAccountLeverage(address account) internal {
         Balances.Account memory userBalance = balances[account];
         uint256 originalLeverage = userBalance.totalLeveragedValue;
-        Balances.Position memory pos =
-            Balances.Position(
-                userBalance.position.quote,
-                userBalance.position.base
-            );
-        uint256 newLeverage =
-            Balances.leveragedNotionalValue(pos, pricingContract.fairPrice());
+        Balances.Position memory pos = Balances.Position(
+            userBalance.position.quote,
+            userBalance.position.base
+        );
+        uint256 newLeverage = Balances.leveragedNotionalValue(
+            pos,
+            pricingContract.fairPrice()
+        );
         balances[account].totalLeveragedValue = newLeverage;
 
         // Update market leveraged notional value
@@ -448,8 +461,8 @@ contract TracerPerpetualSwaps is
     function settle(address account) public override {
         // Get account and global last updated indexes
         uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
-        uint256 currentGlobalFundingIndex =
-            pricingContract.currentFundingIndex();
+        uint256 currentGlobalFundingIndex = pricingContract
+        .currentFundingIndex();
 
         // Only settle account if its last updated index was before the current global index
         if (accountLastUpdatedIndex < currentGlobalFundingIndex) {
@@ -458,25 +471,26 @@ contract TracerPerpetualSwaps is
              Note: global rates reference the last fully established rate (hence the -1), and not
              the current global rate. User rates reference the last saved user rate
             */
-            Prices.FundingRateInstant memory currGlobalRate =
-                pricingContract.getFundingRate(
-                    pricingContract.currentFundingIndex() - 1
-                );
-            Prices.FundingRateInstant memory currUserRate =
-                pricingContract.getFundingRate(accountLastUpdatedIndex);
-            Prices.FundingRateInstant memory currInsuranceGlobalRate =
-                pricingContract.getInsuranceFundingRate(
-                    pricingContract.currentFundingIndex() - 1
-                );
-            Prices.FundingRateInstant memory currInsuranceUserRate =
-                pricingContract.getInsuranceFundingRate(
-                    accountLastUpdatedIndex
-                );
+            Prices.FundingRateInstant memory currGlobalRate = pricingContract
+            .getFundingRate(pricingContract.currentFundingIndex() - 1);
+            Prices.FundingRateInstant memory currUserRate = pricingContract
+            .getFundingRate(accountLastUpdatedIndex);
+
+
+                Prices.FundingRateInstant memory currInsuranceGlobalRate
+             = pricingContract.getInsuranceFundingRate(
+                pricingContract.currentFundingIndex() - 1
+            );
+
+
+                Prices.FundingRateInstant memory currInsuranceUserRate
+             = pricingContract.getInsuranceFundingRate(accountLastUpdatedIndex);
 
             // settle the account
             Balances.Account storage accountBalance = balances[account];
-            Balances.Account storage insuranceBalance =
-                balances[address(insuranceContract)];
+            Balances.Account storage insuranceBalance = balances[
+                address(insuranceContract)
+            ];
 
             accountBalance.position = Prices.applyFunding(
                 accountBalance.position,
@@ -486,29 +500,28 @@ contract TracerPerpetualSwaps is
 
             // Update account gas price
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
-                .latestAnswer();
+            .latestAnswer();
 
             if (accountBalance.totalLeveragedValue > 0) {
                 (
                     Balances.Position memory newUserPos,
                     Balances.Position memory newInsurancePos
-                ) =
-                    Prices.applyInsurance(
-                        accountBalance.position,
-                        insuranceBalance.position,
-                        currGlobalRate,
-                        currUserRate,
-                        accountBalance.totalLeveragedValue
-                    );
+                ) = Prices.applyInsurance(
+                    accountBalance.position,
+                    insuranceBalance.position,
+                    currGlobalRate,
+                    currUserRate,
+                    accountBalance.totalLeveragedValue
+                );
 
                 balances[account].position = newUserPos;
                 balances[(address(insuranceContract))]
-                    .position = newInsurancePos;
+                .position = newInsurancePos;
             }
 
             // Update account index
             accountBalance.lastUpdatedIndex = pricingContract
-                .currentFundingIndex();
+            .currentFundingIndex();
             require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
@@ -529,10 +542,16 @@ contract TracerPerpetualSwaps is
         uint256 price = pricingContract.fairPrice();
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
 
-        Balances.Position memory pos =
-            Balances.Position(position.quote, position.base);
-        uint256 minMargin =
-            Balances.minimumMargin(pos, price, gasCost, trueMaxLeverage());
+        Balances.Position memory pos = Balances.Position(
+            position.quote,
+            position.base
+        );
+        uint256 minMargin = Balances.minimumMargin(
+            pos,
+            price,
+            gasCost,
+            trueMaxLeverage()
+        );
         int256 margin = Balances.margin(pos, price);
 
         if (margin < 0) {
