@@ -250,6 +250,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: libInsurance.address,
         constructorArguments: [],
+        contract: "contracts/lib/LibInsurance.sol:LibInsurance"
     })
     await hre.run("verify:verify", {
         address: libPricing.address,
@@ -278,6 +279,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: token.address,
         constructorArguments: [ethers.utils.parseEther("10000000")],
+        contract: "contracts/TestToken.sol:TestToken"
     })
     await hre.run("verify:verify", {
         address: factory.address,
