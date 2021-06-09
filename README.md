@@ -31,7 +31,7 @@ yarn hardhat test <PATH_TO_TEST>
 ## Deployment
 Hardhat does not support native deployments. To aid in deployment, hardhat-deploy is being used. You can see the deployment scripts in the `/deploy` directory.
 
-Tracer also supports programatic verification of contracts during deployment. Use the `hardhat.config.js` file to set your Etherscan API key in order for this to be enabled.
+Tracer also supports programmatic verification of contracts during deployment. Use the `hardhat.config.js` file to set your Etherscan API key in order for this to be enabled.
 
 To run deploys to a live network
 ```
