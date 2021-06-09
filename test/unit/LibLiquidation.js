@@ -1,19 +1,14 @@
-const perpsAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { BigNumber } = require("ethers")
 
 describe("Unit tests: LibLiquidation.sol", function () {
     let libLiquidation
-    let liquidation
-    let accounts
     const long = 0
     const short = 1
 
     before(async function () {
         await deployments.fixture(["LibLiquidationMock"])
-        const { deployer } = await getNamedAccounts()
         const deployment = await deployments.get("LibLiquidationMock")
         libLiquidation = await ethers.getContractAt(
             deployment.abi,

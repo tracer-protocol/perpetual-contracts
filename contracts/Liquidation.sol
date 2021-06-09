@@ -252,32 +252,6 @@ contract Liquidation is ILiquidation, Ownable {
             amount
         );
 
-        /*
-        console.log("++++++++++++++");
-        console.log("amount");
-        console.logInt(amount);
-        console.logInt(liquidatedBalance.position.base);
-        console.logInt(PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBalance.position.base)));
-        console.log("liquidatorQuoteChange");
-        console.logInt(liquidatorQuoteChange);
-        console.logInt(liquidatedBalance.position.quote);
-        console.log("liquidatorBaseChange");
-        console.logInt(liquidatorBaseChange);
-        console.log("liquidateeQuoteChange");
-        console.logInt(liquidateeQuoteChange);
-        console.log("liquidateeBaseChange");
-        console.logInt(liquidateeBaseChange);
-        console.log("................");
-        */
-        console.log(
-            checkPartialLiquidation(
-                liquidateeBaseChange,
-                liquidateeQuoteChange,
-                liquidatedBalance
-            )
-        );
-        console.log("hi");
-
         require(
             checkPartialLiquidation(
                 liquidateeBaseChange,
