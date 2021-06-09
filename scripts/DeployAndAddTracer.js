@@ -6,7 +6,7 @@ async function main() {
     const { deployments, ethers, getNamedAccounts } = hre
     const [deployer, ...accounts] = await ethers.getSigners()
     // deploy all contracts
-    await deployments.fixture(["FullDeploy"])
+    await deployments.fixture(["FullDeployTest"])
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = 18
     let feeRate = 0 // 0 percent

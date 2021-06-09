@@ -8,7 +8,7 @@ async function main() {
     const [deployer, ...accounts] = await ethers.getSigners()
 
     // deploy all contracts
-    await deployments.fixture(["FullDeploy"])
+    await deployments.fixture(["FullDeployTest"])
 
     let tracer = await deployments.read(
         "TracerPerpetualsFactory",
