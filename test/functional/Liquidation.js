@@ -43,6 +43,16 @@ const provideOrders = async (contracts, liquidationAmount) => {
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
         expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        created: (await ethers.provider.getBlock("latest")).timestamp + 3,
+    }
+
+    const sellLiquidationAmountNoSlippage = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.95").toString(),
+        amount: ethers.BigNumber.from(liquidationAmount).toString(),
+        side: "1", // Short, because original position liquidated was long
+        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
         created: (await ethers.provider.getBlock("latest")).timestamp + 2,
     }
 
@@ -90,10 +100,12 @@ const provideOrders = async (contracts, liquidationAmount) => {
         sellWholeLiquidationAmount: sellWholeLiquidationAmount,
         sellHalfLiquidationAmount: sellHalfLiquidationAmount,
         sellHalfLiquidationAmountSecond: sellHalfLiquidationAmountSecond,
+        sellHalfLiquidationAmountThird: sellHalfLiquidationAmountThird,
         longOrder: longOrder,
         zeroDollarOrder: zeroDollarOrder,
         earlyCreationOrder: earlyCreationOrder,
         wrongMakerOrder: wrongMakerOrder,
+        sellLiquidationAmountNoSlippage: sellLiquidationAmountNoSlippage,
     }
 
     return orders
@@ -185,6 +197,12 @@ const addOrdersToModifiedTrader = async (
     }
 }
 
+/**
+ * 1) Deploy smodded Trader contract
+ * 2) Get into liquidatable position
+ * 3) liquidate half the position
+ * 4) Put in fake orders into smodded Trader contract
+ */
 const setupReceiptTest = deployments.createFixture(async () => {
     const { modifiableTrader } = await deployModifiableTrader()
     const contracts = await halfLiquidate()
@@ -227,16 +245,67 @@ describe("Liquidation functional tests", async () => {
         context(
             "when units sold is greater than liquidation amount",
             async () => {
-                it("Reverts ", async () => {})
+                it("Reverts ", async () => {
+                    const contracts = await setupReceiptTest()
+                    const liquidationAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).amountLiquidated
+                    const orders = await provideOrders(
+                        contracts,
+                        liquidationAmount
+                    )
+                    const tx = contracts.liquidation.calcAmountToReturn(
+                        0,
+                        [
+                            orders.sellHalfLiquidationAmount,
+                            orders.sellHalfLiquidationAmountSecond,
+                            orders.sellHalfLiquidationAmountThird,
+                        ],
+                        contracts.modifiableTrader.address
+                    )
+                    await expect(tx).to.be.revertedWith("LIQ: Unit mismatch")
+                })
             }
         )
 
         context("When there is slippage", async () => {
-            it("Calculates accurately", async () => {})
+            it("Calculates accurately", async () => {
+                contracts = await setupReceiptTest()
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).amountLiquidated
+
+                const amountToReturn =
+                    await contracts.liquidation.callStatic.calcAmountToReturn(
+                        0,
+                        [
+                            orders.sellHalfLiquidationAmount,
+                            orders.sellHalfLiquidationAmountSecond,
+                        ],
+                        contracts.modifiableTrader.address
+                    )
+
+                // 5000 * 0.95 - 5000* 0.5 = 2250
+                const expectedAmountToReturn = ethers.utils.parseEther("2250")
+                expect(amountToReturn).to.equal(amountToReturn)
+            })
         })
 
         context("When there is no slippage", async () => {
-            it("Returns 0 ", async () => {})
+            it("Returns 0 ", async () => {
+                const contracts = await setupReceiptTest()
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).amountLiquidated
+                const orders = await provideOrders(contracts, liquidationAmount)
+                const amountToReturn =
+                    await contracts.liquidation.callStatic.calcAmountToReturn(
+                        0,
+                        [orders.sellLiquidationAmountNoSlippage],
+                        contracts.modifiableTrader.address
+                    )
+                expect(amountToReturn).to.equal(BigNumber.from("0"))
+            })
         })
     })
 
