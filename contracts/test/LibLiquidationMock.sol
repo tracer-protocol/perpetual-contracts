@@ -54,20 +54,20 @@ library LibLiquidationMock {
     ) external pure returns (uint256 result) {
         /* Create a struct LibLiquidation with only price and liquidationSide set,
            as they are the only ones used in calculateSlippage */
-        LibLiquidation.LiquidationReceipt memory minimalReceipt =
-            LibLiquidation.LiquidationReceipt(
-                address(0),
-                address(0),
-                address(0), // Not used
-                receiptPrice,
-                0,
-                0,
-                0,
-                0,
-                false, // Not used
-                Perpetuals.Side(receiptSide),
-                false // Not used
-            );
+        LibLiquidation.LiquidationReceipt memory minimalReceipt = LibLiquidation
+        .LiquidationReceipt(
+            address(0),
+            address(0),
+            address(0), // Not used
+            receiptPrice,
+            0,
+            0,
+            0,
+            0,
+            false, // Not used
+            Perpetuals.Side(receiptSide),
+            false // Not used
+        );
 
         result = LibLiquidation.calculateSlippage(
             unitsSold,
@@ -92,12 +92,13 @@ library LibLiquidationMock {
             0,
             lastUpdatedGasPrice
         );
-        return LibLiquidation.partialLiquidationIsValid(
-            liquidatedBaseChange,
-            liquidatedQuoteChange,
-            balanceToBeLiquidated,
-            liquidationGasCost,
-            price
-        );
+        return
+            LibLiquidation.partialLiquidationIsValid(
+                liquidatedBaseChange,
+                liquidatedQuoteChange,
+                balanceToBeLiquidated,
+                liquidationGasCost,
+                price
+            );
     }
 }

@@ -277,18 +277,14 @@ describe("Unit tests: LibLiquidation.sol", function () {
                 liquidatedQuote,
                 amount
             )
-            expect(ret._liquidatorQuoteChange).to.equal(
-                expectedQuoteChange
-            )
+            expect(ret._liquidatorQuoteChange).to.equal(expectedQuoteChange)
             expect(ret._liquidatorBaseChange).to.equal(
                 expectedBaseChange.mul(BigNumber.from("-1"))
             )
             expect(ret._liquidateeQuoteChange).to.equal(
                 expectedQuoteChange.mul(BigNumber.from("-1"))
             )
-            expect(ret._liquidateeBaseChange).to.equal(
-                expectedBaseChange
-            )
+            expect(ret._liquidateeBaseChange).to.equal(expectedBaseChange)
         })
     })
 
@@ -407,38 +403,42 @@ describe("Unit tests: LibLiquidation.sol", function () {
     })
 
     context("partialLiquidationIsValid", async () => {
-        context("when price is 0, quote is 0, but position is low", async () => {
-            it("returns true, since margin = 0", async () => {
-                const liquidatedBaseChange = 1;
-                const liquidatedQuoteChange = 0;
-                const liquidatedBase = 145;
-                const liquidatedQuote = 0;
-                const lastUpdatedGasCost = 100;
-                const liquidationGasCost = 123;
-                const price = 0;
-                const valid = await libLiquidation.partialLiquidationIsValid(
-                    liquidatedBaseChange,
-                    liquidatedQuoteChange,
-                    liquidatedBase,
-                    liquidatedQuote,
-                    lastUpdatedGasCost,
-                    liquidationGasCost,
-                    price
-                )
+        context(
+            "when price is 0, quote is 0, but position is low",
+            async () => {
+                it("returns true, since margin = 0", async () => {
+                    const liquidatedBaseChange = 1
+                    const liquidatedQuoteChange = 0
+                    const liquidatedBase = 145
+                    const liquidatedQuote = 0
+                    const lastUpdatedGasCost = 100
+                    const liquidationGasCost = 123
+                    const price = 0
+                    const valid =
+                        await libLiquidation.partialLiquidationIsValid(
+                            liquidatedBaseChange,
+                            liquidatedQuoteChange,
+                            liquidatedBase,
+                            liquidatedQuote,
+                            lastUpdatedGasCost,
+                            liquidationGasCost,
+                            price
+                        )
 
-                expect(valid).to.equal(true)
-            })
-        })
+                    expect(valid).to.equal(true)
+                })
+            }
+        )
 
         context("liquidationGasCost is 0, and margin is negative", async () => {
             it("returns false", async () => {
-                const liquidatedBaseChange = ethers.utils.parseEther("1");
-                const liquidatedQuoteChange = ethers.utils.parseEther("0");
-                const liquidatedBase = ethers.utils.parseEther("-145");
-                const liquidatedQuote = ethers.utils.parseEther("0");
-                const lastUpdatedGasCost = ethers.utils.parseEther("100");
-                const liquidationGasCost = ethers.utils.parseEther("0");
-                const price = ethers.utils.parseEther("1");
+                const liquidatedBaseChange = ethers.utils.parseEther("1")
+                const liquidatedQuoteChange = ethers.utils.parseEther("0")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("0")
+                const lastUpdatedGasCost = ethers.utils.parseEther("100")
+                const liquidationGasCost = ethers.utils.parseEther("0")
+                const price = ethers.utils.parseEther("1")
 
                 const valid = await libLiquidation.partialLiquidationIsValid(
                     liquidatedBaseChange, // 1
@@ -456,13 +456,13 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         context("margin is below minimum amount leftover", async () => {
             it("Returns false", async () => {
-                const liquidatedBaseChange = ethers.utils.parseEther("-1");
-                const liquidatedQuoteChange = ethers.utils.parseEther("3");
-                const liquidatedBase = ethers.utils.parseEther("-145");
-                const liquidatedQuote = ethers.utils.parseEther("146");
-                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003");
-                const liquidationGasCost = ethers.utils.parseEther("63516");
-                const price = ethers.utils.parseEther("1");
+                const liquidatedBaseChange = ethers.utils.parseEther("-1")
+                const liquidatedQuoteChange = ethers.utils.parseEther("3")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("146")
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
 
                 const valid = await libLiquidation.partialLiquidationIsValid(
                     liquidatedBaseChange, // 1
@@ -475,19 +475,18 @@ describe("Unit tests: LibLiquidation.sol", function () {
                 )
 
                 expect(valid).to.equal(false)
-
             })
         })
 
         context("normal case (above leftover minimum)", async () => {
             it("returns true", async () => {
-                const liquidatedBaseChange = ethers.utils.parseEther("145");
-                const liquidatedQuoteChange = ethers.utils.parseEther("191");
-                const liquidatedBase = ethers.utils.parseEther("-145");
-                const liquidatedQuote = ethers.utils.parseEther("0");
-                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003");
-                const liquidationGasCost = ethers.utils.parseEther("63516");
-                const price = ethers.utils.parseEther("1");
+                const liquidatedBaseChange = ethers.utils.parseEther("145")
+                const liquidatedQuoteChange = ethers.utils.parseEther("191")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("0")
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
 
                 const valid = await libLiquidation.partialLiquidationIsValid(
                     liquidatedBaseChange, // 145
@@ -505,13 +504,13 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         context("normal case (below leftover minimum)", async () => {
             it("returns false", async () => {
-                const liquidatedBaseChange = ethers.utils.parseEther("145");
-                const liquidatedQuoteChange = ethers.utils.parseEther("190.4");
-                const liquidatedBase = ethers.utils.parseEther("-145");
-                const liquidatedQuote = ethers.utils.parseEther("0");
-                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003");
-                const liquidationGasCost = ethers.utils.parseEther("63516");
-                const price = ethers.utils.parseEther("1");
+                const liquidatedBaseChange = ethers.utils.parseEther("145")
+                const liquidatedQuoteChange = ethers.utils.parseEther("190.4")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("0")
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
 
                 const valid = await libLiquidation.partialLiquidationIsValid(
                     liquidatedBaseChange,
@@ -529,13 +528,13 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         context("when margin == 0", async () => {
             it("Returns true", async () => {
-                const liquidatedBaseChange = ethers.utils.parseEther("1");
-                const liquidatedQuoteChange = ethers.utils.parseEther("142");
-                const liquidatedBase = ethers.utils.parseEther("-145");
-                const liquidatedQuote = ethers.utils.parseEther("2");
-                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003");
-                const liquidationGasCost = ethers.utils.parseEther("63516");
-                const price = ethers.utils.parseEther("1");
+                const liquidatedBaseChange = ethers.utils.parseEther("1")
+                const liquidatedQuoteChange = ethers.utils.parseEther("142")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("2")
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
 
                 const valid = await libLiquidation.partialLiquidationIsValid(
                     liquidatedBaseChange,

@@ -35,9 +35,12 @@ library LibLiquidation {
         int256 amount,
         int256 totalBase
     ) internal pure returns (uint256) {
-        int256 amountToEscrow =
-            currentMargin - (minMargin.toInt256() - currentMargin);
-        int256 amountToEscrowProportional = PRBMathSD59x18.mul(amountToEscrow, PRBMathSD59x18.div(amount, totalBase));
+        int256 amountToEscrow = currentMargin -
+            (minMargin.toInt256() - currentMargin);
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(
+            amountToEscrow,
+            PRBMathSD59x18.div(amount, totalBase)
+        );
         if (amountToEscrowProportional < 0) {
             return 0;
         }
@@ -70,11 +73,10 @@ library LibLiquidation {
             return (0, 0, 0, 0);
         }
 
-        int256 portionOfQuote =
-            PRBMathSD59x18.mul(
-                liquidatedQuote,
-                PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
-            );
+        int256 portionOfQuote = PRBMathSD59x18.mul(
+            liquidatedQuote,
+            PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
+        );
 
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
         if (liquidatedBase < 0) {
@@ -116,8 +118,10 @@ library LibLiquidation {
         } else {
             // Liquidator took a long position, and price dropped
             uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
-            uint256 amountExpectedFor =
-                PRBMathUD60x18.mul(receipt.price, unitsSold);
+            uint256 amountExpectedFor = PRBMathUD60x18.mul(
+                receipt.price,
+                unitsSold
+            );
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
@@ -158,13 +162,14 @@ library LibLiquidation {
         uint256 liquidationGasCost,
         uint256 price
     ) internal pure returns (bool) {
-        uint256 minimumLeftoverMargin =
-            PRBMathUD60x18.mul(balanceToBeLiquidated.lastUpdatedGasPrice,liquidationGasCost) * 10;
-        Balances.Position memory updatedPosition =
-            Balances.Position(
-                balanceToBeLiquidated.position.quote + liquidatedQuoteChange,
-                balanceToBeLiquidated.position.base + liquidatedBaseChange
-            );
+        uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(
+            balanceToBeLiquidated.lastUpdatedGasPrice,
+            liquidationGasCost
+        ) * 10;
+        Balances.Position memory updatedPosition = Balances.Position(
+            balanceToBeLiquidated.position.quote + liquidatedQuoteChange,
+            balanceToBeLiquidated.position.base + liquidatedBaseChange
+        );
         int256 margin = Balances.margin(updatedPosition, price);
         return margin >= minimumLeftoverMargin.toInt256() || margin == 0;
     }
