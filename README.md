@@ -37,7 +37,7 @@ To run deploys to a live network
 ```
 yarn hardhat deploy --network NETWORK --tags LiveDeploy
 ```
-This will run the LiveDeployment script which is made to deploy to a real network. If there is any issues with verification, you may run
+This will run the `LiveDeployment` script which is made to deploy to a real network. If there are any issues with verification, you may run
 ```
 yarn hardhat deploy --network NETWORK --tags LiveVerify
 ```
