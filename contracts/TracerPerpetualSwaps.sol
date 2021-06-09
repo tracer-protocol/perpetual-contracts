@@ -286,7 +286,7 @@ contract TracerPerpetualSwaps is
             // add 2 * fees since getFeeRate returns the fee rate for a single
             // side of the order. Both users were charged fees
             uint256(
-                Balances.getFeeRate(fillAmount, executionPrice, feeRate) * 2
+                Balances.getFee(fillAmount, executionPrice, feeRate) * 2
             );
 
         // update leverage

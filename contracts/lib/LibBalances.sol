@@ -135,7 +135,7 @@ library Balances {
         int256 signedAmount = LibMath.toInt256(trade.amount);
         int256 signedPrice = LibMath.toInt256(trade.price);
         int256 quoteChange = PRBMathSD59x18.mul(signedAmount, signedPrice);
-        int256 fee = getFeeRate(trade.amount, trade.price, feeRate);
+        int256 fee = getFee(trade.amount, trade.price, feeRate);
 
         int256 newQuote = 0;
         int256 newBase = 0;
@@ -153,7 +153,7 @@ library Balances {
         return newPosition;
     }
 
-    function getFeeRate(
+    function getFee(
         uint256 amount,
         uint256 executionPrice,
         uint256 feeRate
