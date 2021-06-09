@@ -14,7 +14,7 @@ const setup = deployments.createFixture(async () => {
     const { deployer } = await getNamedAccounts()
 
     // deploy contracts
-    await deployments.fixture(["FullDeploy"])
+    await deployments.fixture(["FullDeployTest"])
     let Factory = await deployments.get("TracerPerpetualsFactory")
     let factory = await ethers.getContractAt(Factory.abi, Factory.address)
     let tracerAddress = await factory.tracersByIndex(0)
