@@ -186,14 +186,14 @@ library Prices {
         FundingRateInstant memory globalRate,
         FundingRateInstant memory userRate
     ) internal pure returns (Balances.Position memory) {
-        // quote after funding rate applied = quote - 
+        // quote after funding rate applied = quote -
         //        (cumulativeGlobalFundingRate - cumulativeUserFundingRate) * base
         return
             Balances.Position(
                 position.quote -
                     PRBMathSD59x18.mul(
-                        globalRate.cumulativeFundingRate
-                                - userRate.cumulativeFundingRate,
+                        globalRate.cumulativeFundingRate -
+                            userRate.cumulativeFundingRate,
                         position.base
                     ),
                 position.base

@@ -181,8 +181,9 @@ contract TracerPerpetualSwaps is
     function withdraw(uint256 amount) external override {
         uint256 rawTokenAmount =
             Balances.wadToToken(quoteTokenDecimals, amount);
-        int256 convertedWadAmount = Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
-        
+        int256 convertedWadAmount =
+            Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
+
         Balances.Account storage userBalance = balances[msg.sender];
         int256 newQuote = userBalance.position.quote - convertedWadAmount;
 
@@ -204,7 +205,7 @@ contract TracerPerpetualSwaps is
 
         // perform transfer
         IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount);
-        emit Withdraw(msg.sender, uint(convertedWadAmount));
+        emit Withdraw(msg.sender, uint256(convertedWadAmount));
     }
 
     /**
@@ -324,7 +325,10 @@ contract TracerPerpetualSwaps is
         Balances.Account memory userBalance = balances[account];
         uint256 originalLeverage = userBalance.totalLeveragedValue;
         uint256 newLeverage =
-            Balances.leveragedNotionalValue(userBalance.position, pricingContract.fairPrice());
+            Balances.leveragedNotionalValue(
+                userBalance.position,
+                pricingContract.fairPrice()
+            );
         balances[account].totalLeveragedValue = newLeverage;
 
         // Update market leveraged notional value

@@ -178,9 +178,7 @@ contract Pricing is IPricing, Ownable {
         // Create variable with value of new funding rate value
         int256 currentFundingRateValue =
             fundingRates[fundingIndex].cumulativeFundingRate;
-        int256 cumulativeFundingRate =
-            currentFundingRateValue +
-                newFundingRate;
+        int256 cumulativeFundingRate = currentFundingRateValue + newFundingRate;
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue =
