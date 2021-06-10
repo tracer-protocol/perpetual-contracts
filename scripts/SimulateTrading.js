@@ -8,7 +8,7 @@ async function main() {
     const [deployer, ...accounts] = await ethers.getSigners()
 
     // deploy all contracts
-    await deployments.fixture(["FullDeploy"])
+    await deployments.fixture(["FullDeployTest"])
 
     let tracer = await deployments.read(
         "TracerPerpetualsFactory",
@@ -39,7 +39,7 @@ async function main() {
             tracer,
             ethers.utils.parseEther("10000")
         )
-        await tracerInstance.deposit(ethers.utils.parseEther("10000"))
+        await tracerInstance.deposit(ethers.utils.parseEther("1000"))
     }
 
     // attach the deployer
@@ -98,7 +98,7 @@ async function main() {
         ]
 
         console.log("Matching orders")
-        await tracerInstance.matchOrders(makerOrder, takerOrder, amount)
+        await tracerInstance.matchOrders(makerOrder, takerOrder)
         console.log("Successfully matched orders")
         let newPrice = price
             .add(Math.random() > 0.5 ? smallAmount : smallAmount.mul(-1))
@@ -112,10 +112,6 @@ async function main() {
             newPrice
         )
     }
-
-    let factory = await deployments.get("TracerPerpetualsFactory")
-    console.log(`Factory: ${factory.address}`)
-    console.log(`Traded on tracer: ${tracer}`)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

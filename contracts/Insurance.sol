@@ -13,7 +13,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
-import "hardhat/console.sol";
 
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using LibMath for uint256;
@@ -41,8 +40,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     constructor(address _tracer) Ownable() {
         tracer = ITracerPerpetualSwaps(_tracer);
-        InsurancePoolToken _token =
-            new InsurancePoolToken("Tracer Pool Token", "TPT");
+        InsurancePoolToken _token = new InsurancePoolToken(
+            "Tracer Pool Token",
+            "TPT"
+        );
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
 
@@ -58,13 +59,16 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 collateralToken = IERC20(collateralAsset);
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
-        uint256 rawTokenAmount =
-            Balances.wadToToken(quoteTokenDecimals, amount);
+        uint256 rawTokenAmount = Balances.wadToToken(
+            quoteTokenDecimals,
+            amount
+        );
         collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
 
         // amount in wad format after being converted from token format
-        uint256 wadAmount =
-            uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
+        uint256 wadAmount = uint256(
+            Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount)
+        );
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -105,8 +109,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             );
 
         // convert token amount to raw amount from WAD
-        uint256 rawTokenAmount =
-            Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
+        uint256 rawTokenAmount = Balances.wadToToken(
+            tracer.quoteTokenDecimals(),
+            wadTokensToSend
+        );
 
         // pool amount is always in WAD format
         publicCollateralAmount = publicCollateralAmount - wadTokensToSend;

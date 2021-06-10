@@ -97,23 +97,23 @@ contract Trader is ITrader {
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
             uint256 takeRemaining = takeOrder.amount - takeOrderFilled;
             // fill amount is the minimum of order 1 and order 2
-            uint256 fillAmount =
-                makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
+            uint256 fillAmount = makeRemaining > takeRemaining
+                ? takeRemaining
+                : makeRemaining;
 
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
             // todo this could be succeptible to re-entrancy as
             // market is never verified
-            (bool success, ) =
-                makeOrder.market.call(
-                    abi.encodePacked(
-                        ITracerPerpetualSwaps(makeOrder.market)
-                            .matchOrders
-                            .selector,
-                        abi.encode(makeOrder, takeOrder, fillAmount)
-                    )
-                );
+            (bool success, ) = makeOrder.market.call(
+                abi.encodePacked(
+                    ITracerPerpetualSwaps(makeOrder.market)
+                    .matchOrders
+                    .selector,
+                    abi.encode(makeOrder, takeOrder, fillAmount)
+                )
+            );
 
             // ignore orders that cannot be executed
             if (!success) continue;
@@ -251,6 +251,7 @@ contract Trader is ITrader {
         override
         returns (Perpetuals.Order memory)
     {
-        return orders[Perpetuals.orderId(order)];
+        bytes32 orderId = Perpetuals.orderId(order);
+        return orders[orderId];
     }
 }

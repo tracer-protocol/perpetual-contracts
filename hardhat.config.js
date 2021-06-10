@@ -6,6 +6,7 @@ require("hardhat-prettier")
 require("hardhat-abi-exporter")
 require("hardhat-typechain")
 require("@nomiclabs/hardhat-etherscan")
+require("solidity-coverage")
 
 const mnemonic = ""
 
@@ -16,6 +17,11 @@ module.exports = {
             optimizer: {
                 enabled: true,
                 runs: 1000,
+            },
+            outputSelection: {
+                "*": {
+                    "*": ["storageLayout"],
+                },
             },
         },
     },
@@ -30,7 +36,7 @@ module.exports = {
         },
         kovan: {
             url: "KOVAN_URL",
-            gasPrice: 5000000000, //5 gwei
+            gasPrice: 3000000000, //3 gwei
             accounts: { mnemonic: mnemonic },
         },
         local: {

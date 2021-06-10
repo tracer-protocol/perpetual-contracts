@@ -64,8 +64,12 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address oracle,
         uint256 maxLiquidationSlippage
     ) external onlyOwner() {
-        address tracer =
-            _deployTracer(_data, owner(), oracle, maxLiquidationSlippage);
+        address tracer = _deployTracer(
+            _data,
+            owner(),
+            oracle,
+            maxLiquidationSlippage
+        );
         // DAO deployed markets are automatically approved
         setApproved(address(tracer), true);
     }
@@ -88,17 +92,20 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         tracerCounter++;
 
         // Instantiate Insurance contract for tracer
-        address insurance =
-            IInsuranceDeployer(insuranceDeployer).deploy(market);
-        address pricing =
-            IPricingDeployer(pricingDeployer).deploy(market, insurance, oracle);
-        address liquidation =
-            ILiquidationDeployer(liquidationDeployer).deploy(
-                pricing,
-                market,
-                insurance,
-                maxLiquidationSlippage
-            );
+        address insurance = IInsuranceDeployer(insuranceDeployer).deploy(
+            market
+        );
+        address pricing = IPricingDeployer(pricingDeployer).deploy(
+            market,
+            insurance,
+            oracle
+        );
+        address liquidation = ILiquidationDeployer(liquidationDeployer).deploy(
+            pricing,
+            market,
+            insurance,
+            maxLiquidationSlippage
+        );
 
         // Perform admin operations on the tracer to finalise linking
         tracer.setInsuranceContract(insurance);

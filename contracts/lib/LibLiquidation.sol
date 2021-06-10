@@ -30,8 +30,8 @@ library LibLiquidation {
         uint256 minMargin, //10^18
         int256 currentMargin //10^18
     ) internal pure returns (uint256) {
-        int256 amountToEscrow =
-            currentMargin - (minMargin.toInt256() - currentMargin);
+        int256 amountToEscrow = currentMargin -
+            (minMargin.toInt256() - currentMargin);
         if (amountToEscrow < 0) {
             return 0;
         }
@@ -63,11 +63,10 @@ library LibLiquidation {
         if (liquidatedBase == 0) {
             return (0, 0, 0, 0);
         }
-        int256 portionOfQuote =
-            PRBMathSD59x18.mul(
-                liquidatedQuote,
-                PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
-            );
+        int256 portionOfQuote = PRBMathSD59x18.mul(
+            liquidatedQuote,
+            PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
+        );
 
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
         _liquidatorQuoteChange = portionOfQuote;
@@ -103,8 +102,10 @@ library LibLiquidation {
         } else {
             // Liquidator took a long position, and price dropped
             uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
-            uint256 amountExpectedFor =
-                PRBMathUD60x18.mul(receipt.price, unitsSold);
+            uint256 amountExpectedFor = PRBMathUD60x18.mul(
+                receipt.price,
+                unitsSold
+            );
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
