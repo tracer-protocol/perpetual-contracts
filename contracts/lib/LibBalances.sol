@@ -106,8 +106,8 @@ library Balances {
 
     /**
      * @notice Calculates the minimum margin needed for an account.
-     * Calculated as minMargin = netValue / maxLev + liquidationGasCost
-     *                         = (base * price) / maxLev + liquidationGasCost
+     * Calculated as minMargin = notionalValue / maxLev + 6 * liquidationGasCost
+     *                         = (base * price) / maxLev + 6 * liquidationGasCost
      * @param position Position to calculate the minimum margin for
      * @param price Price by which to evaluate the minimum margin
      * @param liquidationGasCost Cost for liquidation denominated in quote tokens
