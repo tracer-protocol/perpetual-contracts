@@ -189,8 +189,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
                 amount =
-                    bufferCollateralAmount +
-                    publicCollateralAmount -
+                    poolHoldings -
                     10**18;
                 publicCollateralAmount = 10**18;
             } else {
