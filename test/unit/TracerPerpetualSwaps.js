@@ -15,7 +15,7 @@ const setup = deployments.createFixture(async () => {
     const { deployer } = await getNamedAccounts()
 
     // deploy contracts
-    await deployments.fixture(["FullDeploy"])
+    await deployments.fixture(["FullDeployTest"])
     let Factory = await deployments.get("TracerPerpetualsFactory")
     let factory = await ethers.getContractAt(Factory.abi, Factory.address)
     let tracerAddress = await factory.tracersByIndex(0)
@@ -199,7 +199,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("when the orders can't match", async () => {
-            it("reverts", async () => {
+            it("emit a FailedOrders event", async () => {
                 let order1 = [
                     deployer,
                     tracer.address,
@@ -213,16 +213,23 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let order2 = [
                     deployer,
                     tracer.address,
-                    ethers.utils.parseEther("3"),
+                    ethers.utils.parseEther("1"),
                     ethers.utils.parseEther("1"),
                     0,
                     3621988237, //unrealistic unix timestamp
                     1621988237,
                 ]
 
-                await expect(
-                    tracer.matchOrders(order1, order2)
-                ).to.be.revertedWith("TCR: Orders cannot be matched")
+                // will return false and not update state
+                let balanceBefore = await tracer.balances(deployer)
+                await expect(tracer.matchOrders(order1, order2)).to.emit(
+                    tracer,
+                    "FailedOrders"
+                )
+                let balanceAfter = await tracer.balances(deployer)
+                expect(balanceBefore.toString()).to.equal(
+                    balanceAfter.toString()
+                )
             })
         })
 
@@ -238,7 +245,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("when the users don't have enough margin", async () => {
-            it("reverts", async () => {
+            it("emits a FailedOrders event", async () => {
                 let order1 = [
                     deployer,
                     tracer.address,
@@ -259,9 +266,15 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     1621988237,
                 ]
 
-                await expect(
-                    tracer.matchOrders(order1, order2)
-                ).to.be.revertedWith("TCR: Margin Invalid post trade")
+                let balanceBefore = await tracer.balances(deployer)
+                await expect(tracer.matchOrders(order1, order2)).to.emit(
+                    tracer,
+                    "FailedOrders"
+                )
+                let balanceAfter = await tracer.balances(deployer)
+                expect(balanceBefore.toString()).to.equal(
+                    balanceAfter.toString()
+                )
             })
         })
     })
@@ -287,7 +300,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     describe("updateAccountsOnClaim", async () => {
         context("when not called by liquidation", async () => {
             it("reverts", async () => {
-                await expect(tracer.updateAccountsOnClaim())
+                let one = ethers.utils.parseEther("1")
+                await expect(
+                    tracer.updateAccountsOnClaim(
+                        deployer,
+                        one,
+                        deployer,
+                        one,
+                        one
+                    )
+                ).to.be.revertedWith("TCR: Sender not liquidation contract")
             })
         })
 
@@ -317,7 +339,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 expect(balanceAfter.toString()).to.equal(
                     balanceBefore.toString()
                 )
-                // expect(pricing.smocked.currentFundingIndex.calls.length).to.equal(1)
             })
         })
 
@@ -383,26 +404,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await tracer.connect(accounts[0]).matchOrders(order1, order2)
             })
 
-            it.only("pays the funding rate", async () => {
-                let one, two, three
-                ;[one, two, three] = await pricing.getFundingRate(
-                    ethers.utils.parseEther("1")
-                )
-
-                console.log("timestamp: ", one.toString())
-                console.log("fundingRate: ", two.toString())
-                console.log("cumulativeFundingRate: ", three.toString())
-                console.log(
-                    "gas Oracle: ",
-                    (await tracer.gasPriceOracle()).toString()
-                )
+            it("pays the funding rate", async () => {
+                let timestamp, fundingRate, fundingRateValue
+                ;[timestamp, fundingRate, fundingRateValue] =
+                    await pricing.getFundingRate(0)
 
                 await tracer.settle(accounts[0].address)
-                //     .to.emit(tracer, "Settled")
-                //     .withArgs(deployer, ethers.utils.parseEther("1"))
-
-                // console.log("Quote after settlement: ", (await tracer.getBalance(deployer)).position.quote.toString())
-                // expect(await tracer.getBalance(deployer).position.quote).to.equal(ethers.utils.parseEther("0.25"))
             })
 
             it("pays the insurance funding rate", async () => {})

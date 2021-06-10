@@ -105,9 +105,8 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        int256 newGlobalLeverage =
-            int256(_globalLeverage) +
-                (int256(newLeverage) - int256(oldLeverage));
+        int256 newGlobalLeverage = int256(_globalLeverage) +
+            (int256(newLeverage) - int256(oldLeverage));
 
         // note: this would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
@@ -167,6 +166,16 @@ library Prices {
             }
         }
 
+        // If totalUnderlyingTimeWeight or totalDerivativeTimeWeight is 0, there were no trades in
+        // the last 8 hours and zero should be returned as the TWAP (also prevents division by zero)
+        if (totalUnderlyingTimeWeight == 0 && totalDerivativeTimeWeight == 0) {
+            return TWAP(0, 0);
+        } else if (totalUnderlyingTimeWeight == 0) {
+            return TWAP(0, cumulativeDerivative / totalDerivativeTimeWeight);
+        } else if (totalDerivativeTimeWeight == 0) {
+            return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, 0);
+        }
+
         return
             TWAP(
                 cumulativeUnderlying / totalUnderlyingTimeWeight,
@@ -211,24 +220,21 @@ library Prices {
         pure
         returns (Balances.Position memory, Balances.Position memory)
     {
-        int256 insuranceDelta =
-            PRBMathSD59x18.mul(
-                globalRate.fundingRate - userRate.fundingRate,
-                int256(totalLeveragedValue)
-            );
+        int256 insuranceDelta = PRBMathSD59x18.mul(
+            globalRate.fundingRate - userRate.fundingRate,
+            int256(totalLeveragedValue)
+        );
 
         if (insuranceDelta > 0) {
-            Balances.Position memory newUserPos =
-                Balances.Position(
-                    userPosition.quote - insuranceDelta,
-                    userPosition.base
-                );
+            Balances.Position memory newUserPos = Balances.Position(
+                userPosition.quote - insuranceDelta,
+                userPosition.base
+            );
 
-            Balances.Position memory newInsurancePos =
-                Balances.Position(
-                    insurancePosition.quote + insuranceDelta,
-                    insurancePosition.base
-                );
+            Balances.Position memory newInsurancePos = Balances.Position(
+                insurancePosition.quote + insuranceDelta,
+                insurancePosition.base
+            );
 
             return (newUserPos, newInsurancePos);
         } else {
