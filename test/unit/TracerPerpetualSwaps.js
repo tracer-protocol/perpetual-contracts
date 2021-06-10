@@ -233,6 +233,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             })
         })
 
+        // todo should these just be functional tests
         context("when the orders can match", async () => {
             beforeEach(async () => {})
             it("settles the accounts", async () => {})
@@ -280,20 +281,76 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     })
 
     describe("updateAccountsOnLiquidation", async () => {
-        context("when called with more than fast gas", async () => {
-            it("reverts", async () => {})
-        })
-
         context("when not called by liquidation", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                await expect(
+                    tracer.updateAccountsOnLiquidation(
+                        accounts[0].address,
+                        accounts[1].address,
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1")
+                    )
+                ).to.be.revertedWith("TCR: Sender not liquidation")
+            })
         })
 
         context("when the liquidators margin isn't valid", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                await tracer.setLiquidationContract(accounts[0].address)
+                await expect(
+                    tracer.updateAccountsOnLiquidation(
+                        accounts[0].address,
+                        accounts[1].address,
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1")
+                    )
+                ).to.be.revertedWith("TCR: Liquidator under margin")
+            })
         })
 
         context("when called with valid accounts", async () => {
-            it("liquidates the account appropriately", async () => {})
+            it("liquidates the account appropriately", async () => {
+                await tracer.setLiquidationContract(accounts[0].address)
+                await quoteToken
+                    .connect(accounts[0])
+                    .approve(tracer.address, ethers.utils.parseEther("500"))
+                await tracer
+                    .connect(accounts[0])
+                    .deposit(ethers.utils.parseEther("500"))
+                let balanceBeforeLiquidator = await tracer.balances(accounts[0].address)
+                let balanceBeforeLiquidatee = await tracer.balances(accounts[1].address)
+                await
+                    tracer.updateAccountsOnLiquidation(
+                        accounts[0].address,
+                        accounts[1].address,
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("-1"),
+                        ethers.utils.parseEther("-1"),
+                        ethers.utils.parseEther("0.5")
+                    )
+                let balanceAfterLiquidator = await tracer.balances(accounts[0].address)
+                let balanceAfterLiquidatee = await tracer.balances(accounts[1].address)
+
+                // quote: gained 1 but escorwed 0.5 for net 0.5 gain
+                expect(balanceAfterLiquidator.position.quote.sub(balanceBeforeLiquidator.position.quote)).to.equal(ethers.utils.parseEther("0.5"))
+
+                // quote: lost 1
+                expect(balanceAfterLiquidatee.position.quote.sub(balanceBeforeLiquidatee.position.quote)).to.equal(ethers.utils.parseEther("-1"))
+                
+                // base: gained 1
+                expect(balanceAfterLiquidator.position.base.sub(balanceBeforeLiquidator.position.base)).to.equal(ethers.utils.parseEther("1"))
+
+                // base: lost 1
+                expect(balanceAfterLiquidatee.position.base.sub(balanceBeforeLiquidatee.position.base)).to.equal(ethers.utils.parseEther("-1"))
+                
+            })
         })
     })
 
@@ -436,10 +493,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 ]
                 pricing.smocked.fairPrice.will.return.with(
                     ethers.utils.parseEther("2")
-                )
-                console.log(
-                    "Fairprice: ",
-                    (await pricing.fairPrice()).toString()
                 )
                 let gasCost = ethers.BigNumber.from("0")
                 // margin = quote + base * price = 3 + 2 * 2 = 7
@@ -623,22 +676,80 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
     describe("withdrawFees", async () => {
         context("when called by the fee receiver", async () => {
+            beforeEach(async () => {
+                // make some trades and get some fees
+                //1% fee
+                await tracer.setFeeRate(ethers.utils.parseEther("0.01"))
+
+                for (var i = 0; i < 2; i++) {
+                    await quoteToken
+                        .connect(accounts[i + 1])
+                        .approve(tracer.address, ethers.utils.parseEther("500"))
+                    await tracer
+                        .connect(accounts[i + 1])
+                        .deposit(ethers.utils.parseEther("500"))
+                }
+
+                now = Math.floor(new Date().getTime() / 1000)
+
+                // make some basic trades
+                let order1 = {
+                    maker: accounts[1].address,
+                    market: tracer.address,
+                    price: ethers.utils.parseEther("1"),
+                    amount: ethers.utils.parseEther("100"),
+                    side: 0, // long,
+                    expires: now + 604800, // now + 7 days
+                    created: now - 1,
+                }
+
+                let order2 = {
+                    maker: accounts[2].address,
+                    market: tracer.address,
+                    price: ethers.utils.parseEther("1"),
+                    amount: ethers.utils.parseEther("100"),
+                    side: 1, // short,
+                    expires: now + 604800, // now + 7 days
+                    created: now,
+                }
+
+                await tracer.connect(accounts[0]).matchOrders(order1, order2)
+            })
             it("withdraws the fees", async () => {
-                // tracer.setFeeRate(ethers.utils.parseEther("0.5"))
+                let feeReceiver = await tracer.feeReceiver()
+                let balanceBefore = await quoteToken.balanceOf(feeReceiver)
+                await tracer.connect(accounts[0]).withdrawFees()
+                let balanceAfter = await quoteToken.balanceOf(feeReceiver)
+                // 2 quote tokens received as fees (1% of 100 * 2)
+                expect(balanceAfter.sub(balanceBefore)).to.equal(
+                    ethers.utils.parseEther("2")
+                )
             })
 
-            it("resets fees to 0", async () => {})
+            it("resets fees to 0", async () => {
+                let feesBefore = await tracer.fees()
+                await tracer.connect(accounts[0]).withdrawFees()
+                let feesAfter = await tracer.fees()
+                expect(feesAfter).to.equal(0)
+                expect(feesBefore.sub(feesAfter)).to.equal(
+                    ethers.utils.parseEther("2")
+                )
+            })
 
-            it("emits a FeeWithdrawn event", () => {})
+            it("emits a FeeWithdrawn event", async () => {
+                let feeReceiver = await tracer.feeReceiver()
+                await expect(tracer.withdrawFees())
+                    .to.emit(tracer, "FeeWithdrawn")
+                    .withArgs(feeReceiver, ethers.utils.parseEther("2"))
+            })
 
-            it("subtracts fees from the tvl of the market", () => {})
-        })
-
-        context("when called by someone who isn't the owner", async () => {
-            it("reverts", async () => {
-                await expect(
-                    tracer.connect(accounts[1]).withdrawFees()
-                ).to.be.revertedWith("Only feeReceiver can withdraw fees")
+            it("subtracts fees from the tvl of the market", async () => {
+                let tvlBefore = await tracer.tvl()
+                await tracer.connect(accounts[0]).withdrawFees()
+                let tvlAfter = await tracer.tvl()
+                expect(tvlBefore.sub(tvlAfter)).to.equal(
+                    ethers.utils.parseEther("2")
+                )
             })
         })
     })

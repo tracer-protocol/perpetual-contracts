@@ -428,7 +428,7 @@ contract TracerPerpetualSwaps is
             liquidateeBaseChange;
 
         // Checks if the liquidator is in a valid position to process the liquidation
-        require(userMarginIsValid(liquidator), "TCR: Taker undermargin");
+        require(userMarginIsValid(liquidator), "TCR: Liquidator under margin");
     }
 
     function updateAccountsOnClaim(
@@ -581,11 +581,6 @@ contract TracerPerpetualSwaps is
     }
 
     function withdrawFees() public override {
-        require(
-            feeReceiver == msg.sender,
-            "Only feeReceiver can withdraw fees"
-        );
-
         uint256 tempFees = fees;
         tvl = tvl - fees;
         fees = 0;
@@ -693,7 +688,7 @@ contract TracerPerpetualSwaps is
     modifier onlyLiquidation() {
         require(
             msg.sender == liquidationContract,
-            "TCR: Sender not liquidation contract "
+            "TCR: Sender not liquidation"
         );
         _;
     }
