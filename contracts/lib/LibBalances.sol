@@ -189,12 +189,9 @@ library Balances {
         uint256 executionPrice,
         uint256 feeRate
     ) internal pure returns (int256) {
-        uint256 quoteChange = PRBMathUD60x18
-        .mul(amount, executionPrice);
+        uint256 quoteChange = PRBMathUD60x18.mul(amount, executionPrice);
 
-        int256 fee = PRBMathUD60x18
-        .mul(quoteChange, feeRate)
-        .toInt256();
+        int256 fee = PRBMathUD60x18.mul(quoteChange, feeRate).toInt256();
         return fee;
     }
 

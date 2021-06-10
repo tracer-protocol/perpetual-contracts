@@ -323,33 +323,55 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await tracer
                     .connect(accounts[0])
                     .deposit(ethers.utils.parseEther("500"))
-                let balanceBeforeLiquidator = await tracer.balances(accounts[0].address)
-                let balanceBeforeLiquidatee = await tracer.balances(accounts[1].address)
-                await
-                    tracer.updateAccountsOnLiquidation(
-                        accounts[0].address,
-                        accounts[1].address,
-                        ethers.utils.parseEther("1"),
-                        ethers.utils.parseEther("1"),
-                        ethers.utils.parseEther("-1"),
-                        ethers.utils.parseEther("-1"),
-                        ethers.utils.parseEther("0.5")
-                    )
-                let balanceAfterLiquidator = await tracer.balances(accounts[0].address)
-                let balanceAfterLiquidatee = await tracer.balances(accounts[1].address)
+                let balanceBeforeLiquidator = await tracer.balances(
+                    accounts[0].address
+                )
+                let balanceBeforeLiquidatee = await tracer.balances(
+                    accounts[1].address
+                )
+                await tracer.updateAccountsOnLiquidation(
+                    accounts[0].address,
+                    accounts[1].address,
+                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("-1"),
+                    ethers.utils.parseEther("-1"),
+                    ethers.utils.parseEther("0.5")
+                )
+                let balanceAfterLiquidator = await tracer.balances(
+                    accounts[0].address
+                )
+                let balanceAfterLiquidatee = await tracer.balances(
+                    accounts[1].address
+                )
 
                 // quote: gained 1 but escorwed 0.5 for net 0.5 gain
-                expect(balanceAfterLiquidator.position.quote.sub(balanceBeforeLiquidator.position.quote)).to.equal(ethers.utils.parseEther("0.5"))
+                expect(
+                    balanceAfterLiquidator.position.quote.sub(
+                        balanceBeforeLiquidator.position.quote
+                    )
+                ).to.equal(ethers.utils.parseEther("0.5"))
 
                 // quote: lost 1
-                expect(balanceAfterLiquidatee.position.quote.sub(balanceBeforeLiquidatee.position.quote)).to.equal(ethers.utils.parseEther("-1"))
-                
+                expect(
+                    balanceAfterLiquidatee.position.quote.sub(
+                        balanceBeforeLiquidatee.position.quote
+                    )
+                ).to.equal(ethers.utils.parseEther("-1"))
+
                 // base: gained 1
-                expect(balanceAfterLiquidator.position.base.sub(balanceBeforeLiquidator.position.base)).to.equal(ethers.utils.parseEther("1"))
+                expect(
+                    balanceAfterLiquidator.position.base.sub(
+                        balanceBeforeLiquidator.position.base
+                    )
+                ).to.equal(ethers.utils.parseEther("1"))
 
                 // base: lost 1
-                expect(balanceAfterLiquidatee.position.base.sub(balanceBeforeLiquidatee.position.base)).to.equal(ethers.utils.parseEther("-1"))
-                
+                expect(
+                    balanceAfterLiquidatee.position.base.sub(
+                        balanceBeforeLiquidatee.position.base
+                    )
+                ).to.equal(ethers.utils.parseEther("-1"))
             })
         })
     })
