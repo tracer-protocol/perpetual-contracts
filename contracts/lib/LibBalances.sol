@@ -40,6 +40,7 @@ library Balances {
      * @notice Calculates the net value of a position as base * price
      * @param position the position the account is currently in
      * @param price The (fair) price of the base asset
+     * @return Net value of a position given the price
      */
     function netValue(Position memory position, uint256 price)
         internal
@@ -56,8 +57,9 @@ library Balances {
 
     /**
      * @notice Calculates the margin as quote + base * base_price
-     * @param position the position the account is currently in
+     * @param position The position the account is currently in
      * @param price The price of the base asset
+     * @return Margin of the position
      */
     function margin(Position memory position, uint256 price)
         internal
@@ -108,10 +110,11 @@ library Balances {
      *                         = (base * price) / maxLev + liquidationGasCost
      * @param position Position to calculate the minimum margin for
      * @param price Price by which to evaluate the minimum margin
-     * @param liquidationCost Cost for liquidation
+     * @param liquidationGasCost Cost for liquidation
      * @param maximumLeverage (True) maximum leverage of a market.
      *   May be less than the set max leverage of the market because
      *   of deleveraging
+     * @return Minimum margin of the position given the parameters
      */
     function minimumMargin(
         Position memory position,
@@ -142,6 +145,7 @@ library Balances {
      * @param fillA Amount of the first order remaining to be filled
      * @param orderB Second order
      * @param fillB Amount of the second order remaining to be filled
+     * @return Amount matched between two orders
      */
     function fillAmount(
         Perpetuals.Order memory orderA,
