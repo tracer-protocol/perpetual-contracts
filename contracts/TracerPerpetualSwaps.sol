@@ -294,7 +294,7 @@ contract TracerPerpetualSwaps is
         // Update internal trade state
         pricingContract.recordTrade(
             executionPrice,
-            LibMath.min(order1.amount, order2.amount)
+            fillAmount
         );
 
         if (order1.side == Perpetuals.Side.Long) {
