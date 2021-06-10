@@ -460,13 +460,13 @@ describe("Unit tests: LibLiquidation.sol", function () {
                 const price = ethers.utils.parseEther("1")
 
                 const valid = await libLiquidation.partialLiquidationIsValid(
-                    liquidatedBaseChange, // 1
-                    liquidatedQuoteChange, // 0
-                    liquidatedBase, // -145
-                    liquidatedQuote, // 0
-                    lastUpdatedGasCost, // 100
-                    liquidationGasCost, // 0
-                    price // 1
+                    liquidatedBaseChange,
+                    liquidatedQuoteChange,
+                    liquidatedBase,
+                    liquidatedQuote,
+                    lastUpdatedGasCost,
+                    liquidationGasCost,
+                    price
                 )
 
                 expect(valid).to.equal(false)
