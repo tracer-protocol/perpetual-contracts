@@ -292,10 +292,7 @@ contract TracerPerpetualSwaps is
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        pricingContract.recordTrade(
-            executionPrice,
-            fillAmount
-        );
+        pricingContract.recordTrade(executionPrice, fillAmount);
 
         if (order1.side == Perpetuals.Side.Long) {
             emit MatchedOrders(
