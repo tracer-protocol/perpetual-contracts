@@ -8,27 +8,23 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 /**
- * @dev The following is a sample Gas Price Oracle Implementation for a Tracer Oracle.
- *      It references the Chainlink fast gas price and ETH/USD price to get a gas cost
- *      estimate in USD.
+ * @dev The following is a sample Gas Price Oracle Implementation for a Liquidation Oracle.
+ *      It references the Chainlink fast gas price and returns the fast price of gas in wei.
  */
 contract FastGasOracle is IOracle, Ownable {
     using LibMath for uint256;
-    IChainlinkOracle public gasOracle;
-    IChainlinkOracle public priceOracle;
-    uint8 public override decimals = 18;
-    uint256 private constant MAX_DECIMALS = 18;
+    IChainlinkOracle public fastGasOracle;
+    uint8 public override decimals = 0;
 
-    constructor(address _gasOracle) {
-        gasOracle = IChainlinkOracle(_gasOracle); /* Gas cost oracle */
+    constructor(address _fastGasOracle) {
+        fastGasOracle = IChainlinkOracle(_fastGasOracle); /* Gas cost oracle */
     }
 
     /**
-     * @notice Calculates the latest USD/Gas price
-     * @dev Returned value is USD/Gas * 10^18 for compatibility with rest of calculations
+     * @notice Calculates the latest fast gas price in wei
      */
     function latestAnswer() external view override returns (uint256) {
-        return toWad(uint256(gasOracle.latestAnswer()), gasOracle);
+        return gweiToWei(uint256(fastGasOracle.latestAnswer()));
     }
 
     /**
@@ -39,30 +35,7 @@ contract FastGasOracle is IOracle, Ownable {
         return _gwei / (10**9);
     }
 
-    /**
-     * @notice converts a raw value to a WAD value.
-     * @dev this allows consistency for oracles used throughout the protocol
-     *      and allows oracles to have their decimals changed withou affecting
-     *      the market itself
-     */
-    function toWad(uint256 raw, IChainlinkOracle _oracle)
-        internal
-        view
-        returns (uint256)
-    {
-        IChainlinkOracle oracle = IChainlinkOracle(_oracle);
-        // reset the scaler for consistency
-        uint8 _decimals = oracle.decimals(); // 9
-        require(_decimals <= MAX_DECIMALS, "GAS: too many decimals");
-        uint256 scaler = uint256(10**(MAX_DECIMALS - _decimals));
-        return raw * scaler;
-    }
-
     function setGasOracle(address _gasOracle) public onlyOwner {
-        gasOracle = IChainlinkOracle(_gasOracle);
-    }
-
-    function setDecimals(uint8 _decimals) external {
-        decimals = _decimals;
+        fastGasOracle = IChainlinkOracle(_gasOracle);
     }
 }
