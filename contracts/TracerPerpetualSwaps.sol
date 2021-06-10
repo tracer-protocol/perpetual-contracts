@@ -269,8 +269,8 @@ contract TracerPerpetualSwaps is
                 emit FailedOrders(
                     order2.maker,
                     order1.maker,
-                    order1Id,
-                    order2Id
+                    order2Id,
+                    order1Id
                 );
             }
             return false;
