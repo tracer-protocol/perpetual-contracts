@@ -36,7 +36,7 @@ module.exports = {
         },
         kovan: {
             url: "KOVAN_URL",
-            gasPrice: 5000000000, //5 gwei
+            gasPrice: 3000000000, //3 gwei
             accounts: { mnemonic: mnemonic },
         },
         local: {
