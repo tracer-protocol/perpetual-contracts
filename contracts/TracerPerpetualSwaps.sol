@@ -139,7 +139,7 @@ contract TracerPerpetualSwaps is
 
         return
             Perpetuals.calculateTrueMaxLeverage(
-                insurance.collateralAmount(),
+                insurance.getPoolHoldings(),
                 insurance.getPoolTarget(),
                 maxLeverage,
                 lowestMaxLeverage,

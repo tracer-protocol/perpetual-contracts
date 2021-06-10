@@ -141,7 +141,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                     quote,
                     PRBMathUD60x18.div(
                         publicCollateralAmount,
-                        publicCollateralAmount + bufferCollateralAmount
+                        getPoolHoldings()
                     )
                 );
 
@@ -167,7 +167,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     function drainPool(uint256 amount) external override onlyLiquidation() {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
-        uint256 poolHoldings = publicCollateralAmount + bufferCollateralAmount;
+        uint256 poolHoldings = getPoolHoldings();
 
         if (amount >= poolHoldings) {
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
@@ -223,6 +223,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     /**
+     * @notice Get total holdings of the insurance pool (= public + buffer collateral)
+     */
+    function getPoolHoldings() public view override returns (uint256) {
+        return bufferCollateralAmount + publicCollateralAmount;
+    }
+
+    /**
      * @notice Gets the target fund amount for a given insurance pool
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
@@ -267,7 +274,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function poolNeedsFunding() external view override returns (bool) {
         return
-            getPoolTarget() > publicCollateralAmount + bufferCollateralAmount;
+            getPoolTarget() > getPoolHoldings();
     }
 
     modifier onlyLiquidation() {
