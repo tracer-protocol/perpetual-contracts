@@ -366,7 +366,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         one,
                         one
                     )
-                ).to.be.revertedWith("TCR: Sender not liquidation contract")
+                ).to.be.revertedWith("TCR: Sender not liquidation")
             })
         })
 
