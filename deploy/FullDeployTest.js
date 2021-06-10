@@ -125,6 +125,24 @@ module.exports = async function (hre) {
         `Gas Price Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
     )
 
+    const fastGasOracle = await deploy("FastGasOracle", {
+        from: deployer,
+        log: true,
+        args: [ethOracle.address, gasOracle.address],
+        contract: "GasOracle",
+    })
+
+    const fastGasOracleAdapter = await deploy("GasPriceOracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [fastGasOracle.address],
+        contract: "OracleAdapter",
+    })
+
+    console.log(
+        `Fast Gas Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
+    )
+
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
         args: [ethers.utils.parseEther("10000000")], //10 mil supply
@@ -223,7 +241,7 @@ module.exports = async function (hre) {
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
-    let fundingRateSensitivity = 1
+    let fundingRateSensitivity = ethers.utils.parseEther("1")
     let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
@@ -268,6 +286,7 @@ module.exports = async function (hre) {
         "deployTracer",
         deployTracerData,
         oracleAdapter.address,
+        fastGasOracleAdapter.address,
         maxLiquidationSlippage
     )
 
