@@ -633,7 +633,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
-                // Call setPricingContract by someone who isn't an owner -- used insurance contract as an example
                 expect(
                     tracer.connect(accounts[1]).setPricingContract(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
@@ -654,7 +653,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
-                // Call setGasOracle by someone who isn't an owner -- used insurance contract as an example
                 expect(
                     tracer.connect(accounts[1]).setGasOracle(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
@@ -672,7 +670,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
             context("when called by someone who isn't the owner", async () => {
                 it("reverts", async () => {
-                    // Call setFeeReceiver by someone who isn't an owner -- used insurance contract as an example
                     expect(
                         tracer.connect(accounts[1]).setFeeReceiver(deployer)
                     ).to.be.revertedWith("Ownable: caller is not the owner")
@@ -688,7 +685,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
-                // Call setGasOracle by someone who isn't an owner -- used insurance contract as an example
                 await expect(
                     tracer.connect(accounts[1]).setGasOracle(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
@@ -913,7 +909,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         .setInsurancePoolSwitchStage(
                             ethers.utils.parseEther("0.5")
                         )
-                ).to.be.reverted
+                ).to.be.revertedWith("Ownable: caller is not the owner")
             })
         })
     })
