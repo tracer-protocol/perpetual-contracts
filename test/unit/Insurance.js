@@ -5,9 +5,9 @@ const { smockit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
-const getCollaterals = async (myClass) => [
-    await myClass.bufferCollateralAmount(),
-    await myClass.publicCollateralAmount(),
+const getCollaterals = async (insurance) => [
+    await insurance.bufferCollateralAmount(),
+    await insurance.publicCollateralAmount(),
 ]
 
 const putAndTakeCollateral = async (
@@ -18,6 +18,8 @@ const putAndTakeCollateral = async (
     publicValue,
     amountToDrain
 ) => {
+    console.log(await getCollaterals(insurance))
+
     tracer.smocked.getBalance.will.return.with({
         position: { quote: ethers.utils.parseEther(bufferValue), base: 0 }, // quote, base
         totalLeveragedValue: 0, // total leverage
@@ -27,14 +29,14 @@ const putAndTakeCollateral = async (
 
     await insurance.updatePoolAmount()
     
-    // return await getCollaterals(insurance)
+    console.log(await getCollaterals(insurance))
 
-    tracer.smocked.getBalance.will.return.with({
-        position: { quote: ethers.utils.parseEther(publicValue), base: 0 }, // quote, base
-        totalLeveragedValue: 0, // total leverage
-        lastUpdatedIndex: 0, // last updated index
-        lastUpdatedGasPrice: 0, // last updated gas price
-    })
+    // tracer.smocked.getBalance.will.return.with({
+    //     position: { quote: ethers.utils.parseEther(publicValue), base: 0 }, // quote, base
+    //     totalLeveragedValue: 0, // total leverage
+    //     lastUpdatedIndex: 0, // last updated index
+    //     lastUpdatedGasPrice: 0, // last updated gas price
+    // })
 
     await testToken.approve(
         insurance.address,
@@ -43,9 +45,11 @@ const putAndTakeCollateral = async (
 
     await insurance.deposit(ethers.utils.parseEther(publicValue))
 
-    await insurance.updatePoolAmount()
+    console.log(await getCollaterals(insurance)[0].toString(), await getCollaterals(insurance)[1].toString())
 
-    // await insurance.drainPool(amountToDrain)
+    // await insurance.updatePoolAmount()
+
+    await insurance.drainPool(amountToDrain)
 
     return await getCollaterals(insurance)
 }
@@ -307,8 +311,6 @@ describe("Unit tests: Insurance.sol", function () {
                     amountToDrain = "0"
                 let bufferCollateralAmountPost, publicCollateralAmountPost
 
-                mockTracer.smocked.getBalance.will.return.with()
-
                 [bufferCollateralAmountPost, publicCollateralAmountPost] =
                     await putAndTakeCollateral(
                         mockTracer,
@@ -320,21 +322,21 @@ describe("Unit tests: Insurance.sol", function () {
                     )
 
                 expect(bufferCollateralAmountPost).to.equal(
-                    // bufferCollateralAmountPre
-                    ethers.utils.parseEther("1")
+                    ethers.utils.parseEther(bufferCollateralAmountPre)
+                    // ethers.utils.parseEther("1")
                 )
                 expect(publicCollateralAmountPost).to.equal(
-                    // publicCollateralAmountPre
-                    ethers.utils.parseEther("1")
+                    ethers.utils.parseEther(publicCollateralAmountPre)
+                    // ethers.utils.parseEther("1")
                 )
             })
 
-            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
-            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
-            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
-            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
-            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
-            it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            // it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            // it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            // it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            // it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            // it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
+            // it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {})
             it("does nothing if there is less than 1 unit of public collateral + no public buffer collateral", async () => {
                 let publicCollateralAmountPre =
                     await insurance.publicCollateralAmount()
