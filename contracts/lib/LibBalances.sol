@@ -110,7 +110,7 @@ library Balances {
      *                         = (base * price) / maxLev + liquidationGasCost
      * @param position Position to calculate the minimum margin for
      * @param price Price by which to evaluate the minimum margin
-     * @param liquidationGasCost Cost for liquidation
+     * @param liquidationGasCost Cost for liquidation denominated in quote tokens
      * @param maximumLeverage (True) maximum leverage of a market.
      *   May be less than the set max leverage of the market because
      *   of deleveraging
