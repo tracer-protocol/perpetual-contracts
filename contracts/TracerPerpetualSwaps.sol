@@ -15,6 +15,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "hardhat/console.sol";
 
 contract TracerPerpetualSwaps is
     ITracerPerpetualSwaps,
@@ -35,8 +36,8 @@ contract TracerPerpetualSwaps is
     IInsurance public insuranceContract;
     address public override liquidationContract;
     uint256 public override feeRate;
-    uint256 public fees;
-    address public feeReceiver;
+    uint256 public override fees;
+    address public override feeReceiver;
 
     /* Config variables */
     // The price of gas in gwei
@@ -198,7 +199,7 @@ contract TracerPerpetualSwaps is
         userBalance.position.quote = newQuote;
         _updateAccountLeverage(msg.sender);
 
-        // Safemath will throw if tvl[market] < amount
+        // Safemath will throw if tvl < amount
         tvl = tvl - amount;
 
         // perform transfer
@@ -496,8 +497,11 @@ contract TracerPerpetualSwaps is
         view
         returns (bool)
     {
-        uint256 price = pricingContract.fairPrice();
+        // Get gasCost; denominated in the quote token
         uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
+
+        // Get fair price (= oracle price - timeValue)
+        uint256 price = pricingContract.fairPrice();
 
         uint256 minMargin =
             Balances.minimumMargin(position, price, gasCost, trueMaxLeverage());
@@ -509,14 +513,7 @@ contract TracerPerpetualSwaps is
             return false;
         }
 
-        if (minMargin == 0) {
-            // minMargin = 0 only occurs when user has no base (positions)
-            // if they have no base, their quote must be > 0.
-            return position.quote >= 0;
-        }
-
-        return
-            Balances.marginValid(position, price, gasCost, trueMaxLeverage());
+        return (uint256(margin) >= minMargin);
     }
 
     /**
@@ -533,6 +530,21 @@ contract TracerPerpetualSwaps is
             );
     }
 
+    function withdrawFees() public override {
+        require(
+            feeReceiver == msg.sender,
+            "Only feeReceiver can withdraw fees"
+        );
+
+        uint256 tempFees = fees;
+        tvl = tvl - fees;
+        fees = 0;
+
+        // Withdraw from the account
+        IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees);
+        emit FeeWithdrawn(feeReceiver, tempFees);
+    }
+
     function getBalance(address account)
         public
         view
@@ -542,12 +554,12 @@ contract TracerPerpetualSwaps is
         return balances[account];
     }
 
-    function setLiquidationContract(address liquidation)
+    function setLiquidationContract(address _liquidationContract)
         public
         override
         onlyOwner
     {
-        liquidationContract = liquidation;
+        liquidationContract = _liquidationContract;
     }
 
     function setInsuranceContract(address insurance) public override onlyOwner {
@@ -562,23 +574,9 @@ contract TracerPerpetualSwaps is
         gasPriceOracle = _gasOracle;
     }
 
-    function setFeeReceiver(address receiver) public override onlyOwner {
-        feeReceiver = receiver;
-        emit FeeReceiverUpdated(receiver);
-    }
-
-    function withdrawFee() public override {
-        require(
-            feeReceiver == msg.sender,
-            "Only feeReceiver can withdraw fees"
-        );
-
-        uint256 tempFees = fees;
-        fees = 0;
-
-        // Withdraw from the account
-        IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees);
-        emit FeeWithdrawn(feeReceiver, tempFees);
+    function setFeeReceiver(address _feeReceiver) public override onlyOwner {
+        feeReceiver = _feeReceiver;
+        emit FeeReceiverUpdated(_feeReceiver);
     }
 
     function setFeeRate(uint256 _feeRate) public override onlyOwner {
