@@ -400,7 +400,6 @@ contract TracerPerpetualSwaps is
     ) external override onlyLiquidation {
         // Limits the gas use when liquidating
         uint256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
-        require(tx.gasprice <= gasPrice, "TCR: GasPrice > FGasPrice");
         // Update liquidators last updated gas price
         Balances.Account storage liquidatorBalance = balances[liquidator];
         Balances.Account storage liquidateeBalance = balances[liquidatee];

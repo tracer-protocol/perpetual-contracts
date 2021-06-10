@@ -27,6 +27,7 @@ contract Liquidation is ILiquidation, Ownable {
     IPricing public pricing;
     ITracerPerpetualSwaps public tracer;
     address public insuranceContract;
+    address public fastGasOracle;
 
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt)
@@ -58,11 +59,13 @@ contract Liquidation is ILiquidation, Ownable {
         address _pricing,
         address _tracer,
         address _insuranceContract,
+        address _fastGasOracle,
         uint256 _maxSlippage
     ) Ownable() {
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
+        fastGasOracle = _fastGasOracle;
         maxSlippage = _maxSlippage;
     }
 
@@ -153,7 +156,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
         // Limits the gas use when liquidating
         require(
-            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
+            tx.gasprice <= IOracle(fastGasOracle).latestAnswer(),
             "LIQ: GasPrice > FGasPrice"
         );
 
