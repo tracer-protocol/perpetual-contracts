@@ -125,24 +125,6 @@ module.exports = async function (hre) {
         `Gas Price Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
     )
 
-    const fastGasOracle = await deploy("FastGasOracle", {
-        from: deployer,
-        log: true,
-        args: [ethOracle.address, gasOracle.address],
-        contract: "GasOracle",
-    })
-
-    const fastGasOracleAdapter = await deploy("GasPriceOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [fastGasOracle.address],
-        contract: "OracleAdapter",
-    })
-
-    console.log(
-        `Fast Gas Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
-    )
-
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
         args: [ethers.utils.parseEther("10000000")], //10 mil supply
@@ -286,7 +268,7 @@ module.exports = async function (hre) {
         "deployTracer",
         deployTracerData,
         oracleAdapter.address,
-        fastGasOracleAdapter.address,
+        gasPriceOracle.address,
         maxLiquidationSlippage
     )
 

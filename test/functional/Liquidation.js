@@ -240,7 +240,7 @@ describe("Liquidation functional tests", async () => {
         })
     })
 
-    context("calcUnitsSold", async () => {
+    context.only("calcUnitsSold", async () => {
         context("When no orders given", async () => {
             it("Returns nothing ", async () => {
                 const contracts = await setupReceiptTest()
