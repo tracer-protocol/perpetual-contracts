@@ -582,8 +582,8 @@ contract TracerPerpetualSwaps is
 
     function withdrawFees() public override {
         uint256 tempFees = fees;
-        tvl = tvl - fees;
         fees = 0;
+        tvl = tvl - tempFees;
 
         // Withdraw from the account
         IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees);
