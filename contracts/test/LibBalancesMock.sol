@@ -14,7 +14,7 @@ contract LibBalancesMock {
 
     function margin(Balances.Position calldata position, uint256 price)
         external
-        view
+        pure
         returns (int256)
     {
         return Balances.margin(position, price);
@@ -23,7 +23,7 @@ contract LibBalancesMock {
     function leveragedNotionalValue(
         Balances.Position calldata position,
         uint256 price
-    ) external view returns (uint256) {
+    ) external pure returns (uint256) {
         return Balances.leveragedNotionalValue(position, price);
     }
 
