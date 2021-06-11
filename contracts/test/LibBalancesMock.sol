@@ -4,12 +4,12 @@ pragma solidity ^0.8.0;
 import "../lib/LibBalances.sol";
 
 contract LibBalancesMock {
-    function netValue(Balances.Position calldata position, uint256 price)
+    function notionalValue(Balances.Position calldata position, uint256 price)
         external
         pure
         returns (uint256)
     {
-        return Balances.netValue(position, price);
+        return Balances.notionalValue(position, price);
     }
 
     function margin(Balances.Position calldata position, uint256 price)

@@ -518,7 +518,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 )
                 let gasCost = ethers.BigNumber.from("0")
                 // margin = quote + base * price = 3 + 2 * 2 = 7
-                // minMargin = netValue / maxLev + liquidationGasCost
+                // minMargin = notionalValue / maxLev + liquidationGasCost
                 //           = (base * price) / maxLev + liquidationGasCost
                 //           = (2 * 2) / 12.5 + 0 = 0.32
                 // margin > minMargin
@@ -543,7 +543,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await tracer.setLowestMaxLeverage(ethers.utils.parseEther("2"))
                 let gasCost = ethers.BigNumber.from("0")
                 // margin = quote + base * price = -3 + 2 * 2 = 1
-                // minMargin = netValue / maxLev + liquidationGasCost
+                // minMargin = notionalValue / maxLev + liquidationGasCost
                 //           = (base * price) / maxLev + liquidationGasCost
                 //           = (2 * 2) / 2 + 0 = 2
                 // minMargin > margin
@@ -569,7 +569,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     )
                     let gasCost = ethers.BigNumber.from("0")
                     // margin = quote + base * price = 1 + 2 * 2 = 1
-                    // minMargin = netValue / maxLev + liquidationGasCost
+                    // minMargin = notionalValue / maxLev + liquidationGasCost
                     //           = (base * price) / maxLev + liquidationGasCost
                     //           = (0 * 2) / 2 + 0 = 2 (>= 0)
                     // minMargin > margin
@@ -590,7 +590,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         ethers.utils.parseEther("2")
                     )
                     let gasCost = ethers.BigNumber.from("0")
-                    // minMargin = netValue / maxLev + liquidationGasCost
+                    // minMargin = notionalValue / maxLev + liquidationGasCost
                     //           = (base * price) / maxLev + liquidationGasCost
                     //           = (0 * 2) / 2 + 0 = 0 (>= 0)
 

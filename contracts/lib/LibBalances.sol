@@ -37,12 +37,12 @@ library Balances {
     }
 
     /**
-     * @notice Calculates the net value of a position as base * price
+     * @notice Calculates the notional value of a position as base * price
      * @param position the position the account is currently in
      * @param price The (fair) price of the base asset
-     * @return Net value of a position given the price
+     * @return Notional value of a position given the price
      */
-    function netValue(Position memory position, uint256 price)
+    function notionalValue(Position memory position, uint256 price)
         internal
         pure
         returns (uint256)
@@ -92,7 +92,8 @@ library Balances {
         pure
         returns (uint256)
     {
-        uint256 notionalValue = netValue(position, price);
+        uint256 notionalValue = notionalValue(position, price);
+        (position, price);
         int256 marginValue = margin(position, price);
 
         int256 signedNotionalValue = LibMath.toInt256(notionalValue);
@@ -127,7 +128,7 @@ library Balances {
             return 0;
         }
 
-        uint256 notionalValue = netValue(position, price);
+        uint256 notionalValue = notionalValue(position, price);
 
         // todo confirm that liquidation gas cost should be a WAD value
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
