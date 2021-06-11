@@ -268,7 +268,7 @@ module.exports = async function (hre) {
         "deployTracer",
         deployTracerData,
         oracleAdapter.address,
-        gasPriceOracle.address,
+        gasOracle.address,
         maxLiquidationSlippage
     )
 
