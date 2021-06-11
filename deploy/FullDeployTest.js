@@ -114,17 +114,6 @@ module.exports = async function (hre) {
 
     console.log(`Gas Price Oracle Deployed ${gasPriceOracle.address}`)
 
-    const gasPriceOracleAdapter = await deploy("GasPriceOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [gasPriceOracle.address],
-        contract: "OracleAdapter",
-    })
-
-    console.log(
-        `Gas Price Oracle Adapter Deployed ${gasPriceOracleAdapter.address}`
-    )
-
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
         args: [ethers.utils.parseEther("10000000")], //10 mil supply
@@ -135,7 +124,7 @@ module.exports = async function (hre) {
 
     console.log(`Quote Token Deployed ${token.address}`)
 
-    const tokenAmount = ethers.utils.parseEther("1000")
+    const tokenAmount = ethers.utils.parseEther("10000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
@@ -247,7 +236,7 @@ module.exports = async function (hre) {
             ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
             tokenDecimals,
-            gasPriceOracleAdapter.address,
+            gasPriceOracle.address,
             maxLeverage,
             fundingRateSensitivity,
             feeRate,

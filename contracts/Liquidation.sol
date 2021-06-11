@@ -13,6 +13,8 @@ import "./Interfaces/IOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
+import "hardhat/console.sol";
+
 /**
  * Each call enforces that the contract calling the account is only updating the balance
  * of the account for that contract.
@@ -151,11 +153,6 @@ contract Liquidation is ILiquidation, Ownable {
         address account
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
-        // Limits the gas use when liquidating
-        require(
-            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
-            "LIQ: GasPrice > FGasPrice"
-        );
 
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
@@ -182,6 +179,12 @@ contract Liquidation is ILiquidation, Ownable {
             amount,
             base
         );
+        console.log("-----------");
+        console.log(
+            Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage())
+        );
+        console.log(amountToEscrow);
+        console.log("============");
 
         // create a liquidation receipt
         Perpetuals.Side side = base < 0
@@ -464,12 +467,10 @@ contract Liquidation is ILiquidation, Ownable {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
             receiptId
         ];
-
+        require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
         // Mark refund as claimed
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
-
-        require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
         require(
             block.timestamp < receipt.releaseTime,
             "LIQ: claim time passed"
