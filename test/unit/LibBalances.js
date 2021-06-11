@@ -12,7 +12,7 @@ const WAD_POW = ethers.BigNumber.from(10).pow(18)
 // ).mul(ethers.BigNumber.from(-1))
 // const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
 
-const getNetValue = (position, price) => {
+const getnotionalValue = (position, price) => {
     // base * price / (10^18) --> brings back to a WAD value
     return position[1].abs().mul(price).div(WAD_POW)
 }
@@ -80,12 +80,12 @@ describe("Unit tests: LibBalances.sol", async () => {
         ]
     })
 
-    describe("netValue", async () => {
+    describe("notionalValue", async () => {
         context("when called with edge case positions", async () => {
             it("reverts", async () => {
                 await edgePositions.forEach(async (position) => {
                     await expect(
-                        libBalances.netValue(position, normalPrices[1])
+                        libBalances.notionalValue(position, normalPrices[1])
                     ).to.be.reverted
                 })
             })
@@ -94,8 +94,8 @@ describe("Unit tests: LibBalances.sol", async () => {
         context("when called with normal positions", async () => {
             it("returns", async () => {
                 await normalPositions.forEach(async (position) => {
-                    let expected = getNetValue(position, normalPrices[1])
-                    let result = await libBalances.netValue(
+                    let expected = getnotionalValue(position, normalPrices[1])
+                    let result = await libBalances.notionalValue(
                         position,
                         normalPrices[1]
                     )
@@ -108,7 +108,7 @@ describe("Unit tests: LibBalances.sol", async () => {
             it("reverts", async () => {
                 await edgePrices.forEach(async (price) => {
                     await expect(
-                        libBalances.netValue(normalPositions[0], price)
+                        libBalances.notionalValue(normalPositions[0], price)
                     ).to.be.reverted
                 })
             })
@@ -117,8 +117,8 @@ describe("Unit tests: LibBalances.sol", async () => {
         context("when called with normal prices", async () => {
             it("returns", async () => {
                 await normalPrices.forEach(async (price) => {
-                    let expected = getNetValue(normalPositions[0], price)
-                    let result = await libBalances.netValue(
+                    let expected = getnotionalValue(normalPositions[0], price)
+                    let result = await libBalances.notionalValue(
                         normalPositions[0],
                         price
                     )
@@ -133,7 +133,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     // only test max int
                     if (position[1] === maximumInt) {
                         let expected = ethers.utils.parseEther("0")
-                        let result = await libBalances.netValue(
+                        let result = await libBalances.notionalValue(
                             position,
                             normalPrices[0]
                         )
@@ -146,8 +146,9 @@ describe("Unit tests: LibBalances.sol", async () => {
                 await edgePositions.forEach(async (position) => {
                     // only test max int
                     if (position[1] === minimumInt) {
-                        expect(libBalances.netValue(position, normalPrices[0]))
-                            .to.be.reverted
+                        expect(
+                            libBalances.notionalValue(position, normalPrices[0])
+                        ).to.be.reverted
                     }
                 })
             })
@@ -155,7 +156,7 @@ describe("Unit tests: LibBalances.sol", async () => {
             it("returns 0 for normal positions", async () => {
                 await normalPositions.forEach(async (position) => {
                     let expected = ethers.utils.parseEther("0")
-                    let result = await libBalances.netValue(
+                    let result = await libBalances.notionalValue(
                         position,
                         normalPrices[0]
                     )
@@ -230,7 +231,7 @@ describe("Unit tests: LibBalances.sol", async () => {
     describe("leveragedNotionalValue", async () => {
         context("when signedNotionalValue > max int", async () => {
             it("reverts", async () => {
-                // get netValue to return max int
+                // get notionalValue to return max int
                 let position = [
                     ethers.utils.parseEther("-1"),
                     ethers.utils.parseEther("1"),
@@ -250,7 +251,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("-1"),
                 ]
                 let price = ethers.utils.parseEther("1")
-                // netValue = base * price
+                // notionalValue = base * price
                 // marginValue = quote + base * price
                 // get base * price < quote + base * price
                 let result = await libBalances.leveragedNotionalValue(
@@ -269,9 +270,9 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("-30"),
                 ]
                 let price = ethers.utils.parseEther("1")
-                // netValue = abs(base) * price
+                // notionalValue = abs(base) * price
                 // marginValue = quote + base * price
-                // leveragedNotionalValue = netValue - marginValue = 30 - (-30 + 10) = 50
+                // leveragedNotionalValue = notionalValue - marginValue = 30 - (-30 + 10) = 50
                 let result = await libBalances.leveragedNotionalValue(
                     position,
                     price
@@ -351,12 +352,12 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("10"),
                 ]
                 let price = ethers.utils.parseEther("1")
-                let netValue = getNetValue(position, price)
+                let notionalValue = getnotionalValue(position, price)
                 let gasCost = ethers.utils.parseEther("1")
                 let maxLeverage = ethers.utils.parseEther("10")
                 // minMargin = notional value / max leverage + 6 * gas cost
                 // expected = 7
-                let expected = netValue
+                let expected = notionalValue
                     .div(maxLeverage)
                     .mul(WAD_POW) // Needs to be WAD
                     .add(gasCost.mul(ethers.BigNumber.from("6")))
@@ -550,7 +551,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                 let expected = ethers.BigNumber.from("100000000")
                 let result = await libBalances.wadToToken(
                     6,
-                    ethers.utils.parseEther("100")
+                    ethers.utils.parseEther("100.0000001")
                 )
                 expect(result).to.equal(expected)
             })

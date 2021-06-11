@@ -40,6 +40,10 @@ interface ITracerPerpetualSwaps {
 
     function feeRate() external view returns (uint256);
 
+    function fees() external view returns (uint256);
+
+    function feeReceiver() external view returns (address);
+
     function maxLeverage() external view returns (uint256);
 
     function trueMaxLeverage() external view returns (uint256);
@@ -71,7 +75,7 @@ interface ITracerPerpetualSwaps {
 
     function setFeeReceiver(address receiver) external;
 
-    function withdrawFee() external;
+    function withdrawFees() external;
 
     function setMaxLeverage(uint256 _maxLeverage) external;
 
