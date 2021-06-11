@@ -269,8 +269,8 @@ contract TracerPerpetualSwaps is
                 emit FailedOrders(
                     order2.maker,
                     order1.maker,
-                    order1Id,
-                    order2Id
+                    order2Id,
+                    order1Id
                 );
             }
             return false;
@@ -292,17 +292,14 @@ contract TracerPerpetualSwaps is
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        pricingContract.recordTrade(
-            executionPrice,
-            LibMath.min(order1.amount, order2.amount)
-        );
+        pricingContract.recordTrade(executionPrice, fillAmount);
 
         if (order1.side == Perpetuals.Side.Long) {
             emit MatchedOrders(
                 order1.maker,
                 order2.maker,
-                order1.amount,
-                order1.price,
+                fillAmount,
+                executionPrice,
                 order1Id,
                 order2Id
             );
@@ -310,8 +307,8 @@ contract TracerPerpetualSwaps is
             emit MatchedOrders(
                 order2.maker,
                 order1.maker,
-                order1.amount,
-                order1.price,
+                fillAmount,
+                executionPrice,
                 order2Id,
                 order1Id
             );
