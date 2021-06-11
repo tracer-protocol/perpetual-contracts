@@ -16,6 +16,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
+import "hardhat/console.sol";
+
 contract TracerPerpetualSwaps is
     ITracerPerpetualSwaps,
     Ownable,
@@ -447,8 +449,10 @@ contract TracerPerpetualSwaps is
         balances[liquidatee].position.quote =
             balances[liquidatee].position.quote +
             amountToGiveToLiquidatee;
+        console.log("...................");
+        console.logInt(amountToGiveToClaimant);
         require(
-            balances[insuranceAddr].position.quote > 0,
+            balances[insuranceAddr].position.quote >= 0,
             "TCR: Insurance not adequately funded"
         );
     }

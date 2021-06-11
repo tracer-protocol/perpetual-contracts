@@ -43,7 +43,7 @@ library LibLiquidation {
         int256 currentMargin,
         int256 amount,
         int256 totalBase
-    ) internal returns (uint256) {
+    ) internal pure returns (uint256) {
         int256 amountToEscrow = currentMargin -
             (minMargin.toInt256() - currentMargin);
         int256 amountToEscrowProportional = PRBMathSD59x18.mul(
@@ -53,12 +53,6 @@ library LibLiquidation {
         if (amountToEscrowProportional < 0) {
             return 0;
         }
-        console.log("+++++++++");
-        console.logInt(amount);
-        console.logInt(totalBase);
-        console.logInt(amountToEscrow);
-        console.logInt(amountToEscrowProportional);
-        console.log("+++++++++");
         return uint256(amountToEscrowProportional);
     }
 

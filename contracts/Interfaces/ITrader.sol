@@ -26,7 +26,7 @@ interface ITrader {
 
     function getOrder(Perpetuals.Order memory order)
         external
-        view
+
         returns (Perpetuals.Order memory);
 
     function filledAmount(Perpetuals.Order memory order)

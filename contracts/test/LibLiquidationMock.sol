@@ -10,7 +10,7 @@ library LibLiquidationMock {
         int256 currentMargin,
         int256 amount,
         int256 totalBase
-    ) external returns (uint256 result) {
+    ) external pure returns (uint256 result) {
         result = LibLiquidation.calcEscrowLiquidationAmount(
             minMargin,
             currentMargin,

@@ -1,19 +1,30 @@
 const perpsAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
+const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 
-const provideOrders = async (contracts, liquidationAmount) => {
+const provideOrders = async (contracts, liquidationAmount, timestamp) => {
     const sellWholeLiquidationAmount = {
         maker: accounts[1].address,
         market: contracts.tracerPerps.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp + 1,
+        expires: timestamp + 100,
+        created: timestamp + 1,
+    }
+
+    const sellWholeLiquidationAmountTinySlippage = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.94").toString(),
+        amount: liquidationAmount,
+        side: "1", // Short, because original position liquidated was long
+        expires: timestamp + 100,
+        created: timestamp + 1,
     }
 
     const sellHalfLiquidationAmount = {
@@ -22,8 +33,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp + 1,
+        expires: timestamp + 100,
+        created: timestamp + 1,
     }
 
     const sellHalfLiquidationAmountSecond = {
@@ -32,8 +43,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp + 2,
+        expires: timestamp + 100,
+        created: timestamp + 2,
     }
 
     const sellHalfLiquidationAmountThird = {
@@ -42,8 +53,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp + 3,
+        expires: timestamp + 100,
+        created: timestamp + 3,
     }
 
     const sellLiquidationAmountNoSlippage = {
@@ -52,8 +63,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.95").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).toString(),
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp + 2,
+        expires: timestamp + 100,
+        created: timestamp + 2,
     }
 
     const longOrder = {
@@ -62,8 +73,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.5").toString(),
         amount: liquidationAmount,
         side: "0", // Long, which is invalid
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp,
+        expires: timestamp + 100,
+        created: timestamp,
     }
 
     const zeroDollarOrder = {
@@ -72,8 +83,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: "0", // $0
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp,
+        expires: timestamp + 100,
+        created: timestamp,
     }
 
     const earlyCreationOrder = {
@@ -82,7 +93,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        expires: timestamp + 100,
         created: 0,
     }
 
@@ -92,12 +103,14 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
+        expires: timestamp + 100,
         created: 0,
     }
 
     orders = {
         sellWholeLiquidationAmount: sellWholeLiquidationAmount,
+        sellWholeLiquidationAmountTinySlippage:
+            sellWholeLiquidationAmountTinySlippage,
         sellHalfLiquidationAmount: sellHalfLiquidationAmount,
         sellHalfLiquidationAmountSecond: sellHalfLiquidationAmountSecond,
         sellHalfLiquidationAmountThird: sellHalfLiquidationAmountThird,
@@ -115,19 +128,22 @@ const halfLiquidate = deployments.createFixture(async () => {
     const contracts = await baseLiquidatablePosition()
     const { deployer } = await getNamedAccounts()
     accounts = await ethers.getSigners()
-    const { tracerPerps, liquidation, trader, libPerpetuals } = contracts
+    const { tracerPerps, liquidation } = contracts
 
     // Get half the base. Liquidate this amount
     const halfBase = (await tracerPerps.getBalance(deployer)).position.base.div(
         2
     )
 
-    const tx = await liquidation
+    await liquidation
         .connect(accounts[1])
         .liquidate(halfBase, deployer)
-    const base = (await tracerPerps.getBalance(deployer)).position.base
 
-    return { tracerPerps, liquidation, trader, libPerpetuals }
+    const timestamp = (
+        await ethers.provider.getBlock("latest")
+    ).timestamp
+
+    return { ...contracts, timestamp }
 })
 
 const invalidLiquidate = async () => {
@@ -171,6 +187,13 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
     )
     liquidationInstance = await liquidationInstance.connect(accounts[0])
 
+    let insuranceInstance = new ethers.Contract(
+        await tracerPerpsInstance.insuranceContract(),
+        insuranceAbi,
+        ethers.provider
+    )
+    insuranceInstance = await insuranceInstance.connect(accounts[0])
+
     const traderDeployment = await deployments.get("Trader")
     let traderInstance = await ethers.getContractAt(
         traderDeployment.abi,
@@ -196,6 +219,7 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
         trader: traderInstance,
         libPerpetuals: libPerpetuals,
         token: token,
+        insurance: insuranceInstance,
     }
 
     return contracts
@@ -204,9 +228,9 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
 const addOrdersToModifiedTrader = async (
     modifiableTrader,
     contracts,
-    liquidationAmount
+    liquidationAmount,
+    orders
 ) => {
-    const orders = await provideOrders(contracts, liquidationAmount)
     for (const [_, order] of Object.entries(orders)) {
         let hash = await contracts.libPerpetuals.callStatic.orderId(order)
         await modifiableTrader.smodify.put({
@@ -214,6 +238,12 @@ const addOrdersToModifiedTrader = async (
                 [hash]: order,
             },
         })
+        /*
+        if (order.market === contracts.tracerPerps.address && order.price === ethers.utils.parseEther("0.5").toString() && order.amount === (liquidationAmount)){
+            console.log(order)
+            console.log(await modifiableTrader.getOrder(order))
+        }
+        */
         await modifiableTrader.smodify.put({
             filled: {
                 [hash]: order.amount,
@@ -235,13 +265,16 @@ const setupReceiptTest = deployments.createFixture(async () => {
     const liquidationAmount = (
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
+    const orders = await provideOrders(contracts, liquidationAmount, contracts.timestamp)
 
     await addOrdersToModifiedTrader(
         modifiableTrader,
         contracts,
-        liquidationAmount
+        liquidationAmount,
+        orders
     )
-    return { ...contracts, modifiableTrader }
+    console.log(orders)
+    return { ...contracts, modifiableTrader, ...orders }
 })
 
 const setupLiquidationTest = deployments.createFixture(async () => {
@@ -250,14 +283,10 @@ const setupLiquidationTest = deployments.createFixture(async () => {
     const tracer = contracts.tracerPerps.connect(accounts[2])
     const liquidation = contracts.liquidation.connect(accounts[2])
     const token = contracts.token.connect(accounts[2])
-    await token.approve(
-        tracer.address,
-        ethers.utils.parseEther("10000")
-    )
+    await token.approve(tracer.address, ethers.utils.parseEther("10000"))
     await tracer.deposit(ethers.utils.parseEther("10000"))
 
-    return { token: token, tracer: tracer, liquidation:liquidation }
-
+    return { token: token, tracer: tracer, liquidation: liquidation }
 })
 
 const deployModifiableTrader = deployments.createFixture(async () => {
@@ -276,6 +305,7 @@ describe("Liquidation functional tests", async () => {
     let liquidation
     let trader
     let libPerpetuals
+    const fifteenMinutes = 60 * 15
     before(async function () {
         accounts = await ethers.getSigners()
     })
@@ -358,7 +388,6 @@ describe("Liquidation functional tests", async () => {
                 const blockTimestamp = (
                     await ethers.provider.getBlock("latest")
                 ).timestamp
-                const fifteenMinutes = 60 * 15
                 const amountLiquidated = ethers.utils.parseEther("5000")
                 // escrowAmount = (margin - (minMargin - margin)) / 2 = (500 - (761.1433 - 500))/2 = 119.425356
                 const escrowedAmount = ethers.utils.parseEther("119.428356")
@@ -379,7 +408,6 @@ describe("Liquidation functional tests", async () => {
                 ]
                 let receipt = await contracts.liquidation.liquidationReceipts(0)
                 receipt = receipt.slice(0, 11)
-                // console.log(receipt.time.toString())
                 for (let i = 0; i < receipt.length; i++) {
                     expect(receipt[i]).to.equal(expectedReceipt[i])
                 }
@@ -450,7 +478,10 @@ describe("Liquidation functional tests", async () => {
                 accounts = await ethers.getSigners()
 
                 // Liquidate, but accounts[1] is above margin
-                const tx = contracts.liquidation.liquidate("1", accounts[1].address)
+                const tx = contracts.liquidation.liquidate(
+                    "1",
+                    accounts[1].address
+                )
                 await expect(tx).to.be.revertedWith("LIQ: Account above margin")
             })
         })
@@ -486,7 +517,9 @@ describe("Liquidation functional tests", async () => {
                     ethers.utils.parseEther("-10000"),
                     accounts[0].address
                 )
-                await expect(tx).to.be.revertedWith("LIQ: Liquidation amount <= 0")
+                await expect(tx).to.be.revertedWith(
+                    "LIQ: Liquidation amount <= 0"
+                )
             })
         })
 
@@ -504,7 +537,9 @@ describe("Liquidation functional tests", async () => {
                     liquidationAmount.add(BigNumber.from("1")),
                     accounts[0].address
                 )
-                await expect(tx).to.be.revertedWith("LIQ: Liquidate Amount > Position")
+                await expect(tx).to.be.revertedWith(
+                    "LIQ: Liquidate Amount > Position"
+                )
             })
         })
 
@@ -518,7 +553,9 @@ describe("Liquidation functional tests", async () => {
                     ethers.utils.parseEther("0"),
                     accounts[0].address
                 )
-                await expect(tx).to.be.revertedWith("LIQ: Liquidation amount <= 0")
+                await expect(tx).to.be.revertedWith(
+                    "LIQ: Liquidation amount <= 0"
+                )
             })
         })
 
@@ -531,7 +568,9 @@ describe("Liquidation functional tests", async () => {
                     await contracts.tracer.balances(accounts[0].address)
                 ).position.base
 
-                const baseBefore = (await contracts.tracer.balances(accounts[2].address)).position.base
+                const baseBefore = (
+                    await contracts.tracer.balances(accounts[2].address)
+                ).position.base
 
                 // Normal liquidation
                 const tx = await contracts.liquidation.liquidate(
@@ -540,18 +579,20 @@ describe("Liquidation functional tests", async () => {
                 )
 
                 // escrowedAmount = [margin - (minMargin - margin)] = [500 - (761.43288 - 500)] = 238.56712
-                const expectedEscrowedAmount = ethers.utils.parseEther("238.856712")
+                const expectedEscrowedAmount =
+                    ethers.utils.parseEther("238.856712")
 
                 const escrowedAmount = (
                     await contracts.liquidation.liquidationReceipts(0)
                 ).escrowedAmount
                 expect(escrowedAmount).to.equal(expectedEscrowedAmount)
 
-                const baseAfter = (await contracts.tracer.balances(accounts[2].address)).position.base
+                const baseAfter = (
+                    await contracts.tracer.balances(accounts[2].address)
+                ).position.base
 
                 expect(baseAfter).to.equal(baseBefore.add(liquidationAmount))
             })
-
         })
 
         context("on partial liquidation", async () => {
@@ -562,8 +603,10 @@ describe("Liquidation functional tests", async () => {
                 const liquidationAmount = (
                     await contracts.tracer.balances(accounts[0].address)
                 ).position.base.div(2)
-                
-                const baseBefore = (await contracts.tracer.balances(accounts[2].address)).position.base
+
+                const baseBefore = (
+                    await contracts.tracer.balances(accounts[2].address)
+                ).position.base
 
                 // Normal liquidation
                 const tx = await contracts.liquidation.liquidate(
@@ -572,14 +615,17 @@ describe("Liquidation functional tests", async () => {
                 )
 
                 // escrowedAmount = [margin - (minMargin - margin)] / 2= [500 - (761.43288 - 500)] / 2 = 119.28356
-                const expectedEscrowedAmount = ethers.utils.parseEther("119.428356")
+                const expectedEscrowedAmount =
+                    ethers.utils.parseEther("119.428356")
 
                 const escrowedAmount = (
                     await contracts.liquidation.liquidationReceipts(0)
                 ).escrowedAmount
                 expect(escrowedAmount).to.equal(expectedEscrowedAmount)
 
-                const baseAfter = (await contracts.tracer.balances(accounts[2].address)).position.base
+                const baseAfter = (
+                    await contracts.tracer.balances(accounts[2].address)
+                ).position.base
 
                 expect(baseAfter).to.equal(baseBefore.add(liquidationAmount))
             })
@@ -587,16 +633,24 @@ describe("Liquidation functional tests", async () => {
     })
 
     context("claimReceipt", async () => {
-        const setupClaimReceiptTest = deployments.createFixture(async () => {
+        const liquidateAndDepositAccount2 = deployments.createFixture(async () => {
             const contracts = await setupReceiptTest()
+            accounts = await ethers.getSigners()
 
+            await contracts.token.connect(accounts[2]).approve(contracts.insurance.address, ethers.utils.parseEther("10000"))
+            
+            return contracts
         })
 
         context("when receipt doesn't exist", async () => {
             it("Reverts", async () => {
                 const contracts = await setupLiquidationTest()
                 accounts = await ethers.getSigners()
-                const tx = contracts.liquidation.claimReceipt(32, [], accounts[0].address)
+                const tx = contracts.liquidation.claimReceipt(
+                    32,
+                    [],
+                    accounts[0].address
+                )
 
                 // Revert with the first check that requires a field to not equal 0
                 await expect(tx).to.be.revertedWith("LIQ: Liquidator mismatch")
@@ -604,44 +658,188 @@ describe("Liquidation functional tests", async () => {
         })
 
         context("when non-whitelisted trader is given", async () => {
-            it.only("Reverts", async () => {
+            it("Reverts", async () => {
                 const contracts = await setupReceiptTest()
                 accounts = await ethers.getSigners()
-                const tx = contracts.liquidation.connect(accounts[1]).claimReceipt(0, [], accounts[3].address)
+                const tx = contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(0, [], accounts[3].address)
 
-                await expect(tx).to.be.revertedWith("LIQ: Trader is not whitelisted")
+                await expect(tx).to.be.revertedWith(
+                    "LIQ: Trader is not whitelisted"
+                )
             })
         })
 
         context("when claim time has passed", async () => {
             it("Reverts ", async () => {
-                
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+
+                // Increase time by a bit over the claim receipt time
+                await network.provider.send("evm_increaseTime", [
+                    fifteenMinutes + 1,
+                ])
+                await network.provider.send("evm_mine", [])
+
+                const tx = contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(0, [], accounts[0].address)
+
+                await expect(tx).to.be.revertedWith("LIQ: claim time passed")
             })
         })
 
         context("when sender isn't liquidator", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+
+                const tx = contracts.liquidation
+                    .connect(accounts[2])
+                    .claimReceipt(0, [], accounts[0].address)
+
+                await expect(tx).to.be.revertedWith("LIQ: Liquidator mismatch")
+            })
         })
 
         context("on a receipt that's already claimed", async () => {
-            it("reverts", async () => {})
+            it("reverts", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).amountLiquidated
+
+                const order = (
+                    await provideOrders(contracts, liquidationAmount)
+                ).sellLiquidationAmountNoSlippage
+
+                // Whitelist the smoddit Trader
+                await contracts.tracerPerps
+                    .connect(accounts[0])
+                    .setWhitelist(contracts.modifiableTrader.address, true)
+                // Claim receipt then claim again
+                await contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(
+                        0,
+                        [order],
+                        contracts.modifiableTrader.address
+                    )
+                const tx = contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(
+                        0,
+                        [order],
+                        contracts.modifiableTrader.address
+                    )
+
+                await expect(tx).to.be.revertedWith("LIQ: Already claimed")
+            })
         })
 
         context("when slippage occurs - below escrow amount", async () => {
-            it("Accurately updates accounts", async () => {})
+            it("Accurately updates accounts", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                const liquidationAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).amountLiquidated
+
+                // This order sells all liquidationAmount at $0.94, even though the receipt is $0.95,
+                // so slippage is liquidationAmount*0.95 - liquidationAmount*0.94
+                const order = (
+                    await provideOrders(contracts, liquidationAmount)
+                ).sellWholeLiquidationAmountTinySlippage
+                const receiptValue = liquidationAmount.mul(BigNumber.from("95")).div(BigNumber.from("100"))
+                const sellValue = liquidationAmount.mul(BigNumber.from("94")).div(BigNumber.from("100"))
+                const slippageAmount = receiptValue.sub(sellValue)
+
+                const quoteBefore = (
+                    await contracts.tracerPerps.balances(accounts[1].address)
+                ).position.quote
+
+                // Whitelist the smoddit Trader
+                await contracts.tracerPerps
+                    .connect(accounts[0])
+                    .setWhitelist(contracts.modifiableTrader.address, true)
+                // Claim receipt then claim again
+                await contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(
+                        0,
+                        [order],
+                        contracts.modifiableTrader.address
+                    )
+
+                const quoteAfter = (
+                    await contracts.tracerPerps.balances(accounts[1].address)
+                ).position.quote
+
+                await expect(quoteAfter).to.equal(
+                    quoteBefore.add(slippageAmount)
+                )
+
+                // todo check liquidatee gets updated
+                expect(false)
+            })
         })
 
         context(
             "when slippage occurs - below escrow amount & empty insurance pool",
             async () => {
-                it("Accurately updates accounts", async () => {})
+                it("Accurately updates accounts", async () => {
+                    const contracts = await setupReceiptTest()
+                    accounts = await ethers.getSigners()
+                    const liquidationAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).amountLiquidated
+                    const escrowedAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).escrowedAmount
+
+                    // This order sells all liquidationAmount at $0.94, even though the receipt is $0.95,
+                    // so slippage is liquidationAmount*0.95 - liquidationAmount*0.94
+                    const order = (
+                        await provideOrders(contracts, liquidationAmount)
+                    ).sellWholeLiquidationAmount
+
+                    const quoteBefore = (
+                        await contracts.tracerPerps.balances(accounts[1].address)
+                    ).position.quote
+
+                    // Whitelist the smoddit Trader
+                    await contracts.tracerPerps
+                        .connect(accounts[0])
+                        .setWhitelist(contracts.modifiableTrader.address, true)
+                    // Claim receipt then claim again
+                    await contracts.liquidation
+                        .connect(accounts[1])
+                        .claimReceipt(
+                            0,
+                            [order],
+                            contracts.modifiableTrader.address
+                        )
+
+                    const quoteAfter = (
+                        await contracts.tracerPerps.balances(accounts[1].address)
+                    ).position.quote
+
+                    // Amount should only increase by escrowed amount, since ins pool is empty
+                    await expect(quoteAfter).to.equal(
+                        quoteBefore.add(escrowedAmount)
+                    )
+
+                })
             }
         )
 
         context(
-            "when slippage occurs - below escrow amount & half-full insurance pool",
+            "when slippage occurs - below escrow amount & indadequately-full insurance pool",
             async () => {
-                it("Accurately updates accounts", async () => {})
+                it.only("Accurately updates accounts", async () => {
+                })
             }
         )
 
