@@ -165,28 +165,28 @@ library LibLiquidation {
     /**
      * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
      * @dev Assumes params are WAD except liquidationGasCost
-     * @param liquidatedBaseChange How much base token to be liquidated
-     * @param liquidatedQuoteChange How much quote token to be liquidated
+     * @param updatedPosition The agent's position after being liquidated
      * @param balanceToBeLiquidated The balance of account to be liquidated
      * @param liquidationGasCost Approximately how much gas is used to call liquidate()
      * @param price Current fair price
+     * @param minimumLeftoverGasCostMultiplier The amount to multiply the liquidation cost by in
+     *                                         in order to calculate minimum leftover margin
      */
     function partialLiquidationIsValid(
-        int256 liquidatedBaseChange,
-        int256 liquidatedQuoteChange,
+        Balances.Position memory updatedPosition,
         Balances.Account memory balanceToBeLiquidated,
         uint256 liquidationGasCost,
-        uint256 price
+        uint256 price,
+        uint256 minimumLeftoverGasCostMultiplier
     ) internal pure returns (bool) {
         uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(
             balanceToBeLiquidated.lastUpdatedGasPrice,
             liquidationGasCost
-        ) * 10;
-        Balances.Position memory updatedPosition = Balances.Position(
-            balanceToBeLiquidated.position.quote + liquidatedQuoteChange,
-            balanceToBeLiquidated.position.base + liquidatedBaseChange
-        );
+        ) * minimumLeftoverGasCostMultiplier;
+
         int256 margin = Balances.margin(updatedPosition, price);
-        return margin >= minimumLeftoverMargin.toInt256() || margin == 0;
+        return
+            margin >= minimumLeftoverMargin.toInt256() ||
+            (updatedPosition.base == 0 && updatedPosition.quote == 0);
     }
 }
