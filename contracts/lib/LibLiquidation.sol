@@ -152,11 +152,15 @@ library LibLiquidation {
                 return 0;
             }
             // multiply by 100 as we expect this to be a percent as an integer eg 50% = 50
-            percentSlippage =
-                PRBMathUD60x18.div(amountToReturn, amountExpectedFor);
+            percentSlippage = PRBMathUD60x18.div(
+                amountToReturn,
+                amountExpectedFor
+            );
             if (percentSlippage > maxSlippage) {
-                amountToReturn =
-                    PRBMathUD60x18.mul(maxSlippage, amountExpectedFor);
+                amountToReturn = PRBMathUD60x18.mul(
+                    maxSlippage,
+                    amountExpectedFor
+                );
             }
             return amountToReturn;
         }

@@ -157,8 +157,8 @@ module.exports = async function (hre) {
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
-    let fundingRateSensitivity = 1
-    let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
+    let fundingRateSensitivity = ethers.utils.parseEther("1")
+    let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
     let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
@@ -184,6 +184,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: libInsurance.address,
         constructorArguments: [],
+        contract: "contracts/lib/LibInsurance.sol:LibInsurance",
     })
     await hre.run("verify:verify", {
         address: libPricing.address,
@@ -212,6 +213,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: token.address,
         constructorArguments: [ethers.utils.parseEther("10000000")],
+        contract: "contracts/TestToken.sol:TestToken",
     })
     await hre.run("verify:verify", {
         address: factory.address,

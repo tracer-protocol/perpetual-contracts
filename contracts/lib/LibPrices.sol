@@ -184,16 +184,25 @@ library Prices {
     }
 
     // TODO test these
+    /**
+     * @notice Calculates and returns the effect of the funding rate to a position.
+     * @param position Position of the user
+     * @param globalRate Global funding rate in current instance
+     * @param userRate Last updated user funding rate
+     */
     function applyFunding(
         Balances.Position memory position,
         FundingRateInstant memory globalRate,
         FundingRateInstant memory userRate
     ) internal pure returns (Balances.Position memory) {
+        // quote after funding rate applied = quote -
+        //        (cumulativeGlobalFundingRate - cumulativeUserFundingRate) * base
         return
             Balances.Position(
                 position.quote -
                     PRBMathSD59x18.mul(
-                        globalRate.fundingRate - userRate.fundingRate,
+                        globalRate.cumulativeFundingRate -
+                            userRate.cumulativeFundingRate,
                         position.base
                     ),
                 position.base
