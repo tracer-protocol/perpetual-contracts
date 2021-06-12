@@ -126,11 +126,13 @@ library LibLiquidation {
             if (amountToReturn <= 0) {
                 return 0;
             }
-            // multiply by 100 as we expect this to be a percent as an integer eg 50% = 50
+
+            // slippage percent = slippage / total amount
             percentSlippage = PRBMathUD60x18.div(
                 amountToReturn,
                 amountExpectedFor
             );
+
             if (percentSlippage > maxSlippage) {
                 amountToReturn = PRBMathUD60x18.mul(
                     maxSlippage,
