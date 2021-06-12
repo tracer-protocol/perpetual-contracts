@@ -427,7 +427,7 @@ contract TracerPerpetualSwaps is
             liquidateeBaseChange;
 
         // Checks if the liquidator is in a valid position to process the liquidation
-        require(userMarginIsValid(liquidator), "TCR: Liquidator under margin");
+        require(userMarginIsValid(liquidator), "TCR: Liquidator under minimum margin");
     }
 
     function updateAccountsOnClaim(
@@ -447,8 +447,6 @@ contract TracerPerpetualSwaps is
         balances[liquidatee].position.quote =
             balances[liquidatee].position.quote +
             amountToGiveToLiquidatee;
-        console.log("...................");
-        console.logInt(amountToGiveToClaimant);
         require(
             balances[insuranceAddr].position.quote >= 0,
             "TCR: Insurance not adequately funded"

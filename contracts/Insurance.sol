@@ -14,8 +14,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-import "hardhat/console.sol";
-
 contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     using LibMath for uint256;
     using LibMath for int256;
@@ -162,9 +160,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             // Use new amount to compute difference again.
             difference = collateralAmount - amount;
         }
-        console.log("Amount taken from insurance");
-        console.log(amount);
-        console.log(collateralAmount);
 
         tracerMarginToken.approve(address(tracer), amount);
         tracer.deposit(amount);

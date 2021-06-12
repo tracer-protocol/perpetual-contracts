@@ -220,7 +220,7 @@ module.exports = async function (hre) {
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
-            "bytes32", //_marketId,a
+            "bytes32", //_marketId,
             "address", //_tracerQuoteToken,
             "uint256", //_tokenDecimals,
             "address", //_gasPriceOracle,

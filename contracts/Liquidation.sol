@@ -13,8 +13,6 @@ import "./Interfaces/IOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
-import "hardhat/console.sol";
-
 /**
  * Each call enforces that the contract calling the account is only updating the balance
  * of the account for that contract.
@@ -309,15 +307,6 @@ contract Liquidation is ILiquidation, Ownable {
             Perpetuals.Order memory order = ITrader(traderContract).getOrder(
                 orders[i]
             );
-            console.log("HI");
-            console.log(orders[i].maker);
-            console.log(orders[i].market);
-            console.log(orders[i].price);
-            console.log(orders[i].amount);
-            console.log(uint(orders[i].side));
-            console.log(orders[i].expires);
-            console.log(orders[i].created);
-            console.log(order.created);
 
             if (
                 order.created < receipt.time || // Order made before receipt
@@ -378,10 +367,7 @@ contract Liquidation is ILiquidation, Ownable {
             traderContract,
             escrowId
         );
-        console.log("calcAmountToReturn");
-        console.log(unitsSold);
-        console.log(avgPrice);
-        console.log(receipt.price);
+
         require(
             unitsSold <= uint256(receipt.amountLiquidated.abs()),
             "LIQ: Unit mismatch"
@@ -393,8 +379,7 @@ contract Liquidation is ILiquidation, Ownable {
             avgPrice,
             receipt
         );
-        console.log("AmountToReturn");
-        console.log(amountToReturn);
+
         return amountToReturn;
     }
 
@@ -517,7 +502,6 @@ contract Liquidation is ILiquidation, Ownable {
         if (amountToReturn > receipt.escrowedAmount) {
             // Need to cover some loses with the insurance contract
             // Whatever is the remainder that can't be covered from escrow
-            console.log(1);
             uint256 amountWantedFromInsurance = amountToReturn -
                 receipt.escrowedAmount;
             (
@@ -528,9 +512,6 @@ contract Liquidation is ILiquidation, Ownable {
                 receipt
             );
         } else {
-            console.log(2);
-            console.log(amountToReturn);
-            console.log(receipt.escrowedAmount);
             amountToGiveToClaimant = amountToReturn;
             amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
         }

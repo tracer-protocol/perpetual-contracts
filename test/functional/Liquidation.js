@@ -27,6 +27,16 @@ const provideOrders = async (contracts, liquidationAmount, timestamp) => {
         created: timestamp + 1,
     }
 
+    const sellWholeLiquidationAmountZeroTokens = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.5").toString(),
+        amount: "0",
+        side: "1", // Short, because original position liquidated was long
+        expires: timestamp + 100,
+        created: timestamp + 1,
+    }
+
     const sellHalfLiquidationAmount = {
         maker: accounts[1].address,
         market: contracts.tracerPerps.address,
@@ -119,6 +129,8 @@ const provideOrders = async (contracts, liquidationAmount, timestamp) => {
         earlyCreationOrder: earlyCreationOrder,
         wrongMakerOrder: wrongMakerOrder,
         sellLiquidationAmountNoSlippage: sellLiquidationAmountNoSlippage,
+        sellWholeLiquidationAmountZeroTokens:
+            sellWholeLiquidationAmountZeroTokens,
     }
 
     return orders
@@ -135,13 +147,9 @@ const halfLiquidate = deployments.createFixture(async () => {
         2
     )
 
-    await liquidation
-        .connect(accounts[1])
-        .liquidate(halfBase, deployer)
+    await liquidation.connect(accounts[1]).liquidate(halfBase, deployer)
 
-    const timestamp = (
-        await ethers.provider.getBlock("latest")
-    ).timestamp
+    const timestamp = (await ethers.provider.getBlock("latest")).timestamp
 
     return { ...contracts, timestamp }
 })
@@ -238,12 +246,6 @@ const addOrdersToModifiedTrader = async (
                 [hash]: order,
             },
         })
-        /*
-        if (order.market === contracts.tracerPerps.address && order.price === ethers.utils.parseEther("0.5").toString() && order.amount === (liquidationAmount)){
-            console.log(order)
-            console.log(await modifiableTrader.getOrder(order))
-        }
-        */
         await modifiableTrader.smodify.put({
             filled: {
                 [hash]: order.amount,
@@ -265,7 +267,11 @@ const setupReceiptTest = deployments.createFixture(async () => {
     const liquidationAmount = (
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
-    const orders = await provideOrders(contracts, liquidationAmount, contracts.timestamp)
+    const orders = await provideOrders(
+        contracts,
+        liquidationAmount,
+        contracts.timestamp
+    )
 
     await addOrdersToModifiedTrader(
         modifiableTrader,
@@ -620,14 +626,21 @@ describe("Liquidation functional tests", async () => {
     })
 
     context("claimReceipt", async () => {
-        const liquidateAndDepositAccount2 = deployments.createFixture(async () => {
-            const contracts = await setupReceiptTest()
-            accounts = await ethers.getSigners()
+        const liquidateAndDepositAccount2 = deployments.createFixture(
+            async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
 
-            await contracts.token.connect(accounts[2]).approve(contracts.insurance.address, ethers.utils.parseEther("10000"))
-            
-            return contracts
-        })
+                await contracts.token
+                    .connect(accounts[2])
+                    .approve(
+                        contracts.insurance.address,
+                        ethers.utils.parseEther("10000")
+                    )
+
+                return contracts
+            }
+        )
 
         context("when receipt doesn't exist", async () => {
             it("Reverts", async () => {
@@ -736,8 +749,12 @@ describe("Liquidation functional tests", async () => {
                 // so slippage is liquidationAmount*0.95 - liquidationAmount*0.94
                 const order = contracts.sellWholeLiquidationAmountTinySlippage
 
-                const receiptValue = liquidationAmount.mul(BigNumber.from("95")).div(BigNumber.from("100"))
-                const sellValue = liquidationAmount.mul(BigNumber.from("94")).div(BigNumber.from("100"))
+                const receiptValue = liquidationAmount
+                    .mul(BigNumber.from("95"))
+                    .div(BigNumber.from("100"))
+                const sellValue = liquidationAmount
+                    .mul(BigNumber.from("94"))
+                    .div(BigNumber.from("100"))
                 const slippageAmount = receiptValue.sub(sellValue)
 
                 const liquidatorQuoteBefore = (
@@ -771,8 +788,11 @@ describe("Liquidation functional tests", async () => {
                     liquidatorQuoteBefore.add(slippageAmount)
                 )
 
-                const expectedLiquidateeDifference = escrowedAmount.sub(slippageAmount)
-                expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore.add(expectedLiquidateeDifference))
+                const expectedLiquidateeDifference =
+                    escrowedAmount.sub(slippageAmount)
+                expect(liquidateeQuoteAfter).to.equal(
+                    liquidateeQuoteBefore.add(expectedLiquidateeDifference)
+                )
             })
         })
 
@@ -791,21 +811,22 @@ describe("Liquidation functional tests", async () => {
                     const order = contracts.sellWholeLiquidationAmount
 
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(accounts[1].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(accounts[0].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
                     ).position.quote
-                    console.log(3)
 
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
                         .setWhitelist(contracts.modifiableTrader.address, true)
+
                     // Claim receipt then claim again
-                    console.log(4)
-                    console.log(order)
-                    console.log(contracts.modifiableTrader.address)
                     await contracts.liquidation
                         .connect(accounts[1])
                         .claimReceipt(
@@ -813,16 +834,17 @@ describe("Liquidation functional tests", async () => {
                             [order],
                             contracts.modifiableTrader.address
                         )
-                    console.log(5)
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(accounts[1].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
                     ).position.quote
-                    console.log(6)
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(accounts[0].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
                     ).position.quote
-                    console.log(7)
 
                     // Amount should only increase by escrowed amount, since ins pool is empty
                     expect(liquidatorQuoteAfter).to.equal(
@@ -852,20 +874,33 @@ describe("Liquidation functional tests", async () => {
                     // so slippage is liquidationAmount*0.95 - liquidationAmount*0.5
                     const order = contracts.sellWholeLiquidationAmount
 
-                    const receiptValue = liquidationAmount.mul(BigNumber.from("95")).div(BigNumber.from("100"))
-                    const sellValue = liquidationAmount.mul(BigNumber.from("50")).div(BigNumber.from("100"))
+                    const receiptValue = liquidationAmount
+                        .mul(BigNumber.from("95"))
+                        .div(BigNumber.from("100"))
+                    const sellValue = liquidationAmount
+                        .mul(BigNumber.from("50"))
+                        .div(BigNumber.from("100"))
                     const slippageAmount = receiptValue.sub(sellValue)
 
                     // We want slippage > escrowedAmount + insurancePoolHoldings
-                    await contracts.insurance.connect(accounts[2]).deposit((slippageAmount.sub(escrowedAmount)).div(2))
-                    await contracts.insurance.connect(accounts[2]).updatePoolAmount()
+                    await contracts.insurance
+                        .connect(accounts[2])
+                        .deposit(slippageAmount.sub(escrowedAmount).div(2))
+                    await contracts.insurance
+                        .connect(accounts[2])
+                        .updatePoolAmount()
 
-                    const poolHoldingsBefore = await contracts.insurance.collateralAmount()
+                    const poolHoldingsBefore =
+                        await contracts.insurance.collateralAmount()
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(accounts[1].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(accounts[0].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
                     ).position.quote
 
                     // Whitelist the smoddit Trader
@@ -881,12 +916,18 @@ describe("Liquidation functional tests", async () => {
                         )
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(accounts[1].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
                     ).position.quote
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(accounts[0].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
                     ).position.quote
-                    const expectedDifference = escrowedAmount.add(poolHoldingsBefore).sub(ethers.utils.parseEther("1"))
+                    const expectedDifference = escrowedAmount
+                        .add(poolHoldingsBefore)
+                        .sub(ethers.utils.parseEther("1"))
 
                     // Should increase by amount escrowed + whatever was in the insurance pool
                     expect(liquidatorQuoteAfter).to.equal(
@@ -894,7 +935,9 @@ describe("Liquidation functional tests", async () => {
                     )
                     expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore)
                     await contracts.insurance.updatePoolAmount()
-                    expect(await contracts.insurance.collateralAmount()).to.equal(ethers.utils.parseEther("1"))
+                    expect(
+                        await contracts.insurance.collateralAmount()
+                    ).to.equal(ethers.utils.parseEther("1"))
                 })
             }
         )
@@ -916,20 +959,33 @@ describe("Liquidation functional tests", async () => {
                     // This order sells all liquidationAmount at $0.5, even though the receipt is $0.95,
                     // so slippage is liquidationAmount*0.95 - liquidationAmount*0.5
                     const order = contracts.sellWholeLiquidationAmount
-                    const receiptValue = liquidationAmount.mul(BigNumber.from("95")).div(BigNumber.from("100"))
-                    const sellValue = liquidationAmount.mul(BigNumber.from("50")).div(BigNumber.from("100"))
+                    const receiptValue = liquidationAmount
+                        .mul(BigNumber.from("95"))
+                        .div(BigNumber.from("100"))
+                    const sellValue = liquidationAmount
+                        .mul(BigNumber.from("50"))
+                        .div(BigNumber.from("100"))
                     const slippageAmount = receiptValue.sub(sellValue)
 
                     // We want slippage > escrowedAmount + insurancePoolHoldings
-                    await contracts.insurance.connect(accounts[2]).deposit(ethers.utils.parseEther("10000"))
-                    await contracts.insurance.connect(accounts[2]).updatePoolAmount()
+                    await contracts.insurance
+                        .connect(accounts[2])
+                        .deposit(ethers.utils.parseEther("10000"))
+                    await contracts.insurance
+                        .connect(accounts[2])
+                        .updatePoolAmount()
 
-                    const poolHoldingsBefore = await contracts.insurance.collateralAmount()
+                    const poolHoldingsBefore =
+                        await contracts.insurance.collateralAmount()
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(accounts[1].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(accounts[0].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
                     ).position.quote
 
                     // Whitelist the smoddit Trader
@@ -945,10 +1001,14 @@ describe("Liquidation functional tests", async () => {
                         )
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(accounts[1].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
                     ).position.quote
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(accounts[0].address)
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
                     ).position.quote
 
                     // Should increase by amount escrowed + whatever was in the insurance pool
@@ -958,8 +1018,13 @@ describe("Liquidation functional tests", async () => {
                     expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore)
                     await contracts.insurance.updatePoolAmount()
 
-                    const expectedPoolHoldings = poolHoldingsBefore.sub(slippageAmount.sub(escrowedAmount))
-                    expect(await contracts.insurance.collateralAmount()).to.equal(expectedPoolHoldings)
+                    // Insurance pool should go down by (slippageAmount - escrowedAMount)
+                    const expectedPoolHoldings = poolHoldingsBefore.sub(
+                        slippageAmount.sub(escrowedAmount)
+                    )
+                    expect(
+                        await contracts.insurance.collateralAmount()
+                    ).to.equal(expectedPoolHoldings)
                 })
             }
         )
@@ -971,18 +1036,188 @@ describe("Liquidation functional tests", async () => {
                     const contracts = await liquidateAndDepositAccount2()
                     accounts = await ethers.getSigners()
 
-                    // Set maxSlippage to 5%
-                    await contracts.liquidation.connect(accounts[0]).setMaxSlippage(ethers.utils.parseEther("5"))
+                    // Set maxSlippage to 2%
+                    await contracts.liquidation
+                        .connect(accounts[0])
+                        .setMaxSlippage(ethers.utils.parseEther("0.02"))
+
+                    const liquidationAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).amountLiquidated
+                    const escrowedAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).escrowedAmount
+
+                    // This order sells all liquidationAmount at $0.5, even though the receipt is $0.95,
+                    // so slippage is liquidationAmount*0.95 - liquidationAmount*0.5
+                    // But that goes over the newly-set 2% cap
+                    const order = contracts.sellWholeLiquidationAmount
+                    const receiptValue = liquidationAmount
+                        .mul(BigNumber.from("95"))
+                        .div(BigNumber.from("100"))
+
+                    // percent slippage = slippage / total amount
+                    // slippage = percent / total amount
+                    const expectedSlippage = receiptValue
+                        .mul(BigNumber.from("2"))
+                        .div(BigNumber.from("100"))
+
+                    const liquidatorQuoteBefore = (
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
+                    ).position.quote
+                    const liquidateeQuoteBefore = (
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
+                    ).position.quote
+
+                    // Whitelist the smoddit Trader
+                    await contracts.tracerPerps
+                        .connect(accounts[0])
+                        .setWhitelist(contracts.modifiableTrader.address, true)
+                    await contracts.liquidation
+                        .connect(accounts[1])
+                        .claimReceipt(
+                            0,
+                            [order],
+                            contracts.modifiableTrader.address
+                        )
+
+                    const liquidatorQuoteAfter = (
+                        await contracts.tracerPerps.balances(
+                            accounts[1].address
+                        )
+                    ).position.quote
+                    const liquidateeQuoteAfter = (
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
+                    ).position.quote
+
+                    // Should increase by amount escrowed + whatever was in the insurance pool
+                    expect(liquidatorQuoteAfter).to.equal(
+                        liquidatorQuoteBefore.add(expectedSlippage)
+                    )
+
+                    // liquidatee base should have gone up by (escrowedAmount - slippage)
+                    expect(liquidateeQuoteAfter).to.equal(
+                        liquidateeQuoteBefore.add(
+                            escrowedAmount.sub(expectedSlippage)
+                        )
+                    )
                 })
             }
         )
 
         context("when No slippage", async () => {
-            it("Makes no changes (to all 3 accounts) ", async () => {})
+            it("Makes no changes (except liquidatee, who gets escrow) ", async () => {
+                const contracts = await liquidateAndDepositAccount2()
+                accounts = await ethers.getSigners()
+
+                const order = contracts.sellLiquidationAmountNoSlippage
+                const escrowedAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).escrowedAmount
+
+                const liquidatorQuoteBefore = (
+                    await contracts.tracerPerps.balances(accounts[1].address)
+                ).position.quote
+                const liquidateeQuoteBefore = (
+                    await contracts.tracerPerps.balances(accounts[0].address)
+                ).position.quote
+
+                await contracts.insurance.updatePoolAmount()
+                const insuranceHoldingsBefore =
+                    await contracts.insurance.collateralAmount()
+
+                // Whitelist the smoddit Trader
+                await contracts.tracerPerps
+                    .connect(accounts[0])
+                    .setWhitelist(contracts.modifiableTrader.address, true)
+                await contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(
+                        0,
+                        [order],
+                        contracts.modifiableTrader.address
+                    )
+
+                const liquidatorQuoteAfter = (
+                    await contracts.tracerPerps.balances(accounts[1].address)
+                ).position.quote
+                const liquidateeQuoteAfter = (
+                    await contracts.tracerPerps.balances(accounts[0].address)
+                ).position.quote
+                await contracts.insurance.updatePoolAmount()
+                const insuranceHoldingsAfter =
+                    await contracts.insurance.collateralAmount()
+
+                // Should increase by amount escrowed + whatever was in the insurance pool
+                expect(liquidatorQuoteAfter).to.equal(liquidatorQuoteBefore)
+
+                // liquidatee base should have gone up by escrowedAMount
+                expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore.add(escrowedAmount))
+                expect(insuranceHoldingsBefore).to.equal(
+                    insuranceHoldingsAfter
+                )
+            })
         })
 
         context("when units sold is 0", async () => {
-            it("Makes no changes (to all 3 accounts) ", async () => {})
+            it("Makes no changes (except to liquidatee, who gets escrow) ", async () => {
+                const contracts = await liquidateAndDepositAccount2()
+                accounts = await ethers.getSigners()
+
+                const order = contracts.sellWholeLiquidationAmountZeroTokens
+                const escrowedAmount = (
+                    await contracts.liquidation.liquidationReceipts(0)
+                ).escrowedAmount
+
+                const liquidatorQuoteBefore = (
+                    await contracts.tracerPerps.balances(accounts[1].address)
+                ).position.quote
+                const liquidateeQuoteBefore = (
+                    await contracts.tracerPerps.balances(accounts[0].address)
+                ).position.quote
+
+                await contracts.insurance.updatePoolAmount()
+                const insuranceHoldingsBefore =
+                    await contracts.insurance.collateralAmount()
+
+                // Whitelist the smoddit Trader
+                await contracts.tracerPerps
+                    .connect(accounts[0])
+                    .setWhitelist(contracts.modifiableTrader.address, true)
+                await contracts.liquidation
+                    .connect(accounts[1])
+                    .claimReceipt(
+                        0,
+                        [order],
+                        contracts.modifiableTrader.address
+                    )
+
+                const liquidatorQuoteAfter = (
+                    await contracts.tracerPerps.balances(accounts[1].address)
+                ).position.quote
+                const liquidateeQuoteAfter = (
+                    await contracts.tracerPerps.balances(accounts[0].address)
+                ).position.quote
+
+                await contracts.insurance.updatePoolAmount()
+                const insuranceHoldingsAfter =
+                    await contracts.insurance.collateralAmount()
+
+                // Should increase by amount escrowed + whatever was in the insurance pool
+                expect(liquidatorQuoteAfter).to.equal(liquidatorQuoteBefore)
+
+                // liquidatee base should have gone up by escrowedAmount
+                expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore.add(escrowedAmount))
+                expect(insuranceHoldingsAfter).to.equal(
+                    insuranceHoldingsBefore
+                )
+            })
         })
     })
 
@@ -1175,7 +1410,10 @@ describe("Liquidation functional tests", async () => {
 
                 const receipt = await (
                     await contracts.liquidation.calcUnitsSold(
-                        [contracts.earlyCreationOrder, contracts.earlyCreationOrder],
+                        [
+                            contracts.earlyCreationOrder,
+                            contracts.earlyCreationOrder,
+                        ],
                         contracts.modifiableTrader.address,
                         0
                     )
@@ -1194,7 +1432,10 @@ describe("Liquidation functional tests", async () => {
                 expect(eventCounter).to.equal(expectedNumberOfEventEmissions)
                 const result =
                     await contracts.liquidation.callStatic.calcUnitsSold(
-                        [contracts.earlyCreationOrder, contracts.earlyCreationOrder],
+                        [
+                            contracts.earlyCreationOrder,
+                            contracts.earlyCreationOrder,
+                        ],
                         contracts.modifiableTrader.address,
                         0
                     )
@@ -1251,7 +1492,10 @@ describe("Liquidation functional tests", async () => {
 
                     const receipt = await (
                         await contracts.liquidation.calcUnitsSold(
-                            [contracts.wrongMakerOrder, contracts.wrongMakerOrder],
+                            [
+                                contracts.wrongMakerOrder,
+                                contracts.wrongMakerOrder,
+                            ],
                             contracts.modifiableTrader.address,
                             0
                         )
@@ -1272,7 +1516,10 @@ describe("Liquidation functional tests", async () => {
                     )
                     const result =
                         await contracts.liquidation.callStatic.calcUnitsSold(
-                            [contracts.wrongMakerOrder, contracts.wrongMakerOrder],
+                            [
+                                contracts.wrongMakerOrder,
+                                contracts.wrongMakerOrder,
+                            ],
                             contracts.modifiableTrader.address,
                             0
                         )

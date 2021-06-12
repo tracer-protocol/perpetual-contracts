@@ -310,7 +310,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         ethers.utils.parseEther("1"),
                         ethers.utils.parseEther("1")
                     )
-                ).to.be.revertedWith("TCR: Liquidator under margin")
+                ).to.be.revertedWith("TCR: Liquidator under minimum margin")
             })
         })
 
@@ -733,6 +733,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
                 await tracer.connect(accounts[0]).matchOrders(order1, order2)
             })
+
             it("withdraws the fees", async () => {
                 let feeReceiver = await tracer.feeReceiver()
                 let balanceBefore = await quoteToken.balanceOf(feeReceiver)
