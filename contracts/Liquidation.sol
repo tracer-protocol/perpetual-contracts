@@ -56,6 +56,12 @@ contract Liquidation is ILiquidation, Ownable {
     );
     event InvalidClaimOrder(uint256 indexed receiptId);
 
+    /**
+     * @param _pricing Pricing.sol contract address
+     * @param _tracer TracerPerpetualSwaps.sol contract address
+     * @param _insuranceContract Insurance.sol contract address
+     * @param _maxSlippage The
+     */
     constructor(
         address _pricing,
         address _tracer,
@@ -387,6 +393,8 @@ contract Liquidation is ILiquidation, Ownable {
             avgPrice,
             receipt
         );
+        console.log("AmountToReturn");
+        console.log(amountToReturn);
         return amountToReturn;
     }
 

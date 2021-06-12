@@ -318,7 +318,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("slippage over maxSlippage amount", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (0.1 * 100000000000000000000).toString() // 10%
+            const maxSlippage = ethers.utils.parseEther("0.1") // 10%
             const avgPrice = ethers.utils.parseEther("1")
             const receiptPrice = ethers.utils.parseEther("2")
             const expectedSlippage = ethers.utils.parseEther("20") // 10% of 200
