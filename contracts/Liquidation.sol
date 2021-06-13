@@ -202,11 +202,11 @@ contract Liquidation is ILiquidation, Ownable {
     /**
      * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
      * @param updatedPosition The agent's position after being liquidated
-     * @param balanceToBeLiquidated The balance of account to be liquidated
+     * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
      */
     function checkPartialLiquidation(
         Balances.Position memory updatedPosition,
-        Balances.Account memory balanceToBeLiquidated
+        uint256 lastUpdatedGasPrice
     ) public returns (bool) {
         uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
         uint256 price = pricing.fairPrice();
@@ -214,7 +214,7 @@ contract Liquidation is ILiquidation, Ownable {
         return
             LibLiquidation.partialLiquidationIsValid(
                 updatedPosition,
-                balanceToBeLiquidated,
+                lastUpdatedGasPrice,
                 liquidationGasCost,
                 price,
                 minimumLeftoverGasCostMultiplier
@@ -257,7 +257,10 @@ contract Liquidation is ILiquidation, Ownable {
         );
 
         require(
-            checkPartialLiquidation(updatedPosition, liquidatedBalance),
+            checkPartialLiquidation(
+                updatedPosition,
+                liquidatedBalance.lastUpdatedGasPrice
+            ),
             "LIQ: Liquidation leaves too little left over"
         );
 

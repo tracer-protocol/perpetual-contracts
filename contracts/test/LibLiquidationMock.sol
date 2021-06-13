@@ -88,13 +88,6 @@ library LibLiquidationMock {
         uint256 price,
         uint256 minimumLeftoverGasCostMultiplier
     ) external pure returns (bool) {
-        Balances.Account memory balanceToBeLiquidated = Balances.Account(
-            Balances.Position(0, 0), // Not used
-            0,
-            0,
-            lastUpdatedGasPrice
-        );
-
         Balances.Position memory updatedPosition = Balances.Position(
             leftoverQuote,
             leftoverBase
@@ -103,7 +96,7 @@ library LibLiquidationMock {
         return
             LibLiquidation.partialLiquidationIsValid(
                 updatedPosition,
-                balanceToBeLiquidated,
+                lastUpdatedGasPrice,
                 liquidationGasCost,
                 price,
                 minimumLeftoverGasCostMultiplier

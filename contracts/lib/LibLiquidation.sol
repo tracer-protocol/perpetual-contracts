@@ -166,7 +166,7 @@ library LibLiquidation {
      * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
      * @dev Assumes params are WAD except liquidationGasCost
      * @param updatedPosition The agent's position after being liquidated
-     * @param balanceToBeLiquidated The balance of account to be liquidated
+     * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
      * @param liquidationGasCost Approximately how much gas is used to call liquidate()
      * @param price Current fair price
      * @param minimumLeftoverGasCostMultiplier The amount to multiply the liquidation cost by in
@@ -174,13 +174,13 @@ library LibLiquidation {
      */
     function partialLiquidationIsValid(
         Balances.Position memory updatedPosition,
-        Balances.Account memory balanceToBeLiquidated,
+        uint256 lastUpdatedGasPrice,
         uint256 liquidationGasCost,
         uint256 price,
         uint256 minimumLeftoverGasCostMultiplier
     ) internal pure returns (bool) {
         uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(
-            balanceToBeLiquidated.lastUpdatedGasPrice,
+            lastUpdatedGasPrice,
             liquidationGasCost
         ) * minimumLeftoverGasCostMultiplier;
 
