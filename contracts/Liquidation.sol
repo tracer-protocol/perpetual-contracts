@@ -23,7 +23,8 @@ contract Liquidation is ILiquidation, Ownable {
 
     uint256 public override currentLiquidationId;
     uint256 public override maxSlippage;
-    uint256 releaseTime = 15 minutes;
+    uint256 public override releaseTime = 15 minutes;
+    uint256 public override minimumLeftoverGasCostMultiplier = 10;
     IPricing public pricing;
     ITracerPerpetualSwaps public tracer;
     address public insuranceContract;
@@ -178,7 +179,9 @@ contract Liquidation is ILiquidation, Ownable {
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
             Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
-            currentMargin
+            currentMargin,
+            amount,
+            base
         );
 
         // create a liquidation receipt
@@ -194,6 +197,28 @@ contract Liquidation is ILiquidation, Ownable {
             side
         );
         return amountToEscrow;
+    }
+
+    /**
+     * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
+     * @param updatedPosition The agent's position after being liquidated
+     * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
+     */
+    function checkPartialLiquidation(
+        Balances.Position memory updatedPosition,
+        uint256 lastUpdatedGasPrice
+    ) public returns (bool) {
+        uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
+        uint256 price = pricing.fairPrice();
+
+        return
+            LibLiquidation.partialLiquidationIsValid(
+                updatedPosition,
+                lastUpdatedGasPrice,
+                liquidationGasCost,
+                price,
+                minimumLeftoverGasCostMultiplier
+            );
     }
 
     /**
@@ -221,9 +246,22 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeQuoteChange,
             int256 liquidateeBaseChange
         ) = LibLiquidation.liquidationBalanceChanges(
-            liquidatedBalance.position.quote,
             liquidatedBalance.position.base,
+            liquidatedBalance.position.quote,
             amount
+        );
+
+        Balances.Position memory updatedPosition = Balances.Position(
+            liquidatedBalance.position.quote + liquidateeQuoteChange,
+            liquidatedBalance.position.base + liquidateeBaseChange
+        );
+
+        require(
+            checkPartialLiquidation(
+                updatedPosition,
+                liquidatedBalance.lastUpdatedGasPrice
+            ),
+            "LIQ: Liquidation leaves too little left over"
         );
 
         tracer.updateAccountsOnLiquidation(
@@ -503,6 +541,17 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setReleaseTime(uint256 _releaseTime) external onlyOwner() {
         releaseTime = _releaseTime;
+    }
+
+    /**
+     * @notice Modifies the value to multiply the liquidation cost by in determining
+     *         the minimum leftover margin on partial liquidation
+     * @param _minimumLeftoverGasCostMultiplier The new multiplier
+     */
+    function setMinimumLeftoverGasCostMultiplier(
+        uint256 _minimumLeftoverGasCostMultiplier
+    ) external onlyOwner() {
+        minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
     }
 
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {

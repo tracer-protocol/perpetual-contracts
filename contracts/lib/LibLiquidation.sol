@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
 import "./LibPerpetuals.sol";
+import "./LibBalances.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 
@@ -26,16 +27,31 @@ library LibLiquidation {
         bool liquidatorRefundClaimed;
     }
 
+    /**
+     * @return The amount a liquidator must escrow in order to liquidate a given position.
+     *         Calculated as currentMargin - (minMargin - currentMargin) * portion of whole position being liquidated
+     * @dev Assumes params are WAD
+     * @param minMargin User's minimum margin
+     * @param currentMargin User's current margin
+     * @param amount Amount being liquidated
+     * @param totalBase User's total base
+     */
     function calcEscrowLiquidationAmount(
-        uint256 minMargin, //10^18
-        int256 currentMargin //10^18
+        uint256 minMargin,
+        int256 currentMargin,
+        int256 amount,
+        int256 totalBase
     ) internal pure returns (uint256) {
         int256 amountToEscrow = currentMargin -
             (minMargin.toInt256() - currentMargin);
-        if (amountToEscrow < 0) {
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(
+            amountToEscrow,
+            PRBMathSD59x18.div(amount, totalBase)
+        );
+        if (amountToEscrowProportional < 0) {
             return 0;
         }
-        return uint256(amountToEscrow);
+        return uint256(amountToEscrowProportional);
     }
 
     /**
@@ -63,17 +79,24 @@ library LibLiquidation {
         if (liquidatedBase == 0) {
             return (0, 0, 0, 0);
         }
+
         int256 portionOfQuote = PRBMathSD59x18.mul(
             liquidatedQuote,
             PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
         );
 
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
+        if (liquidatedBase < 0) {
+            _liquidatorBaseChange = amount * (-1);
+            _liquidateeBaseChange = amount;
+        } else {
+            _liquidatorBaseChange = amount;
+            _liquidateeBaseChange = amount * (-1);
+        }
+
+        /* If quote is negative, liquidator always takes on negative quote */
         _liquidatorQuoteChange = portionOfQuote;
         _liquidateeQuoteChange = portionOfQuote * (-1);
-
-        _liquidatorBaseChange = amount;
-        _liquidateeBaseChange = amount * (-1);
     }
 
     /**
@@ -141,5 +164,33 @@ library LibLiquidation {
             }
             return amountToReturn;
         }
+    }
+
+    /**
+     * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
+     * @dev Assumes params are WAD except liquidationGasCost
+     * @param updatedPosition The agent's position after being liquidated
+     * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
+     * @param liquidationGasCost Approximately how much gas is used to call liquidate()
+     * @param price Current fair price
+     * @param minimumLeftoverGasCostMultiplier The amount to multiply the liquidation cost by in
+     *                                         in order to calculate minimum leftover margin
+     */
+    function partialLiquidationIsValid(
+        Balances.Position memory updatedPosition,
+        uint256 lastUpdatedGasPrice,
+        uint256 liquidationGasCost,
+        uint256 price,
+        uint256 minimumLeftoverGasCostMultiplier
+    ) internal pure returns (bool) {
+        uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(
+            lastUpdatedGasPrice,
+            liquidationGasCost
+        ) * minimumLeftoverGasCostMultiplier;
+
+        int256 margin = Balances.margin(updatedPosition, price);
+        return
+            margin >= minimumLeftoverMargin.toInt256() ||
+            (updatedPosition.base == 0 && updatedPosition.quote == 0);
     }
 }
