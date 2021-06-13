@@ -58,7 +58,8 @@ contract Liquidation is ILiquidation, Ownable {
      * @param _pricing Pricing.sol contract address
      * @param _tracer TracerPerpetualSwaps.sol contract address
      * @param _insuranceContract Insurance.sol contract address
-     * @param _maxSlippage The
+     * @param _maxSlippage The maximum slippage percentage that is allowed on selling a
+                           liquidated position. Given as a decimal WAD. e.g 5% = 0.05*10^18
      */
     constructor(
         address _pricing,
