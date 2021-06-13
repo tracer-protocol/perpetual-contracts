@@ -10,7 +10,7 @@ async function main() {
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = 18
     let feeRate = 0 // 0 percent
-    let maxLiquidationSlippage = "50000000000000000000" // 50 percent
+    let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50%
     let fundingRateSensitivity = ethers.utils.parseEther("1")
     let gasPriceOracleAdapter = await deployments.get("GasPriceOracleAdapter")
     let trader = await deployments.get("Trader")
