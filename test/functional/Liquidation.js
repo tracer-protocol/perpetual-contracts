@@ -797,7 +797,7 @@ describe("Liquidation functional tests", async () => {
         })
 
         context(
-            "when slippage occurs - below escrow amount & empty insurance pool",
+            "when slippage occurs - above escrow amount & empty insurance pool",
             async () => {
                 it("Accurately updates accounts", async () => {
                     const contracts = await setupReceiptTest()
@@ -806,8 +806,8 @@ describe("Liquidation functional tests", async () => {
                         await contracts.liquidation.liquidationReceipts(0)
                     ).escrowedAmount
 
-                    // This order sells all liquidationAmount at $0.94, even though the receipt is $0.95,
-                    // so slippage is liquidationAmount*0.95 - liquidationAmount*0.94
+                    // This order sells all liquidationAmount at $0.5, even though the receipt is $0.95,
+                    // so slippage is liquidationAmount*0.95 - liquidationAmount*0.5
                     const order = contracts.sellWholeLiquidationAmount
 
                     const liquidatorQuoteBefore = (
@@ -1158,10 +1158,10 @@ describe("Liquidation functional tests", async () => {
                 expect(liquidatorQuoteAfter).to.equal(liquidatorQuoteBefore)
 
                 // liquidatee base should have gone up by escrowedAMount
-                expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore.add(escrowedAmount))
-                expect(insuranceHoldingsBefore).to.equal(
-                    insuranceHoldingsAfter
+                expect(liquidateeQuoteAfter).to.equal(
+                    liquidateeQuoteBefore.add(escrowedAmount)
                 )
+                expect(insuranceHoldingsBefore).to.equal(insuranceHoldingsAfter)
             })
         })
 
@@ -1213,67 +1213,203 @@ describe("Liquidation functional tests", async () => {
                 expect(liquidatorQuoteAfter).to.equal(liquidatorQuoteBefore)
 
                 // liquidatee base should have gone up by escrowedAmount
-                expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore.add(escrowedAmount))
-                expect(insuranceHoldingsAfter).to.equal(
-                    insuranceHoldingsBefore
+                expect(liquidateeQuoteAfter).to.equal(
+                    liquidateeQuoteBefore.add(escrowedAmount)
                 )
+                expect(insuranceHoldingsAfter).to.equal(insuranceHoldingsBefore)
             })
         })
     })
 
     context("claimEscrow", async () => {
-        context("when caller not liquidatee", async () => {
-            it("Reverts ", async () => {})
+        const increaseFifteenMinutes = async () => {
+            await network.provider.send("evm_increaseTime", [
+                fifteenMinutes + 1,
+            ])
+            await network.provider.send("evm_mine", [])
+        }
+        context("when caller is not liquidatee", async () => {
+            it("Reverts ", async () => {
+                const contracts = await setupLiquidationTest()
+                accounts = await ethers.getSigners()
+                await increaseFifteenMinutes()
+                const tx = contracts.liquidation.claimEscrow(0)
+                await expect(tx).to.be.revertedWith("LIQ: Liquidatee mismatch")
+            })
         })
 
         context(
             "when receipt already claimed through claimEscrow",
             async () => {
-                it("Reverts ", async () => {})
+                it("Reverts ", async () => {
+                    const contracts = await setupReceiptTest()
+                    accounts = await ethers.getSigners()
+                    await increaseFifteenMinutes()
+                    await contracts.liquidation
+                        .connect(accounts[0])
+                        .claimEscrow(0)
+                    const tx = contracts.liquidation
+                        .connect(accounts[0])
+                        .claimEscrow(0)
+                    await expect(tx).to.be.revertedWith("LIQ: Escrow claimed")
+                })
             }
         )
 
         context("when calling too early", async () => {
-            it("Reverts ", async () => {})
+            it("Reverts ", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                const tx = contracts.liquidation
+                    .connect(accounts[0])
+                    .claimEscrow(0)
+                await expect(tx).to.be.revertedWith("LIQ: Not released")
+            })
         })
 
         context(
             "when receipt partially claimed by liquidator on claimReceipt",
             async () => {
-                it("Claims accurately", async () => {})
+                it("reverts", async () => {
+                    const contracts = await setupReceiptTest()
+                    accounts = await ethers.getSigners()
+                    // This order sells all liquidationAmount at $0.94, even though the receipt is $0.95,
+                    // so slippage is liquidationAmount*0.95 - liquidationAmount*0.94
+                    const order =
+                        contracts.sellWholeLiquidationAmountTinySlippage
+
+                    // Whitelist the smoddit Trader
+                    await contracts.tracerPerps
+                        .connect(accounts[0])
+                        .setWhitelist(contracts.modifiableTrader.address, true)
+                    // Claim receipt then claim again
+                    await contracts.liquidation
+                        .connect(accounts[1])
+                        .claimReceipt(
+                            0,
+                            [order],
+                            contracts.modifiableTrader.address
+                        )
+                    // Don't need to test balances because that is tested in context("claimReceipts")
+
+                    await increaseFifteenMinutes()
+                    const tx = contracts.liquidation
+                        .connect(accounts[0])
+                        .claimEscrow(0)
+                    await expect(tx).to.be.revertedWith("LIQ: Escrow claimed")
+                })
             }
         )
 
         context(
             "when receipt fully claimed by liquidator on claimReceipt",
             async () => {
-                it("Claims accurately", async () => {})
+                it("Reverts", async () => {
+                    const contracts = await setupReceiptTest()
+                    accounts = await ethers.getSigners()
+                    const escrowedAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).escrowedAmount
+
+                    // This order sells all liquidationAmount at $0.5, even though the receipt is $0.95,
+                    // so slippage is liquidationAmount*0.95 - liquidationAmount*0.5
+                    const order = contracts.sellWholeLiquidationAmount
+
+                    // Whitelist the smoddit Trader
+                    await contracts.tracerPerps
+                        .connect(accounts[0])
+                        .setWhitelist(contracts.modifiableTrader.address, true)
+
+                    // Claim receipt then claim again
+                    await contracts.liquidation
+                        .connect(accounts[1])
+                        .claimReceipt(
+                            0,
+                            [order],
+                            contracts.modifiableTrader.address
+                        )
+
+                    await increaseFifteenMinutes()
+                    const tx = contracts.liquidation
+                        .connect(accounts[0])
+                        .claimEscrow(0)
+                    await expect(tx).to.be.revertedWith("LIQ: Escrow claimed")
+                })
             }
         )
 
         context(
             "when receipt not claimed by liquidator on claimReceipt",
             async () => {
-                it("Claims accurately", async () => {})
+                it("Claims accurately", async () => {
+                    const contracts = await setupReceiptTest()
+                    accounts = await ethers.getSigners()
+
+                    const escrowedAmount = (
+                        await contracts.liquidation.liquidationReceipts(0)
+                    ).escrowedAmount
+                    const quoteBefore = (
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
+                    ).position.quote
+
+                    await increaseFifteenMinutes()
+                    await contracts.liquidation
+                        .connect(accounts[0])
+                        .claimEscrow(0)
+
+                    const quoteAfter = (
+                        await contracts.tracerPerps.balances(
+                            accounts[0].address
+                        )
+                    ).position.quote
+
+                    expect(quoteAfter).to.equal(quoteBefore.add(escrowedAmount))
+                })
             }
         )
     })
 
     context("currentLiquidationId", async () => {
         context("liquidation ID", async () => {
-            it("Correctly increments", async () => {})
+            it("Correctly increments", async () => {
+                // setupReceiptTest() liquidates half, so check liquidation ID then liquidate rest
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+
+                const firstLiquidationID =
+                    await contracts.liquidation.currentLiquidationId()
+                expect(firstLiquidationID).to.equal(BigNumber.from("1"))
+
+                // Get half the base. Liquidate this amount
+                const restOfBase = (
+                    await contracts.tracerPerps.getBalance(accounts[0].address)
+                ).position.base.div(2)
+
+                await contracts.liquidation
+                    .connect(accounts[1])
+                    .liquidate(restOfBase, accounts[0].address)
+
+                const secondLiquidationID =
+                    await contracts.liquidation.currentLiquidationId()
+                expect(secondLiquidationID).to.equal(BigNumber.from("2"))
+            })
         })
     })
 
     context("setMaxSlippage", async () => {
         context("maxSlippage", async () => {
-            it("correctly updates ", async () => {})
-        })
-    })
-
-    context("E2E", async () => {
-        context("End-to-end Test", async () => {
-            it("Passes", async () => {})
+            it("correctly updates ", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                await contracts.liquidation
+                    .connect(accounts[0])
+                    .setMaxSlippage("123")
+                expect(await contracts.liquidation.maxSlippage()).to.equal(
+                    "123"
+                )
+            })
         })
     })
 

@@ -7,8 +7,6 @@ import "./LibBalances.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 
-import "hardhat/console.sol";
-
 library LibLiquidation {
     using LibMath for uint256;
     using LibMath for int256;

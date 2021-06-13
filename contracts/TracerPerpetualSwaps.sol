@@ -16,8 +16,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-import "hardhat/console.sol";
-
 contract TracerPerpetualSwaps is
     ITracerPerpetualSwaps,
     Ownable,
@@ -427,7 +425,10 @@ contract TracerPerpetualSwaps is
             liquidateeBaseChange;
 
         // Checks if the liquidator is in a valid position to process the liquidation
-        require(userMarginIsValid(liquidator), "TCR: Liquidator under minimum margin");
+        require(
+            userMarginIsValid(liquidator),
+            "TCR: Liquidator under minimum margin"
+        );
     }
 
     function updateAccountsOnClaim(

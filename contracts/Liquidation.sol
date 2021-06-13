@@ -112,7 +112,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId) public override onlyTracer {
+    function claimEscrow(uint256 receiptId) public override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
             receiptId
         ];
@@ -471,6 +471,7 @@ contract Liquidation is ILiquidation, Ownable {
         // Mark refund as claimed
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
+        liquidationReceipts[receiptId].escrowClaimed = true;
         require(
             block.timestamp < receipt.releaseTime,
             "LIQ: claim time passed"
