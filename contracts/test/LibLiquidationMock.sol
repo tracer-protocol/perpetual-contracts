@@ -81,27 +81,25 @@ library LibLiquidationMock {
      * @notice call LibLiquidation.partialLiquidationIsValid
      */
     function partialLiquidationIsValid(
-        int256 liquidatedBaseChange,
-        int256 liquidatedQuoteChange,
-        int256 liquidatedBase,
-        int256 liquidatedQuote,
+        int256 leftoverBase,
+        int256 leftoverQuote,
         uint256 lastUpdatedGasPrice,
         uint256 liquidationGasCost,
-        uint256 price
+        uint256 price,
+        uint256 minimumLeftoverGasCostMultiplier
     ) external pure returns (bool) {
-        Balances.Account memory balanceToBeLiquidated = Balances.Account(
-            Balances.Position(liquidatedQuote, liquidatedBase),
-            0,
-            0,
-            lastUpdatedGasPrice
+        Balances.Position memory updatedPosition = Balances.Position(
+            leftoverQuote,
+            leftoverBase
         );
+
         return
             LibLiquidation.partialLiquidationIsValid(
-                liquidatedBaseChange,
-                liquidatedQuoteChange,
-                balanceToBeLiquidated,
+                updatedPosition,
+                lastUpdatedGasPrice,
                 liquidationGasCost,
-                price
+                price,
+                minimumLeftoverGasCostMultiplier
             );
     }
 }
