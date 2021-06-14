@@ -61,12 +61,6 @@ contract Pricing is IPricing, Ownable {
         tracer = _tracer;
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
-
-        // initialise funding rate
-        setFundingRate(0, 0);
-        setInsuranceFundingRate(0, 0);
-        // increment funding index
-        currentFundingIndex = currentFundingIndex + 1;
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
     }
@@ -177,17 +171,14 @@ contract Pricing is IPricing, Ownable {
             _tracer.fundingRateSensitivity().toInt256()
         );
 
-        // set the index to the last funding Rate confirmed funding rate (-1)
-        uint256 fundingIndex = currentFundingIndex - 1;
-
         // Create variable with value of new funding rate value
-        int256 currentFundingRateValue = fundingRates[fundingIndex]
+        int256 currentFundingRateValue = fundingRates[currentFundingIndex]
         .cumulativeFundingRate;
         int256 cumulativeFundingRate = currentFundingRateValue + newFundingRate;
 
         // as above but with insurance funding rate value
         int256 currentInsuranceFundingRateValue = insuranceFundingRates[
-            fundingIndex
+            currentFundingIndex
         ]
         .cumulativeFundingRate;
         int256 iPoolFundingRateValue = currentInsuranceFundingRateValue +

@@ -260,7 +260,6 @@ contract TracerPerpetualSwaps is
             Balances.Position memory newPos1,
             Balances.Position memory newPos2
         ) = _executeTrade(order1, order2, fillAmount, executionPrice);
-
         // validate orders can match, and outcome state is valid
         if (
             !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
@@ -498,27 +497,25 @@ contract TracerPerpetualSwaps is
         if (accountBalance.position.base == 0) {
             // set to the last fully established index
             accountBalance.lastUpdatedIndex =
-                pricingContract.currentFundingIndex() -
-                1;
+                currentGlobalFundingIndex;
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
             .latestAnswer();
-        } else if (accountLastUpdatedIndex < currentGlobalFundingIndex - 1) {
-            // Only settle account if its last updated index was before the last global index
-            // this is since we reference the last global index
-
+        } else if (accountLastUpdatedIndex + 1 < currentGlobalFundingIndex) {
+            // Only settle account if its last updated index was before the last established 
+            // global index this is since we reference the last global index
             // Get current and global funding statuses
+            uint256 lastEstablishedIndex = currentGlobalFundingIndex - 1;
             // Note: global rates reference the last fully established rate (hence the -1), and not
             // the current global rate. User rates reference the last saved user rate
             Prices.FundingRateInstant memory currGlobalRate = pricingContract
-            .getFundingRate(pricingContract.currentFundingIndex() - 1);
+            .getFundingRate(lastEstablishedIndex);
             Prices.FundingRateInstant memory currUserRate = pricingContract
             .getFundingRate(accountLastUpdatedIndex);
 
 
                 Prices.FundingRateInstant memory currInsuranceGlobalRate
              = pricingContract.getInsuranceFundingRate(
-                pricingContract.currentFundingIndex() - 1
-            );
+                lastEstablishedIndex);
 
 
                 Prices.FundingRateInstant memory currInsuranceUserRate
@@ -558,8 +555,7 @@ contract TracerPerpetualSwaps is
 
             // Update account index
             accountBalance.lastUpdatedIndex =
-                pricingContract.currentFundingIndex() -
-                1;
+                lastEstablishedIndex;
             require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
