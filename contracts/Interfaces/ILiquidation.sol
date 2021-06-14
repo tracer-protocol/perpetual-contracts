@@ -17,10 +17,7 @@ interface ILiquidation {
         uint256 receiptId
     ) external returns (uint256, uint256);
 
-    function getLiquidationReceipt(uint256 id)
-        external
-        view
-        returns (LibLiquidation.LiquidationReceipt memory);
+    function getLiquidationReceipt(uint256 id) external view returns (LibLiquidation.LiquidationReceipt memory);
 
     function liquidate(int256 amount, address account) external;
 

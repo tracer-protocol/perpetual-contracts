@@ -42,17 +42,9 @@ library Balances {
      * @param price The (fair) price of the base asset
      * @return Notional value of a position given the price
      */
-    function notionalValue(Position memory position, uint256 price)
-        internal
-        pure
-        returns (uint256)
-    {
+    function notionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
         /* cast is safe due to semantics of `abs` */
-        return
-            PRBMathUD60x18.mul(
-                uint256(PRBMathSD59x18.abs(position.base)),
-                price
-            );
+        return PRBMathUD60x18.mul(uint256(PRBMathSD59x18.abs(position.base)), price);
     }
 
     /**
@@ -61,11 +53,7 @@ library Balances {
      * @param price The price of the base asset
      * @return Margin of the position
      */
-    function margin(Position memory position, uint256 price)
-        internal
-        pure
-        returns (int256)
-    {
+    function margin(Position memory position, uint256 price) internal pure returns (int256) {
         /*
          * A cast *must* occur somewhere here in order for this to type check.
          *
@@ -87,11 +75,7 @@ library Balances {
      * @param position The position the account is currently in
      * @param price The price of the base asset
      */
-    function leveragedNotionalValue(Position memory position, uint256 price)
-        internal
-        pure
-        returns (uint256)
-    {
+    function leveragedNotionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
         uint256 notionalValue = notionalValue(position, price);
         (position, price);
         int256 marginValue = margin(position, price);
@@ -133,10 +117,7 @@ library Balances {
         // todo confirm that liquidation gas cost should be a WAD value
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(
-            notionalValue,
-            maximumLeverage
-        );
+        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
 
         return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
     }
@@ -202,20 +183,14 @@ library Balances {
         uint256 liquidationCost,
         uint256 maximumLeverage
     ) internal pure returns (bool) {
-        return
-            uint256(margin(position, price)) >=
-            minimumMargin(position, price, liquidationCost, maximumLeverage);
+        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
     }
 
     /**
      * @notice converts a raw token amount to its WAD representation. Used for tokens
      * that don't have 18 decimal places
      */
-    function tokenToWad(uint256 tokenDecimals, uint256 amount)
-        internal
-        pure
-        returns (int256)
-    {
+    function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
         int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
         return amount.toInt256() * scaler;
     }
@@ -223,11 +198,7 @@ library Balances {
     /**
      * @notice converts a wad token amount to its raw representation.
      */
-    function wadToToken(uint256 tokenDecimals, uint256 wadAmount)
-        internal
-        pure
-        returns (uint256)
-    {
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
         uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
         return uint256(wadAmount / scaler);
     }

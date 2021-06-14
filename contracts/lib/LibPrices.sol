@@ -25,22 +25,12 @@ library Prices {
         uint256 derivative;
     }
 
-    function fairPrice(uint256 oraclePrice, int256 _timeValue)
-        public
-        pure
-        returns (uint256)
-    {
+    function fairPrice(uint256 oraclePrice, int256 _timeValue) public pure returns (uint256) {
         return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
-    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
-        public
-        pure
-        returns (int256)
-    {
-        return
-            (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) /
-            90;
+    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) public pure returns (int256) {
+        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
     }
 
     /**
@@ -48,11 +38,7 @@ library Prices {
      * @param price Current cumulative price and number of trades in a time period
      * @return Average price for given instance
      */
-    function averagePrice(PriceInstant memory price)
-        public
-        pure
-        returns (uint256)
-    {
+    function averagePrice(PriceInstant memory price) public pure returns (uint256) {
         // todo double check safety of this.
         // average price == 0 is not neccesarily the
         // same as no trades in average
@@ -68,11 +54,7 @@ library Prices {
      * @param prices Array of PriceInstant instances in the 24 hour period
      * @return Average price in the time period (non-weighted)
      */
-    function averagePriceForPeriod(PriceInstant[24] memory prices)
-        public
-        pure
-        returns (uint256)
-    {
+    function averagePriceForPeriod(PriceInstant[24] memory prices) public pure returns (uint256) {
         uint256[] memory averagePrices = new uint256[](24);
 
         // TODO: make sure this procedure is gas-optimised
@@ -105,8 +87,7 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) public pure returns (uint256) {
-        int256 newGlobalLeverage = int256(_globalLeverage) +
-            (int256(newLeverage) - int256(oldLeverage));
+        int256 newGlobalLeverage = int256(_globalLeverage) + (int256(newLeverage) - int256(oldLeverage));
 
         // note: this would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
@@ -176,11 +157,7 @@ library Prices {
             return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, 0);
         }
 
-        return
-            TWAP(
-                cumulativeUnderlying / totalUnderlyingTimeWeight,
-                cumulativeDerivative / totalDerivativeTimeWeight
-            );
+        return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, cumulativeDerivative / totalDerivativeTimeWeight);
     }
 
     // TODO test these
@@ -201,8 +178,7 @@ library Prices {
             Balances.Position(
                 position.quote -
                     PRBMathSD59x18.mul(
-                        globalRate.cumulativeFundingRate -
-                            userRate.cumulativeFundingRate,
+                        globalRate.cumulativeFundingRate - userRate.cumulativeFundingRate,
                         position.base
                     ),
                 position.base
@@ -215,11 +191,7 @@ library Prices {
         FundingRateInstant memory globalRate,
         FundingRateInstant memory userRate,
         uint256 totalLeveragedValue
-    )
-        internal
-        pure
-        returns (Balances.Position memory, Balances.Position memory)
-    {
+    ) internal pure returns (Balances.Position memory, Balances.Position memory) {
         int256 insuranceDelta = PRBMathSD59x18.mul(
             globalRate.fundingRate - userRate.fundingRate,
             int256(totalLeveragedValue)
