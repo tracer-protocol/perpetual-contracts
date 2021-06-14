@@ -24,11 +24,7 @@ library LibInsurance {
             //          Pool tokens (the ones to be minted) / poolAmount (the collateral asset)
             // Note the difference between this and withdraw. Here we are calculating the amount of tokens
             // to mint, and `amount` is the amount to deposit.
-            return
-                PRBMathUD60x18.mul(
-                    PRBMathUD60x18.div(poolTokenSupply, poolTokenUnderlying),
-                    wadAmount
-                );
+            return PRBMathUD60x18.mul(PRBMathUD60x18.div(poolTokenSupply, poolTokenUnderlying), wadAmount);
         }
     }
 
@@ -48,10 +44,6 @@ library LibInsurance {
             return 0;
         }
 
-        return
-            PRBMathUD60x18.mul(
-                PRBMathUD60x18.div(poolTokenUnderlying, poolTokenSupply),
-                wadAmount
-            );
+        return PRBMathUD60x18.mul(PRBMathUD60x18.div(poolTokenUnderlying, poolTokenSupply), wadAmount);
     }
 }

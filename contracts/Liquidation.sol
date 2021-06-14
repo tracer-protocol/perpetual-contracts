@@ -30,21 +30,12 @@ contract Liquidation is ILiquidation, Ownable {
     address public insuranceContract;
 
     // Receipt ID => LiquidationReceipt
-    mapping(uint256 => LibLiquidation.LiquidationReceipt)
-        public liquidationReceipts;
+    mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
     // Factor to keep precision in percent calculations
     int256 private constant PERCENT_PRECISION = 10000;
 
-    event ClaimedReceipts(
-        address indexed liquidator,
-        address indexed market,
-        uint256 indexed receiptId
-    );
-    event ClaimedEscrow(
-        address indexed liquidatee,
-        address indexed market,
-        uint256 indexed id
-    );
+    event ClaimedReceipts(address indexed liquidator, address indexed market, uint256 indexed receiptId);
+    event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 indexed id);
     event Liquidate(
         address indexed account,
         address indexed liquidator,
@@ -86,8 +77,7 @@ contract Liquidation is ILiquidation, Ownable {
         int256 amountLiquidated,
         Perpetuals.Side liquidationSide
     ) internal {
-        liquidationReceipts[currentLiquidationId] = LibLiquidation
-        .LiquidationReceipt({
+        liquidationReceipts[currentLiquidationId] = LibLiquidation.LiquidationReceipt({
             tracer: address(tracer),
             liquidator: liquidator,
             liquidatee: liquidatee,
@@ -108,9 +98,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
     function claimEscrow(uint256 receiptId) public override onlyTracer {
-        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
-            receiptId
-        ];
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
@@ -121,13 +109,7 @@ contract Liquidation is ILiquidation, Ownable {
         // Update balance
         int256 amountToReturn = receipt.escrowedAmount.toInt256();
         emit ClaimedEscrow(receipt.liquidatee, receipt.tracer, receiptId);
-        tracer.updateAccountsOnClaim(
-            address(0),
-            0,
-            receipt.liquidatee,
-            amountToReturn,
-            0
-        );
+        tracer.updateAccountsOnClaim(address(0), 0, receipt.liquidatee, amountToReturn, 0);
     }
 
     /**
@@ -153,10 +135,7 @@ contract Liquidation is ILiquidation, Ownable {
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
         // Limits the gas use when liquidating
-        require(
-            tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(),
-            "LIQ: GasPrice > FGasPrice"
-        );
+        require(tx.gasprice <= IOracle(tracer.gasPriceOracle()).latestAnswer(), "LIQ: GasPrice > FGasPrice");
 
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
@@ -165,13 +144,7 @@ contract Liquidation is ILiquidation, Ownable {
         // todo CASTING CHECK
         require(
             currentMargin <= 0 ||
-                uint256(currentMargin) <
-                Balances.minimumMargin(
-                    pos,
-                    price,
-                    gasCost,
-                    tracer.maxLeverage()
-                ),
+                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
             "LIQ: Account above margin"
         );
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
@@ -185,17 +158,8 @@ contract Liquidation is ILiquidation, Ownable {
         );
 
         // create a liquidation receipt
-        Perpetuals.Side side = base < 0
-            ? Perpetuals.Side.Short
-            : Perpetuals.Side.Long;
-        submitLiquidation(
-            msg.sender,
-            account,
-            price,
-            amountToEscrow,
-            amount,
-            side
-        );
+        Perpetuals.Side side = base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long;
+        submitLiquidation(msg.sender, account, price, amountToEscrow, amount, side);
         return amountToEscrow;
     }
 
@@ -204,10 +168,10 @@ contract Liquidation is ILiquidation, Ownable {
      * @param updatedPosition The agent's position after being liquidated
      * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
      */
-    function checkPartialLiquidation(
-        Balances.Position memory updatedPosition,
-        uint256 lastUpdatedGasPrice
-    ) public returns (bool) {
+    function checkPartialLiquidation(Balances.Position memory updatedPosition, uint256 lastUpdatedGasPrice)
+        public
+        returns (bool)
+    {
         uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
         uint256 price = pricing.fairPrice();
 
@@ -257,10 +221,7 @@ contract Liquidation is ILiquidation, Ownable {
         );
 
         require(
-            checkPartialLiquidation(
-                updatedPosition,
-                liquidatedBalance.lastUpdatedGasPrice
-            ),
+            checkPartialLiquidation(updatedPosition, liquidatedBalance.lastUpdatedGasPrice),
             "LIQ: Liquidation leaves too little left over"
         );
 
@@ -278,11 +239,7 @@ contract Liquidation is ILiquidation, Ownable {
             account,
             msg.sender,
             amount,
-            (
-                liquidatedBalance.position.base < 0
-                    ? Perpetuals.Side.Short
-                    : Perpetuals.Side.Long
-            ),
+            (liquidatedBalance.position.base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long),
             address(tracer),
             currentLiquidationId - 1
         );
@@ -300,15 +257,11 @@ contract Liquidation is ILiquidation, Ownable {
         address traderContract,
         uint256 receiptId
     ) public override returns (uint256, uint256) {
-        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
-            receiptId
-        ];
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         uint256 avgPrice;
         for (uint256 i; i < orders.length; i++) {
-            Perpetuals.Order memory order = ITrader(traderContract).getOrder(
-                orders[i]
-            );
+            Perpetuals.Order memory order = ITrader(traderContract).getOrder(orders[i]);
 
             if (
                 order.created < receipt.time || // Order made before receipt
@@ -320,10 +273,8 @@ contract Liquidation is ILiquidation, Ownable {
                 continue;
             }
             if (
-                (receipt.liquidationSide == Perpetuals.Side.Long &&
-                    order.price >= receipt.price) ||
-                (receipt.liquidationSide == Perpetuals.Side.Short &&
-                    order.price <= receipt.price)
+                (receipt.liquidationSide == Perpetuals.Side.Long && order.price >= receipt.price) ||
+                (receipt.liquidationSide == Perpetuals.Side.Short && order.price <= receipt.price)
             ) {
                 // Liquidation position was long
                 // Price went up, so not a slippage order
@@ -360,26 +311,12 @@ contract Liquidation is ILiquidation, Ownable {
         Perpetuals.Order[] memory orders,
         address traderContract
     ) public override returns (uint256) {
-        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
-            escrowId
-        ];
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
         // Validate the escrowed order was fully sold
-        (uint256 unitsSold, uint256 avgPrice) = calcUnitsSold(
-            orders,
-            traderContract,
-            escrowId
-        );
-        require(
-            unitsSold <= uint256(receipt.amountLiquidated.abs()),
-            "LIQ: Unit mismatch"
-        );
+        (uint256 unitsSold, uint256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
+        require(unitsSold <= uint256(receipt.amountLiquidated.abs()), "LIQ: Unit mismatch");
 
-        uint256 amountToReturn = LibLiquidation.calculateSlippage(
-            unitsSold,
-            maxSlippage,
-            avgPrice,
-            receipt
-        );
+        uint256 amountToReturn = LibLiquidation.calculateSlippage(unitsSold, maxSlippage, avgPrice, receipt);
         return amountToReturn;
     }
 
@@ -391,13 +328,7 @@ contract Liquidation is ILiquidation, Ownable {
     function drainInsurancePoolOnLiquidation(
         uint256 amountWantedFromInsurance,
         LibLiquidation.LiquidationReceipt memory receipt
-    )
-        internal
-        returns (
-            uint256 _amountTakenFromInsurance,
-            uint256 _amountToGiveToClaimant
-        )
-    {
+    ) internal returns (uint256 _amountTakenFromInsurance, uint256 _amountToGiveToClaimant) {
         /*
          * If there was not enough escrowed, we want to call the insurance pool to help out.
          * First, check the margin of the insurance Account. If this is enough, just drain from there.
@@ -407,48 +338,31 @@ contract Liquidation is ILiquidation, Ownable {
          * claim the receipt, only up to the amount the insurance pool allows for.
          */
 
-        Balances.Account memory insuranceBalance = tracer.getBalance(
-            insuranceContract
-        );
-        if (
-            insuranceBalance.position.quote >=
-            amountWantedFromInsurance.toInt256()
-        ) {
+        Balances.Account memory insuranceBalance = tracer.getBalance(insuranceContract);
+        if (insuranceBalance.position.quote >= amountWantedFromInsurance.toInt256()) {
             // We don't need to drain insurance contract. The balance is already in the market contract
             _amountTakenFromInsurance = amountWantedFromInsurance;
         } else {
             // insuranceBalance.quote < amountWantedFromInsurance
             if (insuranceBalance.position.quote <= 0) {
                 // attempt to drain entire balance that is needed from the pool
-                IInsurance(insuranceContract).drainPool(
-                    amountWantedFromInsurance
-                );
+                IInsurance(insuranceContract).drainPool(amountWantedFromInsurance);
             } else {
                 // attempt to drain the required balance taking into account the insurance balance in the account contract
                 IInsurance(insuranceContract).drainPool(
-                    amountWantedFromInsurance -
-                        uint256(insuranceBalance.position.quote)
+                    amountWantedFromInsurance - uint256(insuranceBalance.position.quote)
                 );
             }
-            Balances.Account memory updatedInsuranceBalance = tracer.getBalance(
-                insuranceContract
-            );
-            if (
-                updatedInsuranceBalance.position.quote <
-                amountWantedFromInsurance.toInt256()
-            ) {
+            Balances.Account memory updatedInsuranceBalance = tracer.getBalance(insuranceContract);
+            if (updatedInsuranceBalance.position.quote < amountWantedFromInsurance.toInt256()) {
                 // Still not enough
-                _amountTakenFromInsurance = uint256(
-                    updatedInsuranceBalance.position.quote
-                );
+                _amountTakenFromInsurance = uint256(updatedInsuranceBalance.position.quote);
             } else {
                 _amountTakenFromInsurance = amountWantedFromInsurance;
             }
         }
 
-        _amountToGiveToClaimant =
-            receipt.escrowedAmount +
-            _amountTakenFromInsurance;
+        _amountToGiveToClaimant = receipt.escrowedAmount + _amountTakenFromInsurance;
         // Don't add any to liquidatee
     }
 
@@ -464,36 +378,22 @@ contract Liquidation is ILiquidation, Ownable {
         address traderContract
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
-        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
-            receiptId
-        ];
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
 
         // Mark refund as claimed
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
 
         require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
-        require(
-            block.timestamp < receipt.releaseTime,
-            "LIQ: claim time passed"
-        );
-        require(
-            tracer.tradingWhitelist(traderContract),
-            "LIQ: Trader is not whitelisted"
-        );
+        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
-        uint256 amountToReturn = calcAmountToReturn(
-            receiptId,
-            orders,
-            traderContract
-        );
+        uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
 
         if (amountToReturn > receipt.escrowedAmount) {
             liquidationReceipts[receiptId].escrowedAmount = 0;
         } else {
-            liquidationReceipts[receiptId].escrowedAmount =
-                receipt.escrowedAmount -
-                amountToReturn;
+            liquidationReceipts[receiptId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
         }
 
         // Keep track of how much was actually taken out of insurance
@@ -504,12 +404,8 @@ contract Liquidation is ILiquidation, Ownable {
         if (amountToReturn > receipt.escrowedAmount) {
             // Need to cover some loses with the insurance contract
             // Whatever is the remainder that can't be covered from escrow
-            uint256 amountWantedFromInsurance = amountToReturn -
-                receipt.escrowedAmount;
-            (
-                amountTakenFromInsurance,
-                amountToGiveToClaimant
-            ) = drainInsurancePoolOnLiquidation(
+            uint256 amountWantedFromInsurance = amountToReturn - receipt.escrowedAmount;
+            (amountTakenFromInsurance, amountToGiveToClaimant) = drainInsurancePoolOnLiquidation(
                 amountWantedFromInsurance,
                 receipt
             );
@@ -527,11 +423,7 @@ contract Liquidation is ILiquidation, Ownable {
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
     }
 
-    function transferOwnership(address newOwner)
-        public
-        override(Ownable, ILiquidation)
-        onlyOwner
-    {
+    function transferOwnership(address newOwner) public override(Ownable, ILiquidation) onlyOwner {
         super.transferOwnership(newOwner);
     }
 
@@ -548,9 +440,7 @@ contract Liquidation is ILiquidation, Ownable {
      *         the minimum leftover margin on partial liquidation
      * @param _minimumLeftoverGasCostMultiplier The new multiplier
      */
-    function setMinimumLeftoverGasCostMultiplier(
-        uint256 _minimumLeftoverGasCostMultiplier
-    ) external onlyOwner() {
+    function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner() {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
     }
 
