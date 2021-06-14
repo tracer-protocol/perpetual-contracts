@@ -153,7 +153,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // STATE 1:
                 // hour = 0
                 // funding index = 1
-                
+
                 // check pricing is in hour 0
                 let currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(0)
@@ -279,25 +279,38 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 let fundingRate = await pricing.fundingRates(fundingIndex - 1)
 
                 // previous funding rate was 0, so instant and cumulative should be same
-                expect(fundingRate.cumulativeFundingRate).to.equal(expectedFundingRate)
+                expect(fundingRate.cumulativeFundingRate).to.equal(
+                    expectedFundingRate
+                )
                 expect(fundingRate.fundingRate).to.equal(expectedFundingRate)
 
                 // settle and check account 3
-                let balanceBeforeSettle = await tracer.balances(accounts[3].address)
+                let balanceBeforeSettle = await tracer.balances(
+                    accounts[3].address
+                )
                 // account 3 last updated 3 indexes ago
-                expect(balanceBeforeSettle.lastUpdatedIndex).to.equal(fundingIndex - 3)
+                expect(balanceBeforeSettle.lastUpdatedIndex).to.equal(
+                    fundingIndex - 3
+                )
                 await tracer.settle(accounts[3].address)
-                let balanceAfterSettle = await tracer.balances(accounts[3].address)
+                let balanceAfterSettle = await tracer.balances(
+                    accounts[3].address
+                )
                 // funding rate * base
                 // account 3 has 10 units short --> should receive funding
                 console.log(balanceBeforeSettle.position.toString())
                 console.log(balanceAfterSettle.position.toString())
-                let expectedDifference = (expectedFundingRate.mul(ethers.utils.parseEther("10"))).div(ethers.utils.parseEther("1"))
-                expect(balanceAfterSettle.position.quote.sub(balanceBeforeSettle.position.quote)).to.equal(expectedDifference)
-                
+                let expectedDifference = expectedFundingRate
+                    .mul(ethers.utils.parseEther("10"))
+                    .div(ethers.utils.parseEther("1"))
+                expect(
+                    balanceAfterSettle.position.quote.sub(
+                        balanceBeforeSettle.position.quote
+                    )
+                ).to.equal(expectedDifference)
+
                 // time travel forward 24 hours and ensure all pricing state still works
                 await forwardTime(24 * 60 * 60 + 100)
-
 
                 // STATE 4:
                 // hour = 3

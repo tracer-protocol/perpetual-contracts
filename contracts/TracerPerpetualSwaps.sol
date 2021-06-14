@@ -493,17 +493,19 @@ contract TracerPerpetualSwaps is
         uint256 currentGlobalFundingIndex = pricingContract
         .currentFundingIndex();
         Balances.Account storage accountBalance = balances[account];
-        
+
         // if this user has no positions, bring them in sync
         if (accountBalance.position.base == 0) {
             // set to the last fully established index
-            accountBalance.lastUpdatedIndex = pricingContract.currentFundingIndex() - 1;
+            accountBalance.lastUpdatedIndex =
+                pricingContract.currentFundingIndex() -
+                1;
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle)
             .latestAnswer();
         } else if (accountLastUpdatedIndex < currentGlobalFundingIndex - 1) {
             // Only settle account if its last updated index was before the last global index
             // this is since we reference the last global index
-            
+
             // Get current and global funding statuses
             // Note: global rates reference the last fully established rate (hence the -1), and not
             // the current global rate. User rates reference the last saved user rate
@@ -555,8 +557,9 @@ contract TracerPerpetualSwaps is
             }
 
             // Update account index
-            accountBalance.lastUpdatedIndex = pricingContract
-            .currentFundingIndex() - 1;
+            accountBalance.lastUpdatedIndex =
+                pricingContract.currentFundingIndex() -
+                1;
             require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
