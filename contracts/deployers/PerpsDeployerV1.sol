@@ -23,7 +23,19 @@ contract PerpsDeployerV1 is IPerpsDeployer {
             uint256 _insurancePoolSwitchStage
         ) = abi.decode(
             _data,
-            (bytes32, address, uint256, address, uint256, uint256, uint256, address, uint256, uint256, uint256)
+            (
+                bytes32,
+                address,
+                uint256,
+                address,
+                uint256,
+                uint256,
+                uint256,
+                address,
+                uint256,
+                uint256,
+                uint256
+            )
         );
         TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
             _tracerId,

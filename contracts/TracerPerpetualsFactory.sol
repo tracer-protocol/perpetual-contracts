@@ -64,7 +64,12 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address oracle,
         uint256 maxLiquidationSlippage
     ) external onlyOwner() {
-        address tracer = _deployTracer(_data, owner(), oracle, maxLiquidationSlippage);
+        address tracer = _deployTracer(
+            _data,
+            owner(),
+            oracle,
+            maxLiquidationSlippage
+        );
         // DAO deployed markets are automatically approved
         setApproved(address(tracer), true);
     }
@@ -87,8 +92,14 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         tracerCounter++;
 
         // Instantiate Insurance contract for tracer
-        address insurance = IInsuranceDeployer(insuranceDeployer).deploy(market);
-        address pricing = IPricingDeployer(pricingDeployer).deploy(market, insurance, oracle);
+        address insurance = IInsuranceDeployer(insuranceDeployer).deploy(
+            market
+        );
+        address pricing = IPricingDeployer(pricingDeployer).deploy(
+            market,
+            insurance,
+            oracle
+        );
         address liquidation = ILiquidationDeployer(liquidationDeployer).deploy(
             pricing,
             market,
@@ -114,19 +125,35 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Sets the perpsDeployer contract for tracers markets.
      * @param newDeployer the new perpsDeployer contract address
      */
-    function setPerpsDeployerContract(address newDeployer) public override onlyOwner() {
+    function setPerpsDeployerContract(address newDeployer)
+        public
+        override
+        onlyOwner()
+    {
         perpsDeployer = newDeployer;
     }
 
-    function setInsuranceDeployerContract(address newInsuranceDeployer) public override onlyOwner() {
+    function setInsuranceDeployerContract(address newInsuranceDeployer)
+        public
+        override
+        onlyOwner()
+    {
         insuranceDeployer = newInsuranceDeployer;
     }
 
-    function setPricingDeployerContract(address newPricingDeployer) public override onlyOwner() {
+    function setPricingDeployerContract(address newPricingDeployer)
+        public
+        override
+        onlyOwner()
+    {
         pricingDeployer = newPricingDeployer;
     }
 
-    function setLiquidationDeployerContract(address newLiquidationDeployer) public override onlyOwner() {
+    function setLiquidationDeployerContract(address newLiquidationDeployer)
+        public
+        override
+        onlyOwner()
+    {
         liquidationDeployer = newLiquidationDeployer;
     }
 
@@ -135,7 +162,11 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      *         identify contracts that the DAO has "absorbed" into its control
      * @dev requires the contract to be owned by the DAO if being set to true.
      */
-    function setApproved(address market, bool value) public override onlyOwner() {
+    function setApproved(address market, bool value)
+        public
+        override
+        onlyOwner()
+    {
         if (value) {
             require(Ownable(market).owner() == owner(), "TFC: Owner not DAO");
         }

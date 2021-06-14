@@ -42,8 +42,12 @@ library LibLiquidation {
         int256 amount,
         int256 totalBase
     ) internal pure returns (uint256) {
-        int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
-        int256 amountToEscrowProportional = PRBMathSD59x18.mul(amountToEscrow, PRBMathSD59x18.div(amount, totalBase));
+        int256 amountToEscrow = currentMargin -
+            (minMargin.toInt256() - currentMargin);
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(
+            amountToEscrow,
+            PRBMathSD59x18.div(amount, totalBase)
+        );
         if (amountToEscrowProportional < 0) {
             return 0;
         }
@@ -111,24 +115,35 @@ library LibLiquidation {
         // Check price slippage and update account states
         if (
             avgPrice == receipt.price || // No price change
-            (avgPrice < receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) || // Price dropped, but position is short
-            (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Long) // Price jumped, but position is long
+            (avgPrice < receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Short) || // Price dropped, but position is short
+            (avgPrice > receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Long) // Price jumped, but position is long
         ) {
             // No slippage
             return 0;
         } else {
             // Liquidator took a long position, and price dropped
             uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
-            uint256 amountExpectedFor = PRBMathUD60x18.mul(receipt.price, unitsSold);
+            uint256 amountExpectedFor = PRBMathUD60x18.mul(
+                receipt.price,
+                unitsSold
+            );
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
             // todo this can probably be further simplified
             uint256 amountToReturn = 0;
             uint256 percentSlippage = 0;
-            if (avgPrice < receipt.price && receipt.liquidationSide == Perpetuals.Side.Long) {
+            if (
+                avgPrice < receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Long
+            ) {
                 amountToReturn = amountExpectedFor - amountSoldFor;
-            } else if (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) {
+            } else if (
+                avgPrice > receipt.price &&
+                receipt.liquidationSide == Perpetuals.Side.Short
+            ) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
             if (amountToReturn <= 0) {
@@ -136,10 +151,16 @@ library LibLiquidation {
             }
 
             // slippage percent = slippage / total amount
-            percentSlippage = PRBMathUD60x18.div(amountToReturn, amountExpectedFor);
+            percentSlippage = PRBMathUD60x18.div(
+                amountToReturn,
+                amountExpectedFor
+            );
 
             if (percentSlippage > maxSlippage) {
-                amountToReturn = PRBMathUD60x18.mul(maxSlippage, amountExpectedFor);
+                amountToReturn = PRBMathUD60x18.mul(
+                    maxSlippage,
+                    amountExpectedFor
+                );
             }
             return amountToReturn;
         }
@@ -162,10 +183,14 @@ library LibLiquidation {
         uint256 price,
         uint256 minimumLeftoverGasCostMultiplier
     ) internal pure returns (bool) {
-        uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(lastUpdatedGasPrice, liquidationGasCost) *
-            minimumLeftoverGasCostMultiplier;
+        uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(
+            lastUpdatedGasPrice,
+            liquidationGasCost
+        ) * minimumLeftoverGasCostMultiplier;
 
         int256 margin = Balances.margin(updatedPosition, price);
-        return margin >= minimumLeftoverMargin.toInt256() || (updatedPosition.base == 0 && updatedPosition.quote == 0);
+        return
+            margin >= minimumLeftoverMargin.toInt256() ||
+            (updatedPosition.base == 0 && updatedPosition.quote == 0);
     }
 }

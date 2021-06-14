@@ -8,3 +8,4 @@ types/*
 cache/*
 *.md
 *.tmp
+*.sol

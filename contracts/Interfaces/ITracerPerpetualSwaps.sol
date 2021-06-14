@@ -58,7 +58,10 @@ interface ITracerPerpetualSwaps {
 
     function insurancePoolSwitchStage() external view returns (uint256);
 
-    function getBalance(address account) external view returns (Balances.Account memory);
+    function getBalance(address account)
+        external
+        view
+        returns (Balances.Account memory);
 
     function setLiquidationContract(address liquidation) external;
 
@@ -76,13 +79,15 @@ interface ITracerPerpetualSwaps {
 
     function setMaxLeverage(uint256 _maxLeverage) external;
 
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external;
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity)
+        external;
 
     function setDeleveragingCliff(uint256 _deleveragingCliff) external;
 
     function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external;
 
-    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external;
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage)
+        external;
 
     function transferOwnership(address newOwner) external;
 
@@ -90,5 +95,8 @@ interface ITracerPerpetualSwaps {
 
     function withdraw(uint256 amount) external;
 
-    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2) external returns (bool);
+    function matchOrders(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2
+    ) external returns (bool);
 }

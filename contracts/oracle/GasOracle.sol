@@ -30,7 +30,10 @@ contract GasOracle is IOracle, Ownable {
      */
     function latestAnswer() external view override returns (uint256) {
         uint256 gasPrice = toWad(uint256(gasOracle.latestAnswer()), gasOracle);
-        uint256 ethPrice = toWad(uint256(priceOracle.latestAnswer()), priceOracle);
+        uint256 ethPrice = toWad(
+            uint256(priceOracle.latestAnswer()),
+            priceOracle
+        );
 
         uint256 result = PRBMathUD60x18.mul(gweiToWei(gasPrice), ethPrice);
         return result;
@@ -50,7 +53,11 @@ contract GasOracle is IOracle, Ownable {
      *      and allows oracles to have their decimals changed withou affecting
      *      the market itself
      */
-    function toWad(uint256 raw, IChainlinkOracle _oracle) internal view returns (uint256) {
+    function toWad(uint256 raw, IChainlinkOracle _oracle)
+        internal
+        view
+        returns (uint256)
+    {
         IChainlinkOracle oracle = IChainlinkOracle(_oracle);
         // reset the scaler for consistency
         uint8 _decimals = oracle.decimals(); // 9

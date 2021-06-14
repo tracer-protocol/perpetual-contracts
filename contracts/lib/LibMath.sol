@@ -30,7 +30,11 @@ library LibMath {
      * @param n The number of (first) elements you want to sum up
      * @return Sum of first n elements
      */
-    function sumN(uint256[] memory arr, uint256 n) internal pure returns (uint256) {
+    function sumN(uint256[] memory arr, uint256 n)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 total = 0;
 
         for (uint256 i = 0; i < n; i++) {
@@ -53,7 +57,11 @@ library LibMath {
      * @param len Divisor/number of elements to get the mean of
      * @return Average of first n elements
      */
-    function meanN(uint256[] memory arr, uint256 len) internal pure returns (uint256) {
+    function meanN(uint256[] memory arr, uint256 len)
+        internal
+        pure
+        returns (uint256)
+    {
         return sumN(arr, len) / len;
     }
 

@@ -15,7 +15,9 @@ contract Trader is ITrader {
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
     string private constant EIP712_DOMAIN_VERSION = "1.0";
     bytes32 private constant EIP712_DOMAIN_SEPERATOR =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        keccak256(
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        );
 
     // EIP712 Types
     bytes32 private constant ORDER_TYPE =
@@ -46,7 +48,12 @@ contract Trader is ITrader {
         );
     }
 
-    function filledAmount(Perpetuals.Order memory order) external view override returns (uint256) {
+    function filledAmount(Perpetuals.Order memory order)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return filled[Perpetuals.orderId(order)];
     }
 
@@ -56,10 +63,10 @@ contract Trader is ITrader {
      * @param makers An array of signed make orders
      * @param takers An array of signed take orders
      */
-    function executeTrade(Types.SignedLimitOrder[] memory makers, Types.SignedLimitOrder[] memory takers)
-        external
-        override
-    {
+    function executeTrade(
+        Types.SignedLimitOrder[] memory makers,
+        Types.SignedLimitOrder[] memory takers
+    ) external override {
         require(makers.length == takers.length, "TDR: Lengths differ");
 
         // safe as we've already bounds checked the array lengths
@@ -90,7 +97,9 @@ contract Trader is ITrader {
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
             uint256 takeRemaining = takeOrder.amount - takeOrderFilled;
             // fill amount is the minimum of order 1 and order 2
-            uint256 fillAmount = makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
+            uint256 fillAmount = makeRemaining > takeRemaining
+                ? takeRemaining
+                : makeRemaining;
 
             // match orders
             // referencing makeOrder.market is safe due to above require
@@ -99,7 +108,9 @@ contract Trader is ITrader {
             // market is never verified
             (bool success, ) = makeOrder.market.call(
                 abi.encodePacked(
-                    ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
+                    ITracerPerpetualSwaps(makeOrder.market)
+                    .matchOrders
+                    .selector,
                     abi.encode(makeOrder, takeOrder, fillAmount)
                 )
             );
@@ -108,8 +119,12 @@ contract Trader is ITrader {
             if (!success) continue;
 
             // update order state
-            filled[Perpetuals.orderId(makeOrder)] = makeOrderFilled + fillAmount;
-            filled[Perpetuals.orderId(takeOrder)] = takeOrderFilled + fillAmount;
+            filled[Perpetuals.orderId(makeOrder)] =
+                makeOrderFilled +
+                fillAmount;
+            filled[Perpetuals.orderId(takeOrder)] =
+                takeOrderFilled +
+                fillAmount;
         }
     }
 
@@ -121,10 +136,10 @@ contract Trader is ITrader {
      * @dev Should only be called with a verified signedOrder and with index
      *      < signedOrders.length
      */
-    function grabOrder(Types.SignedLimitOrder[] memory signedOrders, uint256 index)
-        internal
-        returns (Perpetuals.Order memory)
-    {
+    function grabOrder(
+        Types.SignedLimitOrder[] memory signedOrders,
+        uint256 index
+    ) internal returns (Perpetuals.Order memory) {
         Perpetuals.Order memory rawOrder = signedOrders[index].order;
 
         bytes32 orderHash = Perpetuals.orderId(rawOrder);
@@ -144,7 +159,12 @@ contract Trader is ITrader {
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
-    function hashOrder(Perpetuals.Order memory order) public view override returns (bytes32) {
+    function hashOrder(Perpetuals.Order memory order)
+        public
+        view
+        override
+        returns (bytes32)
+    {
         return
             keccak256(
                 abi.encodePacked(
@@ -180,7 +200,10 @@ contract Trader is ITrader {
      * @return if an order has a valid signature and a valid nonce
      * @dev does not throw if the signature is invalid.
      */
-    function isValidSignature(address signer, Types.SignedLimitOrder memory signedOrder) internal view returns (bool) {
+    function isValidSignature(
+        address signer,
+        Types.SignedLimitOrder memory signedOrder
+    ) internal view returns (bool) {
         return verifySignature(signer, signedOrder);
     }
 
@@ -191,11 +214,10 @@ contract Trader is ITrader {
      * @return if signedOrder1 is compatible with signedOrder2
      * @dev does not throw if pairs are invalid
      */
-    function isValidPair(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
-        internal
-        pure
-        returns (bool)
-    {
+    function isValidPair(
+        Types.SignedLimitOrder memory signedOrder1,
+        Types.SignedLimitOrder memory signedOrder2
+    ) internal pure returns (bool) {
         return (signedOrder1.order.market == signedOrder2.order.market);
     }
 
@@ -205,20 +227,30 @@ contract Trader is ITrader {
      * @param signedOrder The unsigned order to verify the signature of
      * @return true is signer has signed the order, else false
      */
-    function verifySignature(address signer, Types.SignedLimitOrder memory signedOrder)
-        public
-        view
-        override
-        returns (bool)
-    {
-        return signer == ecrecover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
+    function verifySignature(
+        address signer,
+        Types.SignedLimitOrder memory signedOrder
+    ) public view override returns (bool) {
+        return
+            signer ==
+            ecrecover(
+                hashOrder(signedOrder.order),
+                signedOrder.sigV,
+                signedOrder.sigR,
+                signedOrder.sigS
+            );
     }
 
     /**
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order calldata order) public view override returns (Perpetuals.Order memory) {
+    function getOrder(Perpetuals.Order calldata order)
+        public
+        view
+        override
+        returns (Perpetuals.Order memory)
+    {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
     }
