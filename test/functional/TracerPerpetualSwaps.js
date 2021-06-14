@@ -141,7 +141,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 }
 
                 let order5 = {
-                    maker: accounts[3].address,
+                    maker: accounts[2].address,
                     market: tracer.address,
                     price: ethers.utils.parseEther("1.10"),
                     amount: ethers.utils.parseEther("10"),
@@ -150,6 +150,10 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     created: now,
                 }
 
+                // STATE 1:
+                // hour = 0
+                // funding index = 1
+                
                 // check pricing is in hour 0
                 let currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(0)
@@ -173,7 +177,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("50"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account2Expected = {
@@ -182,7 +186,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-40"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account3Expected = {
@@ -191,7 +195,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-10"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
 
@@ -201,6 +205,11 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // time travel forward to check pricing state
                 await forwardTime(60 * 60 + 100)
+
+                // STATE 2:
+                // hour = 1
+                // funding index = 2
+
                 // make trade in new hour to tick over funding index
                 await tracer.connect(accounts[0]).matchOrders(order4, order5)
 
@@ -228,6 +237,11 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // time travel forward 2 hours without any trades happening
                 await forwardTime(120 * 60 + 100)
+
+                // STATE 3:
+                // hour = 2
+                // funding index = 3
+
                 await tracer.connect(accounts[0]).matchOrders(order1, order2)
 
                 // check pricing is in hour 2 (hours with no trades are ignored currently)
@@ -255,15 +269,47 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expectedDerivative2.toString()
                 )
 
+                // settle accounts and measure funding rate affect
+                // fundingRate = derivative twap - underlying twap - time value
+                // $1.1333 - $1 - 0 = 0.1333
+                let expectedFundingRate = ethers.utils.parseEther(
+                    "0.133333333333333333"
+                )
+                fundingIndex = await pricing.currentFundingIndex()
+                let fundingRate = await pricing.fundingRates(fundingIndex - 1)
+
+                // previous funding rate was 0, so instant and cumulative should be same
+                expect(fundingRate.cumulativeFundingRate).to.equal(expectedFundingRate)
+                expect(fundingRate.fundingRate).to.equal(expectedFundingRate)
+
+                // settle and check account 3
+                let balanceBeforeSettle = await tracer.balances(accounts[3].address)
+                // account 3 last updated 3 indexes ago
+                expect(balanceBeforeSettle.lastUpdatedIndex).to.equal(fundingIndex - 3)
+                await tracer.settle(accounts[3].address)
+                let balanceAfterSettle = await tracer.balances(accounts[3].address)
+                // funding rate * base
+                // account 3 has 10 units short --> should receive funding
+                console.log(balanceBeforeSettle.position.toString())
+                console.log(balanceAfterSettle.position.toString())
+                let expectedDifference = (expectedFundingRate.mul(ethers.utils.parseEther("10"))).div(ethers.utils.parseEther("1"))
+                expect(balanceAfterSettle.position.quote.sub(balanceBeforeSettle.position.quote)).to.equal(expectedDifference)
+                
                 // time travel forward 24 hours and ensure all pricing state still works
                 await forwardTime(24 * 60 * 60 + 100)
+
+
+                // STATE 4:
+                // hour = 3
+                // funding index = 4
+
                 await tracer.connect(accounts[0]).matchOrders(order1, order2)
 
                 // check pricing is in hour 3 (hours with no trades are ignored currently)
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(3)
 
-                // check funding index is 3
+                // check funding index is 4
                 fundingIndex = await pricing.currentFundingIndex()
                 expect(fundingIndex).to.equal(4)
 
