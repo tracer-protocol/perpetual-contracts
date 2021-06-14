@@ -390,6 +390,17 @@ contract TracerPerpetualSwaps is
         );
     }
 
+    /**
+     * @notice When a liquidation occurs, Liquidation.sol needs to push this contract to update
+     *         account states as necessary.
+     * @param liquidator Address of the account that called liquidate(...)
+     * @param liquidatee Address of the under-margined account getting liquidated
+     * @param liquidatorQuoteChange Amount the liquidator's quote is changing
+     * @param liquidatorBaseChange Amount the liquidator's base is changing
+     * @param liquidateeQuoteChange Amount the liquidated account's quote is changing
+     * @param liquidateeBaseChange Amount the liquidated account's base is changing
+     * @param amountToEscrow The amount the liquidator has to put into escrow
+     */
     function updateAccountsOnLiquidation(
         address liquidator,
         address liquidatee,
@@ -428,6 +439,18 @@ contract TracerPerpetualSwaps is
         require(userMarginIsValid(liquidator), "TCR: Liquidator under margin");
     }
 
+    /**
+     * @notice When a liquidation receipt is claimed by the liquidator (i.e. they experienced slippage),
+               Liquidation.sol needs to tell the market to update its balance and the balance of the
+               liquidated agent.
+     * @dev Gives the leftover amount from the receipt to the liquidated agent
+     * @param claimant The liquidator, who has experienced slippage selling the liquidated position
+     * @param amountToGiveToClaimant The amount the liquidator is owe based off slippage
+     * @param liquidatee The account that originally got liquidated
+     * @param amountToGiveToLiquidatee Amount owed to the liquidated account
+     * @param amountToTakeFromInsurance Amount that needs to be taken from the insurance pool
+                                        in order to cover liquidation
+     */
     function updateAccountsOnClaim(
         address claimant,
         int256 amountToGiveToClaimant,
@@ -446,7 +469,7 @@ contract TracerPerpetualSwaps is
             balances[liquidatee].position.quote +
             amountToGiveToLiquidatee;
         require(
-            balances[insuranceAddr].position.quote > 0,
+            balances[insuranceAddr].position.quote >= 0,
             "TCR: Insurance not adequately funded"
         );
     }
