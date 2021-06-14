@@ -11,12 +11,7 @@ library LibLiquidationMock {
         int256 amount,
         int256 totalBase
     ) external pure returns (uint256 result) {
-        result = LibLiquidation.calcEscrowLiquidationAmount(
-            minMargin,
-            currentMargin,
-            amount,
-            totalBase
-        );
+        result = LibLiquidation.calcEscrowLiquidationAmount(minMargin, currentMargin, amount, totalBase);
     }
 
     function liquidationBalanceChanges(
@@ -33,16 +28,8 @@ library LibLiquidationMock {
             int256 _liquidateeBaseChange
         )
     {
-        (
-            _liquidatorQuoteChange,
-            _liquidatorBaseChange,
-            _liquidateeQuoteChange,
-            _liquidateeBaseChange
-        ) = LibLiquidation.liquidationBalanceChanges(
-            liquidatedBase,
-            liquidatedQuote,
-            amount
-        );
+        (_liquidatorQuoteChange, _liquidatorBaseChange, _liquidateeQuoteChange, _liquidateeBaseChange) = LibLiquidation
+        .liquidationBalanceChanges(liquidatedBase, liquidatedQuote, amount);
     }
 
     function calculateSlippage(
@@ -54,8 +41,7 @@ library LibLiquidationMock {
     ) external pure returns (uint256 result) {
         /* Create a struct LibLiquidation with only price and liquidationSide set,
            as they are the only ones used in calculateSlippage */
-        LibLiquidation.LiquidationReceipt memory minimalReceipt = LibLiquidation
-        .LiquidationReceipt(
+        LibLiquidation.LiquidationReceipt memory minimalReceipt = LibLiquidation.LiquidationReceipt(
             address(0),
             address(0),
             address(0), // Not used
@@ -69,12 +55,7 @@ library LibLiquidationMock {
             false // Not used
         );
 
-        result = LibLiquidation.calculateSlippage(
-            unitsSold,
-            maxSlippage,
-            avgPrice,
-            minimalReceipt
-        );
+        result = LibLiquidation.calculateSlippage(unitsSold, maxSlippage, avgPrice, minimalReceipt);
     }
 
     /**
@@ -88,10 +69,7 @@ library LibLiquidationMock {
         uint256 price,
         uint256 minimumLeftoverGasCostMultiplier
     ) external pure returns (bool) {
-        Balances.Position memory updatedPosition = Balances.Position(
-            leftoverQuote,
-            leftoverBase
-        );
+        Balances.Position memory updatedPosition = Balances.Position(leftoverQuote, leftoverBase);
 
         return
             LibLiquidation.partialLiquidationIsValid(
