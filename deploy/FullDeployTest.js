@@ -93,7 +93,7 @@ module.exports = async function (hre) {
         "GasOracle",
         { from: deployer, log: true },
         "setPrice",
-        "1000000000" // 1 Gwei
+        "20000000000" // 20 Gwei
     )
 
     const oracleAdapter = await deploy("PriceOracleAdapter", {
@@ -257,7 +257,7 @@ module.exports = async function (hre) {
         "deployTracer",
         deployTracerData,
         oracleAdapter.address,
-        gasPriceOracle.address,
+        gasOracle.address,
         maxLiquidationSlippage
     )
 
