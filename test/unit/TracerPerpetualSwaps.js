@@ -227,9 +227,13 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     "FailedOrders"
                 )
                 let balanceAfter = await tracer.balances(deployer)
-                expect(balanceBefore.toString()).to.equal(
-                    balanceAfter.toString()
-                )
+                console.log(balanceAfter)
+                // every field should match EXCEPT for last updated gas price
+                for (var i = 0; i < 3; i++) {
+                    expect(balanceBefore[i].toString()).to.equal(
+                        balanceAfter[i].toString()
+                    )
+                }
             })
         })
 
@@ -273,9 +277,13 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     "FailedOrders"
                 )
                 let balanceAfter = await tracer.balances(deployer)
-                expect(balanceBefore.toString()).to.equal(
-                    balanceAfter.toString()
-                )
+
+                // every field should match EXCEPT for last updated gas price
+                for (var i = 0; i < 3; i++) {
+                    expect(balanceBefore[i].toString()).to.equal(
+                        balanceAfter[i].toString()
+                    )
+                }
             })
         })
     })

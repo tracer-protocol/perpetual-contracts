@@ -142,6 +142,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      */
     function deposit(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
+        // settle outstanding payments
+        settle(msg.sender);
 
         // convert the WAD amount to the correct token amount to transfer
         // cast is safe since amount is a uint, and wadToToken can only
@@ -169,6 +171,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      * should be given in WAD format
      */
     function withdraw(uint256 amount) external override {
+        // settle outstanding payments
+        settle(msg.sender);
+
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
         int256 convertedWadAmount = Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
 
@@ -222,7 +227,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             fillAmount,
             executionPrice
         );
-
         // validate orders can match, and outcome state is valid
         if (
             !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
@@ -401,21 +405,25 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // Get account and global last updated indexes
         uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
         uint256 currentGlobalFundingIndex = pricingContract.currentFundingIndex();
+        Balances.Account storage accountBalance = balances[account];
 
-        // Only settle account if its last updated index was before the current global index
-        if (accountLastUpdatedIndex < currentGlobalFundingIndex) {
-            /*
-             Get current and global funding statuses
-             Note: global rates reference the last fully established rate (hence the -1), and not
-             the current global rate. User rates reference the last saved user rate
-            */
-            Prices.FundingRateInstant memory currGlobalRate = pricingContract.getFundingRate(
-                pricingContract.currentFundingIndex() - 1
-            );
+        // if this user has no positions, bring them in sync
+        if (accountBalance.position.base == 0) {
+            // set to the last fully established index
+            accountBalance.lastUpdatedIndex = currentGlobalFundingIndex;
+            accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
+        } else if (accountLastUpdatedIndex + 1 < currentGlobalFundingIndex) {
+            // Only settle account if its last updated index was before the last established
+            // global index this is since we reference the last global index
+            // Get current and global funding statuses
+            uint256 lastEstablishedIndex = currentGlobalFundingIndex - 1;
+            // Note: global rates reference the last fully established rate (hence the -1), and not
+            // the current global rate. User rates reference the last saved user rate
+            Prices.FundingRateInstant memory currGlobalRate = pricingContract.getFundingRate(lastEstablishedIndex);
             Prices.FundingRateInstant memory currUserRate = pricingContract.getFundingRate(accountLastUpdatedIndex);
 
             Prices.FundingRateInstant memory currInsuranceGlobalRate = pricingContract.getInsuranceFundingRate(
-                pricingContract.currentFundingIndex() - 1
+                lastEstablishedIndex
             );
 
             Prices.FundingRateInstant memory currInsuranceUserRate = pricingContract.getInsuranceFundingRate(
@@ -423,7 +431,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             );
 
             // settle the account
-            Balances.Account storage accountBalance = balances[account];
             Balances.Account storage insuranceBalance = balances[address(insuranceContract)];
 
             accountBalance.position = Prices.applyFunding(accountBalance.position, currGlobalRate, currUserRate);
@@ -445,7 +452,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             }
 
             // Update account index
-            accountBalance.lastUpdatedIndex = pricingContract.currentFundingIndex();
+            accountBalance.lastUpdatedIndex = lastEstablishedIndex;
             require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
