@@ -15,13 +15,7 @@ contract LiquidationDeployerV1 is ILiquidationDeployer {
         address fastGasOracle,
         uint256 maxSlippage
     ) external override returns (address) {
-        Liquidation liquidation = new Liquidation(
-            pricing,
-            tracer,
-            insuranceContract,
-            fastGasOracle,
-            maxSlippage
-        );
+        Liquidation liquidation = new Liquidation(pricing, tracer, insuranceContract, fastGasOracle, maxSlippage);
         liquidation.transferOwnership(msg.sender);
         return address(liquidation);
     }

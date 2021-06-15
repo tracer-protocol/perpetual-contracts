@@ -138,10 +138,7 @@ contract Liquidation is ILiquidation, Ownable {
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
         // Limits the gas use when liquidating
-        require(
-            tx.gasprice <= IOracle(fastGasOracle).latestAnswer(),
-            "LIQ: GasPrice > FGasPrice"
-        );
+        require(tx.gasprice <= IOracle(fastGasOracle).latestAnswer(), "LIQ: GasPrice > FGasPrice");
 
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();

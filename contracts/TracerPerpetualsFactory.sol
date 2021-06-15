@@ -53,13 +53,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address fastGasOracle,
         uint256 maxLiquidationSlippage
     ) external {
-        _deployTracer(
-            _data,
-            msg.sender,
-            oracle,
-            fastGasOracle,
-            maxLiquidationSlippage
-        );
+        _deployTracer(_data, msg.sender, oracle, fastGasOracle, maxLiquidationSlippage);
     }
 
     /**
@@ -72,13 +66,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address fastGasOracle,
         uint256 maxLiquidationSlippage
     ) external onlyOwner() {
-        address tracer = _deployTracer(
-            _data,
-            owner(),
-            oracle,
-            fastGasOracle,
-            maxLiquidationSlippage
-        );
+        address tracer = _deployTracer(_data, owner(), oracle, fastGasOracle, maxLiquidationSlippage);
         // DAO deployed markets are automatically approved
         setApproved(address(tracer), true);
     }
