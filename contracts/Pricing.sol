@@ -82,7 +82,7 @@ contract Pricing is IPricing, Ownable {
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
             // update funding rate for the previous hour
-            updateFundingRate(currentOraclePrice);
+            updateFundingRate();
 
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
@@ -145,9 +145,8 @@ contract Pricing is IPricing, Ownable {
 
     /**
      * @notice Updates the funding rate and the insurance funding rate
-     * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
      */
-    function updateFundingRate(uint256 oraclePrice) internal {
+    function updateFundingRate() internal {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
         Prices.TWAP memory twapPrices = getTWAPs(currentHour);

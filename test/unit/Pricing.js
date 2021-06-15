@@ -121,11 +121,10 @@ describe("Unit tests: Insurance.sol", function () {
             })
         })
 
+        // todo: this needs to call the tracer, but be called by
+        // the tracer. How can this be mocked?
         context("when a new hour has started", async () => {
             it.skip("updates the funding rate", async () => {
-                // todo: this needs to call the tracer, but be called by
-                // the tracer. How can this be mocked?
-                
                 // fast forward an hour
                 await forwardTime(60 * 60)
                 expect(
@@ -136,11 +135,15 @@ describe("Unit tests: Insurance.sol", function () {
                 ).to.emit(pricing, "FundingRateUpdated")
             })
 
-            it("updates the price", async () => {})
+            it.skip("updates the price", async () => {})
         })
 
+        // todo: this needs to call the tracer, but be called by
+        // the tracer. How can this be mocked?
         context("when 24 hours have passed", async () => {
-            it("updates the time value", async () => {})
+            it.skip("updates the time value", async () => {
+
+            })
         })
 
         context("when a new hour has not started", async () => {
