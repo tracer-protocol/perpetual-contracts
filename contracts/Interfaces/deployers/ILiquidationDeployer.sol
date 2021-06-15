@@ -6,6 +6,7 @@ interface ILiquidationDeployer {
         address pricing,
         address tracer,
         address insuranceContract,
+        address fastGasOracle,
         uint256 maxSlippage
     ) external returns (address);
 }
