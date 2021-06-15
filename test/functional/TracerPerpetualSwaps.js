@@ -168,9 +168,9 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 let account3 = await tracer.balances(accounts[3].address)
 
                 // gas price = fast gas in gwei * cost per eth
-                // $3000 * 1 gwei fast gas = (3000 / 10^18) * (1 * 10^9)
-                // = 3000 * 10^-9 gwei gas / usd = 3000 gas / usd
-                let lastUpdatedGas = "3000000000000"
+                // $3000 * 20 gwei fast gas = (3000 / 10^18) * (20 * 10^9)
+                // = 3000 * 20 * 10^-9 gwei gas / usd = 0.00006 USD / GAS
+                let lastUpdatedGas = "60000000000000"
                 let account1Expected = {
                     position: {
                         quote: ethers.utils.parseEther("950"),

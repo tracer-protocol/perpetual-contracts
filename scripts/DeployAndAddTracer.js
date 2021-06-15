@@ -12,7 +12,7 @@ async function main() {
     let feeRate = 0 // 0 percent
     let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50%
     let fundingRateSensitivity = ethers.utils.parseEther("1")
-    let gasPriceOracleAdapter = await deployments.get("GasPriceOracleAdapter")
+    let gasPriceOracle = await deployments.get("GasPriceOracle")
     let trader = await deployments.get("Trader")
     let factory = await deployments.get("TracerPerpetualsFactory")
     let oracle = await deployments.get("Oracle")
@@ -41,7 +41,7 @@ async function main() {
             ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
             tokenDecimals,
-            gasPriceOracleAdapter.address,
+            gasPriceOracle.address,
             maxLeverage,
             fundingRateSensitivity,
             feeRate,
