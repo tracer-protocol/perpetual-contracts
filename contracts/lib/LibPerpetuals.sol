@@ -8,6 +8,7 @@ library Perpetuals {
         Short
     }
 
+    // Information about a given order
     struct Order {
         address maker;
         address market;
@@ -18,6 +19,11 @@ library Perpetuals {
         uint256 created;
     }
 
+    /**
+     * @notice Get the hash of an order from its information, used to unique identify orders
+     *      in a market
+     * @param order Order that we're getting the hash of
+     */
     function orderId(Order memory order) internal pure returns (bytes32) {
         return keccak256(abi.encode(order));
     }
@@ -75,22 +81,27 @@ library Perpetuals {
         // (defaultMaxLeverage - LowestMaxLeverage)/cliff * percentFull + lowestMaxLeverage
 
         uint256 gradientNumerator = defaultMaxLeverage - lowestMaxLeverage;
-        uint256 gradientDenominator = deleveragingCliff -
-            insurancePoolSwitchStage;
+        uint256 gradientDenominator = deleveragingCliff - insurancePoolSwitchStage;
         uint256 maxLeverageNotBumped = PRBMathUD60x18.mul(
             PRBMathUD60x18.div(gradientNumerator, gradientDenominator), // m
             percentFull // x
         );
         uint256 b = lowestMaxLeverage -
-            PRBMathUD60x18.div(
-                defaultMaxLeverage - lowestMaxLeverage,
-                deleveragingCliff - insurancePoolSwitchStage
-            );
+            PRBMathUD60x18.div(defaultMaxLeverage - lowestMaxLeverage, deleveragingCliff - insurancePoolSwitchStage);
         uint256 realMaxLeverage = maxLeverageNotBumped + b; // mx + b
 
         return realMaxLeverage;
     }
 
+    /**
+     * @notice Checks if two orders can be matched given their price, side of trade
+     *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
+     *  and time validation.
+     * @param a The first order
+     * @param aFilled Amount of the first order that has already been filled
+     * @param b The second order
+     * @param bFilled Amount of the second order that has already been filled
+     */
     function canMatch(
         Order calldata a,
         uint256 aFilled,
@@ -102,27 +113,15 @@ library Perpetuals {
         /* predicates */
         bool opposingSides = a.side != b.side;
         // long order must have a price >= short order
-        bool pricesMatch = a.side == Side.Long
-            ? a.price >= b.price
-            : a.price <= b.price;
+        bool pricesMatch = a.side == Side.Long ? a.price >= b.price : a.price <= b.price;
         bool notExpired = currentTime < a.expires && currentTime < b.expires;
         bool notFilled = aFilled < a.amount && bFilled < b.amount;
-        bool createdBefore = currentTime >= a.created &&
-            currentTime >= b.created;
+        bool createdBefore = currentTime >= a.created && currentTime >= b.created;
 
-        return
-            pricesMatch &&
-            opposingSides &&
-            notExpired &&
-            notFilled &&
-            createdBefore;
+        return pricesMatch && opposingSides && notExpired && notFilled && createdBefore;
     }
 
-    function getExecutionPrice(Order calldata a, Order calldata b)
-        public
-        pure
-        returns (uint256)
-    {
+    function getExecutionPrice(Order calldata a, Order calldata b) public pure returns (uint256) {
         bool aIsFirst = a.created <= b.created;
         if (aIsFirst) {
             return a.price;
