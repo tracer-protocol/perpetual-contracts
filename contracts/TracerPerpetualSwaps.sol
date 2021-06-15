@@ -426,10 +426,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
                 lastEstablishedIndex
             );
 
-            Prices.FundingRateInstant memory currInsuranceGlobalRate = pricingContract.getInsuranceFundingRate(
-                pricingContract.currentFundingIndex() - 1
-            );
-
             Prices.FundingRateInstant memory currInsuranceUserRate = pricingContract.getInsuranceFundingRate(
                 accountLastUpdatedIndex
             );
