@@ -264,7 +264,7 @@ module.exports = async function (hre) {
     let insurance = await tracerInstance.insuranceContract()
     let pricing = await tracerInstance.pricingContract()
     let liquidation = await tracerInstance.liquidationContract()
-    
+
     // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
     await tracerInstance.setWhitelist(trader.address, true)
     await tracerInstance.setWhitelist(deployer, true)
