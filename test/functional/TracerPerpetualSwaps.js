@@ -16,6 +16,8 @@ const setup = deployments.createFixture(async () => {
     // deploy contracts
     await deployments.fixture(["FullDeployTest"])
     let Factory = await deployments.get("TracerPerpetualsFactory")
+    let GasPriceOracle = await deployments.get("GasPriceOracle")
+    let gasPriceOracle = await ethers.getContractAt(GasPriceOracle.abi, GasPriceOracle.address)
     let factory = await ethers.getContractAt(Factory.abi, Factory.address)
     let tracerAddress = await factory.tracersByIndex(0)
     let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
@@ -41,6 +43,7 @@ const setup = deployments.createFixture(async () => {
         quoteToken,
         deployer,
         factory,
+        gasPriceOracle
     }
 })
 
@@ -63,7 +66,7 @@ const compareAccountState = (state, expectedState) => {
 
 describe("Functional tests: TracerPerpetualSwaps.sol", function () {
     let accounts, deployer
-    let insurance, pricing, liquidation, tracer, quoteToken
+    let insurance, pricing, liquidation, tracer, quoteToken, gasPriceOracle
     let now
 
     before(async function () {
@@ -74,6 +77,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
         pricing = _setup.pricing
         liquidation = _setup.liquidation
         deployer = _setup.deployer
+        gasPriceOracle = _setup.gasPriceOracle
         accounts = await ethers.getSigners()
         // transfer tokesn to account 4
         await quoteToken.transfer(
@@ -307,6 +311,51 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     )
                 ).to.equal(expectedDifference)
             })
+        })
+    })
+
+    context("Can trade at the maximum leverage", async() => {
+        it.only("allows it", async() => {
+            // deposit tokens
+            for (var i = 0; i < 4; i++) {
+                await quoteToken
+                    .connect(accounts[i + 1])
+                    .approve(
+                        tracer.address,
+                        ethers.utils.parseEther("1000")
+                    )
+                await tracer
+                    .connect(accounts[i + 1])
+                    .deposit(ethers.utils.parseEther("1000"))
+            }
+
+            // todo calc the max positions that can be taken here
+
+            // make some basic trades
+            let order1 = {
+                maker: accounts[1].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("12200"),
+                side: 0, // long,
+                expires: now + 604800, // now + 7 days
+                created: now - 1,
+            }
+
+            let order2 = {
+                maker: accounts[2].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("12200"),
+                side: 1, // short,
+                expires: now + 604800, // now + 7 days
+                created: now,
+            }
+
+            // place trades
+            await tracer.connect(accounts[0]).matchOrders(order1, order2)
+            let balanceAfter = await tracer.balances(accounts[1].address)
+            console.log(balanceAfter.toString())
         })
     })
 })
