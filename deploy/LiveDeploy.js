@@ -237,16 +237,9 @@ module.exports = async function (hre) {
         tracerAbi
     ).connect(signers[0])
 
-    console.log(`Tracer Deployed ${tracerInstance.address}`)
-
     let insurance = await tracerInstance.insuranceContract()
-    console.log(`Insurance Deployed ${insurance}`)
-
     let pricing = await tracerInstance.pricingContract()
-    console.log(`Pricing Deployed ${pricing}`)
-
     let liquidation = await tracerInstance.liquidationContract()
-    console.log(`Liquidation Deployed ${liquidation}`)
 
     // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
     await tracerInstance.setWhitelist(trader.address, true)

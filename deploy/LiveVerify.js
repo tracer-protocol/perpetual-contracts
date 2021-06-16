@@ -164,8 +164,6 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    console.log(`Factory Deployed: ${factory.address}`)
-
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
@@ -180,16 +178,9 @@ module.exports = async function (hre) {
         tracerAbi
     ).connect(signers[0])
 
-    console.log(`Tracer Deployed ${tracerInstance.address}`)
-
     let insurance = await tracerInstance.insuranceContract()
-    console.log(`Insurance Deployed ${insurance}`)
-
     let pricing = await tracerInstance.pricingContract()
-    console.log(`Pricing Deployed ${pricing}`)
-
     let liquidation = await tracerInstance.liquidationContract()
-    console.log(`Liquidation Deployed ${liquidation}`)
 
     // verify
     await hre.run("verify:verify", {

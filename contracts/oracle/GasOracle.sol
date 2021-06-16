@@ -37,14 +37,6 @@ contract GasOracle is IOracle, Ownable {
     }
 
     /**
-     * @dev Takes a gwei amount, in 10^18, and returns that amount in ether (in 10^18)
-     * @dev e.g. gweiToWei(1*10^18) -> (1*10^9) or 1*10^18/10^9
-     */
-    function gweiToWei(uint256 _gwei) public pure returns (uint256) {
-        return _gwei / (10**9);
-    }
-
-    /**
      * @notice converts a raw value to a WAD value.
      * @dev this allows consistency for oracles used throughout the protocol
      *      and allows oracles to have their decimals changed withou affecting
