@@ -29,6 +29,29 @@ library Perpetuals {
     }
 
     /**
+     * @return An updated average execution price, based on previous rolling average, and new average
+     * @param oldFilledAmount The filled amount that will be getting changed
+     * @param oldAverage The average rolling execution price that will be updated
+     * @param fillChange The amount of units being added to the filledAmount
+     * @param newFillExecutionPrice The execution price of the fillChange units
+     */
+    function calculateAverageExecutionPrice(
+        uint256 oldFilledAmount,
+        uint256 oldAverage,
+        uint256 fillChange,
+        uint256 newFillExecutionPrice
+    ) internal pure returns (uint256) {
+        uint256 oldFactor = PRBMathUD60x18.mul(oldFilledAmount, oldAverage);
+        uint256 newFactor = PRBMathUD60x18.mul(fillChange, newFillExecutionPrice);
+        uint256 newTotalAmount = oldFilledAmount + fillChange;
+        if (newTotalAmount == 0) {
+            return 0;
+        }
+        uint256 average = PRBMathUD60x18.div(oldFactor + newFactor, newTotalAmount);
+        return average;
+    }
+
+    /**
      * TODO Test in E2E context
      * @notice Calculate the max leverage based on how full the insurance pool is
      * @param collateralAmount Amount of collateral in insurance pool

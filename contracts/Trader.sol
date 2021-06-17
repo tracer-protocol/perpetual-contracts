@@ -32,6 +32,8 @@ contract Trader is ITrader {
     mapping(bytes32 => Types.SignedLimitOrder) public orderToSig;
     // order hash to amount filled
     mapping(bytes32 => uint256) public filled;
+    // order hash to average execution price thus far
+    mapping(bytes32 => uint256) public averageExecutionPrice;
 
     constructor() {
         // Construct the EIP712 Domain
@@ -91,6 +93,8 @@ contract Trader is ITrader {
             uint256 takeRemaining = takeOrder.amount - takeOrderFilled;
             // fill amount is the minimum of order 1 and order 2
             uint256 fillAmount = makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
+
+            uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
 
             // match orders
             // referencing makeOrder.market is safe due to above require
