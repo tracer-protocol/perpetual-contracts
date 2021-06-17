@@ -121,7 +121,7 @@ module.exports = async function (hre) {
         contract: "TestToken",
     })
 
-    const tokenAmount = ethers.utils.parseEther("1000")
+    const tokenAmount = ethers.utils.parseEther("10000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
@@ -215,7 +215,7 @@ module.exports = async function (hre) {
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
-            "bytes32", //_marketId,a
+            "bytes32", //_marketId,
             "address", //_tracerQuoteToken,
             "uint256", //_tokenDecimals,
             "address", //_gasPriceOracle,
