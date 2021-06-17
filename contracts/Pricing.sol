@@ -36,8 +36,8 @@ contract Pricing is IPricing, Ownable {
     uint256 public override currentFundingIndex;
 
     // timing variables
-    uint256 internal startLastHour;
-    uint256 internal startLast24Hours;
+    uint256 public startLastHour;
+    uint256 public startLast24Hours;
     uint8 public currentHour;
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);

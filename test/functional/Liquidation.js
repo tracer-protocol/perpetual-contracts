@@ -249,9 +249,8 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
 const addOrdersToModifiedTrader = async (
     modifiableTrader,
     contracts,
-    liquidationAmount
+    orders
 ) => {
-    const orders = await provideOrders(contracts, liquidationAmount)
     for (const [key, order] of Object.entries(orders)) {
         let hash = await contracts.libPerpetuals.callStatic.orderId(order)
         await modifiableTrader.smodify.put({
@@ -295,12 +294,15 @@ const setupReceiptTest = deployments.createFixture(async () => {
     const liquidationAmount = (
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
-    const orders = await provideOrders(contracts, liquidationAmount)
+    const orders = await provideOrders(
+        contracts,
+        liquidationAmount,
+        contracts.timestamp
+    )
 
     await addOrdersToModifiedTrader(
         modifiableTrader,
         contracts,
-        liquidationAmount,
         orders
     )
     return { ...contracts, modifiableTrader, ...orders }
@@ -358,25 +360,6 @@ describe("Liquidation functional tests", async () => {
                         contracts.modifiableTrader.address
                     )
                     await expect(tx).to.be.revertedWith("LIQ: Unit mismatch")
-                })
-            }
-        )
-
-        context(
-            "When execution price has no slippage, but order price is low",
-            async () => {
-                it("calculates no slippage", async () => {
-                    const contracts = await setupReceiptTest()
-                    tracerPerps = contracts.tracerPerps
-                    liquidation = contracts.liquidation
-                    trader = contracts.modifiableTrader
-
-                    const tx = await liquidation.callStatic.calcAmountToReturn(
-                        0,
-                        [contracts.sellWholeLiquidationAmountUseNoSlippage],
-                        trader.address
-                    )
-                    await expect(tx).to.equal(ethers.utils.parseEther("0"))
                 })
             }
         )
@@ -1282,6 +1265,7 @@ describe("Liquidation functional tests", async () => {
                 await expect(tx).to.be.revertedWith("LIQ: Liquidatee mismatch")
             })
         })
+
         context(
             "when receipt already claimed through claimEscrow",
             async () => {
