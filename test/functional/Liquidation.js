@@ -182,6 +182,12 @@ const addOrdersToModifiedTrader = async (
                 [hash]: order.amount,
             },
         })
+
+        await modifiableTrader.smodify.put({
+            averageExecutionPrice: {
+                [hash]: order.price,
+            },
+        })
     }
 }
 

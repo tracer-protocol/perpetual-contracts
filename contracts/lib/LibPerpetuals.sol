@@ -126,11 +126,11 @@ library Perpetuals {
      * @param bFilled Amount of the second order that has already been filled
      */
     function canMatch(
-        Order calldata a,
+        Order memory a,
         uint256 aFilled,
-        Order calldata b,
+        Order memory b,
         uint256 bFilled
-    ) public view returns (bool) {
+    ) internal view returns (bool) {
         uint256 currentTime = block.timestamp;
 
         /* predicates */
@@ -144,7 +144,7 @@ library Perpetuals {
         return pricesMatch && opposingSides && notExpired && notFilled && createdBefore;
     }
 
-    function getExecutionPrice(Order calldata a, Order calldata b) public pure returns (uint256) {
+    function getExecutionPrice(Order memory a, Order memory b) internal pure returns (uint256) {
         bool aIsFirst = a.created <= b.created;
         if (aIsFirst) {
             return a.price;

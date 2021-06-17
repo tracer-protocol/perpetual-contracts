@@ -52,6 +52,10 @@ contract Trader is ITrader {
         return filled[Perpetuals.orderId(order)];
     }
 
+    function getAverageExecutionPrice(Perpetuals.Order memory order) external view override returns (uint256) {
+        return averageExecutionPrice[Perpetuals.orderId(order)];
+    }
+
     /**
      * @notice Batch executes maker and taker orders against a given market. Currently matching works
      *         by matching orders 1 to 1
@@ -85,8 +89,11 @@ contract Trader is ITrader {
             Perpetuals.Order memory makeOrder = grabOrder(makers, i);
             Perpetuals.Order memory takeOrder = grabOrder(takers, i);
 
-            uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
-            uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
+            bytes32 makerOrderId = Perpetuals.orderId(makeOrder);
+            bytes32 takerOrderId = Perpetuals.orderId(takeOrder);
+
+            uint256 makeOrderFilled = filled[makerOrderId];
+            uint256 takeOrderFilled = filled[takerOrderId];
 
             // calc fill amount
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
@@ -95,6 +102,18 @@ contract Trader is ITrader {
             uint256 fillAmount = makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
 
             uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
+            uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                makeOrderFilled,
+                averageExecutionPrice[makerOrderId],
+                fillAmount,
+                executionPrice
+            );
+            uint256 newTakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                takeOrderFilled,
+                averageExecutionPrice[takerOrderId],
+                fillAmount,
+                executionPrice
+            );
 
             // match orders
             // referencing makeOrder.market is safe due to above require
@@ -112,8 +131,10 @@ contract Trader is ITrader {
             if (!success) continue;
 
             // update order state
-            filled[Perpetuals.orderId(makeOrder)] = makeOrderFilled + fillAmount;
-            filled[Perpetuals.orderId(takeOrder)] = takeOrderFilled + fillAmount;
+            filled[makerOrderId] = makeOrderFilled + fillAmount;
+            filled[takerOrderId] = takeOrderFilled + fillAmount;
+            averageExecutionPrice[makerOrderId] = newMakeAverage;
+            averageExecutionPrice[takerOrderId] = newTakeAverage;
         }
     }
 

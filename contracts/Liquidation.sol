@@ -288,12 +288,13 @@ contract Liquidation is ILiquidation, Ownable {
                 continue;
             }
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
+            uint256 averageExecutionPrice = ITrader(traderContract).getAverageExecutionPrice(order);
 
             /* order.created >= receipt.time
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + orderFilled;
-            avgPrice = avgPrice + (order.price * orderFilled);
+            avgPrice = avgPrice + (averageExecutionPrice * orderFilled);
         }
 
         // Avoid divide by 0 if no orders sold

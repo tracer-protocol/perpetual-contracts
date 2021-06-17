@@ -32,7 +32,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
         accounts = await ethers.getSigners()
     })
 
-    describe.only("calculateAverageExecutionPrice", async () => {
+    describe("calculateAverageExecutionPrice", async () => {
         context("With zero everything", async () => {
             it("returns zero", async () => {
                 const result =
