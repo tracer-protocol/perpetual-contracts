@@ -6,7 +6,8 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 
-const provideOrders = async (contracts, liquidationAmount, timestamp) => {
+const provideOrders = async (contracts, liquidationAmount) => {
+    const timestamp = contracts.timestamp
     const sellWholeLiquidationAmount = {
         maker: accounts[1].address,
         market: contracts.tracerPerps.address,
@@ -138,9 +139,11 @@ const provideOrders = async (contracts, liquidationAmount, timestamp) => {
         zeroDollarOrder: zeroDollarOrder,
         earlyCreationOrder: earlyCreationOrder,
         wrongMakerOrder: wrongMakerOrder,
-        sellWholeLiquidationAmountUseNoSlippage: sellWholeLiquidationAmountUseNoSlippage,
+        sellWholeLiquidationAmountUseNoSlippage:
+            sellWholeLiquidationAmountUseNoSlippage,
         sellLiquidationAmountNoSlippage: sellLiquidationAmountNoSlippage,
-        sellWholeLiquidationAmountZeroTokens: sellWholeLiquidationAmountZeroTokens,
+        sellWholeLiquidationAmountZeroTokens:
+            sellWholeLiquidationAmountZeroTokens,
     }
 
     return orders
@@ -257,6 +260,12 @@ const addOrdersToModifiedTrader = async (
             },
         })
 
+        await modifiableTrader.smodify.put({
+            filled: {
+                [hash]: order.amount,
+            },
+        })
+
         if (key === "sellWholeLiquidationAmountUseNoSlippage") {
             await modifiableTrader.smodify.put({
                 averageExecutionPrice: {
@@ -286,11 +295,7 @@ const setupReceiptTest = deployments.createFixture(async () => {
     const liquidationAmount = (
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
-    const orders = await provideOrders(
-        contracts,
-        liquidationAmount,
-        contracts.timestamp
-    )
+    const orders = await provideOrders(contracts, liquidationAmount)
 
     await addOrdersToModifiedTrader(
         modifiableTrader,
@@ -353,6 +358,25 @@ describe("Liquidation functional tests", async () => {
                         contracts.modifiableTrader.address
                     )
                     await expect(tx).to.be.revertedWith("LIQ: Unit mismatch")
+                })
+            }
+        )
+
+        context(
+            "When execution price has no slippage, but order price is low",
+            async () => {
+                it("calculates no slippage", async () => {
+                    const contracts = await setupReceiptTest()
+                    tracerPerps = contracts.tracerPerps
+                    liquidation = contracts.liquidation
+                    trader = contracts.modifiableTrader
+
+                    const tx = await liquidation.callStatic.calcAmountToReturn(
+                        0,
+                        [contracts.sellWholeLiquidationAmountUseNoSlippage],
+                        trader.address
+                    )
+                    await expect(tx).to.equal(ethers.utils.parseEther("0"))
                 })
             }
         )
@@ -1684,7 +1708,7 @@ describe("Liquidation functional tests", async () => {
                                 contracts.wrongMakerOrder,
                             ],
                             contracts.modifiableTrader.address,
-                            0
+                            receiptId
                         )
                     ).wait()
                     let eventCounter = 0
