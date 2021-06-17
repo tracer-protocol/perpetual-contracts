@@ -56,12 +56,14 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
+    // asset price oracle => ASSET / USD
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
         contract: "Oracle",
     })
 
+    // Gas price oracle => fast gas / gwei
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
@@ -74,6 +76,7 @@ module.exports = async function (hre) {
         contract: "Oracle",
     })
 
+    // adapter converting asset oracle to WAD
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -81,10 +84,18 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
+    // adapter converting ETH / USD to WAD
+    const ethOracleAdapter = await deploy("EthOracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [ethOracle.address],
+        contract: "OracleAdapter",
+    })
+
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracle.address, gasOracle.address],
+        args: [ethOracleAdapter.address, gasOracle.address],
         contract: "GasOracle",
     })
 
@@ -153,7 +164,6 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    // set tracer params here
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
@@ -204,7 +214,11 @@ module.exports = async function (hre) {
     })
     await hre.run("verify:verify", {
         address: gasPriceOracle.address,
-        constructorArguments: [gasPriceOracle.address],
+        constructorArguments: [ethOracle.address, gasOracle.address],
+    })
+    await hre.run("verify:verify", {
+        address: gasOracle.address,
+        constructorArguments: [],
     })
     await hre.run("verify:verify", {
         address: ethOracle.address,
@@ -243,6 +257,7 @@ module.exports = async function (hre) {
             pricing,
             tracerInstance.address,
             insurance,
+            gasOracle.address,
             maxLiquidationSlippage,
         ],
     })

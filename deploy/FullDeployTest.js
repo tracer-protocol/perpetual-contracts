@@ -41,24 +41,20 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    console.log(`Trader Deployed ${trader.address}`)
-
     // deploy oracles
+    // asset price oracle => ASSET / USD
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
         contract: "Oracle",
     })
 
-    console.log(`Price Oracle Deployed ${priceOracle.address}`)
-
+    // Gas price oracle => fast gas / gwei
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
         contract: "Oracle",
     })
-
-    console.log(`Gas Oracle Deployed ${gasOracle.address}`)
 
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
@@ -66,20 +62,18 @@ module.exports = async function (hre) {
         contract: "Oracle",
     })
 
-    console.log(`ETH Oracle Deployed ${ethOracle.address}`)
-
     await execute(
         "EthOracle",
         { from: deployer, log: true },
         "setDecimals",
-        "18" // https://etherscan.io/address/0xe5bbbdb2bb953371841318e1edfbf727447cef2e#readContract
+        "8"
     )
 
     await execute(
         "EthOracle",
         { from: deployer, log: true },
         "setPrice",
-        ethers.utils.parseEther("3000") // 3000 USD / ETH
+        "300000000000" // 3000 USD / ETH
     )
 
     await execute(
@@ -93,9 +87,10 @@ module.exports = async function (hre) {
         "GasOracle",
         { from: deployer, log: true },
         "setPrice",
-        "1000000000" // 1 Gwei
+        "20000000000" // 20 Gwei
     )
 
+    // adapter converting asset oracle to WAD
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -103,16 +98,20 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    console.log(`Oracle Adapter Deployed ${oracleAdapter.address}`)
+    // adapter converting ETH / USD to WAD
+    const ethOracleAdapter = await deploy("EthOracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [ethOracle.address],
+        contract: "OracleAdapter",
+    })
 
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracle.address, gasOracle.address],
+        args: [ethOracleAdapter.address, gasOracle.address],
         contract: "GasOracle",
     })
-
-    console.log(`Gas Price Oracle Deployed ${gasPriceOracle.address}`)
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
@@ -122,9 +121,7 @@ module.exports = async function (hre) {
         contract: "TestToken",
     })
 
-    console.log(`Quote Token Deployed ${token.address}`)
-
-    const tokenAmount = ethers.utils.parseEther("10000")
+    const tokenAmount = ethers.utils.parseEther("1000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },
@@ -207,8 +204,6 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    console.log(`Factory Deployed: ${factory.address}`)
-
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
@@ -257,6 +252,7 @@ module.exports = async function (hre) {
         "deployTracer",
         deployTracerData,
         oracleAdapter.address,
+        gasOracle.address,
         maxLiquidationSlippage
     )
 
@@ -265,16 +261,9 @@ module.exports = async function (hre) {
         tracerAbi
     ).connect(signers[0])
 
-    console.log(`Tracer Deployed ${tracerInstance.address}`)
-
     let insurance = await tracerInstance.insuranceContract()
-    console.log(`Insurance Deployed ${insurance}`)
-
     let pricing = await tracerInstance.pricingContract()
-    console.log(`Pricing Deployed ${pricing}`)
-
     let liquidation = await tracerInstance.liquidationContract()
-    console.log(`Liquidation Deployed ${liquidation}`)
 
     // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
     await tracerInstance.setWhitelist(trader.address, true)

@@ -25,24 +25,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
-    event InsuranceDeposit(
-        address indexed market,
-        address indexed user,
-        uint256 indexed amount
-    );
-    event InsuranceWithdraw(
-        address indexed market,
-        address indexed user,
-        uint256 indexed amount
-    );
+    event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
+    event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     constructor(address _tracer) Ownable() {
         tracer = ITracerPerpetualSwaps(_tracer);
-        InsurancePoolToken _token = new InsurancePoolToken(
-            "Tracer Pool Token",
-            "TPT"
-        );
+        InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
 
@@ -58,26 +47,17 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 collateralToken = IERC20(collateralAsset);
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
-        uint256 rawTokenAmount = Balances.wadToToken(
-            quoteTokenDecimals,
-            amount
-        );
+        uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
         collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
 
         // amount in wad format after being converted from token format
-        uint256 wadAmount = uint256(
-            Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount)
-        );
+        uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
         // tokens to mint = (pool token supply / collateral holdings) * collaterael amount to stake
-        uint256 tokensToMint = LibInsurance.calcMintAmount(
-            poolToken.totalSupply(),
-            collateralAmount,
-            wadAmount
-        );
+        uint256 tokensToMint = LibInsurance.calcMintAmount(poolToken.totalSupply(), collateralAmount, wadAmount);
 
         // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
@@ -99,17 +79,10 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
         // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
-        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(
-            poolToken.totalSupply(),
-            collateralAmount,
-            amount
-        );
+        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(poolToken.totalSupply(), collateralAmount, amount);
 
         // convert token amount to raw amount from WAD
-        uint256 rawTokenAmount = Balances.wadToToken(
-            tracer.quoteTokenDecimals(),
-            wadTokensToSend
-        );
+        uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
@@ -170,12 +143,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @notice gets a users balance in a given insurance pool
      * @param user the user whose balance is being retrieved
      */
-    function getPoolUserBalance(address user)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function getPoolUserBalance(address user) public view override returns (uint256) {
         return InsurancePoolToken(token).balanceOf(user);
     }
 
@@ -201,18 +169,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.div(
-            getPoolTarget() - collateralAmount,
-            levNotionalValue
-        );
+        uint256 ratio = PRBMathUD60x18.div(getPoolTarget() - collateralAmount, levNotionalValue);
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
 
-    function transferOwnership(address newOwner)
-        public
-        override(Ownable, IInsurance)
-        onlyOwner
-    {
+    function transferOwnership(address newOwner) public override(Ownable, IInsurance) onlyOwner {
         super.transferOwnership(newOwner);
     }
 
@@ -224,10 +185,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     modifier onlyLiquidation() {
-        require(
-            msg.sender == tracer.liquidationContract(),
-            "INS: sender is not Liquidation contract"
-        );
+        require(msg.sender == tracer.liquidationContract(), "INS: sender is not Liquidation contract");
         _;
     }
 }

@@ -3,35 +3,19 @@ pragma solidity ^0.8.0;
 import "../lib/LibPrices.sol";
 
 contract LibPricesMock {
-    function fairPrice(uint256 oraclePrice, int256 timeValue)
-        public
-        pure
-        returns (uint256)
-    {
+    function fairPrice(uint256 oraclePrice, int256 timeValue) public pure returns (uint256) {
         return Prices.fairPrice(oraclePrice, timeValue);
     }
 
-    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice)
-        public
-        pure
-        returns (int256)
-    {
+    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) public pure returns (int256) {
         return Prices.timeValue(averageTracerPrice, averageOraclePrice);
     }
 
-    function averagePrice(Prices.PriceInstant memory price)
-        public
-        pure
-        returns (uint256)
-    {
+    function averagePrice(Prices.PriceInstant memory price) public pure returns (uint256) {
         return Prices.averagePrice(price);
     }
 
-    function averagePriceForPeriod(Prices.PriceInstant[24] memory prices)
-        public
-        pure
-        returns (uint256)
-    {
+    function averagePriceForPeriod(Prices.PriceInstant[24] memory prices) public pure returns (uint256) {
         return Prices.averagePriceForPeriod(prices);
     }
 

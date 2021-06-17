@@ -12,6 +12,7 @@ async function main() {
     let feeRate = 0 // 0 percent
     let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50%
     let fundingRateSensitivity = ethers.utils.parseEther("1")
+    let gasPriceOracle = await deployments.get("GasPriceOracle")
     let trader = await deployments.get("Trader")
     let factory = await deployments.get("TracerPerpetualsFactory")
     let oracle = await deployments.get("Oracle")

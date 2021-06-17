@@ -42,10 +42,7 @@ contract Pricing is IPricing, Ownable {
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
     event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
-    event InsuranceFundingRateUpdated(
-        int256 insuranceFundingRate,
-        int256 insuranceFundingRateValue
-    );
+    event InsuranceFundingRateUpdated(int256 insuranceFundingRate, int256 insuranceFundingRateValue);
 
     /**
      * @dev Set tracer perps factory
@@ -61,12 +58,6 @@ contract Pricing is IPricing, Ownable {
         tracer = _tracer;
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
-
-        // initialise funding rate
-        setFundingRate(0, 0);
-        setInsuranceFundingRate(0, 0);
-        // increment funding index
-        currentFundingIndex = currentFundingIndex + 1;
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
     }
@@ -77,11 +68,7 @@ contract Pricing is IPricing, Ownable {
      * @param tradePrice the price the trade executed at
      * @param tradeVolume the volume of the order
      */
-    function recordTrade(uint256 tradePrice, uint256 tradeVolume)
-        external
-        override
-        onlyTracer
-    {
+    function recordTrade(uint256 tradePrice, uint256 tradeVolume) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
@@ -131,32 +118,22 @@ contract Pricing is IPricing, Ownable {
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numtrades set to 1;
-            Prices.PriceInstant memory newHourly = Prices.PriceInstant(
-                marketPrice,
-                1
-            );
+            Prices.PriceInstant memory newHourly = Prices.PriceInstant(marketPrice, 1);
             hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(
-                oraclePrice,
-                1
-            );
+            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(oraclePrice, 1);
             hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the market price to a running total and increment number of trades
             hourlyTracerPrices[currentHour].cumulativePrice =
                 hourlyTracerPrices[currentHour].cumulativePrice +
                 marketPrice;
-            hourlyTracerPrices[currentHour].trades =
-                hourlyTracerPrices[currentHour].trades +
-                1;
+            hourlyTracerPrices[currentHour].trades = hourlyTracerPrices[currentHour].trades + 1;
             // As above but with oracle price
             hourlyOraclePrices[currentHour].cumulativePrice =
                 hourlyOraclePrices[currentHour].cumulativePrice +
                 oraclePrice;
-            hourlyOraclePrices[currentHour].trades =
-                hourlyOraclePrices[currentHour].trades +
-                1;
+            hourlyOraclePrices[currentHour].trades = hourlyOraclePrices[currentHour].trades + 1;
         }
     }
 
@@ -177,30 +154,19 @@ contract Pricing is IPricing, Ownable {
             _tracer.fundingRateSensitivity().toInt256()
         );
 
-        // set the index to the last funding Rate confirmed funding rate (-1)
-        uint256 fundingIndex = currentFundingIndex - 1;
-
         // Create variable with value of new funding rate value
-        int256 currentFundingRateValue = fundingRates[fundingIndex]
-        .cumulativeFundingRate;
+        int256 currentFundingRateValue = fundingRates[currentFundingIndex].cumulativeFundingRate;
         int256 cumulativeFundingRate = currentFundingRateValue + newFundingRate;
 
         // as above but with insurance funding rate value
-        int256 currentInsuranceFundingRateValue = insuranceFundingRates[
-            fundingIndex
-        ]
-        .cumulativeFundingRate;
-        int256 iPoolFundingRateValue = currentInsuranceFundingRateValue +
-            iPoolFundingRate;
+        int256 currentInsuranceFundingRateValue = insuranceFundingRates[currentFundingIndex].cumulativeFundingRate;
+        int256 iPoolFundingRateValue = currentInsuranceFundingRateValue + iPoolFundingRate;
 
         // Call setter functions on calculated variables
         setFundingRate(newFundingRate, cumulativeFundingRate);
         emit FundingRateUpdated(newFundingRate, cumulativeFundingRate);
         setInsuranceFundingRate(iPoolFundingRate, iPoolFundingRateValue);
-        emit InsuranceFundingRateUpdated(
-            iPoolFundingRate,
-            iPoolFundingRateValue
-        );
+        emit InsuranceFundingRateUpdated(iPoolFundingRate, iPoolFundingRateValue);
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
     }
@@ -230,9 +196,7 @@ contract Pricing is IPricing, Ownable {
      * @param fundingRate The funding Rate of the Tracer, calculated by updateFundingRate
      * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
-    function setFundingRate(int256 fundingRate, int256 cumulativeFundingRate)
-        internal
-    {
+    function setFundingRate(int256 fundingRate, int256 cumulativeFundingRate) internal {
         fundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
             fundingRate,
@@ -245,10 +209,7 @@ contract Pricing is IPricing, Ownable {
      * @param fundingRate The insurance funding Rate of the Tracer, calculated by updateFundingRate
      * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
-    function setInsuranceFundingRate(
-        int256 fundingRate,
-        int256 cumulativeFundingRate
-    ) internal {
+    function setInsuranceFundingRate(int256 fundingRate, int256 cumulativeFundingRate) internal {
         insuranceFundingRates[currentFundingIndex] = Prices.FundingRateInstant(
             block.timestamp,
             fundingRate,
@@ -260,24 +221,14 @@ contract Pricing is IPricing, Ownable {
     /**
      * @return each variable of the fundingRate struct of a particular tracer at a particular funding rate index
      */
-    function getFundingRate(uint256 index)
-        public
-        view
-        override
-        returns (Prices.FundingRateInstant memory)
-    {
+    function getFundingRate(uint256 index) public view override returns (Prices.FundingRateInstant memory) {
         return fundingRates[index];
     }
 
     /**
      * @return all of the variables in the funding rate struct (insurance rate) from a particular tracer market
      */
-    function getInsuranceFundingRate(uint256 index)
-        public
-        view
-        override
-        returns (Prices.FundingRateInstant memory)
-    {
+    function getInsuranceFundingRate(uint256 index) public view override returns (Prices.FundingRateInstant memory) {
         return insuranceFundingRates[index];
     }
 
@@ -286,14 +237,8 @@ contract Pricing is IPricing, Ownable {
      * @param hour An integer representing what hour of the day to collect from (0-24)
      * @return the time weighted average price for both the oraclePrice (derivative price) and the Tracer Price
      */
-    function getTWAPs(uint256 hour)
-        public
-        view
-        override
-        returns (Prices.TWAP memory)
-    {
-        return
-            Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
+    function getTWAPs(uint256 hour) public view override returns (Prices.TWAP memory) {
+        return Prices.calculateTWAP(hour, hourlyTracerPrices, hourlyOraclePrices);
     }
 
     /**
@@ -301,10 +246,7 @@ contract Pricing is IPricing, Ownable {
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
     function get24HourPrices() public view override returns (uint256, uint256) {
-        return (
-            Prices.averagePriceForPeriod(hourlyTracerPrices),
-            Prices.averagePriceForPeriod(hourlyOraclePrices)
-        );
+        return (Prices.averagePriceForPeriod(hourlyTracerPrices), Prices.averagePriceForPeriod(hourlyOraclePrices));
     }
 
     /**
@@ -312,12 +254,7 @@ contract Pricing is IPricing, Ownable {
      * @param hour The hour of which you want the hourly average Price
      * @return the average price of the tracer for a particular hour
      */
-    function getHourlyAvgTracerPrice(uint256 hour)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function getHourlyAvgTracerPrice(uint256 hour) public view override returns (uint256) {
         return Prices.averagePrice(hourlyTracerPrices[hour]);
     }
 
@@ -325,20 +262,11 @@ contract Pricing is IPricing, Ownable {
      * @notice Gets the average oracle price for a given market during a certain hour
      * @param hour The hour of which you want the hourly average Price
      */
-    function getHourlyAvgOraclePrice(uint256 hour)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function getHourlyAvgOraclePrice(uint256 hour) public view override returns (uint256) {
         return Prices.averagePrice(hourlyOraclePrices[hour]);
     }
 
-    function transferOwnership(address newOwner)
-        public
-        override(Ownable, IPricing)
-        onlyOwner
-    {
+    function transferOwnership(address newOwner) public override(Ownable, IPricing) onlyOwner {
         super.transferOwnership(newOwner);
     }
 

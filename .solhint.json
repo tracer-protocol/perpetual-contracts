@@ -3,6 +3,7 @@
     "rules": {
         "avoid-throw": "off",
         "compiler-version": "off",
-        "constructor-syntax": "error"
+        "constructor-syntax": "error",
+        "max-states-count": 30
     }
 }
