@@ -44,8 +44,8 @@ const provideOrders = async (contracts, liquidationAmount) => {
         price: ethers.utils.parseEther("0.01").toString(),
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
-        expires: (await ethers.provider.getBlock("latest")).timestamp + 100,
-        created: (await ethers.provider.getBlock("latest")).timestamp + 1,
+        expires: timestamp + 100,
+        created: timestamp + 1,
     }
 
     const sellHalfLiquidationAmount = {
