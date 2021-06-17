@@ -121,7 +121,7 @@ module.exports = async function (hre) {
         contract: "TestToken",
     })
 
-    const tokenAmount = ethers.utils.parseEther("1000")
+    const tokenAmount = ethers.utils.parseEther("10000")
     await execute(
         "QuoteToken",
         { from: deployer, log: true },

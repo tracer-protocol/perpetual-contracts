@@ -363,10 +363,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         liquidateeBalance.position.base = liquidateeBalance.position.base + liquidateeBaseChange;
 
         // Checks if the liquidator is in a valid position to process the liquidation
-        require(
-            userMarginIsValid(liquidator),
-            "TCR: Liquidator under minimum margin"
-        );
+        require(userMarginIsValid(liquidator), "TCR: Liquidator under minimum margin");
     }
 
     /**

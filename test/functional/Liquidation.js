@@ -382,8 +382,9 @@ describe("Liquidation functional tests", async () => {
                     await ethers.provider.getBlock("latest")
                 ).timestamp
                 const amountLiquidated = ethers.utils.parseEther("5000")
-                // escrowAmount = (margin - (minMargin - margin)) / 2 = (500 - (761.1433 - 500))/2 = 119.425356
-                const escrowedAmount = ethers.utils.parseEther("119.428356")
+                // minMargin = 6 * (0.00006*63515) + 9500/12.5
+                // escrowAmount = (margin - (minMargin - margin)) / 2 = (500 - (782.86 - 500))/2 = 108.56712
+                const escrowedAmount = ethers.utils.parseEther("108.56712")
                 const liquidationSide = 0 // long
 
                 const expectedReceipt = [
@@ -496,7 +497,7 @@ describe("Liquidation functional tests", async () => {
                         gasPrice: "1000000000000000",
                     }
                 )
-                await expect(tx).to.be.revertedWith("TCR: GasPrice > FGasPrice")
+                await expect(tx).to.be.revertedWith("LIQ: GasPrice > FGasPrice")
             })
         })
 
@@ -571,9 +572,9 @@ describe("Liquidation functional tests", async () => {
                     accounts[0].address
                 )
 
-                // escrowedAmount = [margin - (minMargin - margin)] = [500 - (761.43288 - 500)] = 238.56712
+                // escrowedAmount = [margin - (minMargin - margin)] = [500 - (782.86576 - 500)] = 217.13424
                 const expectedEscrowedAmount =
-                    ethers.utils.parseEther("238.856712")
+                    ethers.utils.parseEther("217.13424")
 
                 const escrowedAmount = (
                     await contracts.liquidation.liquidationReceipts(0)
@@ -607,9 +608,10 @@ describe("Liquidation functional tests", async () => {
                     accounts[0].address
                 )
 
-                // escrowedAmount = [margin - (minMargin - margin)] / 2= [500 - (761.43288 - 500)] / 2 = 119.28356
+                // minMargin = 6 * (0.00006*63515) + 9500/12.5
+                // escrowAmount = (margin - (minMargin - margin)) / 2 = (500 - (782.86 - 500))/2 = 108.56712
                 const expectedEscrowedAmount =
-                    ethers.utils.parseEther("119.428356")
+                    ethers.utils.parseEther("108.56712")
 
                 const escrowedAmount = (
                     await contracts.liquidation.liquidationReceipts(0)

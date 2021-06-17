@@ -107,7 +107,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId) public override onlyTracer {
+    function claimEscrow(uint256 receiptId) public override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
@@ -144,6 +144,7 @@ contract Liquidation is ILiquidation, Ownable {
         address account
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
+        require(tx.gasprice <= IOracle(fastGasOracle).latestAnswer(), "LIQ: GasPrice > FGasPrice");
 
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
@@ -386,22 +387,14 @@ contract Liquidation is ILiquidation, Ownable {
         address traderContract
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
-        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[
-            receiptId
-        ];
+        LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
         // Mark refund as claimed
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
         liquidationReceipts[receiptId].escrowClaimed = true;
-        require(
-            block.timestamp < receipt.releaseTime,
-            "LIQ: claim time passed"
-        );
-        require(
-            tracer.tradingWhitelist(traderContract),
-            "LIQ: Trader is not whitelisted"
-        );
+        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
         uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
 
