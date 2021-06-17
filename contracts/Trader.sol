@@ -23,7 +23,7 @@ contract Trader is ITrader {
             "Order(address maker,address market,uint256 price,uint256 amount,uint256 side,uint256 expires,uint256 created)"
         );
 
-    uint256 public constant override chainId = 1337; // Changes per chain
+    uint256 public constant override chainId = 42; // Changes per chain
     bytes32 public immutable override EIP712_DOMAIN;
 
     // order hash to memory

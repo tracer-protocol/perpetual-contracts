@@ -115,7 +115,7 @@ module.exports = async function (hre) {
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: [ethers.utils.parseEther("10000000")], //10 mil supply
+        args: [ethers.utils.parseEther("10000000"), "Test Token", "TST"], //10 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
@@ -289,7 +289,11 @@ module.exports = async function (hre) {
     })
     await hre.run("verify:verify", {
         address: token.address,
-        constructorArguments: [ethers.utils.parseEther("10000000")],
+        constructorArguments: [
+            ethers.utils.parseEther("10000000"),
+            "Test Token",
+            "TST",
+        ],
         contract: "contracts/TestToken.sol:TestToken",
     })
     await hre.run("verify:verify", {
