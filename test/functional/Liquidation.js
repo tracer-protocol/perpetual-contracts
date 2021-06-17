@@ -300,11 +300,7 @@ const setupReceiptTest = deployments.createFixture(async () => {
         contracts.timestamp
     )
 
-    await addOrdersToModifiedTrader(
-        modifiableTrader,
-        contracts,
-        orders
-    )
+    await addOrdersToModifiedTrader(modifiableTrader, contracts, orders)
     return { ...contracts, modifiableTrader, ...orders }
 })
 
@@ -360,6 +356,25 @@ describe("Liquidation functional tests", async () => {
                         contracts.modifiableTrader.address
                     )
                     await expect(tx).to.be.revertedWith("LIQ: Unit mismatch")
+                })
+            }
+        )
+
+        context(
+            "When execution price has no slippage, but order price is low",
+            async () => {
+                it("calculates no slippage", async () => {
+                    const contracts = await setupReceiptTest()
+                    tracerPerps = contracts.tracerPerps
+                    liquidation = contracts.liquidation
+                    trader = contracts.modifiableTrader
+
+                    const tx = await liquidation.callStatic.calcAmountToReturn(
+                        0,
+                        [contracts.sellWholeLiquidationAmountUseNoSlippage],
+                        trader.address
+                    )
+                    await expect(tx).to.equal(ethers.utils.parseEther("0"))
                 })
             }
         )
