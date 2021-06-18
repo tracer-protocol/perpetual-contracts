@@ -107,6 +107,7 @@ module.exports = async function (hre) {
             ethers.utils.parseEther("10000000"),
             "Tracer Test USDC",
             "tUSDC",
+            8
         ], //10 mil supply
         from: deployer,
         log: true,
@@ -332,6 +333,7 @@ module.exports = async function (hre) {
             ethers.utils.parseEther("10000000"),
             "Tracer Test USDC",
             "tUSDC",
+            8
         ],
         contract: "contracts/TestToken.sol:TestToken",
     })

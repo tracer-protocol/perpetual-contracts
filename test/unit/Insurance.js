@@ -14,7 +14,8 @@ const setup = deployments.createFixture(async () => {
     let testToken = await TestToken.deploy(
         ethers.utils.parseEther("100000000"),
         "Test Token",
-        "TST"
+        "TST",
+        18
     )
     await testToken.deployed()
 
