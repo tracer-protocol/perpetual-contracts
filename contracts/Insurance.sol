@@ -170,7 +170,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
                 publicCollateralAmount = 10**18;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
-                publicCollateralAmount = poolHoldings - amount;
+                publicCollateralAmount = publicCollateralAmount - amount;
             }
 
             // Drain buffer
