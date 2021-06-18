@@ -893,7 +893,7 @@ describe("Liquidation functional tests", async () => {
                         .updatePoolAmount()
 
                     const poolHoldingsBefore =
-                        await contracts.insurance.collateralAmount()
+                        await contracts.insurance.getPoolHoldings()
                     const liquidatorQuoteBefore = (
                         await contracts.tracerPerps.balances(
                             accounts[1].address
@@ -938,7 +938,7 @@ describe("Liquidation functional tests", async () => {
                     expect(liquidateeQuoteAfter).to.equal(liquidateeQuoteBefore)
                     await contracts.insurance.updatePoolAmount()
                     expect(
-                        await contracts.insurance.collateralAmount()
+                        await contracts.insurance.getPoolHoldings()
                     ).to.equal(ethers.utils.parseEther("1"))
                 })
             }
@@ -978,7 +978,7 @@ describe("Liquidation functional tests", async () => {
                         .updatePoolAmount()
 
                     const poolHoldingsBefore =
-                        await contracts.insurance.collateralAmount()
+                        await contracts.insurance.getPoolHoldings()
                     const liquidatorQuoteBefore = (
                         await contracts.tracerPerps.balances(
                             accounts[1].address
@@ -1025,7 +1025,7 @@ describe("Liquidation functional tests", async () => {
                         slippageAmount.sub(escrowedAmount)
                     )
                     expect(
-                        await contracts.insurance.collateralAmount()
+                        await contracts.insurance.getPoolHoldings()
                     ).to.equal(expectedPoolHoldings)
                 })
             }
@@ -1132,7 +1132,7 @@ describe("Liquidation functional tests", async () => {
 
                 await contracts.insurance.updatePoolAmount()
                 const insuranceHoldingsBefore =
-                    await contracts.insurance.collateralAmount()
+                    await contracts.insurance.getPoolHoldings()
 
                 // Whitelist the smoddit Trader
                 await contracts.tracerPerps
@@ -1154,7 +1154,7 @@ describe("Liquidation functional tests", async () => {
                 ).position.quote
                 await contracts.insurance.updatePoolAmount()
                 const insuranceHoldingsAfter =
-                    await contracts.insurance.collateralAmount()
+                    await contracts.insurance.getPoolHoldings()
 
                 // Should increase by amount escrowed + whatever was in the insurance pool
                 expect(liquidatorQuoteAfter).to.equal(liquidatorQuoteBefore)
@@ -1186,7 +1186,7 @@ describe("Liquidation functional tests", async () => {
 
                 await contracts.insurance.updatePoolAmount()
                 const insuranceHoldingsBefore =
-                    await contracts.insurance.collateralAmount()
+                    await contracts.insurance.getPoolHoldings()
 
                 // Whitelist the smoddit Trader
                 await contracts.tracerPerps
@@ -1209,7 +1209,7 @@ describe("Liquidation functional tests", async () => {
 
                 await contracts.insurance.updatePoolAmount()
                 const insuranceHoldingsAfter =
-                    await contracts.insurance.collateralAmount()
+                    await contracts.insurance.getPoolHoldings()
 
                 // Should increase by amount escrowed + whatever was in the insurance pool
                 expect(liquidatorQuoteAfter).to.equal(liquidatorQuoteBefore)
