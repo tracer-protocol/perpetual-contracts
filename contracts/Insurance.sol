@@ -46,6 +46,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function deposit(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
+
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
@@ -53,6 +54,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         // amount in wad format after being converted from token format
         uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
+
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -80,12 +82,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
         // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
-        uint256 wadTokensToSend =
-            LibInsurance.calcWithdrawAmount(
-                poolToken.totalSupply(),
-                publicCollateralAmount,
-                amount
-            );
+        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(
+            poolToken.totalSupply(),
+            publicCollateralAmount,
+            amount
+        );
 
         // convert token amount to raw amount from WAD
         uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
@@ -105,29 +106,21 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-        uint256 quote =
-            uint256((tracer.getBalance(address(this))).position.quote);
+        uint256 quote = uint256((tracer.getBalance(address(this))).position.quote);
 
         tracer.withdraw(quote);
 
         if (publicCollateralAmount > 0) {
             // Amount to pay to public is the ratio of public collateral amount to total funds
-            uint256 payToCollateral =
-                PRBMathUD60x18.mul(
-                    quote,
-                    PRBMathUD60x18.div(
-                        publicCollateralAmount,
-                        getPoolHoldings()
-                    )
-                );
+            uint256 payToPublic = PRBMathUD60x18.mul(
+                quote,
+                PRBMathUD60x18.div(publicCollateralAmount, getPoolHoldings())
+            );
 
-            publicCollateralAmount = publicCollateralAmount + payToCollateral;
+            publicCollateralAmount = publicCollateralAmount + payToPublic;
 
             // Amount to pay to buffer is the remainder
-            bufferCollateralAmount =
-                bufferCollateralAmount +
-                quote -
-                payToCollateral;
+            bufferCollateralAmount = bufferCollateralAmount + quote - payToPublic;
         } else {
             // Pay to buffer if nothing in public insurance
             bufferCollateralAmount = bufferCollateralAmount + quote;
@@ -164,9 +157,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             } else if (poolHoldings - amount < 10**18) {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
-                amount =
-                    poolHoldings -
-                    10**18;
+                amount = poolHoldings - 10**18;
                 publicCollateralAmount = 10**18;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
@@ -217,22 +208,21 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 multiplyFactor = 36523 * (10**11);
 
         uint256 levNotionalValue = tracer.leveragedNotionalValue();
-        if (levNotionalValue <= 0) {
+
+        // Traders only pay the insurance funding rate if the market has leverage
+        if (levNotionalValue == 0) {
             return 0;
         }
-        
-        uint256 poolHoldings = publicCollateralAmount + bufferCollateralAmount;
+
+        uint256 poolHoldings = getPoolHoldings();
         uint256 poolTarget = getPoolTarget();
 
+        // If the pool is above the target, we don't pay the insurance funding rate
         if (poolTarget <= poolHoldings) {
             return 0;
         }
 
-        uint256 ratio =
-            PRBMathUD60x18.div(
-                poolTarget - poolHoldings,
-                levNotionalValue
-            );
+        uint256 ratio = PRBMathUD60x18.div(poolTarget - poolHoldings, levNotionalValue);
 
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
