@@ -19,6 +19,4 @@ interface IInsurance {
     function getPoolTarget() external view returns (uint256);
 
     function getPoolFundingRate() external view returns (uint256);
-
-    function poolNeedsFunding() external view returns (bool);
 }

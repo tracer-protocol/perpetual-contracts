@@ -169,19 +169,19 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.div(getPoolTarget() - collateralAmount, levNotionalValue);
+        uint256 poolTarget = getPoolTarget();
+
+        if (poolTarget <= collateralAmount) {
+            return 0;
+        }
+
+        uint256 ratio = PRBMathUD60x18.div(poolTarget - collateralAmount, levNotionalValue);
+
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
 
     function transferOwnership(address newOwner) public override(Ownable, IInsurance) onlyOwner {
         super.transferOwnership(newOwner);
-    }
-
-    /**
-     * @notice returns if the insurance pool needs funding or not
-     */
-    function poolNeedsFunding() external view override returns (bool) {
-        return getPoolTarget() > collateralAmount;
     }
 
     modifier onlyLiquidation() {
