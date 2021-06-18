@@ -524,7 +524,7 @@ describe("Unit tests: Insurance.sol", function () {
                     ethers.utils.parseEther("0")
                 )
                 expect(publicCollateralAmountPost).to.equal(
-                    ethers.utils.parseEther("0.1")
+                    ethers.utils.parseEther("1.1")
                 )
             })
 
