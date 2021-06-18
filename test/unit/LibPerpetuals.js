@@ -282,7 +282,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expires = 3021382897 // large unix timestamp
                 let created = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     priceA,
                     amount,
@@ -291,7 +291,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     priceB,
                     amount,
@@ -312,7 +312,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expires = 3021382897 // large unix timestamp
                 let created = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     priceA,
                     amount,
@@ -321,7 +321,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     priceB,
                     amount,
@@ -343,7 +343,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expires = 3021382897 // large unix timestamp
                 let created = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -352,7 +352,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -375,7 +375,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expiresB = 3021382897 // large unix timestamp
                 let created = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -384,7 +384,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -395,6 +395,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
                 expect(result).to.equal(false)
             })
+
             it("returns false if order b is expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
@@ -404,7 +405,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expiresA = 3021382897 // large unix timestamp
                 let created = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -413,7 +414,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -434,7 +435,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expiresB = 750
                 let created = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -443,7 +444,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -467,7 +468,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledA = amount
                 let filledB = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -476,7 +477,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -503,7 +504,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledA = 0
                 let filledB = amount
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -512,7 +513,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -539,7 +540,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledA = amount
                 let filledB = amount
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -548,7 +549,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
@@ -580,7 +581,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let filledA = 0
                     let filledB = 0
                     let orderA = [
-                        zeroAddress,
+                        accounts[1].address,
                         zeroAddress,
                         price,
                         amount,
@@ -589,7 +590,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         createdA,
                     ]
                     let orderB = [
-                        zeroAddress,
+                        accounts[2].address,
                         zeroAddress,
                         price,
                         amount,
@@ -617,7 +618,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let filledA = 0
                     let filledB = 0
                     let orderA = [
-                        zeroAddress,
+                        accounts[1].address,
                         zeroAddress,
                         price,
                         amount,
@@ -626,7 +627,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         createdA,
                     ]
                     let orderB = [
-                        zeroAddress,
+                        accounts[2].address,
                         zeroAddress,
                         price,
                         amount,
@@ -643,7 +644,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expect(result).to.equal(false)
                 })
 
-                it("retuns false if both orders were created in the future", async () => {
+                it("returns false if both orders were created in the future", async () => {
                     let price = ethers.utils.parseEther("1")
                     let amount = ethers.utils.parseEther("1")
                     let sideA = 1
@@ -654,7 +655,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let filledA = 0
                     let filledB = 0
                     let orderA = [
-                        zeroAddress,
+                        accounts[1].address,
                         zeroAddress,
                         price,
                         amount,
@@ -663,7 +664,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         createdA,
                     ]
                     let orderB = [
-                        zeroAddress,
+                        accounts[2].address,
                         zeroAddress,
                         price,
                         amount,
@@ -682,6 +683,82 @@ describe("Unit tests: LibPerpetuals.sol", function () {
             }
         )
 
+        context("when called with different markets", async () => {
+            it("returns false", async () => {
+                let price = ethers.utils.parseEther("1")
+                let amount = ethers.utils.parseEther("1")
+                let sideA = 1
+                let sideB = 0
+                let expires = 3021382897 // large unix timestamp
+                let created = 0
+                let filledA = 0
+                let filledB = 0
+                let orderA = [
+                    accounts[1].address,
+                    accounts[3].address,
+                    price,
+                    amount,
+                    sideA,
+                    expires,
+                    created,
+                ]
+                let orderB = [
+                    accounts[2].address,
+                    accounts[4].address,
+                    price,
+                    amount,
+                    sideB,
+                    expires,
+                    created,
+                ]
+                let result = await libPerpetuals.canMatch(
+                    orderA,
+                    filledA,
+                    orderB,
+                    filledB
+                )
+                expect(result).to.equal(false)
+            })
+        })
+
+        context("when called with the same makers", async () => {
+            it("returns false", async () => {
+                let price = ethers.utils.parseEther("1")
+                let amount = ethers.utils.parseEther("1")
+                let sideA = 1
+                let sideB = 0
+                let expires = 3021382897 // large unix timestamp
+                let created = 0
+                let filledA = 0
+                let filledB = 0
+                let orderA = [
+                    accounts[1].address,
+                    zeroAddress,
+                    price,
+                    amount,
+                    sideA,
+                    expires,
+                    created,
+                ]
+                let orderB = [
+                    accounts[1].address,
+                    zeroAddress,
+                    price,
+                    amount,
+                    sideB,
+                    expires,
+                    created,
+                ]
+                let result = await libPerpetuals.canMatch(
+                    orderA,
+                    filledA,
+                    orderB,
+                    filledB
+                )
+                expect(result).to.equal(false)
+            })
+        })
+
         context("when called with valid orders", async () => {
             it("returns true", async () => {
                 let price = ethers.utils.parseEther("1")
@@ -693,7 +770,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledA = 0
                 let filledB = 0
                 let orderA = [
-                    zeroAddress,
+                    accounts[1].address,
                     zeroAddress,
                     price,
                     amount,
@@ -702,7 +779,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let orderB = [
-                    zeroAddress,
+                    accounts[2].address,
                     zeroAddress,
                     price,
                     amount,
