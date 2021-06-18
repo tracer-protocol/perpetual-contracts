@@ -1,13 +1,13 @@
 {
     "name": "@tracer-protocol/contracts",
-    "version": "0.2.4",
+    "version": "0.2.7",
     "description": "Tracer Protocol",
     "main": "truffle-config.js",
     "directories": {
         "test": "test"
     },
     "dependencies": {
-        "@eth-optimism/smock": "^1.1.4",
+        "@eth-optimism/smock": "0.0.0-20215180366",
         "@nomiclabs/hardhat-ethers": "^2.0.2",
         "@nomiclabs/hardhat-etherscan": "^2.1.2",
         "@nomiclabs/hardhat-waffle": "^2.0.1",
@@ -19,8 +19,8 @@
         "eth-sig-util": "^2.5.3",
         "ethereum-waffle": "^3.3.0",
         "ethers": "^5.1.4",
+        "hardhat": "^2.4.0",
         "hardhat-deploy": "^0.7.5",
-        "hardhat-prettier": "^0.0.1",
         "prb-math": "^1.0.5",
         "prettier": "^2.3.1",
         "prettier-plugin-solidity": "^1.0.0-beta.13",
@@ -37,7 +37,6 @@
         "arb-ethers-web3-bridge": "^0.7.3",
         "chai": "^4.3.4",
         "ganache-cli": "^6.12.0",
-        "hardhat": "^2.2.1",
         "hardhat-abi-exporter": "^2.2.1",
         "hardhat-contract-sizer": "^2.0.3",
         "hardhat-deploy": "^0.7.5",
@@ -61,7 +60,7 @@
         "compile": "npx hardhat compile",
         "deploy": "npx hardhat deploy",
         "ganache": "ganache-cli -l 8500000",
-        "lint": "prettier --check . && yarn hardhat check",
+        "lint": "prettier --check .",
         "lint:fix": "prettier . --write",
         "clean": "npm-run-all -p clean:artifacts clean:cache clean:types",
         "clean:types": "rimraf ./types/",

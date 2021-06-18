@@ -17,10 +17,7 @@ interface ILiquidation {
         uint256 receiptId
     ) external returns (uint256, uint256);
 
-    function getLiquidationReceipt(uint256 id)
-        external
-        view
-        returns (LibLiquidation.LiquidationReceipt memory);
+    function getLiquidationReceipt(uint256 id) external view returns (LibLiquidation.LiquidationReceipt memory);
 
     function liquidate(int256 amount, address account) external;
 
@@ -34,9 +31,13 @@ interface ILiquidation {
 
     function currentLiquidationId() external view returns (uint256);
 
-    function transferOwnership(address newOwner) external;
-
     function maxSlippage() external view returns (uint256);
+
+    function releaseTime() external view returns (uint256);
+
+    function minimumLeftoverGasCostMultiplier() external view returns (uint256);
+
+    function transferOwnership(address newOwner) external;
 
     function setMaxSlippage(uint256 _maxSlippage) external;
 }

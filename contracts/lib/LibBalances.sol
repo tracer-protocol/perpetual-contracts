@@ -15,17 +15,20 @@ library Balances {
 
     uint256 public constant MAX_DECIMALS = 18;
 
+    // Size of a position
     struct Position {
         int256 quote;
         int256 base;
     }
 
+    // Information about a trade
     struct Trade {
         uint256 price;
         uint256 amount;
         Perpetuals.Side side;
     }
 
+    // Contains information about the balance of an account in a Tracer market
     struct Account {
         Position position;
         uint256 totalLeveragedValue;
@@ -33,29 +36,24 @@ library Balances {
         uint256 lastUpdatedGasPrice;
     }
 
-    function netValue(Position memory position, uint256 price)
-        internal
-        pure
-        returns (uint256)
-    {
+    /**
+     * @notice Calculates the notional value of a position as base * price
+     * @param position the position the account is currently in
+     * @param price The (fair) price of the base asset
+     * @return Notional value of a position given the price
+     */
+    function notionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
         /* cast is safe due to semantics of `abs` */
-        return
-            PRBMathUD60x18.mul(
-                uint256(PRBMathSD59x18.abs(position.base)),
-                price
-            );
+        return PRBMathUD60x18.mul(uint256(PRBMathSD59x18.abs(position.base)), price);
     }
 
     /**
      * @notice Calculates the margin as quote + base * base_price
-     * @param position the position the account is currently in
+     * @param position The position the account is currently in
      * @param price The price of the base asset
+     * @return Margin of the position
      */
-    function margin(Position memory position, uint256 price)
-        internal
-        pure
-        returns (int256)
-    {
+    function margin(Position memory position, uint256 price) internal pure returns (int256) {
         /*
          * A cast *must* occur somewhere here in order for this to type check.
          *
@@ -77,12 +75,9 @@ library Balances {
      * @param position The position the account is currently in
      * @param price The price of the base asset
      */
-    function leveragedNotionalValue(Position memory position, uint256 price)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 notionalValue = netValue(position, price);
+    function leveragedNotionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
+        uint256 notionalValue = notionalValue(position, price);
+        (position, price);
         int256 marginValue = margin(position, price);
 
         int256 signedNotionalValue = LibMath.toInt256(notionalValue);
@@ -94,10 +89,22 @@ library Balances {
         }
     }
 
+    /**
+     * @notice Calculates the minimum margin needed for an account.
+     * Calculated as minMargin = notionalValue / maxLev + 6 * liquidationGasCost
+     *                         = (base * price) / maxLev + 6 * liquidationGasCost
+     * @param position Position to calculate the minimum margin for
+     * @param price Price by which to evaluate the minimum margin
+     * @param liquidationGasCost Cost for liquidation denominated in quote tokens
+     * @param maximumLeverage (True) maximum leverage of a market.
+     *   May be less than the set max leverage of the market because
+     *   of deleveraging
+     * @return Minimum margin of the position given the parameters
+     */
     function minimumMargin(
         Position memory position,
         uint256 price,
-        uint256 liquidationCost,
+        uint256 liquidationGasCost,
         uint256 maximumLeverage
     ) internal pure returns (uint256) {
         // There should be no Minimum margin when user has no position
@@ -105,19 +112,25 @@ library Balances {
             return 0;
         }
 
-        uint256 notionalValue = netValue(position, price);
+        uint256 notionalValue = notionalValue(position, price);
 
         // todo confirm that liquidation gas cost should be a WAD value
-        uint256 liquidationGasCost = liquidationCost * 6;
+        uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(
-            notionalValue,
-            maximumLeverage
-        );
+        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
 
-        return liquidationGasCost + minimumMarginWithoutGasCost;
+        return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
     }
 
+    /**
+     * @notice Gets the amount that can be matched between two orders
+     *         Calculated as min(amountRemaining)
+     * @param orderA First order
+     * @param fillA Amount of the first order remaining to be filled
+     * @param orderB Second order
+     * @param fillB Amount of the second order remaining to be filled
+     * @return Amount matched between two orders
+     */
     function fillAmount(
         Perpetuals.Order memory orderA,
         uint256 fillA,
@@ -158,12 +171,9 @@ library Balances {
         uint256 executionPrice,
         uint256 feeRate
     ) internal pure returns (int256) {
-        int256 quoteChange = PRBMathUD60x18
-        .mul(amount, executionPrice)
-        .toInt256();
-        int256 fee = PRBMathUD60x18
-        .mul(uint256(quoteChange), feeRate)
-        .toInt256();
+        uint256 quoteChange = PRBMathUD60x18.mul(amount, executionPrice);
+
+        int256 fee = PRBMathUD60x18.mul(quoteChange, feeRate).toInt256();
         return fee;
     }
 
@@ -173,20 +183,14 @@ library Balances {
         uint256 liquidationCost,
         uint256 maximumLeverage
     ) internal pure returns (bool) {
-        return
-            uint256(margin(position, price)) >=
-            minimumMargin(position, price, liquidationCost, maximumLeverage);
+        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
     }
 
     /**
      * @notice converts a raw token amount to its WAD representation. Used for tokens
      * that don't have 18 decimal places
      */
-    function tokenToWad(uint256 tokenDecimals, uint256 amount)
-        internal
-        pure
-        returns (int256)
-    {
+    function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
         int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
         return amount.toInt256() * scaler;
     }
@@ -194,11 +198,7 @@ library Balances {
     /**
      * @notice converts a wad token amount to its raw representation.
      */
-    function wadToToken(uint256 tokenDecimals, uint256 wadAmount)
-        internal
-        pure
-        returns (uint256)
-    {
+    function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
         uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
         return uint256(wadAmount / scaler);
     }

@@ -56,12 +56,14 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
+    // asset price oracle => ASSET / USD
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
         contract: "Oracle",
     })
 
+    // Gas price oracle => fast gas / gwei
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
@@ -74,6 +76,7 @@ module.exports = async function (hre) {
         contract: "Oracle",
     })
 
+    // adapter converting asset oracle to WAD
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -81,18 +84,19 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
+    // adapter converting ETH / USD to WAD
+    const ethOracleAdapter = await deploy("EthOracleAdapter", {
+        from: deployer,
+        log: true,
+        args: [ethOracle.address],
+        contract: "OracleAdapter",
+    })
+
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracle.address, gasOracle.address],
+        args: [ethOracleAdapter.address, gasOracle.address],
         contract: "GasOracle",
-    })
-
-    const gasPriceOracleAdapter = await deploy("GasPriceOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [gasPriceOracle.address],
-        contract: "OracleAdapter",
     })
 
     // deploy token with an initial supply of 100000
@@ -160,12 +164,11 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    // set tracer params here
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
     let fundingRateSensitivity = ethers.utils.parseEther("1")
-    let maxLiquidationSlippage = ethers.utils.parseEther("50") // 50 percent
+    let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
     let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
@@ -210,8 +213,12 @@ module.exports = async function (hre) {
         constructorArguments: [priceOracle.address],
     })
     await hre.run("verify:verify", {
-        address: gasPriceOracleAdapter.address,
-        constructorArguments: [gasPriceOracle.address],
+        address: gasPriceOracle.address,
+        constructorArguments: [ethOracle.address, gasOracle.address],
+    })
+    await hre.run("verify:verify", {
+        address: gasOracle.address,
+        constructorArguments: [],
     })
     await hre.run("verify:verify", {
         address: ethOracle.address,
@@ -250,6 +257,7 @@ module.exports = async function (hre) {
             pricing,
             tracerInstance.address,
             insurance,
+            gasOracle.address,
             maxLiquidationSlippage,
         ],
     })
@@ -259,7 +267,7 @@ module.exports = async function (hre) {
             ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
             tokenDecimals,
-            gasPriceOracleAdapter.address,
+            gasPriceOracle.address,
             maxLeverage,
             fundingRateSensitivity,
             feeRate,

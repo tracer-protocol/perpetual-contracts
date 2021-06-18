@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./LibMath.sol";
 import "./LibPerpetuals.sol";
+import "./LibBalances.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 
@@ -26,16 +27,27 @@ library LibLiquidation {
         bool liquidatorRefundClaimed;
     }
 
+    /**
+     * @return The amount a liquidator must escrow in order to liquidate a given position.
+     *         Calculated as currentMargin - (minMargin - currentMargin) * portion of whole position being liquidated
+     * @dev Assumes params are WAD
+     * @param minMargin User's minimum margin
+     * @param currentMargin User's current margin
+     * @param amount Amount being liquidated
+     * @param totalBase User's total base
+     */
     function calcEscrowLiquidationAmount(
-        uint256 minMargin, //10^18
-        int256 currentMargin //10^18
+        uint256 minMargin,
+        int256 currentMargin,
+        int256 amount,
+        int256 totalBase
     ) internal pure returns (uint256) {
-        int256 amountToEscrow = currentMargin -
-            (minMargin.toInt256() - currentMargin);
-        if (amountToEscrow < 0) {
+        int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(amountToEscrow, PRBMathSD59x18.div(amount, totalBase));
+        if (amountToEscrowProportional < 0) {
             return 0;
         }
-        return uint256(amountToEscrow);
+        return uint256(amountToEscrowProportional);
     }
 
     /**
@@ -63,17 +75,24 @@ library LibLiquidation {
         if (liquidatedBase == 0) {
             return (0, 0, 0, 0);
         }
+
         int256 portionOfQuote = PRBMathSD59x18.mul(
             liquidatedQuote,
             PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
         );
 
         // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
+        if (liquidatedBase < 0) {
+            _liquidatorBaseChange = amount * (-1);
+            _liquidateeBaseChange = amount;
+        } else {
+            _liquidatorBaseChange = amount;
+            _liquidateeBaseChange = amount * (-1);
+        }
+
+        /* If quote is negative, liquidator always takes on negative quote */
         _liquidatorQuoteChange = portionOfQuote;
         _liquidateeQuoteChange = portionOfQuote * (-1);
-
-        _liquidatorBaseChange = amount;
-        _liquidateeBaseChange = amount * (-1);
     }
 
     /**
@@ -92,50 +111,61 @@ library LibLiquidation {
         // Check price slippage and update account states
         if (
             avgPrice == receipt.price || // No price change
-            (avgPrice < receipt.price &&
-                receipt.liquidationSide == Perpetuals.Side.Short) || // Price dropped, but position is short
-            (avgPrice > receipt.price &&
-                receipt.liquidationSide == Perpetuals.Side.Long) // Price jumped, but position is long
+            (avgPrice < receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) || // Price dropped, but position is short
+            (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Long) // Price jumped, but position is long
         ) {
             // No slippage
             return 0;
         } else {
             // Liquidator took a long position, and price dropped
             uint256 amountSoldFor = PRBMathUD60x18.mul(avgPrice, unitsSold);
-            uint256 amountExpectedFor = PRBMathUD60x18.mul(
-                receipt.price,
-                unitsSold
-            );
+            uint256 amountExpectedFor = PRBMathUD60x18.mul(receipt.price, unitsSold);
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
             // todo this can probably be further simplified
             uint256 amountToReturn = 0;
             uint256 percentSlippage = 0;
-            if (
-                avgPrice < receipt.price &&
-                receipt.liquidationSide == Perpetuals.Side.Long
-            ) {
+            if (avgPrice < receipt.price && receipt.liquidationSide == Perpetuals.Side.Long) {
                 amountToReturn = amountExpectedFor - amountSoldFor;
-            } else if (
-                avgPrice > receipt.price &&
-                receipt.liquidationSide == Perpetuals.Side.Short
-            ) {
+            } else if (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
             if (amountToReturn <= 0) {
                 return 0;
             }
-            // multiply by 100 as we expect this to be a percent as an integer eg 50% = 50
-            percentSlippage =
-                PRBMathUD60x18.div(amountToReturn, amountExpectedFor) *
-                100;
+
+            // slippage percent = slippage / total amount
+            percentSlippage = PRBMathUD60x18.div(amountToReturn, amountExpectedFor);
+
             if (percentSlippage > maxSlippage) {
-                amountToReturn =
-                    PRBMathUD60x18.mul(maxSlippage, amountExpectedFor) /
-                    100;
+                amountToReturn = PRBMathUD60x18.mul(maxSlippage, amountExpectedFor);
             }
             return amountToReturn;
         }
+    }
+
+    /**
+     * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
+     * @dev Assumes params are WAD except liquidationGasCost
+     * @param updatedPosition The agent's position after being liquidated
+     * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
+     * @param liquidationGasCost Approximately how much gas is used to call liquidate()
+     * @param price Current fair price
+     * @param minimumLeftoverGasCostMultiplier The amount to multiply the liquidation cost by in
+     *                                         in order to calculate minimum leftover margin
+     */
+    function partialLiquidationIsValid(
+        Balances.Position memory updatedPosition,
+        uint256 lastUpdatedGasPrice,
+        uint256 liquidationGasCost,
+        uint256 price,
+        uint256 minimumLeftoverGasCostMultiplier
+    ) internal pure returns (bool) {
+        uint256 minimumLeftoverMargin = PRBMathUD60x18.mul(lastUpdatedGasPrice, liquidationGasCost) *
+            minimumLeftoverGasCostMultiplier;
+
+        int256 margin = Balances.margin(updatedPosition, price);
+        return margin >= minimumLeftoverMargin.toInt256() || (updatedPosition.base == 0 && updatedPosition.quote == 0);
     }
 }

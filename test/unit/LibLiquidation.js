@@ -1,80 +1,118 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
+const { BigNumber } = require("ethers")
 
 describe("Unit tests: LibLiquidation.sol", function () {
     let libLiquidation
-    let accounts
     const long = 0
     const short = 1
 
     before(async function () {
         await deployments.fixture(["LibLiquidationMock"])
-        const { deployer } = await getNamedAccounts()
         const deployment = await deployments.get("LibLiquidationMock")
         libLiquidation = await ethers.getContractAt(
             deployment.abi,
             deployment.address
         )
-        accounts = await ethers.getSigners()
     })
 
     context("calcEscrowLiquidationAmount", async function () {
-        it("Should escrow full amount if margin == minMargin", async function () {
-            const margin = 123
-            const minMargin = 123
-            const expectedEscrowAmount = minMargin.toString()
+        context("if margin == minMargin", async function () {
+            it("Should escrow full amount", async function () {
+                const margin = 123
+                const minMargin = 123
+                const amount = 100
+                const expectedEscrowAmount = minMargin.toString()
 
-            const escrowAmount =
-                await libLiquidation.calcEscrowLiquidationAmount(
-                    minMargin,
-                    margin
-                )
-            expect(escrowAmount.toString()).to.equal(expectedEscrowAmount)
+                const escrowAmount =
+                    await libLiquidation.calcEscrowLiquidationAmount(
+                        minMargin,
+                        margin,
+                        amount,
+                        amount
+                    )
+                expect(escrowAmount.toString()).to.equal(expectedEscrowAmount)
+            })
         })
 
-        it("Should escrow less as margin drops below minMargin", async function () {
-            const margin = 100
-            const minMargin = 123
-            const expectedEscrowAmount = 77 // 100 - (123 - 100) = 77
+        context("as margin drops below minMargin", async function () {
+            it("Should escrow less", async function () {
+                const margin = 100
+                const minMargin = 123
+                const amount = 100
+                const expectedEscrowAmount = 77 // 100 - (123 - 100) = 77
 
-            const escrowAmount =
-                await libLiquidation.calcEscrowLiquidationAmount(
-                    minMargin,
-                    margin
+                const escrowAmount =
+                    await libLiquidation.calcEscrowLiquidationAmount(
+                        minMargin,
+                        margin,
+                        amount,
+                        amount
+                    )
+                expect(escrowAmount.toString()).to.equal(
+                    expectedEscrowAmount.toString()
                 )
-            expect(escrowAmount.toString()).to.equal(
-                expectedEscrowAmount.toString()
-            )
+            })
+        })
+        context("once margin hits 0", async function () {
+            it("Should escrow 0", async function () {
+                const margin = 0
+                const minMargin = 123
+                const amount = 100
+                const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
+
+                const escrowAmount =
+                    await libLiquidation.calcEscrowLiquidationAmount(
+                        minMargin,
+                        margin,
+                        amount,
+                        amount
+                    )
+                expect(escrowAmount.toString()).to.equal(
+                    expectedEscrowAmount.toString()
+                )
+            })
         })
 
-        it("Should escrow 0 once margin hits 0", async function () {
-            const margin = 0
-            const minMargin = 123
-            const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
+        context("once margin goes below 0", async function () {
+            it("Should escrow 0", async function () {
+                const margin = -9999
+                const minMargin = 123
+                const amount = 100
+                const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
 
-            const escrowAmount =
-                await libLiquidation.calcEscrowLiquidationAmount(
-                    minMargin,
-                    margin
+                const escrowAmount =
+                    await libLiquidation.calcEscrowLiquidationAmount(
+                        minMargin,
+                        margin,
+                        amount,
+                        amount
+                    )
+                expect(escrowAmount.toString()).to.equal(
+                    expectedEscrowAmount.toString()
                 )
-            expect(escrowAmount.toString()).to.equal(
-                expectedEscrowAmount.toString()
-            )
+            })
         })
 
-        it("Should escrow 0 once margin goes below 0", async function () {
-            const margin = -9999
-            const minMargin = 123
-            const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
+        context("when amount is not whole margin", async function () {
+            it("Should escrow proportionally", async function () {
+                const margin = ethers.utils.parseEther("100")
+                const minMargin = ethers.utils.parseEther("123")
+                const amount = ethers.utils.parseEther("100")
+                const totalQuote = ethers.utils.parseEther("200")
+                const expectedEscrowAmount = ethers.utils.parseEther("38.5") // (100 - (123 - 100)) / 2
 
-            const escrowAmount =
-                await libLiquidation.calcEscrowLiquidationAmount(
-                    minMargin,
-                    margin
+                const escrowAmount =
+                    await libLiquidation.calcEscrowLiquidationAmount(
+                        minMargin,
+                        margin,
+                        amount,
+                        totalQuote
+                    )
+                expect(escrowAmount.toString()).to.equal(
+                    expectedEscrowAmount.toString()
                 )
-            expect(escrowAmount.toString()).to.equal(
-                expectedEscrowAmount.toString()
-            )
+            })
         })
     })
 
@@ -219,12 +257,36 @@ describe("Unit tests: LibLiquidation.sol", function () {
                 expectedChange
             )
         })
+
+        it("Calculates correctly on short liquidation", async function () {
+            const liquidatedQuote = "100"
+            const liquidatedBase = "-200"
+            const amount = "200"
+
+            /* quote goes up or down by 50, base goes up or down by 125, since this is a 50% partial liquidation */
+            const expectedBaseChange = BigNumber.from("200")
+            const expectedQuoteChange = BigNumber.from("100")
+
+            const ret = await libLiquidation.liquidationBalanceChanges(
+                liquidatedBase,
+                liquidatedQuote,
+                amount
+            )
+            expect(ret._liquidatorQuoteChange).to.equal(expectedQuoteChange)
+            expect(ret._liquidatorBaseChange).to.equal(
+                expectedBaseChange.mul(BigNumber.from("-1"))
+            )
+            expect(ret._liquidateeQuoteChange).to.equal(
+                expectedQuoteChange.mul(BigNumber.from("-1"))
+            )
+            expect(ret._liquidateeBaseChange).to.equal(expectedBaseChange)
+        })
     })
 
     context("calculateSlippage", async function () {
         it("0% slippage", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (1 * 100000000000000000000).toString() // 100%
+            const maxSlippage = ethers.utils.parseEther("1") // 100%
             const avgPrice = "200000000"
             const receiptPrice = "200000000"
             const expectedSlippage = "0" // 100*2 - 100*2
@@ -240,7 +302,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("reverse slippage (liquidator benefits)", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (0.1 * 100000000000000000000).toString() // 10%
+            const maxSlippage = ethers.utils.parseEther("0.1") // 10%
             const avgPrice = "300000000"
             const receiptPrice = "200000000"
             const expectedSlippage = "0"
@@ -256,7 +318,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("slippage over maxSlippage amount", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (0.1 * 100000000000000000000).toString() // 10%
+            const maxSlippage = ethers.utils.parseEther("0.1") // 10%
             const avgPrice = ethers.utils.parseEther("1")
             const receiptPrice = ethers.utils.parseEther("2")
             const expectedSlippage = ethers.utils.parseEther("20") // 10% of 200
@@ -272,7 +334,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("50% slippage", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (1 * 100000000000000000000).toString() // 100%
+            const maxSlippage = ethers.utils.parseEther("1") // 100%
             const avgPrice = ethers.utils.parseEther("1")
             const receiptPrice = ethers.utils.parseEther("2")
             const expectedSlippage = ethers.utils.parseEther("100") // 100*2 - 100*1
@@ -288,7 +350,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("short slippage (price goes up)", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (1 * 100000000000000000000).toString() // 100%
+            const maxSlippage = ethers.utils.parseEther("1") // 100%
             const avgPrice = ethers.utils.parseEther("2")
             const receiptPrice = ethers.utils.parseEther("1")
             const expectedSlippage = ethers.utils.parseEther("100") // 100*2 - 100*1
@@ -304,7 +366,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("short slippage - slippage exceeds maxSlippage", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (1 * 100000000000000000000).toString() // 100%
+            const maxSlippage = ethers.utils.parseEther("1") // 100%
             const avgPrice = ethers.utils.parseEther("3")
             const receiptPrice = ethers.utils.parseEther("1")
             const expectedSlippage = ethers.utils.parseEther("100") // 100% of 100
@@ -320,7 +382,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         it("short slippage - liquidator benefits", async function () {
             const unitsSold = ethers.utils.parseEther("100")
-            const maxSlippage = (1 * 100000000000000000000).toString() // 100%
+            const maxSlippage = ethers.utils.parseEther("1") // 100%
             const avgPrice = ethers.utils.parseEther("1")
             const receiptPrice = ethers.utils.parseEther("5")
             const expectedSlippage = "0"
@@ -332,6 +394,165 @@ describe("Unit tests: LibLiquidation.sol", function () {
                 short
             )
             expect(slippage.toString()).to.equal(expectedSlippage)
+        })
+    })
+
+    context("partialLiquidationIsValid", async () => {
+        context(
+            "when price is 0, quote is 0, but position is low",
+            async () => {
+                it("returns true, since margin = 0", async () => {
+                    const liquidatedBaseChange = 1
+                    const liquidatedQuoteChange = 0
+                    const liquidatedBase = 145
+                    const liquidatedQuote = 0
+                    const leftoverBase = liquidatedBase + liquidatedBaseChange
+                    const leftoverQuote =
+                        liquidatedQuote + liquidatedQuoteChange
+                    const lastUpdatedGasCost = 100
+                    const liquidationGasCost = 123
+                    const price = 0
+                    const minimumLeftoverGasCostMultiplier = 10
+
+                    const valid =
+                        await libLiquidation.partialLiquidationIsValid(
+                            leftoverBase,
+                            leftoverQuote,
+                            lastUpdatedGasCost,
+                            liquidationGasCost,
+                            price,
+                            minimumLeftoverGasCostMultiplier
+                        )
+
+                    expect(valid).to.equal(true)
+                })
+            }
+        )
+
+        context("liquidationGasCost is 0, and margin is negative", async () => {
+            it("returns false", async () => {
+                const liquidatedBaseChange = ethers.utils.parseEther("1")
+                const liquidatedQuoteChange = ethers.utils.parseEther("0")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("0")
+                const leftoverBase = liquidatedBase.add(liquidatedBaseChange)
+                const leftoverQuote = liquidatedQuote.add(liquidatedQuoteChange)
+                const lastUpdatedGasCost = ethers.utils.parseEther("100")
+                const liquidationGasCost = ethers.utils.parseEther("0")
+                const price = ethers.utils.parseEther("1")
+                const minimumLeftoverGasCostMultiplier = 10
+
+                const valid = await libLiquidation.partialLiquidationIsValid(
+                    leftoverBase,
+                    leftoverQuote,
+                    lastUpdatedGasCost, // 100
+                    liquidationGasCost, // 0
+                    price, // 1
+                    minimumLeftoverGasCostMultiplier
+                )
+
+                expect(valid).to.equal(false)
+            })
+        })
+
+        context("margin is below minimum amount leftover", async () => {
+            it("Returns false", async () => {
+                const liquidatedBaseChange = ethers.utils.parseEther("-1")
+                const liquidatedQuoteChange = ethers.utils.parseEther("3")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("146")
+                const leftoverBase = liquidatedBase.add(liquidatedBaseChange)
+                const leftoverQuote = liquidatedQuote.add(liquidatedQuoteChange)
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
+                const minimumLeftoverGasCostMultiplier = 10
+
+                const valid = await libLiquidation.partialLiquidationIsValid(
+                    leftoverBase,
+                    leftoverQuote,
+                    lastUpdatedGasCost,
+                    liquidationGasCost,
+                    price,
+                    minimumLeftoverGasCostMultiplier
+                )
+
+                expect(valid).to.equal(false)
+            })
+        })
+
+        context("normal case (above leftover minimum)", async () => {
+            it("returns true", async () => {
+                const liquidatedBaseChange = ethers.utils.parseEther("145")
+                const liquidatedQuoteChange = ethers.utils.parseEther("191")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("0")
+                const leftoverBase = liquidatedBase.add(liquidatedBaseChange)
+                const leftoverQuote = liquidatedQuote.add(liquidatedQuoteChange)
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
+                const minimumLeftoverGasCostMultiplier = 10
+
+                const valid = await libLiquidation.partialLiquidationIsValid(
+                    leftoverBase,
+                    leftoverQuote,
+                    lastUpdatedGasCost, // 0.0003
+                    liquidationGasCost, // 63516
+                    price, // 1
+                    minimumLeftoverGasCostMultiplier
+                )
+
+                expect(valid).to.equal(true)
+            })
+        })
+
+        context("normal case (below leftover minimum)", async () => {
+            it("returns false", async () => {
+                const liquidatedBaseChange = ethers.utils.parseEther("145")
+                const liquidatedQuoteChange = ethers.utils.parseEther("190.4")
+                const liquidatedBase = ethers.utils.parseEther("-145")
+                const liquidatedQuote = ethers.utils.parseEther("0")
+                const leftoverBase = liquidatedBase.add(liquidatedBaseChange)
+                const leftoverQuote = liquidatedQuote.add(liquidatedQuoteChange)
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
+                const minimumLeftoverGasCostMultiplier = 10
+
+                const valid = await libLiquidation.partialLiquidationIsValid(
+                    leftoverBase,
+                    leftoverQuote,
+                    lastUpdatedGasCost,
+                    liquidationGasCost,
+                    price,
+                    minimumLeftoverGasCostMultiplier
+                )
+
+                expect(valid).to.equal(false)
+            })
+        })
+
+        context("when leftover base == 0 and quote == 0", async () => {
+            it("Returns true", async () => {
+                const leftoverBase = 0
+                const leftoverQuote = 0
+                const lastUpdatedGasCost = ethers.utils.parseEther("0.0003")
+                const liquidationGasCost = ethers.utils.parseEther("63516")
+                const price = ethers.utils.parseEther("1")
+                const minimumLeftoverGasCostMultiplier = 10
+
+                const valid = await libLiquidation.partialLiquidationIsValid(
+                    leftoverBase,
+                    leftoverQuote,
+                    lastUpdatedGasCost,
+                    liquidationGasCost,
+                    price,
+                    minimumLeftoverGasCostMultiplier
+                )
+
+                expect(valid).to.equal(true)
+            })
         })
     })
 })
