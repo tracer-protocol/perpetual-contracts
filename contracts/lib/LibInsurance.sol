@@ -46,4 +46,6 @@ library LibInsurance {
 
         return PRBMathUD60x18.mul(PRBMathUD60x18.div(poolTokenUnderlying, poolTokenSupply), wadAmount);
     }
+
+    function calcWithdrawAmount() internal pure {}
 }
