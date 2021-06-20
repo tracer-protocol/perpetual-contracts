@@ -153,14 +153,14 @@ contract Liquidation is ILiquidation, Ownable {
         // todo CASTING CHECK
         require(
             currentMargin <= 0 ||
-                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
             "LIQ: Account above margin"
         );
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+            Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
             currentMargin,
             amount,
             base

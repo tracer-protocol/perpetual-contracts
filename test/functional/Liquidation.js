@@ -480,6 +480,46 @@ describe("Liquidation functional tests", async () => {
             })
         })
 
+        context(
+            "when agent isn't below margin, then insurance pool drops and is below",
+            async () => {
+                it("Reverts when below, and allows liquidation when trueMaxLeverage drops", async () => {
+                    const contracts = await setupLiquidationTest()
+                    accounts = await ethers.getSigners()
+                    await contracts.token
+                        .connect(accounts[1])
+                        .approve(
+                            contracts.tracer.address,
+                            ethers.utils.parseEther("10000")
+                        )
+                    await contracts.tracer
+                        .connect(accounts[1])
+                        .deposit(ethers.utils.parseEther("100"))
+
+                    // Liquidate, but accounts[1] is above margin
+                    const invalidTx = contracts.liquidation.liquidate(
+                        "1",
+                        accounts[1].address
+                    )
+                    await expect(invalidTx).to.be.revertedWith(
+                        "LIQ: Account above margin"
+                    )
+
+                    // Set lowestMaxLeverage to 1.5x
+                    await contracts.tracer
+                        .connect(accounts[0])
+                        .setLowestMaxLeverage(ethers.utils.parseEther("1.5"))
+
+                    // Liquidate, and now accounts[1] is below minimum margin
+                    const tx = contracts.liquidation.liquidate(
+                        "1",
+                        accounts[1].address
+                    )
+                    await expect(tx).to.emit(contracts.liquidation, "Liquidate")
+                })
+            }
+        )
+
         context("when gas price is above fast gas price", async () => {
             it("Reverts", async () => {
                 const contracts = await setupLiquidationTest()
