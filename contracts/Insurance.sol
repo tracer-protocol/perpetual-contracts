@@ -26,8 +26,11 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     uint256 public override withdrawalDelay; // The amount of time, in seconds, that a user must wait when doing a delayed withdrawal
 
     // Multiply a percentage by 10^16 to get it in decimal wad format.
-    // e.g. 50*10^16 == 0.5*10^18
+    // e.g. 50*10^16 == 0.5*10^18.
     uint256 public constant PERCENTAGE_WAD_MULTIPLIER = 10**16;
+    // The fee for an immediate/delayed withdrawal which puts the pool at x percent.
+    // e.g. IMMEDIATE_WITHDRAWAL_FEE_5_PERCENT is the fee for an immediate withdrawal that puts the pool
+    // below 5%.
     uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_5_PERCENT = 100 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_15_PERCENT = 80 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_30_PERCENT = 60 * PERCENTAGE_WAD_MULTIPLIER;
@@ -35,16 +38,24 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_75_PERCENT = 10 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_85_PERCENT = 5 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_90_PERCENT = 2 * PERCENTAGE_WAD_MULTIPLIER;
-    uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_100_PERCENT = 5 * PERCENTAGE_WAD_MULTIPLIER / 10;
+    uint256 public constant IMMEDIATE_WITHDRAWAL_FEE_100_PERCENT = (5 * PERCENTAGE_WAD_MULTIPLIER) / 10;
     uint256 public constant DELAYED_WITHDRAWAL_FEE_5_PERCENT = 20 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant DELAYED_WITHDRAWAL_FEE_15_PERCENT = 16 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant DELAYED_WITHDRAWAL_FEE_30_PERCENT = 12 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant DELAYED_WITHDRAWAL_FEE_60_PERCENT = 6 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant DELAYED_WITHDRAWAL_FEE_75_PERCENT = 2 * PERCENTAGE_WAD_MULTIPLIER;
     uint256 public constant DELAYED_WITHDRAWAL_FEE_85_PERCENT = 1 * PERCENTAGE_WAD_MULTIPLIER;
-    uint256 public constant DELAYED_WITHDRAWAL_FEE_90_PERCENT = 4 * PERCENTAGE_WAD_MULTIPLIER / 10;
-    uint256 public constant DELAYED_WITHDRAWAL_FEE_100_PERCENT = 1 * PERCENTAGE_WAD_MULTIPLIER / 10;
-    uint256 public constant WITHDRAWAL_FEE_OVER_100_PERCENT = 5 * PERCENTAGE_WAD_MULTIPLIER / 10;
+    uint256 public constant DELAYED_WITHDRAWAL_FEE_90_PERCENT = (4 * PERCENTAGE_WAD_MULTIPLIER) / 10;
+    uint256 public constant DELAYED_WITHDRAWAL_FEE_100_PERCENT = (1 * PERCENTAGE_WAD_MULTIPLIER) / 10;
+    uint256 public constant WITHDRAWAL_FEE_OVER_100_PERCENT = (5 * PERCENTAGE_WAD_MULTIPLIER) / 10;
+    uint256 public constant FIVE_PERCENT = 5 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant FIFTEEN_PERCENT = 15 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant THIRTY_PERCENT = 30 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant SIXTY_PERCENT = 60 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant SEVENTYFIVE_PERCENT = 75 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant EIGHTYFIVE_PERCENT = 85 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant NINETY_PERCENT = 90 * PERCENTAGE_WAD_MULTIPLIER;
+    uint256 public constant HUNDRED_PERCENT = 100 * PERCENTAGE_WAD_MULTIPLIER;
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
@@ -56,6 +67,50 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
+
+    function commitToDelayedWithdrawal(uint256 amount) external override {
+        updatePoolAmount();
+        uint256 balance = getPoolUserBalance(msg.sender);
+        require(balance >= amount, "INS: balance < amount");
+
+        IERC20 collateralToken = IERC20(collateralAsset);
+        InsurancePoolToken poolToken = InsurancePoolToken(token);
+
+        // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
+        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(
+            poolToken.totalSupply(),
+            publicCollateralAmount,
+            amount
+        );
+
+        // If the user were to withdraw now, what would the percentage fullness of the pool be?
+        uint256 percentage = LibInsurance.calcPostWithdrawalPercentage(
+            getPoolHoldings(),
+            getPoolTarget(),
+            wadTokensToSend
+        );
+        uint256 fee;
+        if (percentage <= FIVE_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_5_PERCENT;
+        } else if (percentage <= FIFTEEN_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_15_PERCENT;
+        } else if (percentage <= THIRTY_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_30_PERCENT;
+        } else if (percentage <= SIXTY_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_60_PERCENT;
+        } else if (percentage <= SEVENTYFIVE_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_75_PERCENT;
+        } else if (percentage <= EIGHTYFIVE_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_85_PERCENT;
+        } else if (percentage <= NINETY_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_90_PERCENT;
+        } else if (percentage <= HUNDRED_PERCENT) {
+            fee = DELAYED_WITHDRAWAL_FEE_100_PERCENT;
+        } else {
+            // percentage > HUNDRED_PERCENT
+            fee = DELAYED_WITHDRAWAL_FEE_5_PERCENT;
+        }
+    }
 
     constructor(address _tracer) Ownable() {
         tracer = ITracerPerpetualSwaps(_tracer);
@@ -126,10 +181,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         collateralToken.transfer(msg.sender, rawTokenAmount);
 
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
-    }
-
-    function commitToDelayedWithdrawal() public {
-
     }
 
     /**

@@ -12,6 +12,8 @@ interface IInsurance {
 
     function withdraw(uint256 amount) external;
 
+    function commitToDelayedWithdrawal(uint256 amount) external;
+
     function updatePoolAmount() external;
 
     function drainPool(uint256 amount) external;
