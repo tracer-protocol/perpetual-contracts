@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 interface IInsurance {
-    function collateralAmount() external view returns (uint256);
+    function publicCollateralAmount() external view returns (uint256);
+
+    function bufferCollateralAmount() external view returns (uint256);
 
     function withdrawalDelay() external view returns (uint256);
 
@@ -17,6 +19,8 @@ interface IInsurance {
     function transferOwnership(address newOwner) external;
 
     function getPoolUserBalance(address user) external view returns (uint256);
+
+    function getPoolHoldings() external view returns (uint256);
 
     function getPoolTarget() external view returns (uint256);
 
