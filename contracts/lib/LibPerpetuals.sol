@@ -119,7 +119,7 @@ library Perpetuals {
     /**
      * @notice Checks if two orders can be matched given their price, side of trade
      *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
-     *  and time validation.
+     *  markets being the same, makers being different, and time validation.
      * @param a The first order
      * @param aFilled Amount of the first order that has already been filled
      * @param b The second order
@@ -137,11 +137,14 @@ library Perpetuals {
         bool opposingSides = a.side != b.side;
         // long order must have a price >= short order
         bool pricesMatch = a.side == Side.Long ? a.price >= b.price : a.price <= b.price;
+        bool marketsMatch = a.market == b.market;
+        bool makersDifferent = a.maker != b.maker;
         bool notExpired = currentTime < a.expires && currentTime < b.expires;
         bool notFilled = aFilled < a.amount && bFilled < b.amount;
         bool createdBefore = currentTime >= a.created && currentTime >= b.created;
 
-        return pricesMatch && opposingSides && notExpired && notFilled && createdBefore;
+        return
+            pricesMatch && makersDifferent && marketsMatch && opposingSides && notExpired && notFilled && createdBefore;
     }
 
     function getExecutionPrice(Order memory a, Order memory b) internal pure returns (uint256) {
