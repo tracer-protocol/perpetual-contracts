@@ -32,6 +32,8 @@ contract Trader is ITrader {
     mapping(bytes32 => Types.SignedLimitOrder) public orderToSig;
     // order hash to amount filled
     mapping(bytes32 => uint256) public filled;
+    // order hash to average execution price thus far
+    mapping(bytes32 => uint256) public averageExecutionPrice;
 
     constructor() {
         // Construct the EIP712 Domain
@@ -48,6 +50,10 @@ contract Trader is ITrader {
 
     function filledAmount(Perpetuals.Order memory order) external view override returns (uint256) {
         return filled[Perpetuals.orderId(order)];
+    }
+
+    function getAverageExecutionPrice(Perpetuals.Order memory order) external view override returns (uint256) {
+        return averageExecutionPrice[Perpetuals.orderId(order)];
     }
 
     /**
@@ -83,14 +89,31 @@ contract Trader is ITrader {
             Perpetuals.Order memory makeOrder = grabOrder(makers, i);
             Perpetuals.Order memory takeOrder = grabOrder(takers, i);
 
-            uint256 makeOrderFilled = filled[Perpetuals.orderId(makeOrder)];
-            uint256 takeOrderFilled = filled[Perpetuals.orderId(takeOrder)];
+            bytes32 makerOrderId = Perpetuals.orderId(makeOrder);
+            bytes32 takerOrderId = Perpetuals.orderId(takeOrder);
+
+            uint256 makeOrderFilled = filled[makerOrderId];
+            uint256 takeOrderFilled = filled[takerOrderId];
 
             // calc fill amount
             uint256 makeRemaining = makeOrder.amount - makeOrderFilled;
             uint256 takeRemaining = takeOrder.amount - takeOrderFilled;
             // fill amount is the minimum of order 1 and order 2
             uint256 fillAmount = makeRemaining > takeRemaining ? takeRemaining : makeRemaining;
+
+            uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
+            uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                makeOrderFilled,
+                averageExecutionPrice[makerOrderId],
+                fillAmount,
+                executionPrice
+            );
+            uint256 newTakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                takeOrderFilled,
+                averageExecutionPrice[takerOrderId],
+                fillAmount,
+                executionPrice
+            );
 
             // match orders
             // referencing makeOrder.market is safe due to above require
@@ -108,8 +131,10 @@ contract Trader is ITrader {
             if (!success) continue;
 
             // update order state
-            filled[Perpetuals.orderId(makeOrder)] = makeOrderFilled + fillAmount;
-            filled[Perpetuals.orderId(takeOrder)] = takeOrderFilled + fillAmount;
+            filled[makerOrderId] = makeOrderFilled + fillAmount;
+            filled[takerOrderId] = takeOrderFilled + fillAmount;
+            averageExecutionPrice[makerOrderId] = newMakeAverage;
+            averageExecutionPrice[takerOrderId] = newTakeAverage;
         }
     }
 

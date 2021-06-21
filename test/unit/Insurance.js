@@ -35,7 +35,7 @@ const setup = deployments.createFixture(async () => {
         "TracerPerpetualSwaps",
         {
             libraries: {
-                Perpetuals: libPerpetuals.address,
+                // Perpetuals: libPerpetuals.address,
                 Prices: libPrices.address,
             },
         }

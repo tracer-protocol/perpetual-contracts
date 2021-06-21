@@ -2,6 +2,7 @@ const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const zeroAddress = "0x0000000000000000000000000000000000000000"
+const { BigNumber } = require("ethers")
 
 describe("Unit tests: LibPerpetuals.sol", function () {
     let accounts
@@ -29,6 +30,107 @@ describe("Unit tests: LibPerpetuals.sol", function () {
             deployment.address
         )
         accounts = await ethers.getSigners()
+    })
+
+    describe("calculateAverageExecutionPrice", async () => {
+        context("With zero everything", async () => {
+            it("returns zero", async () => {
+                const result =
+                    await libPerpetuals.calculateAverageExecutionPrice(
+                        0,
+                        0,
+                        0,
+                        0
+                    )
+                expect(result).to.equal(BigNumber.from("0"))
+            })
+        })
+
+        context("with zero price", async () => {
+            it("returns zero", async () => {
+                const oldFilledAmount = 100
+                const oldAverage = 0
+                const fillChange = 300
+                const newFillExecutionPrice = 0
+
+                const expectedResult = BigNumber.from("0")
+
+                const result =
+                    await libPerpetuals.calculateAverageExecutionPrice(
+                        oldFilledAmount,
+                        oldAverage,
+                        fillChange,
+                        newFillExecutionPrice
+                    )
+
+                expect(result).to.equal(expectedResult)
+            })
+        })
+
+        context("non-zero price, zero amount", async () => {
+            it("returns zero", async () => {
+                const oldFilledAmount = 0
+                const oldAverage = 1000
+                const fillChange = 0
+                const newFillExecutionPrice = 123120
+
+                const expectedResult = BigNumber.from("0")
+
+                const result =
+                    await libPerpetuals.calculateAverageExecutionPrice(
+                        oldFilledAmount,
+                        oldAverage,
+                        fillChange,
+                        newFillExecutionPrice
+                    )
+
+                expect(result).to.equal(expectedResult)
+            })
+        })
+
+        context("zero oldFilledAmount", async () => {
+            it("returns as expected", async () => {
+                const oldFilledAmount = ethers.utils.parseEther("0")
+                const oldAverage = ethers.utils.parseEther("1000")
+                const fillChange = ethers.utils.parseEther("200")
+                const newFillExecutionPrice = ethers.utils.parseEther("2500")
+
+                // (0 * 1000 + 200 * 2500) / (0 + 200) = 2500
+                const expectedResult = ethers.utils.parseEther("2500")
+
+                const result =
+                    await libPerpetuals.calculateAverageExecutionPrice(
+                        oldFilledAmount,
+                        oldAverage,
+                        fillChange,
+                        newFillExecutionPrice
+                    )
+
+                expect(result).to.equal(expectedResult)
+            })
+        })
+
+        context("normal case", async () => {
+            it("returns as expected", async () => {
+                const oldFilledAmount = ethers.utils.parseEther("100")
+                const oldAverage = ethers.utils.parseEther("1000")
+                const fillChange = ethers.utils.parseEther("200")
+                const newFillExecutionPrice = ethers.utils.parseEther("2500")
+
+                // (100 * 1000 + 200 * 2500) / (100 + 200) = 2000
+                const expectedResult = ethers.utils.parseEther("2000")
+
+                const result =
+                    await libPerpetuals.calculateAverageExecutionPrice(
+                        oldFilledAmount,
+                        oldAverage,
+                        fillChange,
+                        newFillExecutionPrice
+                    )
+
+                expect(result).to.equal(expectedResult)
+            })
+        })
     })
 
     describe("calculateTrueMaxLeverage", async () => {
