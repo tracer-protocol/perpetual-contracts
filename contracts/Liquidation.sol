@@ -109,7 +109,6 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimEscrow(uint256 receiptId) public override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
-        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
 
