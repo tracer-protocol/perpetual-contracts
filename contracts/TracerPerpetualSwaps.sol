@@ -11,6 +11,7 @@ import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
+import "./Interfaces/ITrader.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
@@ -53,9 +54,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     mapping(address => Balances.Account) public balances;
     uint256 public tvl;
     uint256 public override leveragedNotionalValue;
-
-    // Order state
-    mapping(bytes32 => uint256) filled;
 
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
@@ -202,17 +200,15 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      * @param order1 the first order
      * @param order2 the second order
      */
-    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2)
-        public
-        override
-        onlyWhitelisted
-        returns (bool)
-    {
+    function matchOrders(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
+    ) public override onlyWhitelisted returns (bool) {
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
-        uint256 filled1 = filled[order1Id];
-        uint256 filled2 = filled[order2Id];
-        uint256 fillAmount = Balances.fillAmount(order1, filled1, order2, filled2);
+        uint256 filled1 = ITrader(msg.sender).filled(order1Id);
+        uint256 filled2 = ITrader(msg.sender).filled(order2Id);
 
         uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
 
