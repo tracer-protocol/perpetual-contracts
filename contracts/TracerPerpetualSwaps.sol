@@ -58,8 +58,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
 
-    event FeeReceiverUpdated(address receiver);
-    event FeeWithdrawn(address receiver, uint256 feeAmount);
+    event FeeReceiverUpdated(address indexed receiver);
+    event FeeWithdrawn(address indexed receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
