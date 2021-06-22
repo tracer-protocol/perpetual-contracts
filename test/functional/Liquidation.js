@@ -501,7 +501,7 @@ describe("Liquidation functional tests", async () => {
                         accounts[0].address
                     )
                     await expect(tx).to.be.revertedWith(
-                        "TCR: Liquidator under minimum margin"
+                        "TCR: Liquidator under min margin"
                     )
                 })
             }
