@@ -33,6 +33,12 @@ const setup = deployments.createFixture(async () => {
     const QuoteToken = await tracer.tracerQuoteToken()
     let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
 
+    const traderDeployment = await deployments.get("Trader")
+    let traderInstance = await ethers.getContractAt(
+        traderDeployment.abi,
+        traderDeployment.address
+    )
+
     return {
         tracer,
         insurance,
@@ -41,6 +47,7 @@ const setup = deployments.createFixture(async () => {
         quoteToken,
         deployer,
         factory,
+        traderInstance,
     }
 })
 
@@ -63,7 +70,7 @@ const compareAccountState = (state, expectedState) => {
 
 describe("Functional tests: TracerPerpetualSwaps.sol", function () {
     let accounts, deployer
-    let insurance, pricing, liquidation, tracer, quoteToken
+    let insurance, pricing, liquidation, tracer, quoteToken, traderInstance
     let now
 
     before(async function () {
@@ -74,6 +81,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
         pricing = _setup.pricing
         liquidation = _setup.liquidation
         deployer = _setup.deployer
+        traderInstance = _setup.traderInstance
         accounts = await ethers.getSigners()
         // transfer tokesn to account 4
         await quoteToken.transfer(
@@ -109,6 +117,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now - 1,
                 }
+                const mockSignedOrder1 = [
+                    order1,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order2 = {
                     maker: accounts[2].address,
@@ -119,6 +133,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now,
                 }
+                const mockSignedOrder2 = [
+                    order2,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order3 = {
                     maker: accounts[3].address,
@@ -129,6 +149,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now,
                 }
+                const mockSignedOrder3 = [
+                    order3,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order4 = {
                     maker: accounts[1].address,
@@ -139,6 +165,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now - 1,
                 }
+                const mockSignedOrder4 = [
+                    order4,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order5 = {
                     maker: accounts[2].address,
@@ -149,6 +181,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now,
                 }
+                const mockSignedOrder5 = [
+                    order5,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 // STATE 1:
                 // hour = 0
@@ -159,8 +197,18 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(currentHour).to.equal(0)
 
                 // place trades
-                await tracer.connect(accounts[0]).matchOrders(order1, order2)
-                await tracer.connect(accounts[0]).matchOrders(order1, order3)
+                await traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
+                )
+                await traderInstance.clearFilled(mockSignedOrder1)
+                await traderInstance.clearFilled(mockSignedOrder2)
+                await traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder3]
+                )
+                await traderInstance.clearFilled(mockSignedOrder1)
+                await traderInstance.clearFilled(mockSignedOrder3)
 
                 // check account state
                 let account1 = await tracer.balances(accounts[1].address)
@@ -211,7 +259,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // funding index = 1
 
                 // make trade in new hour to tick over funding index
-                await tracer.connect(accounts[0]).matchOrders(order4, order5)
+                await traderInstance.executeTrade(
+                    [mockSignedOrder4],
+                    [mockSignedOrder5]
+                )
+                await traderInstance.clearFilled(mockSignedOrder4)
+                await traderInstance.clearFilled(mockSignedOrder5)
 
                 // check pricing is in hour 1
                 currentHour = await pricing.currentHour()
@@ -242,7 +295,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // hour = 2
                 // funding index = 2
 
-                await tracer.connect(accounts[0]).matchOrders(order1, order2)
+                await traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
+                )
+                await traderInstance.clearFilled(mockSignedOrder1)
+                await traderInstance.clearFilled(mockSignedOrder2)
 
                 // check pricing is in hour 2 (hours with no trades are ignored currently)
                 currentHour = await pricing.currentHour()

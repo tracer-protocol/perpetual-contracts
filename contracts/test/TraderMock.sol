@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/Types.sol";
-import "./Interfaces/ITrader.sol";
-import "./lib/LibPerpetuals.sol";
-import "./lib/LibBalances.sol";
+import "../Interfaces/ITracerPerpetualSwaps.sol";
+import "../Interfaces/Types.sol";
+import "../Interfaces/ITrader.sol";
+import "../lib/LibPerpetuals.sol";
+import "../lib/LibBalances.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader is ITrader {
+contract TraderMock is ITrader {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -76,19 +76,15 @@ contract Trader is ITrader {
 
         for (uint256 i = 0; i < n; i++) {
             // verify each order individually and together
-            if (
-                !isValidSignature(makers[i].order.maker, makers[i]) ||
-                !isValidSignature(takers[i].order.maker, takers[i]) ||
-                !isValidPair(takers[i], makers[i])
-            ) {
+            if (!isValidPair(takers[i].order, makers[i].order)) {
                 // skip if either order is invalid
                 continue;
             }
 
             // retrieve orders
             // if the order does not exist, it is created here
-            Perpetuals.Order memory makeOrder = grabOrder(makers, i);
-            Perpetuals.Order memory takeOrder = grabOrder(takers, i);
+            Perpetuals.Order memory makeOrder = makers[i].order;
+            Perpetuals.Order memory takeOrder = takers[i].order;
 
             bytes32 makerOrderId = Perpetuals.orderId(makeOrder);
             bytes32 takerOrderId = Perpetuals.orderId(takeOrder);
@@ -135,105 +131,43 @@ contract Trader is ITrader {
         }
     }
 
-    /**
-     * @notice Retrieves and validates an order from an order array
-     * @param signedOrders an array of signed orders
-     * @param index the index into the array where the desired order is
-     * @return the specified order
-     * @dev Should only be called with a verified signedOrder and with index
-     *      < signedOrders.length
-     */
     function grabOrder(Types.SignedLimitOrder[] memory signedOrders, uint256 index)
         internal
         returns (Perpetuals.Order memory)
     {
-        Perpetuals.Order memory rawOrder = signedOrders[index].order;
-
-        bytes32 orderHash = Perpetuals.orderId(rawOrder);
-        // check if order exists on chain, if not, create it
-        if (orders[orderHash].maker == address(0)) {
-            // store this order to keep track of state
-            orders[orderHash] = rawOrder;
-            // map the order hash to the signed order
-            orderToSig[orderHash] = signedOrders[index];
-        }
-
-        return orders[orderHash];
+        // Kept in to meet ITrader interface
     }
 
-    /**
-     * @notice hashes a limit order type in order to verify signatures, per EIP712
-     * @param order the limit order being hashed
-     * @return an EIP712 compliant hash (with headers) of the limit order
-     */
     function hashOrder(Perpetuals.Order memory order) public view override returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    "\x19\x01",
-                    EIP712_DOMAIN,
-                    keccak256(
-                        abi.encode(
-                            ORDER_TYPE,
-                            order.maker,
-                            order.market,
-                            order.price,
-                            order.amount,
-                            uint256(order.side),
-                            order.expires,
-                            order.created
-                        )
-                    )
-                )
-            );
+        // Kept in to meet ITrader interface
+    }
+
+    function clearFilled(Types.SignedLimitOrder memory order) external {
+        filled[Perpetuals.orderId(order.order)] = 0;
     }
 
     /**
      * @notice Gets the EIP712 domain hash of the contract
      */
     function getDomain() external view override returns (bytes32) {
-        return EIP712_DOMAIN;
+        // Kept in to meet ITrader interface
     }
 
-    /**
-     * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
-     * @param signer The signer who is being verified against the order
-     * @param signedOrder The signed order to verify the signature of
-     * @return if an order has a valid signature and a valid nonce
-     * @dev does not throw if the signature is invalid.
-     */
     function isValidSignature(address signer, Types.SignedLimitOrder memory signedOrder) internal view returns (bool) {
-        return verifySignature(signer, signedOrder);
+        // Kept in to meet ITrader interface
     }
 
-    /**
-     * @notice Validates a given pair of signed orders against each other
-     * @param signedOrder1 the first signed order
-     * @param signedOrder2 the second signed order
-     * @return if signedOrder1 is compatible with signedOrder2
-     * @dev does not throw if pairs are invalid
-     */
-    function isValidPair(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
-        internal
-        pure
-        returns (bool)
-    {
-        return (signedOrder1.order.market == signedOrder2.order.market);
+    function isValidPair(Perpetuals.Order memory order1, Perpetuals.Order memory order2) internal pure returns (bool) {
+        return (order1.market == order2.market);
     }
 
-    /**
-     * @notice Verifies the signature component of a signed order
-     * @param signer The signer who is being verified against the order
-     * @param signedOrder The unsigned order to verify the signature of
-     * @return true is signer has signed the order, else false
-     */
     function verifySignature(address signer, Types.SignedLimitOrder memory signedOrder)
         public
         view
         override
         returns (bool)
     {
-        return signer == ecrecover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
+        // Kept in to meet ITrader interface
     }
 
     /**

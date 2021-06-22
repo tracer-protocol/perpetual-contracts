@@ -39,6 +39,7 @@ module.exports = async function (hre) {
     const trader = await deploy("Trader", {
         from: deployer,
         log: true,
+        contract: "TraderMock",
     })
 
     // deploy oracles

@@ -126,9 +126,9 @@ library Balances {
      * @notice Gets the amount that can be matched between two orders
      *         Calculated as min(amountRemaining)
      * @param orderA First order
-     * @param fillA Amount of the first order remaining to be filled
+     * @param fillA Amount of the first order that has been filled
      * @param orderB Second order
-     * @param fillB Amount of the second order remaining to be filled
+     * @param fillB Amount of the second order that has been filled
      * @return Amount matched between two orders
      */
     function fillAmount(

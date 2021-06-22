@@ -11,6 +11,10 @@ interface ITrader {
 
     function hashOrder(Perpetuals.Order memory order) external view returns (bytes32);
 
+    function filled(bytes32) external view returns (uint256);
+
+    function averageExecutionPrice(bytes32) external view returns (uint256);
+
     function getDomain() external view returns (bytes32);
 
     function verifySignature(address signer, Types.SignedLimitOrder memory order) external view returns (bool);
