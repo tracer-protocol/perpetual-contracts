@@ -76,11 +76,11 @@ library Balances {
      * @param price The price of the base asset
      */
     function leveragedNotionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
-        uint256 notionalValue = notionalValue(position, price);
+        uint256 _notionalValue = notionalValue(position, price);
         (position, price);
         int256 marginValue = margin(position, price);
 
-        int256 signedNotionalValue = LibMath.toInt256(notionalValue);
+        int256 signedNotionalValue = LibMath.toInt256(_notionalValue);
 
         if (signedNotionalValue - marginValue < 0) {
             return 0;
@@ -112,12 +112,12 @@ library Balances {
             return 0;
         }
 
-        uint256 notionalValue = notionalValue(position, price);
+        uint256 _notionalValue = notionalValue(position, price);
 
         // todo confirm that liquidation gas cost should be a WAD value
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
+        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(_notionalValue, maximumLeverage);
 
         return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
     }

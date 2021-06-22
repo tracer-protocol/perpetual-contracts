@@ -66,9 +66,8 @@ contract Pricing is IPricing, Ownable {
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
      * @param tradePrice the price the trade executed at
-     * @param tradeVolume the volume of the order
      */
-    function recordTrade(uint256 tradePrice, uint256 tradeVolume) external override onlyTracer {
+    function recordTrade(uint256 tradePrice) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
@@ -76,7 +75,7 @@ contract Pricing is IPricing, Ownable {
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
             // update funding rate for the previous hour
-            updateFundingRate(currentOraclePrice);
+            updateFundingRate();
 
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
@@ -139,9 +138,8 @@ contract Pricing is IPricing, Ownable {
 
     /**
      * @notice Updates the funding rate and the insurance funding rate
-     * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
      */
-    function updateFundingRate(uint256 oraclePrice) internal {
+    function updateFundingRate() internal {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
         Prices.TWAP memory twapPrices = getTWAPs(currentHour);
