@@ -1311,15 +1311,6 @@ describe("Liquidation functional tests", async () => {
             ])
             await network.provider.send("evm_mine", [])
         }
-        context("when caller is not liquidatee", async () => {
-            it("Reverts ", async () => {
-                const contracts = await setupLiquidationTest()
-                accounts = await ethers.getSigners()
-                await increaseFifteenMinutes()
-                const tx = contracts.liquidation.claimEscrow(0)
-                await expect(tx).to.be.revertedWith("LIQ: Liquidatee mismatch")
-            })
-        })
 
         context(
             "when receipt already claimed through claimEscrow",
