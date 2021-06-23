@@ -184,7 +184,12 @@ describe("Unit tests: LibBalances.sol", async () => {
                 //           = abs(-2 * 2) / 12.5 + 6*1 = 6.32
                 // margin > minMargin
 
-                let result = await libBalances.marginIsValid(pos, gasCost, price, trueMaxLeverage)
+                let result = await libBalances.marginIsValid(
+                    pos,
+                    gasCost,
+                    price,
+                    trueMaxLeverage
+                )
                 expect(result).to.equal(false)
             })
         })
@@ -206,7 +211,12 @@ describe("Unit tests: LibBalances.sol", async () => {
                 //           = (2 * 2) / 12.5 + 6*1 = 6.32
                 // margin > minMargin
 
-                let result = await libBalances.marginIsValid(pos, gasCost, price, trueMaxLeverage)
+                let result = await libBalances.marginIsValid(
+                    pos,
+                    gasCost,
+                    price,
+                    trueMaxLeverage
+                )
                 expect(result).to.equal(true)
             })
         })
@@ -219,18 +229,21 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("-3"), // quote
                     ethers.utils.parseEther("2"), // base
                 ]
-                await libBalances.setMaxLeverage(ethers.utils.parseEther("2"))
-                await libBalances.setLowestMaxLeverage(ethers.utils.parseEther("2"))
                 let gasCost = ethers.utils.parseEther("3")
                 const price = ethers.utils.parseEther("2")
-                const trueMaxLeverage = ethers.utils.parseEther("12.5")
+                const trueMaxLeverage = ethers.utils.parseEther("2")
                 // margin = quote + base * price = -3 + 2 * 2 = 1
                 // minMargin = notionalValue / maxLev + 6 * liquidationGasCost
                 //           = (base * price) / maxLev + 6 * liquidationGasCost
                 //           = (2 * 2) / 2 + 0 = 2
                 // minMargin > margin
 
-                let result = await libBalances.marginIsValid(pos, gasCost, price, trueMaxLeverage)
+                let result = await libBalances.marginIsValid(
+                    pos,
+                    gasCost,
+                    price,
+                    trueMaxLeverage
+                )
                 expect(result).to.equal(false)
             })
         })
@@ -255,7 +268,12 @@ describe("Unit tests: LibBalances.sol", async () => {
                     //           = (0 * 2) / 2 + 0 = 2 (>= 0)
                     // minMargin > margin
 
-                    let result = await libBalances.marginIsValid(pos, gasCost, price, trueMaxLeverage)
+                    let result = await libBalances.marginIsValid(
+                        pos,
+                        gasCost,
+                        price,
+                        trueMaxLeverage
+                    )
                     expect(result).to.equal(true)
                 })
             })
@@ -274,13 +292,17 @@ describe("Unit tests: LibBalances.sol", async () => {
                     //           = (base * price) / maxLev + liquidationGasCost
                     //           = (0 * 2) / 2 + 0 = 0 (>= 0)
 
-                    let result = await libBalances.marginIsValid(pos, gasCost, price, trueMaxLeverage)
+                    let result = await libBalances.marginIsValid(
+                        pos,
+                        gasCost,
+                        price,
+                        trueMaxLeverage
+                    )
                     expect(result).to.equal(true)
                 })
             })
         })
     })
-
 
     describe("margin", async () => {
         context("when called with edge case positions", async () => {

@@ -182,7 +182,15 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // this may be able to be optimised
         Balances.Position memory newPosition = Balances.Position(newQuote, userBalance.position.base);
 
-        require(Balances.marginIsValid(newPosition, userBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage()), "TCR: Withdraw below valid Margin");
+        require(
+            Balances.marginIsValid(
+                newPosition,
+                userBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            ),
+            "TCR: Withdraw below valid Margin"
+        );
 
         // update user state
         userBalance.position.quote = newQuote;
@@ -227,8 +235,18 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // validate orders can match, and outcome state is valid
         if (
             !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
-            !Balances.marginIsValid(newPos1, balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage()) ||
-            !Balances.marginIsValid(newPos2, balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage())
+            !Balances.marginIsValid(
+                newPos1,
+                balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            ) ||
+            !Balances.marginIsValid(
+                newPos2,
+                balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            )
         ) {
             // emit failed to match event and return false
             if (order1.side == Perpetuals.Side.Long) {
@@ -461,7 +479,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      */
     function userMarginIsValid(address account) public view returns (bool) {
         Balances.Account memory accountBalance = balances[account];
-        return Balances.marginIsValid(accountBalance.position, accountBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage());
+        return
+            Balances.marginIsValid(
+                accountBalance.position,
+                accountBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            );
     }
 
     function withdrawFees() public override {

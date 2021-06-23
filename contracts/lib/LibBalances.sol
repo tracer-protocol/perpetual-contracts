@@ -126,7 +126,12 @@ library Balances {
      * @param gasCost The cost of calling liquidate
      * @return a bool representing the validity of a margin
      */
-    function marginIsValid(Balances.Position memory position, uint256 gasCost, uint256 price, uint256 trueMaxLeverage) internal pure returns (bool) {
+    function marginIsValid(
+        Balances.Position memory position,
+        uint256 gasCost,
+        uint256 price,
+        uint256 trueMaxLeverage
+    ) internal pure returns (bool) {
         uint256 minMargin = minimumMargin(position, price, gasCost, trueMaxLeverage);
         int256 margin = margin(position, price);
 
@@ -138,7 +143,6 @@ library Balances {
 
         return (uint256(margin) >= minMargin);
     }
-
 
     /**
      * @notice Gets the amount that can be matched between two orders
