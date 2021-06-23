@@ -57,7 +57,6 @@ library Prices {
     function averagePriceForPeriod(PriceInstant[24] memory prices) internal pure returns (uint256) {
         uint256[] memory averagePrices = new uint256[](24);
 
-        // TODO: make sure this procedure is gas-optimised
         uint256 j = 0;
         for (uint256 i = 0; i < 24; i++) {
             PriceInstant memory currPrice = prices[i];
@@ -87,7 +86,7 @@ library Prices {
         uint256 oldLeverage,
         uint256 newLeverage
     ) internal pure returns (uint256) {
-        int256 newGlobalLeverage = int256(_globalLeverage) + (int256(newLeverage) - int256(oldLeverage));
+        int256 newGlobalLeverage = _globalLeverage.toInt256() + newLeverage.toInt256() - oldLeverage.toInt256();
 
         // note: this would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
@@ -160,7 +159,6 @@ library Prices {
         return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, cumulativeDerivative / totalDerivativeTimeWeight);
     }
 
-    // TODO test these
     /**
      * @notice Calculates and returns the effect of the funding rate to a position.
      * @param position Position of the user
@@ -194,7 +192,7 @@ library Prices {
     ) internal pure returns (Balances.Position memory, Balances.Position memory) {
         int256 insuranceDelta = PRBMathSD59x18.mul(
             globalRate.fundingRate - userRate.fundingRate,
-            int256(totalLeveragedValue)
+            totalLeveragedValue.toInt256()
         );
 
         if (insuranceDelta > 0) {

@@ -149,7 +149,6 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
         int256 currentMargin = Balances.margin(pos, price);
-        // todo CASTING CHECK
         require(
             currentMargin <= 0 ||
                 uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),

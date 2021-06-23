@@ -6,6 +6,7 @@ import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
 import "./lib/LibBalances.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -233,7 +234,8 @@ contract Trader is ITrader {
         override
         returns (bool)
     {
-        return signer == ecrecover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
+        return
+            signer == ECDSA.recover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
     }
 
     /**

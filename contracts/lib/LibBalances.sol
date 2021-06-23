@@ -113,12 +113,35 @@ library Balances {
 
         uint256 notionalValue = notionalValue(position, price);
 
-        // todo confirm that liquidation gas cost should be a WAD value
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
         uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
 
         return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
+    }
+
+    /**
+     * @notice Checks the validity of a potential margin given the necessary parameters
+     * @param position The position
+     * @param liquidationGasCost The cost of calling liquidate
+     * @return a bool representing the validity of a margin
+     */
+    function marginIsValid(
+        Balances.Position memory position,
+        uint256 liquidationGasCost,
+        uint256 price,
+        uint256 trueMaxLeverage
+    ) internal pure returns (bool) {
+        uint256 minMargin = minimumMargin(position, price, liquidationGasCost, trueMaxLeverage);
+        int256 margin = margin(position, price);
+
+        if (margin < 0) {
+            /* Margin being less than 0 is always invalid, even if position is 0.
+               This could happen if user attempts to over-withdraw */
+            return false;
+        }
+
+        return (uint256(margin) >= minMargin);
     }
 
     /**
@@ -190,8 +213,8 @@ library Balances {
      * that don't have 18 decimal places
      */
     function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
-        int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
-        return amount.toInt256() * scaler;
+        uint256 scaler = 10**(MAX_DECIMALS - tokenDecimals);
+        return amount.toInt256() * scaler.toInt256();
     }
 
     /**

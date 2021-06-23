@@ -52,7 +52,6 @@ library Perpetuals {
     }
 
     /**
-     * TODO Test in E2E context
      * @notice Calculate the max leverage based on how full the insurance pool is
      * @param collateralAmount Amount of collateral in insurance pool
      * @param poolTarget Insurance target
