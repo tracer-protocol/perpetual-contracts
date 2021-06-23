@@ -121,6 +121,30 @@ library Balances {
     }
 
     /**
+     * @notice Checks the validity of a potential margin given the necessary parameters
+     * @param position The position
+     * @param liquidationGasCost The cost of calling liquidate
+     * @return a bool representing the validity of a margin
+     */
+    function marginIsValid(
+        Balances.Position memory position,
+        uint256 liquidationGasCost,
+        uint256 price,
+        uint256 trueMaxLeverage
+    ) internal pure returns (bool) {
+        uint256 minMargin = minimumMargin(position, price, liquidationGasCost, trueMaxLeverage);
+        int256 margin = margin(position, price);
+
+        if (margin < 0) {
+            /* Margin being less than 0 is always invalid, even if position is 0.
+               This could happen if user attempts to over-withdraw */
+            return false;
+        }
+
+        return (uint256(margin) >= minMargin);
+    }
+
+    /**
      * @notice Gets the amount that can be matched between two orders
      *         Calculated as min(amountRemaining)
      * @param orderA First order

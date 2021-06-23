@@ -166,6 +166,144 @@ describe("Unit tests: LibBalances.sol", async () => {
         })
     })
 
+    describe("marginIsValid", async () => {
+        context("when margin is negative", async () => {
+            it("returns false", async () => {
+                // Say, quote = 3; base = 2; price = 2;
+                // maxLev = 12.5; liquidationGasCost = 0
+                let pos = [
+                    ethers.utils.parseEther("-3"), // quote
+                    ethers.utils.parseEther("-2"), // base
+                ]
+                let gasCost = ethers.utils.parseEther("1")
+                const price = ethers.utils.parseEther("2")
+                const trueMaxLeverage = ethers.utils.parseEther("12.5")
+                // margin = quote + base * price = -3 - 2 * 2 = -7
+                // minMargin = notionalValue / maxLev + 6* liquidationGasCost
+                //           = (base * price) / maxLev + 6 * liquidationGasCost
+                //           = abs(-2 * 2) / 12.5 + 6*1 = 6.32
+                // margin > minMargin
+
+                let result = await libBalances.marginIsValid(
+                    pos,
+                    gasCost,
+                    price,
+                    trueMaxLeverage
+                )
+                expect(result).to.equal(false)
+            })
+        })
+
+        context("when margin >= minMargin", async () => {
+            it("returns true", async () => {
+                // Say, quote = 3; base = 2; price = 2;
+                // maxLev = 12.5; liquidationGasCost = 0
+                let pos = [
+                    ethers.utils.parseEther("3"), // quote
+                    ethers.utils.parseEther("2"), // base
+                ]
+                let gasCost = ethers.utils.parseEther("1")
+                const price = ethers.utils.parseEther("2")
+                const trueMaxLeverage = ethers.utils.parseEther("12.5")
+                // margin = quote + base * price = 3 + 2 * 2 = 7
+                // minMargin = notionalValue / maxLev + 6* liquidationGasCost
+                //           = (base * price) / maxLev + 6 * liquidationGasCost
+                //           = (2 * 2) / 12.5 + 6*1 = 6.32
+                // margin > minMargin
+
+                let result = await libBalances.marginIsValid(
+                    pos,
+                    gasCost,
+                    price,
+                    trueMaxLeverage
+                )
+                expect(result).to.equal(true)
+            })
+        })
+
+        context("when margin < minMargin", async () => {
+            it("returns false", async () => {
+                // Say, quote = -3; base = 2; price = 2;
+                // maxLev = 2; liquidationGasCost = 0
+                let pos = [
+                    ethers.utils.parseEther("-3"), // quote
+                    ethers.utils.parseEther("2"), // base
+                ]
+                let gasCost = ethers.utils.parseEther("3")
+                const price = ethers.utils.parseEther("2")
+                const trueMaxLeverage = ethers.utils.parseEther("2")
+                // margin = quote + base * price = -3 + 2 * 2 = 1
+                // minMargin = notionalValue / maxLev + 6 * liquidationGasCost
+                //           = (base * price) / maxLev + 6 * liquidationGasCost
+                //           = (2 * 2) / 2 + 0 = 2
+                // minMargin > margin
+
+                let result = await libBalances.marginIsValid(
+                    pos,
+                    gasCost,
+                    price,
+                    trueMaxLeverage
+                )
+                expect(result).to.equal(false)
+            })
+        })
+
+        // NOTE: These tests are under the assumption that gasCost isn't being accounted for
+        // (i.e. is zero). In normal situations, gasCost > 0 and thus minMargin won't ever be 0
+        context("when minMargin == 0", async () => {
+            context("when quote > 0", async () => {
+                it("returns true", async () => {
+                    // Say, quote = 1; base = 0; price = 2;
+                    // maxLev = 12.5; liquidationGasCost = 0
+                    let pos = [
+                        ethers.utils.parseEther("1"), // quote
+                        ethers.utils.parseEther("0"), // base
+                    ]
+                    let gasCost = ethers.utils.parseEther("0")
+                    const price = ethers.utils.parseEther("2")
+                    const trueMaxLeverage = ethers.utils.parseEther("12.5")
+                    // margin = quote + base * price = 1 + 2 * 2 = 1
+                    // minMargin = notionalValue / maxLev + liquidationGasCost
+                    //           = (base * price) / maxLev + liquidationGasCost
+                    //           = (0 * 2) / 2 + 0 = 2 (>= 0)
+                    // minMargin > margin
+
+                    let result = await libBalances.marginIsValid(
+                        pos,
+                        gasCost,
+                        price,
+                        trueMaxLeverage
+                    )
+                    expect(result).to.equal(true)
+                })
+            })
+            context("when quote == 0", async () => {
+                it("returns true", async () => {
+                    // Say, quote = 1; base = 0; price = 2;
+                    // maxLev = 12.5; liquidationGasCost = 0
+                    let pos = [
+                        ethers.utils.parseEther("1"), // quote
+                        ethers.utils.parseEther("0"), // base
+                    ]
+                    let gasCost = ethers.utils.parseEther("0")
+                    const price = ethers.utils.parseEther("2")
+                    const trueMaxLeverage = ethers.utils.parseEther("12.5")
+                    // minMargin = notionalValue / maxLev + liquidationGasCost
+                    //           = (base * price) / maxLev + liquidationGasCost
+                    //           = (0 * 2) / 2 + 0 = 0 (>= 0)
+
+                    let result = await libBalances.marginIsValid(
+                        pos,
+                        gasCost,
+                        price,
+                        trueMaxLeverage
+                    )
+                    expect(result).to.equal(true)
+                })
+            })
+        })
+    })
+
     describe("margin", async () => {
         context("when called with edge case positions", async () => {
             it("reverts", async () => {
