@@ -57,7 +57,6 @@ library Prices {
     function averagePriceForPeriod(PriceInstant[24] memory prices) public pure returns (uint256) {
         uint256[] memory averagePrices = new uint256[](24);
 
-        // TODO: make sure this procedure is gas-optimised
         uint256 j = 0;
         for (uint256 i = 0; i < 24; i++) {
             PriceInstant memory currPrice = prices[i];
@@ -160,7 +159,6 @@ library Prices {
         return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, cumulativeDerivative / totalDerivativeTimeWeight);
     }
 
-    // TODO test these
     /**
      * @notice Calculates and returns the effect of the funding rate to a position.
      * @param position Position of the user
