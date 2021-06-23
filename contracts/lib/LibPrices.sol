@@ -183,28 +183,33 @@ library Prices {
             );
     }
 
+    /**
+     * @notice Given a user's position and totalLeveragedValue, and insurance funding rate,
+               update the user's and insurance pool's balance
+     * @param userPosition The position that is to pay insurance funding rate
+     * @param insurancePosition The insurance pool's position in the market
+     * @param insuranceGlobalRate The global insurance funding rate
+     * @param insuranceUserRate The user's insurance funding rate
+     * @param totalLeveragedValue The user's total leveraged value
+     * @return newUserPos The updated position of the user
+     * @return newInsurancePos The updated position of the insurance pool
+     */
     function applyInsurance(
         Balances.Position memory userPosition,
         Balances.Position memory insurancePosition,
-        FundingRateInstant memory globalRate,
-        FundingRateInstant memory userRate,
+        FundingRateInstant memory insuranceGlobalRate,
+        FundingRateInstant memory insuranceUserRate,
         uint256 totalLeveragedValue
-    ) internal pure returns (Balances.Position memory, Balances.Position memory) {
+    ) internal pure returns (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) {
         int256 insuranceDelta = PRBMathSD59x18.mul(
-            globalRate.fundingRate - userRate.fundingRate,
+            insuranceGlobalRate.fundingRate - insuranceUserRate.fundingRate,
             int256(totalLeveragedValue)
         );
 
         if (insuranceDelta > 0) {
-            Balances.Position memory newUserPos = Balances.Position(
-                userPosition.quote - insuranceDelta,
-                userPosition.base
-            );
+            newUserPos = Balances.Position(userPosition.quote - insuranceDelta, userPosition.base);
 
-            Balances.Position memory newInsurancePos = Balances.Position(
-                insurancePosition.quote + insuranceDelta,
-                insurancePosition.base
-            );
+            newInsurancePos = Balances.Position(insurancePosition.quote + insuranceDelta, insurancePosition.base);
 
             return (newUserPos, newInsurancePos);
         } else {
