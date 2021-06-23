@@ -74,7 +74,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let traderInstance
 
     beforeEach(async function () {
-        // todo call setup
         let _setup = await setup()
         tracer = _setup.tracer
         insurance = _setup.insurance
@@ -355,7 +354,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         ethers.utils.parseEther("1"),
                         ethers.utils.parseEther("1")
                     )
-                ).to.be.revertedWith("TCR: Liquidator under minimum margin")
+                ).to.be.revertedWith("TCR: Liquidator under min margin")
             })
         })
 
@@ -560,104 +559,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
         context("if the account is under margin", async () => {
             it("reverts", async () => {})
-        })
-    })
-
-    describe("marginIsValid", async () => {
-        // TODO: add tests with negative base/quote
-        context("when margin >= minMargin", async () => {
-            it("returns true", async () => {
-                // Say, quote = 3; base = 2; price = 2;
-                // maxLev = 12.5; liquidationGasCost = 0
-                let pos = [
-                    ethers.utils.parseEther("3"), // quote
-                    ethers.utils.parseEther("2"), // base
-                ]
-                pricing.smocked.fairPrice.will.return.with(
-                    ethers.utils.parseEther("2")
-                )
-                let gasCost = ethers.BigNumber.from("0")
-                // margin = quote + base * price = 3 + 2 * 2 = 7
-                // minMargin = notionalValue / maxLev + liquidationGasCost
-                //           = (base * price) / maxLev + liquidationGasCost
-                //           = (2 * 2) / 12.5 + 0 = 0.32
-                // margin > minMargin
-
-                let result = await tracer.marginIsValid(pos, gasCost)
-                expect(result).to.equal(true)
-            })
-        })
-
-        context("when margin < minMargin", async () => {
-            it("returns false", async () => {
-                // Say, quote = -3; base = 2; price = 2;
-                // maxLev = 2; liquidationGasCost = 0
-                let pos = [
-                    ethers.utils.parseEther("-3"), // quote
-                    ethers.utils.parseEther("2"), // base
-                ]
-                await pricing.smocked.fairPrice.will.return.with(
-                    ethers.utils.parseEther("2")
-                )
-                await tracer.setMaxLeverage(ethers.utils.parseEther("2"))
-                await tracer.setLowestMaxLeverage(ethers.utils.parseEther("2"))
-                let gasCost = ethers.BigNumber.from("0")
-                // margin = quote + base * price = -3 + 2 * 2 = 1
-                // minMargin = notionalValue / maxLev + liquidationGasCost
-                //           = (base * price) / maxLev + liquidationGasCost
-                //           = (2 * 2) / 2 + 0 = 2
-                // minMargin > margin
-
-                let result = await tracer.marginIsValid(pos, gasCost)
-                expect(result).to.equal(false)
-            })
-        })
-
-        // NOTE: These tests are under the assumption that gasCost isn't being accounted for
-        // (i.e. is zero). In normal situations, gasCost > 0 and thus minMargin won't ever be 0
-        context("when minMargin == 0", async () => {
-            context("when quote > 0", async () => {
-                it("returns true", async () => {
-                    // Say, quote = 1; base = 0; price = 2;
-                    // maxLev = 12.5; liquidationGasCost = 0
-                    let pos = [
-                        ethers.utils.parseEther("1"), // quote
-                        ethers.utils.parseEther("0"), // base
-                    ]
-                    await pricing.smocked.fairPrice.will.return.with(
-                        ethers.utils.parseEther("2")
-                    )
-                    let gasCost = ethers.BigNumber.from("0")
-                    // margin = quote + base * price = 1 + 2 * 2 = 1
-                    // minMargin = notionalValue / maxLev + liquidationGasCost
-                    //           = (base * price) / maxLev + liquidationGasCost
-                    //           = (0 * 2) / 2 + 0 = 2 (>= 0)
-                    // minMargin > margin
-
-                    let result = await tracer.marginIsValid(pos, gasCost)
-                    expect(result).to.equal(true)
-                })
-            })
-            context("when quote == 0", async () => {
-                it("returns true", async () => {
-                    // Say, quote = 1; base = 0; price = 2;
-                    // maxLev = 12.5; liquidationGasCost = 0
-                    let pos = [
-                        ethers.utils.parseEther("1"), // quote
-                        ethers.utils.parseEther("0"), // base
-                    ]
-                    await pricing.smocked.fairPrice.will.return.with(
-                        ethers.utils.parseEther("2")
-                    )
-                    let gasCost = ethers.BigNumber.from("0")
-                    // minMargin = notionalValue / maxLev + liquidationGasCost
-                    //           = (base * price) / maxLev + liquidationGasCost
-                    //           = (0 * 2) / 2 + 0 = 0 (>= 0)
-
-                    let result = await tracer.marginIsValid(pos, gasCost)
-                    expect(result).to.equal(true)
-                })
-            })
         })
     })
 

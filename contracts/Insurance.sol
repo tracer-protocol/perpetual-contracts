@@ -6,21 +6,20 @@ import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
-import "./lib/SafetyWithdraw.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-contract Insurance is IInsurance, Ownable, SafetyWithdraw {
+contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
-    uint256 public override collateralAmount; // amount of underlying collateral in pool, in WAD format
+    uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
+    uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public token; // token representation of a users holding in the pool
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
@@ -29,7 +28,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
-    constructor(address _tracer) Ownable() {
+    constructor(address _tracer) {
         tracer = ITracerPerpetualSwaps(_tracer);
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
@@ -45,6 +44,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function deposit(uint256 amount) external override {
         IERC20 collateralToken = IERC20(collateralAsset);
+
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
@@ -52,16 +52,17 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
 
         // amount in wad format after being converted from token format
         uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
+
         // Update pool balances and user
         updatePoolAmount();
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
-        // tokens to mint = (pool token supply / collateral holdings) * collaterael amount to stake
-        uint256 tokensToMint = LibInsurance.calcMintAmount(poolToken.totalSupply(), collateralAmount, wadAmount);
+        // tokens to mint = (pool token supply / collateral holdings) * collateral amount to stake
+        uint256 tokensToMint = LibInsurance.calcMintAmount(poolToken.totalSupply(), publicCollateralAmount, wadAmount);
 
         // mint pool tokens, hold collateral tokens
         poolToken.mint(msg.sender, tokensToMint);
-        collateralAmount = collateralAmount + wadAmount;
+        publicCollateralAmount = publicCollateralAmount + wadAmount;
         emit InsuranceDeposit(address(tracer), msg.sender, wadAmount);
     }
 
@@ -79,17 +80,22 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
         // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
-        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(poolToken.totalSupply(), collateralAmount, amount);
+        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(
+            poolToken.totalSupply(),
+            publicCollateralAmount,
+            amount
+        );
 
         // convert token amount to raw amount from WAD
         uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
+
+        // pool amount is always in WAD format
+        publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
         collateralToken.transfer(msg.sender, rawTokenAmount);
 
-        // pool amount is always in WAD format
-        collateralAmount = collateralAmount - wadTokensToSend;
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
 
@@ -98,10 +104,24 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
     function updatePoolAmount() public override {
-        int256 quote = (tracer.getBalance(address(this))).position.quote;
-        if (quote > 0) {
-            tracer.withdraw(uint256(quote));
-            collateralAmount = collateralAmount + uint256(quote);
+        uint256 quote = uint256((tracer.getBalance(address(this))).position.quote);
+
+        tracer.withdraw(quote);
+
+        if (publicCollateralAmount > 0) {
+            // Amount to pay to public is the ratio of public collateral amount to total funds
+            uint256 payToPublic = PRBMathUD60x18.mul(
+                quote,
+                PRBMathUD60x18.div(publicCollateralAmount, getPoolHoldings())
+            );
+
+            publicCollateralAmount = publicCollateralAmount + payToPublic;
+
+            // Amount to pay to buffer is the remainder
+            bufferCollateralAmount = bufferCollateralAmount + quote - payToPublic;
+        } else {
+            // Pay to buffer if nothing in public insurance
+            bufferCollateralAmount = bufferCollateralAmount + quote;
         }
     }
 
@@ -114,29 +134,43 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     function drainPool(uint256 amount) external override onlyLiquidation() {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
-        // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (collateralAmount < 10**18) {
-            return;
-        }
+        uint256 poolHoldings = getPoolHoldings();
 
-        // Enforce a maximum at poolAmount
-        if (amount > collateralAmount) {
-            amount = collateralAmount;
-        }
+        if (amount >= poolHoldings) {
+            // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
+            if (publicCollateralAmount > 10**18) {
+                // Leave 1 token for the public pool
+                amount = poolHoldings - 10**18;
+                publicCollateralAmount = 10**18;
+            } else {
+                amount = bufferCollateralAmount;
+            }
 
-        // What the balance will be after
-        uint256 difference = collateralAmount - amount;
-        if (difference < 10**18) {
-            // Once we go below one token, social loss is required
-            // This calculation caps draining so pool always has at least one token
-            amount = collateralAmount - (10**18);
-            // Use new amount to compute difference again.
-            difference = collateralAmount - amount;
+            // Drain buffer
+            bufferCollateralAmount = 0;
+        } else if (amount > bufferCollateralAmount) {
+            if (publicCollateralAmount < 10**18) {
+                // If there's not enough public collateral for there to be 1 token, cap amount being drained at the buffer
+                amount = bufferCollateralAmount;
+            } else if (poolHoldings - amount < 10**18) {
+                // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
+                // from the public insurance such that 1 token is left in the public buffer
+                amount = poolHoldings - 10**18;
+                publicCollateralAmount = 10**18;
+            } else {
+                // Take out what you need from the public pool; there's enough for there to be >= 1 token left
+                publicCollateralAmount = publicCollateralAmount - (amount - bufferCollateralAmount);
+            }
+
+            // Drain buffer
+            bufferCollateralAmount = 0;
+        } else {
+            // Only need to take part of buffer pool out
+            bufferCollateralAmount = bufferCollateralAmount - amount;
         }
 
         tracerMarginToken.approve(address(tracer), amount);
         tracer.deposit(amount);
-        collateralAmount = difference;
     }
 
     /**
@@ -145,6 +179,13 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
      */
     function getPoolUserBalance(address user) public view override returns (uint256) {
         return InsurancePoolToken(token).balanceOf(user);
+    }
+
+    /**
+     * @notice Get total holdings of the insurance pool (= public + buffer collateral)
+     */
+    function getPoolHoldings() public view override returns (uint256) {
+        return bufferCollateralAmount + publicCollateralAmount;
     }
 
     /**
@@ -165,27 +206,27 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 multiplyFactor = 36523 * (10**11);
 
         uint256 levNotionalValue = tracer.leveragedNotionalValue();
-        if (levNotionalValue <= 0) {
+
+        // Traders only pay the insurance funding rate if the market has leverage
+        if (levNotionalValue == 0) {
             return 0;
         }
 
+        uint256 poolHoldings = getPoolHoldings();
         uint256 poolTarget = getPoolTarget();
 
-        if (poolTarget <= collateralAmount) {
+        // If the pool is above the target, we don't pay the insurance funding rate
+        if (poolTarget <= poolHoldings) {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.div(poolTarget - collateralAmount, levNotionalValue);
+        uint256 ratio = PRBMathUD60x18.div(poolTarget - poolHoldings, levNotionalValue);
 
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, IInsurance) onlyOwner {
-        super.transferOwnership(newOwner);
-    }
-
     modifier onlyLiquidation() {
-        require(msg.sender == tracer.liquidationContract(), "INS: sender is not Liquidation contract");
+        require(msg.sender == tracer.liquidationContract(), "INS: sender not LIQ contract");
         _;
     }
 }

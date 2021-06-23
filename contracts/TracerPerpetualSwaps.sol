@@ -24,7 +24,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     using PRBMathUD60x18 for uint256;
 
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
-    // todo ensure these are fine being immutable
     address public immutable override tracerQuoteToken;
     uint256 public immutable override quoteTokenDecimals;
     bytes32 public immutable override marketId;
@@ -58,8 +57,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
 
-    event FeeReceiverUpdated(address receiver);
-    event FeeWithdrawn(address receiver, uint256 feeAmount);
+    event FeeReceiverUpdated(address indexed receiver);
+    event FeeWithdrawn(address indexed receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
@@ -78,10 +77,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      *         will be able to purchase and trade tracers after this deployment.
      * @param _marketId the id of the market, given as BASE/QUOTE
      * @param _tracerQuoteToken the address of the token used for margin accounts (i.e. The margin token)
+     * @param _tokenDecimals the number of decimal places the quote token supports
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
      * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _feeReceiver the address of the person who can withdraw the fees from trades in this market
      * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
      *                           u60.18-decimal fixed-point number. e.g. 20% = 20*10^18
      * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
@@ -123,7 +124,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
 
         return
             Perpetuals.calculateTrueMaxLeverage(
-                insurance.collateralAmount(),
+                insurance.getPoolHoldings(),
                 insurance.getPoolTarget(),
                 maxLeverage,
                 lowestMaxLeverage,
@@ -181,7 +182,15 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // this may be able to be optimised
         Balances.Position memory newPosition = Balances.Position(newQuote, userBalance.position.base);
 
-        require(marginIsValid(newPosition, userBalance.lastUpdatedGasPrice), "TCR: Withdraw below valid Margin");
+        require(
+            Balances.marginIsValid(
+                newPosition,
+                userBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            ),
+            "TCR: Withdraw below valid Margin"
+        );
 
         // update user state
         userBalance.position.quote = newQuote;
@@ -204,7 +213,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
         uint256 fillAmount
-    ) public override onlyWhitelisted returns (bool) {
+    ) external override onlyWhitelisted returns (bool) {
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
         uint256 filled1 = ITrader(msg.sender).filled(order1Id);
@@ -226,8 +235,18 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // validate orders can match, and outcome state is valid
         if (
             !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
-            !marginIsValid(newPos1, balances[order1.maker].lastUpdatedGasPrice) ||
-            !marginIsValid(newPos2, balances[order2.maker].lastUpdatedGasPrice)
+            !Balances.marginIsValid(
+                newPos1,
+                balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            ) ||
+            !Balances.marginIsValid(
+                newPos2,
+                balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            )
         ) {
             // emit failed to match event and return false
             if (order1.side == Perpetuals.Side.Long) {
@@ -359,7 +378,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         liquidateeBalance.position.base = liquidateeBalance.position.base + liquidateeBaseChange;
 
         // Checks if the liquidator is in a valid position to process the liquidation
-        require(userMarginIsValid(liquidator), "TCR: Liquidator under minimum margin");
+        require(userMarginIsValid(liquidator), "TCR: Liquidator under min margin");
     }
 
     /**
@@ -385,7 +404,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         balances[insuranceAddr].position.quote = balances[insuranceAddr].position.quote - amountToTakeFromInsurance;
         balances[claimant].position.quote = balances[claimant].position.quote + amountToGiveToClaimant;
         balances[liquidatee].position.quote = balances[liquidatee].position.quote + amountToGiveToLiquidatee;
-        require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not adequately funded");
+        require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not funded enough");
     }
 
     /**
@@ -453,32 +472,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         }
     }
 
-    // todo this function should be in a lib
-    /**
-     * @notice Checks the validity of a potential margin given the necessary parameters
-     * @param position The position
-     * @param gasPrice The gas price
-     * @return a bool representing the validity of a margin
-     */
-    function marginIsValid(Balances.Position memory position, uint256 gasPrice) public view returns (bool) {
-        // Get gasCost; denominated in the quote token
-        uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
-
-        // Get fair price (= oracle price - timeValue)
-        uint256 price = pricingContract.fairPrice();
-
-        uint256 minMargin = Balances.minimumMargin(position, price, gasCost, trueMaxLeverage());
-        int256 margin = Balances.margin(position, price);
-
-        if (margin < 0) {
-            /* Margin being less than 0 is always invalid, even if position is 0.
-               This could happen if user attempts to over-withdraw */
-            return false;
-        }
-
-        return (uint256(margin) >= minMargin);
-    }
-
     /**
      * @notice Checks if a given accounts margin is valid
      * @param account The address of the account whose margin is to be checked
@@ -486,10 +479,16 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      */
     function userMarginIsValid(address account) public view returns (bool) {
         Balances.Account memory accountBalance = balances[account];
-        return marginIsValid(accountBalance.position, accountBalance.lastUpdatedGasPrice);
+        return
+            Balances.marginIsValid(
+                accountBalance.position,
+                accountBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                pricingContract.fairPrice(),
+                trueMaxLeverage()
+            );
     }
 
-    function withdrawFees() public override {
+    function withdrawFees() external override {
         uint256 tempFees = fees;
         fees = 0;
         tvl = tvl - tempFees;
@@ -499,52 +498,52 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         emit FeeWithdrawn(feeReceiver, tempFees);
     }
 
-    function getBalance(address account) public view override returns (Balances.Account memory) {
+    function getBalance(address account) external view override returns (Balances.Account memory) {
         return balances[account];
     }
 
-    function setLiquidationContract(address _liquidationContract) public override onlyOwner {
+    function setLiquidationContract(address _liquidationContract) external override onlyOwner {
         liquidationContract = _liquidationContract;
     }
 
-    function setInsuranceContract(address insurance) public override onlyOwner {
+    function setInsuranceContract(address insurance) external override onlyOwner {
         insuranceContract = IInsurance(insurance);
     }
 
-    function setPricingContract(address pricing) public override onlyOwner {
+    function setPricingContract(address pricing) external override onlyOwner {
         pricingContract = IPricing(pricing);
     }
 
-    function setGasOracle(address _gasOracle) public override onlyOwner {
+    function setGasOracle(address _gasOracle) external override onlyOwner {
         gasPriceOracle = _gasOracle;
     }
 
-    function setFeeReceiver(address _feeReceiver) public override onlyOwner {
+    function setFeeReceiver(address _feeReceiver) external override onlyOwner {
         feeReceiver = _feeReceiver;
         emit FeeReceiverUpdated(_feeReceiver);
     }
 
-    function setFeeRate(uint256 _feeRate) public override onlyOwner {
+    function setFeeRate(uint256 _feeRate) external override onlyOwner {
         feeRate = _feeRate;
     }
 
-    function setMaxLeverage(uint256 _maxLeverage) public override onlyOwner {
+    function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
         maxLeverage = _maxLeverage;
     }
 
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) public override onlyOwner {
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external override onlyOwner {
         fundingRateSensitivity = _fundingRateSensitivity;
     }
 
-    function setDeleveragingCliff(uint256 _deleveragingCliff) public override onlyOwner {
+    function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
         deleveragingCliff = _deleveragingCliff;
     }
 
-    function setLowestMaxLeverage(uint256 _lowestMaxLeverage) public override onlyOwner {
+    function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external override onlyOwner {
         lowestMaxLeverage = _lowestMaxLeverage;
     }
 
-    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) public override onlyOwner {
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 

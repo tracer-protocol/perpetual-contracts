@@ -107,8 +107,6 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
         // Ownership either to the deployer or the DAO
         tracer.transferOwnership(tracerOwner);
-        IInsurance(insurance).transferOwnership(tracerOwner);
-        IPricing(pricing).transferOwnership(tracerOwner);
         ILiquidation(liquidation).transferOwnership(tracerOwner);
         emit TracerDeployed(tracer.marketId(), address(tracer));
         return market;

@@ -6,6 +6,7 @@ import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
 import "./lib/LibBalances.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -233,14 +234,15 @@ contract Trader is ITrader {
         override
         returns (bool)
     {
-        return signer == ecrecover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
+        return
+            signer == ECDSA.recover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
     }
 
     /**
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order calldata order) public view override returns (Perpetuals.Order memory) {
+    function getOrder(Perpetuals.Order calldata order) external view override returns (Perpetuals.Order memory) {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
     }
