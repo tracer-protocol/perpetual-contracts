@@ -213,8 +213,8 @@ library Balances {
      * that don't have 18 decimal places
      */
     function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
-        int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
-        return amount.toInt256() * scaler;
+        uint256 scaler = 10**(MAX_DECIMALS - tokenDecimals);
+        return amount.toInt256() * scaler.toInt256();
     }
 
     /**
