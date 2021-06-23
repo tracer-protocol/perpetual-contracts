@@ -117,18 +117,22 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @param newDeployer the new perpsDeployer contract address
      */
     function setPerpsDeployerContract(address newDeployer) public override onlyOwner() {
+        require(newDeployer != address(0), "address(0) given");
         perpsDeployer = newDeployer;
     }
 
     function setInsuranceDeployerContract(address newInsuranceDeployer) public override onlyOwner() {
+        require(newInsuranceDeployer != address(0), "address(0) given");
         insuranceDeployer = newInsuranceDeployer;
     }
 
     function setPricingDeployerContract(address newPricingDeployer) public override onlyOwner() {
+        require(newPricingDeployer != address(0), "address(0) given");
         pricingDeployer = newPricingDeployer;
     }
 
     function setLiquidationDeployerContract(address newLiquidationDeployer) public override onlyOwner() {
+        require(newLiquidationDeployer != address(0), "address(0) given");
         liquidationDeployer = newLiquidationDeployer;
     }
 
