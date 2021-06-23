@@ -68,7 +68,7 @@ library LibMath {
         return sumN(arr, len) / len;
     }
 
-    /** 
+    /**
      * @notice Get the minimum of two unsigned numbers
      * @param a First number
      * @param b Second number
