@@ -182,7 +182,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // this may be able to be optimised
         Balances.Position memory newPosition = Balances.Position(newQuote, userBalance.position.base);
 
-        require(marginIsValid(newPosition, userBalance.lastUpdatedGasPrice), "TCR: Withdraw below valid Margin");
+        require(Balances.marginIsValid(newPosition, userBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage()), "TCR: Withdraw below valid Margin");
 
         // update user state
         userBalance.position.quote = newQuote;
@@ -227,8 +227,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // validate orders can match, and outcome state is valid
         if (
             !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
-            !marginIsValid(newPos1, balances[order1.maker].lastUpdatedGasPrice) ||
-            !marginIsValid(newPos2, balances[order2.maker].lastUpdatedGasPrice)
+            !Balances.marginIsValid(newPos1, balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage()) ||
+            !Balances.marginIsValid(newPos2, balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage())
         ) {
             // emit failed to match event and return false
             if (order1.side == Perpetuals.Side.Long) {
@@ -454,32 +454,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         }
     }
 
-    // todo this function should be in a lib
-    /**
-     * @notice Checks the validity of a potential margin given the necessary parameters
-     * @param position The position
-     * @param gasPrice The gas price
-     * @return a bool representing the validity of a margin
-     */
-    function marginIsValid(Balances.Position memory position, uint256 gasPrice) public view returns (bool) {
-        // Get gasCost; denominated in the quote token
-        uint256 gasCost = gasPrice * LIQUIDATION_GAS_COST;
-
-        // Get fair price (= oracle price - timeValue)
-        uint256 price = pricingContract.fairPrice();
-
-        uint256 minMargin = Balances.minimumMargin(position, price, gasCost, trueMaxLeverage());
-        int256 margin = Balances.margin(position, price);
-
-        if (margin < 0) {
-            /* Margin being less than 0 is always invalid, even if position is 0.
-               This could happen if user attempts to over-withdraw */
-            return false;
-        }
-
-        return (uint256(margin) >= minMargin);
-    }
-
     /**
      * @notice Checks if a given accounts margin is valid
      * @param account The address of the account whose margin is to be checked
@@ -487,7 +461,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      */
     function userMarginIsValid(address account) public view returns (bool) {
         Balances.Account memory accountBalance = balances[account];
-        return marginIsValid(accountBalance.position, accountBalance.lastUpdatedGasPrice);
+        return Balances.marginIsValid(accountBalance.position, accountBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST, pricingContract.fairPrice(), trueMaxLeverage());
     }
 
     function withdrawFees() public override {
