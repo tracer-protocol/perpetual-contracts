@@ -12,8 +12,6 @@ interface IInsurance {
 
     function drainPool(uint256 amount) external;
 
-    function transferOwnership(address newOwner) external;
-
     function getPoolUserBalance(address user) external view returns (uint256);
 
     function getPoolTarget() external view returns (uint256);
