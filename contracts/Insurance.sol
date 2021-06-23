@@ -163,7 +163,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 multiplyFactor = 36523 * (10**11);
 
         uint256 levNotionalValue = tracer.leveragedNotionalValue();
-        if (levNotionalValue <= 0) {
+        if (levNotionalValue == 0) {
             return 0;
         }
 
