@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import "../lib/LibLiquidation.sol";
 import "../lib/LibPerpetuals.sol";
 
+import "hardhat/console.sol";
+
 library LibLiquidationMock {
     function calcEscrowLiquidationAmount(
         uint256 minMargin,
@@ -12,6 +14,19 @@ library LibLiquidationMock {
         int256 totalBase
     ) external pure returns (uint256 result) {
         result = LibLiquidation.calcEscrowLiquidationAmount(minMargin, currentMargin, amount, totalBase);
+    }
+
+    function test() external pure returns (int256, int256) {
+        int256 amount = 2 ** 254 + 1;
+        int256 amount2 = 2 ** 254 + 2;
+        int256 amount3 = 2 ** 254 + 3;
+        int256 amount4 = 2 ** 254 + 4;
+        int256 amount5 = 2 ** 254 + 10000000000000000;
+        int256 amount6 = 2 ** 254 + 100000000000000000000;
+        return (amount5, amount6);
+        // console.logInt(amount);
+        int256 secondAmount = amount * (-1);
+        // return secondAmount;
     }
 
     function liquidationBalanceChanges(

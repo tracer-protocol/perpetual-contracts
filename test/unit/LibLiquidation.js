@@ -16,6 +16,12 @@ describe("Unit tests: LibLiquidation.sol", function () {
         )
     })
 
+    context("Test", async function () {
+        it.only("beep boop", async function () {
+            console.log((await libLiquidation.test()).toString())
+        })
+    })
+
     context("calcEscrowLiquidationAmount", async function () {
         context("if margin == minMargin", async function () {
             it("Should escrow full amount", async function () {
