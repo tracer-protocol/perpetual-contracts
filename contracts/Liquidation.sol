@@ -32,8 +32,6 @@ contract Liquidation is ILiquidation, Ownable {
 
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
-    // Factor to keep precision in percent calculations
-    int256 private constant PERCENT_PRECISION = 10000;
 
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256 indexed receiptId);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 indexed id);
