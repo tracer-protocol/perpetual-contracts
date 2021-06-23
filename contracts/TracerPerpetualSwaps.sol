@@ -58,8 +58,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
 
-    event FeeReceiverUpdated(address receiver);
-    event FeeWithdrawn(address receiver, uint256 feeAmount);
+    event FeeReceiverUpdated(address indexed receiver);
+    event FeeWithdrawn(address indexed receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
     event Settled(address indexed account, int256 margin);
@@ -78,10 +78,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      *         will be able to purchase and trade tracers after this deployment.
      * @param _marketId the id of the market, given as BASE/QUOTE
      * @param _tracerQuoteToken the address of the token used for margin accounts (i.e. The margin token)
+     * @param _tokenDecimals the number of decimal places the quote token supports
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
      * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _feeReceiver the address of the person who can withdraw the fees from trades in this market
      * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
      *                           u60.18-decimal fixed-point number. e.g. 20% = 20*10^18
      * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
@@ -123,7 +125,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
 
         return
             Perpetuals.calculateTrueMaxLeverage(
-                insurance.collateralAmount(),
+                insurance.getPoolHoldings(),
                 insurance.getPoolTarget(),
                 maxLeverage,
                 lowestMaxLeverage,
@@ -359,7 +361,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         liquidateeBalance.position.base = liquidateeBalance.position.base + liquidateeBaseChange;
 
         // Checks if the liquidator is in a valid position to process the liquidation
-        require(userMarginIsValid(liquidator), "TCR: Liquidator under minimum margin");
+        require(userMarginIsValid(liquidator), "TCR: Liquidator under min margin");
     }
 
     /**
@@ -385,7 +387,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         balances[insuranceAddr].position.quote = balances[insuranceAddr].position.quote - amountToTakeFromInsurance;
         balances[claimant].position.quote = balances[claimant].position.quote + amountToGiveToClaimant;
         balances[liquidatee].position.quote = balances[liquidatee].position.quote + amountToGiveToLiquidatee;
-        require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not adequately funded");
+        require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not funded enough");
     }
 
     /**

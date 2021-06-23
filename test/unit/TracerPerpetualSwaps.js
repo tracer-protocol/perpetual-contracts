@@ -355,7 +355,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         ethers.utils.parseEther("1"),
                         ethers.utils.parseEther("1")
                     )
-                ).to.be.revertedWith("TCR: Liquidator under minimum margin")
+                ).to.be.revertedWith("TCR: Liquidator under min margin")
             })
         })
 

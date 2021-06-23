@@ -230,7 +230,7 @@ contract Liquidation is ILiquidation, Ownable {
 
         require(
             checkPartialLiquidation(updatedPosition, liquidatedBalance.lastUpdatedGasPrice),
-            "LIQ: Liquidation leaves too little left over"
+            "LIQ: leaves too little left over"
         );
 
         tracer.updateAccountsOnLiquidation(
