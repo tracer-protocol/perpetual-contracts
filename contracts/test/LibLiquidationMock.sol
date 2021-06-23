@@ -21,11 +21,14 @@ library LibLiquidationMock {
         int256 amount2 = 2 ** 254 + 2;
         int256 amount3 = 2 ** 254 + 3;
         int256 amount4 = 2 ** 254 + 4;
-        int256 amount5 = 2 ** 254 + 10000000000000000;
-        int256 amount6 = 2 ** 254 + 100000000000000000000;
-        return (amount5, amount6);
+        int256 amount6 = 2 ** 254 + 0;
+        int256 MAX_INT = 2**255 - 1;
+        int256 negative = MAX_INT * (-1);
+        return (negative, MAX_INT);
+        
+        // return (amount5, amount6);
         // console.logInt(amount);
-        int256 secondAmount = amount * (-1);
+        // int256 secondAmount = amount * (-1);
         // return secondAmount;
     }
 
