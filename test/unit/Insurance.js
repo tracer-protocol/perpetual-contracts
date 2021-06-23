@@ -354,7 +354,7 @@ describe("Unit tests: Insurance.sol", function () {
             it("reverts", async () => {
                 await expect(
                     insurance.drainPool(ethers.utils.parseEther("1"))
-                ).to.be.revertedWith("INS: sender is not Liquidation contract")
+                ).to.be.revertedWith("INS: sender not LIQ contract")
             })
         })
     })

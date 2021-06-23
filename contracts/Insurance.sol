@@ -185,7 +185,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     }
 
     modifier onlyLiquidation() {
-        require(msg.sender == tracer.liquidationContract(), "INS: sender is not Liquidation contract");
+        require(msg.sender == tracer.liquidationContract(), "INS: sender not LIQ contract");
         _;
     }
 }
