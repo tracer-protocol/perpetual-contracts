@@ -77,7 +77,6 @@ library Balances {
      */
     function leveragedNotionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
         uint256 notionalValue = notionalValue(position, price);
-        (position, price);
         int256 marginValue = margin(position, price);
 
         int256 signedNotionalValue = LibMath.toInt256(notionalValue);
