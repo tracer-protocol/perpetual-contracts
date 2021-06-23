@@ -206,11 +206,8 @@ contract Insurance is IInsurance {
         uint256 multiplyFactor = 36523 * (10**11);
 
         uint256 levNotionalValue = tracer.leveragedNotionalValue();
-<<<<<<< HEAD
-=======
 
         // Traders only pay the insurance funding rate if the market has leverage
->>>>>>> c63f79915f86c4fb66b1b9d4f7c099d303646070
         if (levNotionalValue == 0) {
             return 0;
         }
