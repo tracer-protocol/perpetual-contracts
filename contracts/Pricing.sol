@@ -173,7 +173,7 @@ contract Pricing is IPricing {
     /**
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
-    function fairPrice() public view override returns (uint256) {
+    function fairPrice() external view override returns (uint256) {
         return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 
@@ -220,14 +220,14 @@ contract Pricing is IPricing {
     /**
      * @return each variable of the fundingRate struct of a particular tracer at a particular funding rate index
      */
-    function getFundingRate(uint256 index) public view override returns (Prices.FundingRateInstant memory) {
+    function getFundingRate(uint256 index) external view override returns (Prices.FundingRateInstant memory) {
         return fundingRates[index];
     }
 
     /**
      * @return all of the variables in the funding rate struct (insurance rate) from a particular tracer market
      */
-    function getInsuranceFundingRate(uint256 index) public view override returns (Prices.FundingRateInstant memory) {
+    function getInsuranceFundingRate(uint256 index) external view override returns (Prices.FundingRateInstant memory) {
         return insuranceFundingRates[index];
     }
 
@@ -261,7 +261,7 @@ contract Pricing is IPricing {
      * @notice Gets the average oracle price for a given market during a certain hour
      * @param hour The hour of which you want the hourly average Price
      */
-    function getHourlyAvgOraclePrice(uint256 hour) public view override returns (uint256) {
+    function getHourlyAvgOraclePrice(uint256 hour) external view override returns (uint256) {
         return Prices.averagePrice(hourlyOraclePrices[hour]);
     }
 
