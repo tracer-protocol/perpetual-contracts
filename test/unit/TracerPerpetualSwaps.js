@@ -74,7 +74,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let traderInstance
 
     beforeEach(async function () {
-        // todo call setup
         let _setup = await setup()
         tracer = _setup.tracer
         insurance = _setup.insurance

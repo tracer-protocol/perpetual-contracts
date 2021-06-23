@@ -24,7 +24,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     using PRBMathUD60x18 for uint256;
 
     uint256 public constant override LIQUIDATION_GAS_COST = 63516;
-    // todo ensure these are fine being immutable
     address public immutable override tracerQuoteToken;
     uint256 public immutable override quoteTokenDecimals;
     bytes32 public immutable override marketId;

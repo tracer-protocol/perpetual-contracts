@@ -123,7 +123,6 @@ library LibLiquidation {
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
-            // todo this can probably be further simplified
             uint256 amountToReturn = 0;
             uint256 percentSlippage = 0;
             if (avgPrice < receipt.price && receipt.liquidationSide == Perpetuals.Side.Long) {

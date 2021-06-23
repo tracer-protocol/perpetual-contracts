@@ -113,7 +113,6 @@ library Balances {
 
         uint256 notionalValue = notionalValue(position, price);
 
-        // todo confirm that liquidation gas cost should be a WAD value
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
         uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
