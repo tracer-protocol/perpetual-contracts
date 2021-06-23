@@ -80,11 +80,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
      * @param _tokenDecimals the number of decimal places the quote token supports
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
-     * @param _fundingRateSensitivity the affect funding rate changes have on funding paid.
-     * @param _feeRate the fee taken on trades; u60.18-decimal fixed-point number. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _fundingRateSensitivity the affect funding rate changes have on funding paid; u60.18-decimal fixed-point number (WAD value)
+     * @param _feeRate the fee taken on trades; WAD value. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      * @param _feeReceiver the address of the person who can withdraw the fees from trades in this market
      * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
-     *                           u60.18-decimal fixed-point number. e.g. 20% = 20*10^18
+     *                           WAD value. e.g. 20% = 20*10^18
      * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
      * @param _insurancePoolSwitchStage The percentage of insurance holdings to target at which the insurance pool
      *                                  funding rate changes, and lowestMaxLeverage is reached
@@ -205,9 +205,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     }
 
     /**
-     * @notice Match two orders that exist on chain against each other
-     * @param order1 the first order
-     * @param order2 the second order
+     * @notice Attempt to match two orders that exist on-chain against each other
+     * @dev Emits a FailedOrders or MatchedOrders event based on whether the
+     *      orders were successfully able to be matched
+     * @param order1 The first order
+     * @param order2 The second order
+     * @param fillAmount Amount that the two orders are being filled for
+     * @return Whether the two orders were able to be matched successfully
      */
     function matchOrders(
         Perpetuals.Order memory order1,
@@ -285,6 +289,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
 
     /**
      * @notice Updates account states of two accounts given two orders that are being executed
+     * @param order1 The first order
+     * @param order2 The second order
+     * @param fillAmount The amount that the two ordered are being filled for
+     * @param executionPrice The execution price of the trades
+     * @return The new balances of the two accounts after the trade
      */
     function _executeTrade(
         Perpetuals.Order memory order1,
@@ -488,6 +497,14 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             );
     }
 
+    /**
+     * @notice Withdraws the fees taken on trades, and sends them to the designated
+     *         fee receiver (set by the owner of the market)
+     * @dev Anyone can call this function, but fees are transferred to the fee receiver.
+     *      Fees is also subtracted from the total value locked in the market because
+     *      fees are taken out of trades that result in users' quotes being modified, and
+     *      don't otherwise get subtracted from the tvl of the market
+     */
     function withdrawFees() public override {
         uint256 tempFees = fees;
         fees = 0;
@@ -561,11 +578,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         tradingWhitelist[tradingContract] = whitelisted;
     }
 
+    // Modifier such that only the set liquidation contract can call a function
     modifier onlyLiquidation() {
         require(msg.sender == liquidationContract, "TCR: Sender not liquidation");
         _;
     }
 
+    // Modifier such that only a whitelisted trader can call a function
     modifier onlyWhitelisted() {
         require(tradingWhitelist[msg.sender], "TCR: Contract not whitelisted");
         _;
