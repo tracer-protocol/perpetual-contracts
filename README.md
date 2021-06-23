@@ -3,7 +3,7 @@ https://tracer.finance
 
 This repository contains the smart contract source code powering the Tracer perpetual swaps protocol.
 
-For an overview of the system architecture, each core contract, and user flows, view [architecture.pdf](./architecture.pdf).
+For an overview of the system architecture, each core contract, and user flows, view [architecture.pdf](./architecture.pdf). For more on the perpetual swaps protocol, you can check out our [perpetual swaps whitepaper](https://tracer.finance/media/whitepapers/perp-swaps/Tracer_Perpetual_Swaps.pdf). For more on Tracer and the Tracer DAO, check out the [tracer whitepaper](https://tracer.finance/media/whitepapers/tracer/Tracer_Whitepaper.pdf)
 
 For more on the Tracer protocol and the Tracer DAO, view the DAO's [Twitter](https://twitter.com/tracer_finance), join the [Discord](https://discord.gg/kvJEwfvyrW) and check out the [Discourse](https://discourse.tracer.finance/)
 
