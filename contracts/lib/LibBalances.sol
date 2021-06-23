@@ -76,10 +76,10 @@ library Balances {
      * @param price The price of the base asset
      */
     function leveragedNotionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
-        uint256 notionalValue = notionalValue(position, price);
+        uint256 _notionalValue = notionalValue(position, price);
         int256 marginValue = margin(position, price);
 
-        int256 signedNotionalValue = LibMath.toInt256(notionalValue);
+        int256 signedNotionalValue = LibMath.toInt256(_notionalValue);
 
         if (signedNotionalValue - marginValue < 0) {
             return 0;
@@ -111,11 +111,11 @@ library Balances {
             return 0;
         }
 
-        uint256 notionalValue = notionalValue(position, price);
+        uint256 _notionalValue = notionalValue(position, price);
 
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
+        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(_notionalValue, maximumLeverage);
 
         return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
     }
@@ -133,15 +133,15 @@ library Balances {
         uint256 trueMaxLeverage
     ) internal pure returns (bool) {
         uint256 minMargin = minimumMargin(position, price, liquidationGasCost, trueMaxLeverage);
-        int256 margin = margin(position, price);
+        int256 _margin = margin(position, price);
 
-        if (margin < 0) {
+        if (_margin < 0) {
             /* Margin being less than 0 is always invalid, even if position is 0.
                This could happen if user attempts to over-withdraw */
             return false;
         }
 
-        return (uint256(margin) >= minMargin);
+        return (uint256(_margin) >= minMargin);
     }
 
     /**

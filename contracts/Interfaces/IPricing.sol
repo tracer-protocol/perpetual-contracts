@@ -16,7 +16,7 @@ interface IPricing {
 
     function timeValue() external view returns (int256);
 
-    function getTWAPs(uint256 currentHour) external view returns (Prices.TWAP memory);
+    function getTWAPs(uint256 hour) external view returns (Prices.TWAP memory);
 
     function get24HourPrices() external view returns (uint256, uint256);
 
@@ -24,5 +24,5 @@ interface IPricing {
 
     function getHourlyAvgOraclePrice(uint256 hour) external view returns (uint256);
 
-    function recordTrade(uint256 tradePrice, uint256 tradeVolume) external;
+    function recordTrade(uint256 tradePrice) external;
 }
