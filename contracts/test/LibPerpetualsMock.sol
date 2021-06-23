@@ -7,6 +7,16 @@ contract PerpetualsMock {
         return Perpetuals.orderId(order);
     }
 
+    function calculateAverageExecutionPrice(
+        uint256 oldFilledAmount,
+        uint256 oldAverage,
+        uint256 fillChange,
+        uint256 newFillExecutionPrice
+    ) external pure returns (uint256) {
+        return
+            Perpetuals.calculateAverageExecutionPrice(oldFilledAmount, oldAverage, fillChange, newFillExecutionPrice);
+    }
+
     function calculateTrueMaxLeverage(
         uint256 collateralAmount,
         uint256 poolTarget,

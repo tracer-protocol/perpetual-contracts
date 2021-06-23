@@ -109,7 +109,6 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimEscrow(uint256 receiptId) public override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
-        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
 
@@ -153,14 +152,14 @@ contract Liquidation is ILiquidation, Ownable {
         // todo CASTING CHECK
         require(
             currentMargin <= 0 ||
-                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
             "LIQ: Account above margin"
         );
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+            Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
             currentMargin,
             amount,
             base
@@ -231,7 +230,7 @@ contract Liquidation is ILiquidation, Ownable {
 
         require(
             checkPartialLiquidation(updatedPosition, liquidatedBalance.lastUpdatedGasPrice),
-            "LIQ: Liquidation leaves too little left over"
+            "LIQ: leaves too little left over"
         );
 
         tracer.updateAccountsOnLiquidation(
@@ -294,12 +293,13 @@ contract Liquidation is ILiquidation, Ownable {
                 continue;
             }
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
+            uint256 averageExecutionPrice = ITrader(traderContract).getAverageExecutionPrice(order);
 
             /* order.created >= receipt.time
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + orderFilled;
-            avgPrice = avgPrice + (order.price * orderFilled);
+            avgPrice = avgPrice + (averageExecutionPrice * orderFilled);
         }
 
         // Avoid divide by 0 if no orders sold

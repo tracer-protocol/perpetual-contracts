@@ -90,5 +90,9 @@ interface ITracerPerpetualSwaps {
 
     function withdraw(uint256 amount) external;
 
-    function matchOrders(Perpetuals.Order memory order1, Perpetuals.Order memory order2) external returns (bool);
+    function matchOrders(
+        Perpetuals.Order memory order1,
+        Perpetuals.Order memory order2,
+        uint256 fillAmount
+    ) external returns (bool);
 }

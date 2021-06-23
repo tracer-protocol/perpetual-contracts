@@ -13,6 +13,11 @@ module.exports = async function (hre) {
     ).connect(signers[0])
     // let tracerInstance = new ethers.Contract(perpsAddress, perpsAbi)
     const priceOracle = await deployments.get("PriceOracle")
+    const traderDeployment = await deployments.get("Trader")
+    let traderInstance = await ethers.getContractAt(
+        traderDeployment.abi,
+        traderDeployment.address
+    )
     const price = (await read("PriceOracleAdapter", "latestAnswer")).toString()
     await execute(
         "QuoteToken",
@@ -45,6 +50,12 @@ module.exports = async function (hre) {
         (block.timestamp + 100).toString(), // expiry
         0, // created
     ]
+    const mockSignedMake = [
+        makerOrder,
+        ethers.utils.formatBytes32String("DummyString"),
+        ethers.utils.formatBytes32String("DummyString"),
+        0,
+    ]
     const takerOrder = [
         acc1, // maker
         tracerInstance.address, // market
@@ -54,9 +65,16 @@ module.exports = async function (hre) {
         (block.timestamp + 100).toString(), // expiry
         0, // created
     ]
+    const mockSignedTake = [
+        takerOrder,
+        ethers.utils.formatBytes32String("DummyString"),
+        ethers.utils.formatBytes32String("DummyString"),
+        0,
+    ]
+
+    await traderInstance.executeTrade([mockSignedMake], [mockSignedTake])
 
     tracerInstance = tracerInstance.connect(signers[0])
-    await tracerInstance.matchOrders(makerOrder, takerOrder)
 
     // Reduce price by 5%
     await execute(

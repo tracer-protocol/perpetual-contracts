@@ -6,7 +6,8 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 
-const provideOrders = async (contracts, liquidationAmount, timestamp) => {
+const provideOrders = async (contracts, liquidationAmount) => {
+    const timestamp = contracts.timestamp
     const sellWholeLiquidationAmount = {
         maker: accounts[1].address,
         market: contracts.tracerPerps.address,
@@ -32,6 +33,16 @@ const provideOrders = async (contracts, liquidationAmount, timestamp) => {
         market: contracts.tracerPerps.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: "0",
+        side: "1", // Short, because original position liquidated was long
+        expires: timestamp + 100,
+        created: timestamp + 1,
+    }
+
+    const sellWholeLiquidationAmountUseNoSlippage = {
+        maker: accounts[1].address,
+        market: contracts.tracerPerps.address,
+        price: ethers.utils.parseEther("0.01").toString(),
+        amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
         expires: timestamp + 100,
         created: timestamp + 1,
@@ -128,6 +139,8 @@ const provideOrders = async (contracts, liquidationAmount, timestamp) => {
         zeroDollarOrder: zeroDollarOrder,
         earlyCreationOrder: earlyCreationOrder,
         wrongMakerOrder: wrongMakerOrder,
+        sellWholeLiquidationAmountUseNoSlippage:
+            sellWholeLiquidationAmountUseNoSlippage,
         sellLiquidationAmountNoSlippage: sellLiquidationAmountNoSlippage,
         sellWholeLiquidationAmountZeroTokens:
             sellWholeLiquidationAmountZeroTokens,
@@ -236,21 +249,35 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
 const addOrdersToModifiedTrader = async (
     modifiableTrader,
     contracts,
-    liquidationAmount,
     orders
 ) => {
-    for (const [_, order] of Object.entries(orders)) {
+    for (const [key, order] of Object.entries(orders)) {
         let hash = await contracts.libPerpetuals.callStatic.orderId(order)
         await modifiableTrader.smodify.put({
             orders: {
                 [hash]: order,
             },
         })
+
         await modifiableTrader.smodify.put({
             filled: {
                 [hash]: order.amount,
             },
         })
+
+        if (key === "sellWholeLiquidationAmountUseNoSlippage") {
+            await modifiableTrader.smodify.put({
+                averageExecutionPrice: {
+                    [hash]: ethers.utils.parseEther("0.95").toString(), // no slippage on actual executionPrice
+                },
+            })
+        } else {
+            await modifiableTrader.smodify.put({
+                averageExecutionPrice: {
+                    [hash]: order.price,
+                },
+            })
+        }
     }
 }
 
@@ -273,12 +300,7 @@ const setupReceiptTest = deployments.createFixture(async () => {
         contracts.timestamp
     )
 
-    await addOrdersToModifiedTrader(
-        modifiableTrader,
-        contracts,
-        liquidationAmount,
-        orders
-    )
+    await addOrdersToModifiedTrader(modifiableTrader, contracts, orders)
     return { ...contracts, modifiableTrader, ...orders }
 })
 
@@ -334,6 +356,25 @@ describe("Liquidation functional tests", async () => {
                         contracts.modifiableTrader.address
                     )
                     await expect(tx).to.be.revertedWith("LIQ: Unit mismatch")
+                })
+            }
+        )
+
+        context(
+            "When execution price has no slippage, but order price is low",
+            async () => {
+                it("calculates no slippage", async () => {
+                    const contracts = await setupReceiptTest()
+                    tracerPerps = contracts.tracerPerps
+                    liquidation = contracts.liquidation
+                    trader = contracts.modifiableTrader
+
+                    const tx = await liquidation.callStatic.calcAmountToReturn(
+                        0,
+                        [contracts.sellWholeLiquidationAmountUseNoSlippage],
+                        trader.address
+                    )
+                    await expect(tx).to.equal(ethers.utils.parseEther("0"))
                 })
             }
         )
@@ -460,7 +501,7 @@ describe("Liquidation functional tests", async () => {
                         accounts[0].address
                     )
                     await expect(tx).to.be.revertedWith(
-                        "TCR: Liquidator under minimum margin"
+                        "TCR: Liquidator under min margin"
                     )
                 })
             }
@@ -479,6 +520,46 @@ describe("Liquidation functional tests", async () => {
                 await expect(tx).to.be.revertedWith("LIQ: Account above margin")
             })
         })
+
+        context(
+            "when agent isn't below margin, then insurance pool drops and is below",
+            async () => {
+                it("Reverts when below, and allows liquidation when trueMaxLeverage drops", async () => {
+                    const contracts = await setupLiquidationTest()
+                    accounts = await ethers.getSigners()
+                    await contracts.token
+                        .connect(accounts[1])
+                        .approve(
+                            contracts.tracer.address,
+                            ethers.utils.parseEther("10000")
+                        )
+                    await contracts.tracer
+                        .connect(accounts[1])
+                        .deposit(ethers.utils.parseEther("100"))
+
+                    // Liquidate, but accounts[1] is above margin
+                    const invalidTx = contracts.liquidation.liquidate(
+                        "1",
+                        accounts[1].address
+                    )
+                    await expect(invalidTx).to.be.revertedWith(
+                        "LIQ: Account above margin"
+                    )
+
+                    // Set lowestMaxLeverage to 1.5x
+                    await contracts.tracer
+                        .connect(accounts[0])
+                        .setLowestMaxLeverage(ethers.utils.parseEther("1.5"))
+
+                    // Liquidate, and now accounts[1] is below minimum margin
+                    const tx = contracts.liquidation.liquidate(
+                        "1",
+                        accounts[1].address
+                    )
+                    await expect(tx).to.emit(contracts.liquidation, "Liquidate")
+                })
+            }
+        )
 
         context("when gas price is above fast gas price", async () => {
             it("Reverts", async () => {
@@ -1230,15 +1311,6 @@ describe("Liquidation functional tests", async () => {
             ])
             await network.provider.send("evm_mine", [])
         }
-        context("when caller is not liquidatee", async () => {
-            it("Reverts ", async () => {
-                const contracts = await setupLiquidationTest()
-                accounts = await ethers.getSigners()
-                await increaseFifteenMinutes()
-                const tx = contracts.liquidation.claimEscrow(0)
-                await expect(tx).to.be.revertedWith("LIQ: Liquidatee mismatch")
-            })
-        })
 
         context(
             "when receipt already claimed through claimEscrow",
@@ -1429,6 +1501,37 @@ describe("Liquidation functional tests", async () => {
                 expect(result[1]).to.equal(0)
             })
         })
+
+        context(
+            "When execution price has no slippage, but order price is low",
+            async () => {
+                it("calculates no slippage", async () => {
+                    const contracts = await setupReceiptTest()
+                    tracerPerps = contracts.tracerPerps
+                    liquidation = contracts.liquidation
+                    trader = contracts.modifiableTrader
+                    const liquidationAmount = (
+                        await liquidation.liquidationReceipts(0)
+                    ).amountLiquidated
+                    const orders = await provideOrders(
+                        contracts,
+                        liquidationAmount
+                    )
+
+                    const tx = await liquidation.callStatic.calcUnitsSold(
+                        [orders.sellWholeLiquidationAmountUseNoSlippage],
+                        trader.address,
+                        0
+                    )
+                    await expect(tx[0]).to.equal(
+                        ethers.utils.parseEther("5000")
+                    )
+                    await expect(tx[1]).to.equal(
+                        ethers.utils.parseEther("0.95")
+                    )
+                })
+            }
+        )
 
         context("in the normal case", async () => {
             it("Calculates correctly", async () => {
@@ -1635,7 +1738,7 @@ describe("Liquidation functional tests", async () => {
                                 contracts.wrongMakerOrder,
                             ],
                             contracts.modifiableTrader.address,
-                            0
+                            receiptId
                         )
                     ).wait()
                     let eventCounter = 0
