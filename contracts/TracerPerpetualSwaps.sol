@@ -520,22 +520,27 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     }
 
     function setLiquidationContract(address _liquidationContract) external override onlyOwner {
+        require(_liquidationContract != address(0), "address(0) given");
         liquidationContract = _liquidationContract;
     }
 
     function setInsuranceContract(address insurance) external override onlyOwner {
+        require(insurance != address(0), "address(0) given");
         insuranceContract = IInsurance(insurance);
     }
 
     function setPricingContract(address pricing) external override onlyOwner {
+        require(pricing != address(0), "address(0) given");
         pricingContract = IPricing(pricing);
     }
 
     function setGasOracle(address _gasOracle) external override onlyOwner {
+        require(_gasOracle != address(0), "address(0) given");
         gasPriceOracle = _gasOracle;
     }
 
     function setFeeReceiver(address _feeReceiver) external override onlyOwner {
+        require(_feeReceiver != address(0), "address(0) given");
         feeReceiver = _feeReceiver;
         emit FeeReceiverUpdated(_feeReceiver);
     }
@@ -565,6 +570,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
     }
 
     function transferOwnership(address newOwner) public override(Ownable, ITracerPerpetualSwaps) onlyOwner {
+        require(newOwner != address(0), "address(0) given");
         super.transferOwnership(newOwner);
     }
 
