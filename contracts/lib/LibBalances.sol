@@ -213,15 +213,6 @@ library Balances {
         return fee;
     }
 
-    function marginValid(
-        Position memory position,
-        uint256 price,
-        uint256 liquidationCost,
-        uint256 maximumLeverage
-    ) internal pure returns (bool) {
-        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
-    }
-
     /**
      * @notice converts a raw token amount to its WAD representation. Used for tokens
      * that don't have 18 decimal places
