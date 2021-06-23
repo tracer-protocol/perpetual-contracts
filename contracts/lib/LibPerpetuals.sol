@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 library Perpetuals {
+    // Sides that an order can take
     enum Side {
         Long,
         Short
@@ -146,6 +147,12 @@ library Perpetuals {
             pricesMatch && makersDifferent && marketsMatch && opposingSides && notExpired && notFilled && createdBefore;
     }
 
+    /**
+     * @notice Gets the execution price of two orders, given their creation times
+     * @param a The first order
+     * @param b The second order
+     * @return Price that the orders will be executed at
+     */
     function getExecutionPrice(Order memory a, Order memory b) internal pure returns (uint256) {
         bool aIsFirst = a.created <= b.created;
         if (aIsFirst) {
