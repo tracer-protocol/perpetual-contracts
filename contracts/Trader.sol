@@ -6,7 +6,7 @@ import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import "./lib/LibPerpetuals.sol";
 import "./lib/LibBalances.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -14,7 +14,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract Trader is ITrader {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
-    using ECDSA for bytes32;
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
     string private constant EIP712_DOMAIN_VERSION = "1.0";
     bytes32 private constant EIP712_DOMAIN_SEPERATOR =
@@ -235,7 +234,8 @@ contract Trader is ITrader {
         override
         returns (bool)
     {
-        return signer == hashOrder(signedOrder.order).recover(signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
+        return
+            signer == ECDSA.recover(hashOrder(signedOrder.order), signedOrder.sigV, signedOrder.sigR, signedOrder.sigS);
     }
 
     /**
