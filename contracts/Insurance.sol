@@ -115,23 +115,21 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         // Enforce a minimum. Very rare as funding rate will be incredibly high at this point
-        if (collateralAmount < 10**18) {
+        if (collateralAmount <= 10**18) {
             return;
         }
 
-        // Enforce a maximum at poolAmount
-        if (amount > collateralAmount) {
-            amount = collateralAmount;
-        }
-
-        // What the balance will be after
-        uint256 difference = collateralAmount - amount;
-        if (difference < 10**18) {
-            // Once we go below one token, social loss is required
-            // This calculation caps draining so pool always has at least one token
-            amount = collateralAmount - (10**18);
-            // Use new amount to compute difference again.
+        // Ensure that the leftover amount is atleast 1 token after all calcs
+        uint256 minimumLeftover = collateralAmount - (10**18);
+        uint256 difference;
+        if (amount < minimumLeftover) {
+            // leftover amount will be great than 1
             difference = collateralAmount - amount;
+        } else {
+            // leftover amount would be less than 1.
+            // withdraw as much as possible while leaving the minimum amount of 1 token
+            amount = minimumLeftover;
+            difference = (10**18);
         }
 
         tracerMarginToken.approve(address(tracer), amount);
