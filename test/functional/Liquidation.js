@@ -322,7 +322,7 @@ const deployModifiableTrader = deployments.createFixture(async () => {
             // Perpetuals: contracts.libPerpetuals.address
         },
     })
-    const modifiableTrader = await ModifiableTraderContract.deploy()
+    const modifiableTrader = await ModifiableTraderContract.deploy("0x0000000000000000000000000000000000000000")
     return { modifiableTrader }
 })
 

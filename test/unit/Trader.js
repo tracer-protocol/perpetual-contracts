@@ -1,7 +1,7 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
-const { signOrders } = require("@tracer-protocol/tracer-utils")
+const { smockit } = require("@eth-optimism/smock")
 
 describe("Unit tests: Trader.sol", function () {
     let trader
@@ -22,6 +22,7 @@ describe("Unit tests: Trader.sol", function () {
             libraries: {
                 Perpetuals: libPerpetuals.address,
             },
+            args: ["0x0000000000000000000000000000000000000000"]
         })
 
         await deploy("TracerPerpetualSwapMock", {

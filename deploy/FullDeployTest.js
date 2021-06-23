@@ -35,13 +35,6 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    // deploy trader
-    const trader = await deploy("Trader", {
-        from: deployer,
-        log: true,
-        contract: "TraderMock",
-    })
-
     // deploy oracles
     // asset price oracle => ASSET / USD
     const priceOracle = await deploy("PriceOracle", {
@@ -203,6 +196,14 @@ module.exports = async function (hre) {
         ],
         from: deployer,
         log: true,
+    })
+
+    // deploy trader
+    const trader = await deploy("Trader", {
+        args: [factory.address],
+        from: deployer,
+        log: true,
+        contract: "TraderMock",
     })
 
     let maxLeverage = ethers.utils.parseEther("12.5")

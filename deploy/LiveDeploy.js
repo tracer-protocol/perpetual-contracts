@@ -35,12 +35,6 @@ module.exports = async function (hre) {
         log: true,
     })
 
-    // deploy trader
-    const trader = await deploy("Trader", {
-        from: deployer,
-        log: true,
-    })
-
     // deploy oracles
     // asset price oracle => ASSET / USD
     const priceOracle = await deploy("PriceOracle", {
@@ -179,6 +173,13 @@ module.exports = async function (hre) {
     })
 
     console.log(`Factory Deployed: ${factory.address}`)
+
+    // deploy trader
+    const trader = await deploy("Trader", {
+        args: [factory.address],
+        from: deployer,
+        log: true,
+    })
 
     let maxLeverage = ethers.utils.parseEther("12.5")
     let tokenDecimals = new ethers.BigNumber.from("18").toString()

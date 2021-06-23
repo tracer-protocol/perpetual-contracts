@@ -6,6 +6,7 @@ import "../Interfaces/Types.sol";
 import "../Interfaces/ITrader.sol";
 import "../lib/LibPerpetuals.sol";
 import "../lib/LibBalances.sol";
+import "../Interfaces/ITracerPerpetualsFactory.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
@@ -26,6 +27,7 @@ contract TraderMock is ITrader {
 
     uint256 public constant override chainId = 1337; // Changes per chain
     bytes32 public immutable override EIP712_DOMAIN;
+    address public factory;
 
     // order hash to memory
     mapping(bytes32 => Perpetuals.Order) public orders;
@@ -36,7 +38,7 @@ contract TraderMock is ITrader {
     // order hash to average execution price thus far
     mapping(bytes32 => uint256) public override averageExecutionPrice;
 
-    constructor() {
+    constructor(address _factory) {
         // Construct the EIP712 Domain
         EIP712_DOMAIN = keccak256(
             abi.encode(
@@ -47,6 +49,7 @@ contract TraderMock is ITrader {
                 address(this)
             )
         );
+        factory = _factory;
     }
 
     function filledAmount(Perpetuals.Order memory order) external view override returns (uint256) {
@@ -157,8 +160,10 @@ contract TraderMock is ITrader {
         // Kept in to meet ITrader interface
     }
 
-    function isValidPair(Perpetuals.Order memory order1, Perpetuals.Order memory order2) internal pure returns (bool) {
-        return (order1.market == order2.market);
+    function isValidPair(Perpetuals.Order memory order1, Perpetuals.Order memory order2) internal view returns (bool) {
+        bool marketsMatch = order1.market == order1.market;
+        bool isValidMarket = ITracerPerpetualsFactory(factory).validTracers(order1.market);
+        return marketsMatch && isValidMarket;
     }
 
     function verifySignature(address signer, Types.SignedLimitOrder memory signedOrder)
