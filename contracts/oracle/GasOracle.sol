@@ -52,10 +52,12 @@ contract GasOracle is IOracle, Ownable {
     }
 
     function setGasOracle(address _gasOracle) public onlyOwner {
+        require(_gasOracle != address(0), "address(0) given");
         gasOracle = IChainlinkOracle(_gasOracle);
     }
 
     function setPriceOracle(address _priceOracle) public onlyOwner {
+        require(_priceOracle != address(0), "address(0) given");
         priceOracle = IChainlinkOracle(_priceOracle);
     }
 
