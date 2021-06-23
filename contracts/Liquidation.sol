@@ -177,6 +177,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function checkPartialLiquidation(Balances.Position memory updatedPosition, uint256 lastUpdatedGasPrice)
         public
+        view
         returns (bool)
     {
         uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
