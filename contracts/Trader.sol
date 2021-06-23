@@ -240,7 +240,7 @@ contract Trader is ITrader {
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order calldata order) public view override returns (Perpetuals.Order memory) {
+    function getOrder(Perpetuals.Order calldata order) external view override returns (Perpetuals.Order memory) {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
     }

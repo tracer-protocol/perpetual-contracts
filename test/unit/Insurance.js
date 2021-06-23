@@ -87,14 +87,9 @@ const setup = deployments.createFixture(async () => {
 
     // this deploy method is needed for mocking
     const tracerContractFactory = await ethers.getContractFactory(
-        "TracerPerpetualSwaps",
-        {
-            libraries: {
-                // Perpetuals: libPerpetuals.address,
-                Prices: libPrices.address,
-            },
-        }
+        "TracerPerpetualSwaps"
     )
+
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
     let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%

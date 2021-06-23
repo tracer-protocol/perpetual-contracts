@@ -206,7 +206,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
         uint256 fillAmount
-    ) public override onlyWhitelisted returns (bool) {
+    ) external override onlyWhitelisted returns (bool) {
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
         uint256 filled1 = ITrader(msg.sender).filled(order1Id);
@@ -491,7 +491,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         return marginIsValid(accountBalance.position, accountBalance.lastUpdatedGasPrice);
     }
 
-    function withdrawFees() public override {
+    function withdrawFees() external override {
         uint256 tempFees = fees;
         fees = 0;
         tvl = tvl - tempFees;
@@ -501,52 +501,52 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         emit FeeWithdrawn(feeReceiver, tempFees);
     }
 
-    function getBalance(address account) public view override returns (Balances.Account memory) {
+    function getBalance(address account) external view override returns (Balances.Account memory) {
         return balances[account];
     }
 
-    function setLiquidationContract(address _liquidationContract) public override onlyOwner {
+    function setLiquidationContract(address _liquidationContract) external override onlyOwner {
         liquidationContract = _liquidationContract;
     }
 
-    function setInsuranceContract(address insurance) public override onlyOwner {
+    function setInsuranceContract(address insurance) external override onlyOwner {
         insuranceContract = IInsurance(insurance);
     }
 
-    function setPricingContract(address pricing) public override onlyOwner {
+    function setPricingContract(address pricing) external override onlyOwner {
         pricingContract = IPricing(pricing);
     }
 
-    function setGasOracle(address _gasOracle) public override onlyOwner {
+    function setGasOracle(address _gasOracle) external override onlyOwner {
         gasPriceOracle = _gasOracle;
     }
 
-    function setFeeReceiver(address _feeReceiver) public override onlyOwner {
+    function setFeeReceiver(address _feeReceiver) external override onlyOwner {
         feeReceiver = _feeReceiver;
         emit FeeReceiverUpdated(_feeReceiver);
     }
 
-    function setFeeRate(uint256 _feeRate) public override onlyOwner {
+    function setFeeRate(uint256 _feeRate) external override onlyOwner {
         feeRate = _feeRate;
     }
 
-    function setMaxLeverage(uint256 _maxLeverage) public override onlyOwner {
+    function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
         maxLeverage = _maxLeverage;
     }
 
-    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) public override onlyOwner {
+    function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external override onlyOwner {
         fundingRateSensitivity = _fundingRateSensitivity;
     }
 
-    function setDeleveragingCliff(uint256 _deleveragingCliff) public override onlyOwner {
+    function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
         deleveragingCliff = _deleveragingCliff;
     }
 
-    function setLowestMaxLeverage(uint256 _lowestMaxLeverage) public override onlyOwner {
+    function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external override onlyOwner {
         lowestMaxLeverage = _lowestMaxLeverage;
     }
 
-    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) public override onlyOwner {
+    function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 
