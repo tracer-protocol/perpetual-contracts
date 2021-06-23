@@ -6,15 +6,13 @@ import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
-import "./lib/SafetyWithdraw.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-contract Insurance is IInsurance, Ownable, SafetyWithdraw {
+contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
     ITracerPerpetualsFactory public perpsFactory;
@@ -30,7 +28,7 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
-    constructor(address _tracer) Ownable() {
+    constructor(address _tracer) {
         tracer = ITracerPerpetualSwaps(_tracer);
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
@@ -225,10 +223,6 @@ contract Insurance is IInsurance, Ownable, SafetyWithdraw {
         uint256 ratio = PRBMathUD60x18.div(poolTarget - poolHoldings, levNotionalValue);
 
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
-    }
-
-    function transferOwnership(address newOwner) public override(Ownable, IInsurance) onlyOwner {
-        super.transferOwnership(newOwner);
     }
 
     modifier onlyLiquidation() {
