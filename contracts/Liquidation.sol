@@ -51,6 +51,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param _pricing Pricing.sol contract address
      * @param _tracer TracerPerpetualSwaps.sol contract address
      * @param _insuranceContract Insurance.sol contract address
+     * @param _fastGasOracle Address of the contract that implements the IOracle.sol interface
      * @param _maxSlippage The maximum slippage percentage that is allowed on selling a
                            liquidated position. Given as a decimal WAD. e.g 5% = 0.05*10^18
      */
@@ -134,6 +135,17 @@ contract Liquidation is ILiquidation, Ownable {
         return liquidationReceipts[id];
     }
 
+    /**
+     * @notice Verify that a Liquidation is valid; submits liquidation receipt if it is
+     * @dev Reverts if the liquidation is invalid
+     * @param base Amount of base in the account to be liquidated (denominated in base tokens)
+     * @param price Fair price of the asset (denominated in quote/base)
+     * @param quote Amount of quote in the account to be liquidated (denominated in quote tokens)
+     * @param amount Amount of tokens to be liquidated
+     * @param gasPrice Current gas price, denominated in gwei
+     * @param account Account to be liquidated
+     * @return Amount to be escrowed for the liquidation
+     */
     function verifyAndSubmitLiquidation(
         int256 base,
         uint256 price,
@@ -453,12 +465,11 @@ contract Liquidation is ILiquidation, Ownable {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
     }
 
+    /**
+     * @notice Modifies the max slippage
+     * @param _maxSlippage new max slippage
+     */
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
         maxSlippage = _maxSlippage;
-    }
-
-    modifier onlyTracer() {
-        require(msg.sender == address(tracer), "LIQ: Caller not Tracer market");
-        _;
     }
 }

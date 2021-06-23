@@ -162,6 +162,13 @@ library Balances {
         return LibMath.min(orderA.amount - fillA, orderB.amount - fillB);
     }
 
+    /**
+     * @notice Applies changes to a position given a trade
+     * @param position Position of the people giving the trade
+     * @param trade Amount of the first order that has been filled
+     * @param feeRate Fee rate being applied to the trade
+     * @return New position
+     */
     function applyTrade(
         Position memory position,
         Trade memory trade,
@@ -188,6 +195,13 @@ library Balances {
         return newPosition;
     }
 
+    /**
+     * @notice Calculates the fee (in quote tokens)
+     * @param amount The position (in base tokens)
+     * @param executionPrice The execution price (denominated in quote/base)
+     * @param feeRate Fee rate being applied to the trade (a %, in WAD)
+     * @return Value of the fee being applied to the trade
+     */
     function getFee(
         uint256 amount,
         uint256 executionPrice,
@@ -197,15 +211,6 @@ library Balances {
 
         int256 fee = PRBMathUD60x18.mul(quoteChange, feeRate).toInt256();
         return fee;
-    }
-
-    function marginValid(
-        Position memory position,
-        uint256 price,
-        uint256 liquidationCost,
-        uint256 maximumLeverage
-    ) internal pure returns (bool) {
-        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
     }
 
     /**
