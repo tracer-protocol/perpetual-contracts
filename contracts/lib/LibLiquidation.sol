@@ -13,6 +13,7 @@ library LibLiquidation {
     using PRBMathUD60x18 for uint256;
     using PRBMathSD59x18 for int256;
 
+    // Information about the liquidation receipt
     struct LiquidationReceipt {
         address tracer;
         address liquidator;
