@@ -25,9 +25,9 @@ contract PerpsDeployerV1 is IPerpsDeployer {
             _data,
             (bytes32, address, uint256, address, uint256, uint256, uint256, address, uint256, uint256, uint256)
         );
-        require(_tracerQuoteToken != address(0), "TCRDeploy: _tracerQuoteToken = address(0)");
-        require(_gasPriceOracle != address(0), "TCRDeploy: _gasPriceOracle = address(0)");
-        require(_feeReceiver != address(0), "TCRDeploy: _feeReceiver = address(0)");
+        require(_tracerQuoteToken != address(0), "TCRDeploy: _tracerQuoteToken = 0");
+        require(_gasPriceOracle != address(0), "TCRDeploy: _gasPriceOracle = 0");
+        require(_feeReceiver != address(0), "TCRDeploy: _feeReceiver = 0");
         TracerPerpetualSwaps tracer = new TracerPerpetualSwaps(
             _tracerId,
             _tracerQuoteToken,
