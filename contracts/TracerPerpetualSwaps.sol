@@ -572,12 +572,17 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 
+<<<<<<< HEAD
     function transferOwnership(address newOwner)
         public
         override(Ownable, ITracerPerpetualSwaps)
         nonZeroAddress(newOwner)
         onlyOwner
     {
+=======
+    function transferOwnership(address newOwner) public override(Ownable, ITracerPerpetualSwaps) onlyOwner {
+        require(newOwner != address(0), "address(0) given");
+>>>>>>> 7993e2975fe7e1f948adaf6e748ae020f28fff9f
         super.transferOwnership(newOwner);
     }
 
