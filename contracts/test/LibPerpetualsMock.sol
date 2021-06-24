@@ -1,3 +1,4 @@
+//SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
 import "../lib/LibPerpetuals.sol";
@@ -5,6 +6,16 @@ import "../lib/LibPerpetuals.sol";
 contract PerpetualsMock {
     function orderId(Perpetuals.Order memory order) external pure returns (bytes32) {
         return Perpetuals.orderId(order);
+    }
+
+    function calculateAverageExecutionPrice(
+        uint256 oldFilledAmount,
+        uint256 oldAverage,
+        uint256 fillChange,
+        uint256 newFillExecutionPrice
+    ) external pure returns (uint256) {
+        return
+            Perpetuals.calculateAverageExecutionPrice(oldFilledAmount, oldAverage, fillChange, newFillExecutionPrice);
     }
 
     function calculateTrueMaxLeverage(

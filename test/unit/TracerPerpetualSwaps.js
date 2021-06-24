@@ -46,6 +46,11 @@ const setup = deployments.createFixture(async () => {
     pricing.smocked.currentFundingIndex.will.return(0)
     // pricing.smocked.getFundingRate.will.return
     // pricing.smocked.getInsuranceFundingRate.will.return
+    const traderDeployment = await deployments.get("Trader")
+    let traderInstance = await ethers.getContractAt(
+        traderDeployment.abi,
+        traderDeployment.address
+    )
 
     return {
         tracer,
@@ -54,6 +59,7 @@ const setup = deployments.createFixture(async () => {
         liquidation,
         quoteToken,
         deployer,
+        traderInstance,
     }
 })
 
@@ -65,9 +71,9 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let quoteToken
     let deployer
     let accounts
+    let traderInstance
 
     beforeEach(async function () {
-        // todo call setup
         let _setup = await setup()
         tracer = _setup.tracer
         insurance = _setup.insurance
@@ -75,6 +81,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         liquidation = _setup.liquidation
         quoteToken = _setup.quoteToken
         deployer = _setup.deployer
+        traderInstance = _setup.traderInstance
         accounts = await ethers.getSigners()
     })
 
@@ -209,6 +216,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     3621988237, //unrealistic unix timestamp
                     1621988237,
                 ]
+                const mockSignedOrder1 = [
+                    order1,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order2 = [
                     deployer,
@@ -219,13 +232,22 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     3621988237, //unrealistic unix timestamp
                     1621988237,
                 ]
+                const mockSignedOrder2 = [
+                    order2,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 // will return false and not update state
                 let balanceBefore = await tracer.balances(deployer)
-                await expect(tracer.matchOrders(order1, order2)).to.emit(
-                    tracer,
-                    "FailedOrders"
+                const tx = traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
                 )
+                await expect(tx).to.emit(tracer, "FailedOrders")
+                await traderInstance.clearFilled(mockSignedOrder1)
+                await traderInstance.clearFilled(mockSignedOrder2)
                 let balanceAfter = await tracer.balances(deployer)
                 // every field should match EXCEPT for last updated gas price
                 for (var i = 0; i < 3; i++) {
@@ -259,6 +281,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     3621988237, //unrealistic unix timestamp
                     1621988237,
                 ]
+                const mockSignedOrder1 = [
+                    order1,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order2 = [
                     accounts[1].address,
@@ -269,12 +297,21 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     3621988237, //unrealistic unix timestamp
                     1621988237,
                 ]
+                const mockSignedOrder2 = [
+                    order2,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let balanceBefore = await tracer.balances(deployer)
-                await expect(tracer.matchOrders(order1, order2)).to.emit(
-                    tracer,
-                    "FailedOrders"
+                const tx = traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
                 )
+                await expect(tx).to.emit(tracer, "FailedOrders")
+                await traderInstance.clearFilled(mockSignedOrder1)
+                await traderInstance.clearFilled(mockSignedOrder2)
                 let balanceAfter = await tracer.balances(deployer)
 
                 // every field should match EXCEPT for last updated gas price
@@ -317,7 +354,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         ethers.utils.parseEther("1"),
                         ethers.utils.parseEther("1")
                     )
-                ).to.be.revertedWith("TCR: Liquidator under margin")
+                ).to.be.revertedWith("TCR: Liquidator under min margin")
             })
         })
 
@@ -471,6 +508,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now - 1,
                 }
+                const mockSignedOrder1 = [
+                    order1,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order2 = {
                     maker: accounts[2].address,
@@ -481,13 +524,22 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now,
                 }
+                const mockSignedOrder2 = [
+                    order2,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 // check pricing is in hour 0
                 let currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(0)
 
                 // place trades
-                await tracer.connect(accounts[0]).matchOrders(order1, order2)
+                await traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
+                )
             })
 
             it("pays the funding rate", async () => {
@@ -507,104 +559,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
         context("if the account is under margin", async () => {
             it("reverts", async () => {})
-        })
-    })
-
-    describe("marginIsValid", async () => {
-        // TODO: add tests with negative base/quote
-        context("when margin >= minMargin", async () => {
-            it("returns true", async () => {
-                // Say, quote = 3; base = 2; price = 2;
-                // maxLev = 12.5; liquidationGasCost = 0
-                let pos = [
-                    ethers.utils.parseEther("3"), // quote
-                    ethers.utils.parseEther("2"), // base
-                ]
-                pricing.smocked.fairPrice.will.return.with(
-                    ethers.utils.parseEther("2")
-                )
-                let gasCost = ethers.BigNumber.from("0")
-                // margin = quote + base * price = 3 + 2 * 2 = 7
-                // minMargin = notionalValue / maxLev + liquidationGasCost
-                //           = (base * price) / maxLev + liquidationGasCost
-                //           = (2 * 2) / 12.5 + 0 = 0.32
-                // margin > minMargin
-
-                let result = await tracer.marginIsValid(pos, gasCost)
-                expect(result).to.equal(true)
-            })
-        })
-
-        context("when margin < minMargin", async () => {
-            it("returns false", async () => {
-                // Say, quote = -3; base = 2; price = 2;
-                // maxLev = 2; liquidationGasCost = 0
-                let pos = [
-                    ethers.utils.parseEther("-3"), // quote
-                    ethers.utils.parseEther("2"), // base
-                ]
-                await pricing.smocked.fairPrice.will.return.with(
-                    ethers.utils.parseEther("2")
-                )
-                await tracer.setMaxLeverage(ethers.utils.parseEther("2"))
-                await tracer.setLowestMaxLeverage(ethers.utils.parseEther("2"))
-                let gasCost = ethers.BigNumber.from("0")
-                // margin = quote + base * price = -3 + 2 * 2 = 1
-                // minMargin = notionalValue / maxLev + liquidationGasCost
-                //           = (base * price) / maxLev + liquidationGasCost
-                //           = (2 * 2) / 2 + 0 = 2
-                // minMargin > margin
-
-                let result = await tracer.marginIsValid(pos, gasCost)
-                expect(result).to.equal(false)
-            })
-        })
-
-        // NOTE: These tests are under the assumption that gasCost isn't being accounted for
-        // (i.e. is zero). In normal situations, gasCost > 0 and thus minMargin won't ever be 0
-        context("when minMargin == 0", async () => {
-            context("when quote > 0", async () => {
-                it("returns true", async () => {
-                    // Say, quote = 1; base = 0; price = 2;
-                    // maxLev = 12.5; liquidationGasCost = 0
-                    let pos = [
-                        ethers.utils.parseEther("1"), // quote
-                        ethers.utils.parseEther("0"), // base
-                    ]
-                    await pricing.smocked.fairPrice.will.return.with(
-                        ethers.utils.parseEther("2")
-                    )
-                    let gasCost = ethers.BigNumber.from("0")
-                    // margin = quote + base * price = 1 + 2 * 2 = 1
-                    // minMargin = notionalValue / maxLev + liquidationGasCost
-                    //           = (base * price) / maxLev + liquidationGasCost
-                    //           = (0 * 2) / 2 + 0 = 2 (>= 0)
-                    // minMargin > margin
-
-                    let result = await tracer.marginIsValid(pos, gasCost)
-                    expect(result).to.equal(true)
-                })
-            })
-            context("when quote == 0", async () => {
-                it("returns true", async () => {
-                    // Say, quote = 1; base = 0; price = 2;
-                    // maxLev = 12.5; liquidationGasCost = 0
-                    let pos = [
-                        ethers.utils.parseEther("1"), // quote
-                        ethers.utils.parseEther("0"), // base
-                    ]
-                    await pricing.smocked.fairPrice.will.return.with(
-                        ethers.utils.parseEther("2")
-                    )
-                    let gasCost = ethers.BigNumber.from("0")
-                    // minMargin = notionalValue / maxLev + liquidationGasCost
-                    //           = (base * price) / maxLev + liquidationGasCost
-                    //           = (0 * 2) / 2 + 0 = 0 (>= 0)
-
-                    let result = await tracer.marginIsValid(pos, gasCost)
-                    expect(result).to.equal(true)
-                })
-            })
         })
     })
 
@@ -727,6 +681,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now - 1,
                 }
+                const mockSignedOrder1 = [
+                    order1,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
                 let order2 = {
                     maker: accounts[2].address,
@@ -737,9 +697,19 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     expires: now + 604800, // now + 7 days
                     created: now,
                 }
+                const mockSignedOrder2 = [
+                    order2,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
 
-                await tracer.connect(accounts[0]).matchOrders(order1, order2)
+                await traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
+                )
             })
+
             it("withdraws the fees", async () => {
                 let feeReceiver = await tracer.feeReceiver()
                 let balanceBefore = await quoteToken.balanceOf(feeReceiver)

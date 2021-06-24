@@ -16,6 +16,11 @@ async function main() {
         0
     )
     let tracerInstance = new ethers.Contract(tracer, tracerAbi)
+    const traderDeployment = await deployments.get("Trader")
+    let traderInstance = await ethers.getContractAt(
+        traderDeployment.abi,
+        traderDeployment.address
+    )
 
     // approve for deployer
     console.log(`Approving tokens for the deployer: ${deployer.address}`)
@@ -96,9 +101,21 @@ async function main() {
             block.timestamp + 100, // expiry,
             0, // created
         ]
+        const mockSignedMake = [
+            makerOrder,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
+        const mockSignedTake = [
+            takerOrder,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
 
         console.log("Matching orders")
-        await tracerInstance.matchOrders(makerOrder, takerOrder)
+        await traderInstance.executeTrade([mockSignedMake], [mockSignedTake])
         console.log("Successfully matched orders")
         let newPrice = price
             .add(Math.random() > 0.5 ? smallAmount : smallAmount.mul(-1))

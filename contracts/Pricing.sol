@@ -8,9 +8,8 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Pricing is IPricing, Ownable {
+contract Pricing is IPricing {
     using LibMath for uint256;
     using LibMath for int256;
     using PRBMathSD59x18 for int256;
@@ -36,9 +35,9 @@ contract Pricing is IPricing, Ownable {
     uint256 public override currentFundingIndex;
 
     // timing variables
-    uint256 internal startLastHour;
-    uint256 internal startLast24Hours;
-    uint8 public currentHour;
+    uint256 public startLastHour;
+    uint256 public startLast24Hours;
+    uint8 public override currentHour;
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
     event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
@@ -54,7 +53,10 @@ contract Pricing is IPricing, Ownable {
         address _tracer,
         address _insurance,
         address _oracle
-    ) Ownable() {
+    ) {
+        require(_tracer != address(0), "PRC: _tracer = address(0)");
+        require(_insurance != address(0), "PRC: _insurance = address(0)");
+        require(_oracle != address(0), "PRC: _oracle = address(0)");
         tracer = _tracer;
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);
@@ -66,9 +68,8 @@ contract Pricing is IPricing, Ownable {
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
      * @param tradePrice the price the trade executed at
-     * @param tradeVolume the volume of the order
      */
-    function recordTrade(uint256 tradePrice, uint256 tradeVolume) external override onlyTracer {
+    function recordTrade(uint256 tradePrice) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
@@ -76,7 +77,7 @@ contract Pricing is IPricing, Ownable {
             emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
             // update funding rate for the previous hour
-            updateFundingRate(currentOraclePrice);
+            updateFundingRate();
 
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
@@ -139,9 +140,8 @@ contract Pricing is IPricing, Ownable {
 
     /**
      * @notice Updates the funding rate and the insurance funding rate
-     * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
      */
-    function updateFundingRate(uint256 oraclePrice) internal {
+    function updateFundingRate() internal {
         // Get 8 hour time-weighted-average price (TWAP) and calculate the new funding rate and store it a new variable
         ITracerPerpetualSwaps _tracer = ITracerPerpetualSwaps(tracer);
         Prices.TWAP memory twapPrices = getTWAPs(currentHour);
@@ -174,7 +174,7 @@ contract Pricing is IPricing, Ownable {
     /**
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
-    function fairPrice() public view override returns (uint256) {
+    function fairPrice() external view override returns (uint256) {
         return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 
@@ -221,14 +221,14 @@ contract Pricing is IPricing, Ownable {
     /**
      * @return each variable of the fundingRate struct of a particular tracer at a particular funding rate index
      */
-    function getFundingRate(uint256 index) public view override returns (Prices.FundingRateInstant memory) {
+    function getFundingRate(uint256 index) external view override returns (Prices.FundingRateInstant memory) {
         return fundingRates[index];
     }
 
     /**
      * @return all of the variables in the funding rate struct (insurance rate) from a particular tracer market
      */
-    function getInsuranceFundingRate(uint256 index) public view override returns (Prices.FundingRateInstant memory) {
+    function getInsuranceFundingRate(uint256 index) external view override returns (Prices.FundingRateInstant memory) {
         return insuranceFundingRates[index];
     }
 
@@ -262,12 +262,8 @@ contract Pricing is IPricing, Ownable {
      * @notice Gets the average oracle price for a given market during a certain hour
      * @param hour The hour of which you want the hourly average Price
      */
-    function getHourlyAvgOraclePrice(uint256 hour) public view override returns (uint256) {
+    function getHourlyAvgOraclePrice(uint256 hour) external view override returns (uint256) {
         return Prices.averagePrice(hourlyOraclePrices[hour]);
-    }
-
-    function transferOwnership(address newOwner) public override(Ownable, IPricing) onlyOwner {
-        super.transferOwnership(newOwner);
     }
 
     /**

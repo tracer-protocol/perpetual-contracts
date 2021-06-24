@@ -13,6 +13,7 @@ library LibLiquidation {
     using PRBMathUD60x18 for uint256;
     using PRBMathSD59x18 for int256;
 
+    // Information about the liquidation receipt
     struct LiquidationReceipt {
         address tracer;
         address liquidator;
@@ -123,7 +124,6 @@ library LibLiquidation {
 
             // The difference in how much was expected vs how much liquidator actually got.
             // i.e. The amount lost by liquidator
-            // todo this can probably be further simplified
             uint256 amountToReturn = 0;
             uint256 percentSlippage = 0;
             if (avgPrice < receipt.price && receipt.liquidationSide == Perpetuals.Side.Long) {

@@ -29,6 +29,15 @@ contract LibBalancesMock {
         return Balances.minimumMargin(position, price, liquidationGasCost, maximumLeverage);
     }
 
+    function marginIsValid(
+        Balances.Position memory position,
+        uint256 gasCost,
+        uint256 price,
+        uint256 trueMaxLeverage
+    ) external pure returns (bool) {
+        return Balances.marginIsValid(position, gasCost, price, trueMaxLeverage);
+    }
+
     function applyTrade(
         Balances.Position calldata position,
         Balances.Trade calldata trade,

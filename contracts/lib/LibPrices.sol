@@ -25,11 +25,11 @@ library Prices {
         uint256 derivative;
     }
 
-    function fairPrice(uint256 oraclePrice, int256 _timeValue) public pure returns (uint256) {
+    function fairPrice(uint256 oraclePrice, int256 _timeValue) internal pure returns (uint256) {
         return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
-    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) public pure returns (int256) {
+    function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) internal pure returns (int256) {
         return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
     }
 
@@ -38,7 +38,7 @@ library Prices {
      * @param price Current cumulative price and number of trades in a time period
      * @return Average price for given instance
      */
-    function averagePrice(PriceInstant memory price) public pure returns (uint256) {
+    function averagePrice(PriceInstant memory price) internal pure returns (uint256) {
         // todo double check safety of this.
         // average price == 0 is not neccesarily the
         // same as no trades in average
@@ -54,10 +54,9 @@ library Prices {
      * @param prices Array of PriceInstant instances in the 24 hour period
      * @return Average price in the time period (non-weighted)
      */
-    function averagePriceForPeriod(PriceInstant[24] memory prices) public pure returns (uint256) {
+    function averagePriceForPeriod(PriceInstant[24] memory prices) internal pure returns (uint256) {
         uint256[] memory averagePrices = new uint256[](24);
 
-        // TODO: make sure this procedure is gas-optimised
         uint256 j = 0;
         for (uint256 i = 0; i < 24; i++) {
             PriceInstant memory currPrice = prices[i];
@@ -86,8 +85,8 @@ library Prices {
         uint256 _globalLeverage,
         uint256 oldLeverage,
         uint256 newLeverage
-    ) public pure returns (uint256) {
-        int256 newGlobalLeverage = int256(_globalLeverage) + (int256(newLeverage) - int256(oldLeverage));
+    ) internal pure returns (uint256) {
+        int256 newGlobalLeverage = _globalLeverage.toInt256() + newLeverage.toInt256() - oldLeverage.toInt256();
 
         // note: this would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
@@ -113,7 +112,7 @@ library Prices {
         uint256 hour,
         PriceInstant[24] memory tracerPrices,
         PriceInstant[24] memory oraclePrices
-    ) public pure returns (TWAP memory) {
+    ) internal pure returns (TWAP memory) {
         require(hour < 24, "Hour index not valid");
 
         uint256 totalDerivativeTimeWeight = 0;
@@ -160,7 +159,6 @@ library Prices {
         return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, cumulativeDerivative / totalDerivativeTimeWeight);
     }
 
-    // TODO test these
     /**
      * @notice Calculates and returns the effect of the funding rate to a position.
      * @param position Position of the user
@@ -185,28 +183,33 @@ library Prices {
             );
     }
 
+    /**
+     * @notice Given a user's position and totalLeveragedValue, and insurance funding rate,
+               update the user's and insurance pool's balance
+     * @param userPosition The position that is to pay insurance funding rate
+     * @param insurancePosition The insurance pool's position in the market
+     * @param insuranceGlobalRate The global insurance funding rate
+     * @param insuranceUserRate The user's insurance funding rate
+     * @param totalLeveragedValue The user's total leveraged value
+     * @return newUserPos The updated position of the user
+     * @return newInsurancePos The updated position of the insurance pool
+     */
     function applyInsurance(
         Balances.Position memory userPosition,
         Balances.Position memory insurancePosition,
-        FundingRateInstant memory globalRate,
-        FundingRateInstant memory userRate,
+        FundingRateInstant memory insuranceGlobalRate,
+        FundingRateInstant memory insuranceUserRate,
         uint256 totalLeveragedValue
-    ) internal pure returns (Balances.Position memory, Balances.Position memory) {
+    ) internal pure returns (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) {
         int256 insuranceDelta = PRBMathSD59x18.mul(
-            globalRate.fundingRate - userRate.fundingRate,
-            int256(totalLeveragedValue)
+            insuranceGlobalRate.fundingRate - insuranceUserRate.fundingRate,
+            totalLeveragedValue.toInt256()
         );
 
         if (insuranceDelta > 0) {
-            Balances.Position memory newUserPos = Balances.Position(
-                userPosition.quote - insuranceDelta,
-                userPosition.base
-            );
+            newUserPos = Balances.Position(userPosition.quote - insuranceDelta, userPosition.base);
 
-            Balances.Position memory newInsurancePos = Balances.Position(
-                insurancePosition.quote + insuranceDelta,
-                insurancePosition.base
-            );
+            newInsurancePos = Balances.Position(insurancePosition.quote + insuranceDelta, insurancePosition.base);
 
             return (newUserPos, newInsurancePos);
         } else {

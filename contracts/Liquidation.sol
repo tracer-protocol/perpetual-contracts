@@ -32,8 +32,6 @@ contract Liquidation is ILiquidation, Ownable {
 
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
-    // Factor to keep precision in percent calculations
-    int256 private constant PERCENT_PRECISION = 10000;
 
     event ClaimedReceipts(address indexed liquidator, address indexed market, uint256 indexed receiptId);
     event ClaimedEscrow(address indexed liquidatee, address indexed market, uint256 indexed id);
@@ -47,6 +45,14 @@ contract Liquidation is ILiquidation, Ownable {
     );
     event InvalidClaimOrder(uint256 indexed receiptId);
 
+    /**
+     * @param _pricing Pricing.sol contract address
+     * @param _tracer TracerPerpetualSwaps.sol contract address
+     * @param _insuranceContract Insurance.sol contract address
+     * @param _fastGasOracle Address of the contract that implements the IOracle.sol interface
+     * @param _maxSlippage The maximum slippage percentage that is allowed on selling a
+                           liquidated position. Given as a decimal WAD. e.g 5% = 0.05*10^18
+     */
     constructor(
         address _pricing,
         address _tracer,
@@ -54,6 +60,10 @@ contract Liquidation is ILiquidation, Ownable {
         address _fastGasOracle,
         uint256 _maxSlippage
     ) Ownable() {
+        require(_pricing != address(0), "LIQ: _pricing = address(0)");
+        require(_tracer != address(0), "LIQ: _tracer = address(0)");
+        require(_insuranceContract != address(0), "LIQ: _insuranceContract = address(0)");
+        require(_fastGasOracle != address(0), "LIQ: _fastGasOracle = address(0)");
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -100,9 +110,8 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Allows a trader to claim escrowed funds after the escrow period has expired
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId) public override onlyTracer {
+    function claimEscrow(uint256 receiptId) public override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
-        require(receipt.liquidatee == msg.sender, "LIQ: Liquidatee mismatch");
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
 
@@ -128,6 +137,17 @@ contract Liquidation is ILiquidation, Ownable {
         return liquidationReceipts[id];
     }
 
+    /**
+     * @notice Verify that a Liquidation is valid; submits liquidation receipt if it is
+     * @dev Reverts if the liquidation is invalid
+     * @param base Amount of base in the account to be liquidated (denominated in base tokens)
+     * @param price Fair price of the asset (denominated in quote/base)
+     * @param quote Amount of quote in the account to be liquidated (denominated in quote tokens)
+     * @param amount Amount of tokens to be liquidated
+     * @param gasPrice Current gas price, denominated in gwei
+     * @param account Account to be liquidated
+     * @return Amount to be escrowed for the liquidation
+     */
     function verifyAndSubmitLiquidation(
         int256 base,
         uint256 price,
@@ -137,24 +157,22 @@ contract Liquidation is ILiquidation, Ownable {
         address account
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
-        // Limits the gas use when liquidating
         require(tx.gasprice <= IOracle(fastGasOracle).latestAnswer(), "LIQ: GasPrice > FGasPrice");
 
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
         int256 currentMargin = Balances.margin(pos, price);
-        // todo CASTING CHECK
         require(
             currentMargin <= 0 ||
-                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
             "LIQ: Account above margin"
         );
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
         uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            Balances.minimumMargin(pos, price, gasCost, tracer.maxLeverage()),
+            Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
             currentMargin,
             amount,
             base
@@ -173,6 +191,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function checkPartialLiquidation(Balances.Position memory updatedPosition, uint256 lastUpdatedGasPrice)
         public
+        view
         returns (bool)
     {
         uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
@@ -196,6 +215,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function liquidate(int256 amount, address account) external override {
         /* Liquidated account's balance */
+        require(account != address(0), "LIQ: Liquidate zero address");
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
 
         uint256 amountToEscrow = verifyAndSubmitLiquidation(
@@ -225,7 +245,7 @@ contract Liquidation is ILiquidation, Ownable {
 
         require(
             checkPartialLiquidation(updatedPosition, liquidatedBalance.lastUpdatedGasPrice),
-            "LIQ: Liquidation leaves too little left over"
+            "LIQ: leaves too little left over"
         );
 
         tracer.updateAccountsOnLiquidation(
@@ -288,12 +308,13 @@ contract Liquidation is ILiquidation, Ownable {
                 continue;
             }
             uint256 orderFilled = ITrader(traderContract).filledAmount(order);
+            uint256 averageExecutionPrice = ITrader(traderContract).getAverageExecutionPrice(order);
 
             /* order.created >= receipt.time
              * && order.maker == receipt.liquidator
              * && order.side != receipt.liquidationSide */
             unitsSold = unitsSold + orderFilled;
-            avgPrice = avgPrice + (order.price * orderFilled);
+            avgPrice = avgPrice + (averageExecutionPrice * orderFilled);
         }
 
         // Avoid divide by 0 if no orders sold
@@ -382,12 +403,11 @@ contract Liquidation is ILiquidation, Ownable {
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
-
+        require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
         // Mark refund as claimed
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
-
-        require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
+        liquidationReceipts[receiptId].escrowClaimed = true;
         require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
         require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
@@ -416,6 +436,7 @@ contract Liquidation is ILiquidation, Ownable {
             amountToGiveToClaimant = amountToReturn;
             amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
         }
+
         tracer.updateAccountsOnClaim(
             receipt.liquidator,
             amountToGiveToClaimant.toInt256(),
@@ -426,7 +447,12 @@ contract Liquidation is ILiquidation, Ownable {
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, ILiquidation) onlyOwner {
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ILiquidation)
+        nonZeroAddress(newOwner)
+        onlyOwner
+    {
         super.transferOwnership(newOwner);
     }
 
@@ -447,12 +473,16 @@ contract Liquidation is ILiquidation, Ownable {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
     }
 
+    /**
+     * @notice Modifies the max slippage
+     * @param _maxSlippage new max slippage
+     */
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
         maxSlippage = _maxSlippage;
     }
 
-    modifier onlyTracer() {
-        require(msg.sender == address(tracer), "LIQ: Caller not Tracer market");
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "address(0) given");
         _;
     }
 }

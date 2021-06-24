@@ -76,11 +76,10 @@ library Balances {
      * @param price The price of the base asset
      */
     function leveragedNotionalValue(Position memory position, uint256 price) internal pure returns (uint256) {
-        uint256 notionalValue = notionalValue(position, price);
-        (position, price);
+        uint256 _notionalValue = notionalValue(position, price);
         int256 marginValue = margin(position, price);
 
-        int256 signedNotionalValue = LibMath.toInt256(notionalValue);
+        int256 signedNotionalValue = LibMath.toInt256(_notionalValue);
 
         if (signedNotionalValue - marginValue < 0) {
             return 0;
@@ -112,23 +111,46 @@ library Balances {
             return 0;
         }
 
-        uint256 notionalValue = notionalValue(position, price);
+        uint256 _notionalValue = notionalValue(position, price);
 
-        // todo confirm that liquidation gas cost should be a WAD value
         uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
 
-        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(notionalValue, maximumLeverage);
+        uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(_notionalValue, maximumLeverage);
 
         return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
+    }
+
+    /**
+     * @notice Checks the validity of a potential margin given the necessary parameters
+     * @param position The position
+     * @param liquidationGasCost The cost of calling liquidate
+     * @return a bool representing the validity of a margin
+     */
+    function marginIsValid(
+        Balances.Position memory position,
+        uint256 liquidationGasCost,
+        uint256 price,
+        uint256 trueMaxLeverage
+    ) internal pure returns (bool) {
+        uint256 minMargin = minimumMargin(position, price, liquidationGasCost, trueMaxLeverage);
+        int256 _margin = margin(position, price);
+
+        if (_margin < 0) {
+            /* Margin being less than 0 is always invalid, even if position is 0.
+               This could happen if user attempts to over-withdraw */
+            return false;
+        }
+
+        return (uint256(_margin) >= minMargin);
     }
 
     /**
      * @notice Gets the amount that can be matched between two orders
      *         Calculated as min(amountRemaining)
      * @param orderA First order
-     * @param fillA Amount of the first order remaining to be filled
+     * @param fillA Amount of the first order that has been filled
      * @param orderB Second order
-     * @param fillB Amount of the second order remaining to be filled
+     * @param fillB Amount of the second order that has been filled
      * @return Amount matched between two orders
      */
     function fillAmount(
@@ -140,6 +162,13 @@ library Balances {
         return LibMath.min(orderA.amount - fillA, orderB.amount - fillB);
     }
 
+    /**
+     * @notice Applies changes to a position given a trade
+     * @param position Position of the people giving the trade
+     * @param trade Amount of the first order that has been filled
+     * @param feeRate Fee rate being applied to the trade
+     * @return New position
+     */
     function applyTrade(
         Position memory position,
         Trade memory trade,
@@ -166,6 +195,13 @@ library Balances {
         return newPosition;
     }
 
+    /**
+     * @notice Calculates the fee (in quote tokens)
+     * @param amount The position (in base tokens)
+     * @param executionPrice The execution price (denominated in quote/base)
+     * @param feeRate Fee rate being applied to the trade (a %, in WAD)
+     * @return Value of the fee being applied to the trade
+     */
     function getFee(
         uint256 amount,
         uint256 executionPrice,
@@ -177,22 +213,13 @@ library Balances {
         return fee;
     }
 
-    function marginValid(
-        Position memory position,
-        uint256 price,
-        uint256 liquidationCost,
-        uint256 maximumLeverage
-    ) internal pure returns (bool) {
-        return uint256(margin(position, price)) >= minimumMargin(position, price, liquidationCost, maximumLeverage);
-    }
-
     /**
      * @notice converts a raw token amount to its WAD representation. Used for tokens
      * that don't have 18 decimal places
      */
     function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
-        int256 scaler = int256(10**(MAX_DECIMALS - tokenDecimals));
-        return amount.toInt256() * scaler;
+        uint256 scaler = 10**(MAX_DECIMALS - tokenDecimals);
+        return amount.toInt256() * scaler.toInt256();
     }
 
     /**

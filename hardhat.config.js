@@ -6,6 +6,7 @@ require("hardhat-abi-exporter")
 require("hardhat-typechain")
 require("@nomiclabs/hardhat-etherscan")
 require("solidity-coverage")
+require("hardhat-gas-reporter")
 
 const mnemonic = ""
 
@@ -61,5 +62,9 @@ module.exports = {
         // Your API key for Etherscan
         // Obtain one at https://etherscan.io/
         apiKey: "API_KEY",
+    },
+    gasReporter: {
+        currency: "AUD",
+        coinmarketcap: "49e42c5c-1288-4e17-8c27-cd1a0aba014d",
     },
 }

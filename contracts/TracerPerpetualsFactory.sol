@@ -107,8 +107,6 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
 
         // Ownership either to the deployer or the DAO
         tracer.transferOwnership(tracerOwner);
-        IInsurance(insurance).transferOwnership(tracerOwner);
-        IPricing(pricing).transferOwnership(tracerOwner);
         ILiquidation(liquidation).transferOwnership(tracerOwner);
         emit TracerDeployed(tracer.marketId(), address(tracer));
         return market;
@@ -118,20 +116,40 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Sets the perpsDeployer contract for tracers markets.
      * @param newDeployer the new perpsDeployer contract address
      */
-    function setPerpsDeployerContract(address newDeployer) public override onlyOwner() {
+    function setPerpsDeployerContract(address newDeployer) public override nonZeroAddress(newDeployer) onlyOwner() {
         perpsDeployer = newDeployer;
     }
 
-    function setInsuranceDeployerContract(address newInsuranceDeployer) public override onlyOwner() {
+    function setInsuranceDeployerContract(address newInsuranceDeployer)
+        public
+        override
+        nonZeroAddress(newInsuranceDeployer)
+        onlyOwner()
+    {
         insuranceDeployer = newInsuranceDeployer;
     }
 
-    function setPricingDeployerContract(address newPricingDeployer) public override onlyOwner() {
+    function setPricingDeployerContract(address newPricingDeployer)
+        public
+        override
+        nonZeroAddress(newPricingDeployer)
+        onlyOwner()
+    {
         pricingDeployer = newPricingDeployer;
     }
 
-    function setLiquidationDeployerContract(address newLiquidationDeployer) public override onlyOwner() {
+    function setLiquidationDeployerContract(address newLiquidationDeployer)
+        public
+        override
+        nonZeroAddress(newLiquidationDeployer)
+        onlyOwner()
+    {
         liquidationDeployer = newLiquidationDeployer;
+    }
+
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "address(0) given");
+        _;
     }
 
     /**

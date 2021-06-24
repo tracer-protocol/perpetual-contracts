@@ -13,6 +13,11 @@ library LibMath {
         return x > 0 ? int256(x) : int256(-1 * x);
     }
 
+    /**
+     * @notice Get sum of an (unsigned) array
+     * @param arr Array to get the sum of
+     * @return Sum of first n elements
+     */
     function sum(uint256[] memory arr) internal pure returns (uint256) {
         uint256 n = arr.length;
         uint256 total = 0;
@@ -25,7 +30,7 @@ library LibMath {
     }
 
     /**
-     * @notice Get sum of array, for the first `n` elements
+     * @notice Get sum of an (unsigned) array, for the first n elements
      * @param arr Array to get the sum of
      * @param n The number of (first) elements you want to sum up
      * @return Sum of first n elements
@@ -40,13 +45,19 @@ library LibMath {
         return total;
     }
 
+    /**
+     * @notice Get the mean of an (unsigned) array
+     * @param arr Array of uint256's
+     * @return The mean of the array's elements
+     */
     function mean(uint256[] memory arr) internal pure returns (uint256) {
         uint256 n = arr.length;
 
         return sum(arr) / n;
     }
 
-    /** @notice Get mean of array
+    /**
+     * @notice Get the mean of the first n elements of an (unsigned) array
      * @dev Used for zero-initialised arrays where you only want to calculate
      *      the mean of the first n (populated) elements; rest are 0
      * @param arr Array to get the mean of
@@ -57,10 +68,22 @@ library LibMath {
         return sumN(arr, len) / len;
     }
 
+    /**
+     * @notice Get the minimum of two unsigned numbers
+     * @param a First number
+     * @param b Second number
+     * @return Minimum of the two
+     */
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
 
+    /**
+     * @notice Get the minimum of two signed numbers
+     * @param a First (signed) number
+     * @param b Second (signed) number
+     * @return Minimum of the two number
+     */
     function signedMin(int256 a, int256 b) internal pure returns (int256) {
         return a < b ? a : b;
     }
