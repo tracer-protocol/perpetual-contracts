@@ -9,6 +9,7 @@ import "../Interfaces/deployers/IInsuranceDeployer.sol";
  */
 contract InsuranceDeployerV1 is IInsuranceDeployer {
     function deploy(address tracer) external override returns (address) {
+        require(tracer != address(0), "INSDeploy: tracer = address(0)");
         Insurance insurance = new Insurance(tracer);
         return address(insurance);
     }

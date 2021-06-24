@@ -11,11 +11,15 @@ contract LiquidationDeployerV1 is ILiquidationDeployer {
     function deploy(
         address pricing,
         address tracer,
-        address insuranceContract,
+        address insurance,
         address fastGasOracle,
         uint256 maxSlippage
     ) external override returns (address) {
-        Liquidation liquidation = new Liquidation(pricing, tracer, insuranceContract, fastGasOracle, maxSlippage);
+        require(pricing != address(0), "LIQDeploy: pricing = address(0)");
+        require(tracer != address(0), "LIQDeploy: tracer = address(0)");
+        require(insurance != address(0), "LIQDeploy: insurance = address(0)");
+        require(fastGasOracle != address(0), "LIQDeploy: fastGasOracle = address(0)");
+        Liquidation liquidation = new Liquidation(pricing, tracer, insurance, fastGasOracle, maxSlippage);
         liquidation.transferOwnership(msg.sender);
         return address(liquidation);
     }

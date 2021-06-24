@@ -103,6 +103,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         uint256 _insurancePoolSwitchStage
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
+        require(_tracerQuoteToken != address(0), "TCR: _tracerQuoteToken = address(0)");
+        require(_gasPriceOracle != address(0), "TCR: _gasPriceOracle = address(0)");
+        require(_feeReceiver != address(0), "TCR: _feeReceiver = address(0)");
         tracerQuoteToken = _tracerQuoteToken;
         quoteTokenDecimals = _tokenDecimals;
         gasPriceOracle = _gasPriceOracle;
@@ -519,28 +522,28 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         return balances[account];
     }
 
-    function setLiquidationContract(address _liquidationContract) external override onlyOwner {
-        require(_liquidationContract != address(0), "address(0) given");
+    function setLiquidationContract(address _liquidationContract)
+        external
+        override
+        nonZeroAddress(_liquidationContract)
+        onlyOwner
+    {
         liquidationContract = _liquidationContract;
     }
 
-    function setInsuranceContract(address insurance) external override onlyOwner {
-        require(insurance != address(0), "address(0) given");
+    function setInsuranceContract(address insurance) external override nonZeroAddress(insurance) onlyOwner {
         insuranceContract = IInsurance(insurance);
     }
 
-    function setPricingContract(address pricing) external override onlyOwner {
-        require(pricing != address(0), "address(0) given");
+    function setPricingContract(address pricing) external override nonZeroAddress(pricing) onlyOwner {
         pricingContract = IPricing(pricing);
     }
 
-    function setGasOracle(address _gasOracle) external override onlyOwner {
-        require(_gasOracle != address(0), "address(0) given");
+    function setGasOracle(address _gasOracle) external override nonZeroAddress(_gasOracle) onlyOwner {
         gasPriceOracle = _gasOracle;
     }
 
-    function setFeeReceiver(address _feeReceiver) external override onlyOwner {
-        require(_feeReceiver != address(0), "address(0) given");
+    function setFeeReceiver(address _feeReceiver) external override nonZeroAddress(_feeReceiver) onlyOwner {
         feeReceiver = _feeReceiver;
         emit FeeReceiverUpdated(_feeReceiver);
     }
@@ -569,9 +572,18 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, ITracerPerpetualSwaps) onlyOwner {
-        require(newOwner != address(0), "address(0) given");
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ITracerPerpetualSwaps)
+        nonZeroAddress(newOwner)
+        onlyOwner
+    {
         super.transferOwnership(newOwner);
+    }
+
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "address(0) given");
+        _;
     }
 
     /**

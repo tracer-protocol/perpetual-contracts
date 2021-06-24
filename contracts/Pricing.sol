@@ -54,6 +54,9 @@ contract Pricing is IPricing {
         address _insurance,
         address _oracle
     ) {
+        require(_tracer != address(0), "PRC: _tracer = address(0)");
+        require(_insurance != address(0), "PRC: _insurance = address(0)");
+        require(_oracle != address(0), "PRC: _oracle = address(0)");
         tracer = _tracer;
         insurance = IInsurance(_insurance);
         oracle = IOracle(_oracle);

@@ -116,24 +116,40 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Sets the perpsDeployer contract for tracers markets.
      * @param newDeployer the new perpsDeployer contract address
      */
-    function setPerpsDeployerContract(address newDeployer) public override onlyOwner() {
-        require(newDeployer != address(0), "address(0) given");
+    function setPerpsDeployerContract(address newDeployer) public override nonZeroAddress(newDeployer) onlyOwner() {
         perpsDeployer = newDeployer;
     }
 
-    function setInsuranceDeployerContract(address newInsuranceDeployer) public override onlyOwner() {
-        require(newInsuranceDeployer != address(0), "address(0) given");
+    function setInsuranceDeployerContract(address newInsuranceDeployer)
+        public
+        override
+        nonZeroAddress(newInsuranceDeployer)
+        onlyOwner()
+    {
         insuranceDeployer = newInsuranceDeployer;
     }
 
-    function setPricingDeployerContract(address newPricingDeployer) public override onlyOwner() {
-        require(newPricingDeployer != address(0), "address(0) given");
+    function setPricingDeployerContract(address newPricingDeployer)
+        public
+        override
+        nonZeroAddress(newPricingDeployer)
+        onlyOwner()
+    {
         pricingDeployer = newPricingDeployer;
     }
 
-    function setLiquidationDeployerContract(address newLiquidationDeployer) public override onlyOwner() {
-        require(newLiquidationDeployer != address(0), "address(0) given");
+    function setLiquidationDeployerContract(address newLiquidationDeployer)
+        public
+        override
+        nonZeroAddress(newLiquidationDeployer)
+        onlyOwner()
+    {
         liquidationDeployer = newLiquidationDeployer;
+    }
+
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "address(0) given");
+        _;
     }
 
     /**

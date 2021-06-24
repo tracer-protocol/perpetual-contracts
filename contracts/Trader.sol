@@ -80,7 +80,8 @@ contract Trader is ITrader {
             if (
                 !isValidSignature(makers[i].order.maker, makers[i]) ||
                 !isValidSignature(takers[i].order.maker, takers[i]) ||
-                !isValidPair(takers[i], makers[i])
+                !isValidPair(takers[i], makers[i]) ||
+                !areValidAddresses(makers[i], takers[i])
             ) {
                 // skip if either order is invalid
                 continue;
@@ -220,6 +221,18 @@ contract Trader is ITrader {
         returns (bool)
     {
         return (signedOrder1.order.market == signedOrder2.order.market);
+    }
+
+    function areValidAddresses(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
+        internal
+        pure
+        returns (bool)
+    {
+        bool order1Market = signedOrder1.order.market != address(0);
+        bool order2Market = signedOrder2.order.market != address(0);
+        bool order1Maker = signedOrder1.order.maker != address(0);
+        bool order2Maker = signedOrder2.order.maker != address(0);
+        return order1Maker && order2Maker && order1Maker && order2Maker;
     }
 
     /**
