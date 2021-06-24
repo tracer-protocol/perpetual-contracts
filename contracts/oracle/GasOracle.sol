@@ -20,6 +20,8 @@ contract GasOracle is IOracle, Ownable {
     uint256 private constant MAX_DECIMALS = 18;
 
     constructor(address _priceOracle, address _gasOracle) {
+        require(_gasOracle != address(0), "GasOracle: _gasOracle == 0");
+        require(_priceOracle != address(0), "GasOracle: _priceOracle == 0");
         gasOracle = IChainlinkOracle(_gasOracle); /* Gas cost oracle */
         priceOracle = IChainlinkOracle(_priceOracle); /* Quote/ETH oracle */
     }
@@ -51,17 +53,20 @@ contract GasOracle is IOracle, Ownable {
         return raw * scaler;
     }
 
-    function setGasOracle(address _gasOracle) public onlyOwner {
-        require(_gasOracle != address(0), "address(0) given");
+    function setGasOracle(address _gasOracle) public nonZeroAddress(_gasOracle) onlyOwner {
         gasOracle = IChainlinkOracle(_gasOracle);
     }
 
-    function setPriceOracle(address _priceOracle) public onlyOwner {
-        require(_priceOracle != address(0), "address(0) given");
+    function setPriceOracle(address _priceOracle) public nonZeroAddress(_priceOracle) onlyOwner {
         priceOracle = IChainlinkOracle(_priceOracle);
     }
 
     function setDecimals(uint8 _decimals) external {
         decimals = _decimals;
+    }
+
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "address(0) given");
+        _;
     }
 }

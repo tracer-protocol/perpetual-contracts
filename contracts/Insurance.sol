@@ -29,6 +29,7 @@ contract Insurance is IInsurance {
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     constructor(address _tracer) {
+        require(_tracer != address(0), "INS: _tracer = address(0)");
         tracer = ITracerPerpetualSwaps(_tracer);
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);

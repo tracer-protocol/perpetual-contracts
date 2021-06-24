@@ -60,6 +60,10 @@ contract Liquidation is ILiquidation, Ownable {
         address _fastGasOracle,
         uint256 _maxSlippage
     ) Ownable() {
+        require(_pricing != address(0), "LIQ: _pricing = address(0)");
+        require(_tracer != address(0), "LIQ: _tracer = address(0)");
+        require(_insuranceContract != address(0), "LIQ: _insuranceContract = address(0)");
+        require(_fastGasOracle != address(0), "LIQ: _fastGasOracle = address(0)");
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -211,6 +215,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function liquidate(int256 amount, address account) external override {
         /* Liquidated account's balance */
+        require(account != address(0), "LIQ: Liquidate zero address");
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
 
         uint256 amountToEscrow = verifyAndSubmitLiquidation(
@@ -442,7 +447,12 @@ contract Liquidation is ILiquidation, Ownable {
         emit ClaimedReceipts(msg.sender, address(tracer), receiptId);
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, ILiquidation) onlyOwner {
+    function transferOwnership(address newOwner)
+        public
+        override(Ownable, ILiquidation)
+        nonZeroAddress(newOwner)
+        onlyOwner
+    {
         super.transferOwnership(newOwner);
     }
 
@@ -469,5 +479,10 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
         maxSlippage = _maxSlippage;
+    }
+
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "address(0) given");
+        _;
     }
 }
