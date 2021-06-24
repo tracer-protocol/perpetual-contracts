@@ -66,5 +66,6 @@ module.exports = {
     gasReporter: {
         currency: "AUD",
         coinmarketcap: "49e42c5c-1288-4e17-8c27-cd1a0aba014d",
+        enabled: false
     },
 }

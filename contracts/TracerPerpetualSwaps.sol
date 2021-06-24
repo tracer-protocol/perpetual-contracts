@@ -17,6 +17,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
+import "hardhat/console.sol";
+
 contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw {
     using LibMath for uint256;
     using LibMath for int256;
@@ -261,6 +263,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             } else {
                 emit FailedOrders(order2.maker, order1.maker, order2Id, order1Id);
             }
+            console.log("returning false");
             return false;
         }
 
@@ -276,6 +279,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             uint256(Balances.getFee(fillAmount, executionPrice, feeRate) * 2);
 
         // update leverage
+        console.log("updating account lev");
         _updateAccountLeverage(order1.maker);
         _updateAccountLeverage(order2.maker);
 

@@ -1,13 +1,11 @@
 const { expect, assert } = require("chai")
 const { ethers, getNamedAccounts, deployments, network } = require("hardhat")
-const { deploy } = deployments
-const { time } = require("@openzeppelin/test-helpers")
+const { BigNumber } = require("ethers")
 const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
 const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const { BN } = require("@openzeppelin/test-helpers/src/setup")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
@@ -34,7 +32,7 @@ const setup = deployments.createFixture(async () => {
     let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
 
     const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
+    let trader= await ethers.getContractAt(
         traderDeployment.abi,
         traderDeployment.address
     )
@@ -47,7 +45,7 @@ const setup = deployments.createFixture(async () => {
         quoteToken,
         deployer,
         factory,
-        traderInstance,
+        trader,
     }
 })
 
@@ -73,7 +71,10 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
     let insurance, pricing, liquidation, tracer, quoteToken, traderInstance
     let now
 
-    before(async function () {
+    // before(async function () {
+    // })
+
+    const before24HourTest = async () => {
         const _setup = await setup()
         quoteToken = _setup.quoteToken
         tracer = _setup.tracer
@@ -83,18 +84,130 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
         deployer = _setup.deployer
         traderInstance = _setup.traderInstance
         accounts = await ethers.getSigners()
-        // transfer tokesn to account 4
+        // transfer tokens to account 4
         await quoteToken.transfer(
             accounts[4].address,
             ethers.utils.parseEther("1000")
         )
         now = Math.floor(new Date().getTime() / 1000)
+    }
+
+    context("True max leverage", async () => {
+        describe("When a market's total leveraged value changes", async () => {
+            it.only("Updates the trueMaxLeverage", async () => {
+                const contracts = await setup()
+                now = Math.floor(new Date().getTime() / 1000)
+                accounts = await ethers.getSigners()
+                console.log(await contracts.tracer.leveragedNotionalValue())
+
+                const maxLeverage = ethers.utils.parseEther("50")
+                const lowestMaxLeverage = ethers.utils.parseEther("2")
+                const deleveragingCliff = ethers.utils.parseEther("20")
+                const insPoolSwitchStage = ethers.utils.parseEther("0")
+                await contracts.tracer.setWhitelist(accounts[0].address, true)
+                await contracts.tracer.setLowestMaxLeverage(lowestMaxLeverage)
+                await contracts.tracer.setMaxLeverage(maxLeverage)
+                await contracts.tracer.setDeleveragingCliff(deleveragingCliff)
+                await contracts.tracer.setInsurancePoolSwitchStage(insPoolSwitchStage)
+
+                await contracts.quoteToken
+                    .connect(accounts[0])
+                    .approve(
+                        contracts.insurance.address,
+                        ethers.utils.parseEther("1000000")
+                    )
+                await contracts.quoteToken
+                    .connect(accounts[0])
+                    .approve(
+                        contracts.tracer.address,
+                        ethers.utils.parseEther("1000000")
+                    )
+                await contracts.quoteToken
+                    .connect(accounts[1])
+                    .approve(
+                        contracts.tracer.address,
+                        ethers.utils.parseEther("1000000")
+                    )
+                await contracts.quoteToken
+                    .connect(accounts[2])
+                    .approve(
+                        contracts.tracer.address,
+                        ethers.utils.parseEther("1000000")
+                    )
+                await contracts.quoteToken
+                    .connect(accounts[3])
+                    .approve(
+                        contracts.tracer.address,
+                        ethers.utils.parseEther("1000000")
+                    )
+                await contracts.tracer
+                    .connect(accounts[0])
+                    .deposit(ethers.utils.parseEther("1000"))
+                await contracts.tracer
+                    .connect(accounts[1])
+                    .deposit(ethers.utils.parseEther("1000"))
+                await contracts.tracer
+                    .connect(accounts[2])
+                    .deposit(ethers.utils.parseEther("1000"))
+                await contracts.tracer
+                    .connect(accounts[3])
+                    .deposit(ethers.utils.parseEther("1000"))
+
+                let order1 = {
+                    maker: accounts[0].address,
+                    market: contracts.tracer.address,
+                    price: ethers.utils.parseEther("1"),
+                    amount: ethers.utils.parseEther("1500"),
+                    side: 1, // short,
+                    expires: now + 604800, // now + 7 days
+                    created: now,
+                }
+                const mockSignedOrder1 = [
+                    order1,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
+                let order2 = {
+                    maker: accounts[1].address,
+                    market: contracts.tracer.address,
+                    price: ethers.utils.parseEther("1"),
+                    amount: ethers.utils.parseEther("1500"),
+                    side: 0, // long,
+                    expires: now + 604800, // now + 7 days
+                    created: now,
+                }
+
+                const mockSignedOrder2 = [
+                    order2,
+                    ethers.utils.formatBytes32String("DummyString"),
+                    ethers.utils.formatBytes32String("DummyString"),
+                    0,
+                ]
+
+                // Deposit half of what the target will be. Target = 100 * 0.01 = 1. Deposit 0.5
+                await contracts.insurance.connect(accounts[0]).deposit(ethers.utils.parseEther("90"))
+                let trueMaxLeverage = await contracts.tracer.trueMaxLeverage()
+                console.log(ethers.utils.formatEther(trueMaxLeverage))
+
+                await contracts.trader.executeTrade([mockSignedOrder1], [mockSignedOrder2])
+                const totalLeveragedValue = (await contracts.tracer.leveragedNotionalValue()).toString()
+                console.log(4)
+                console.log(totalLeveragedValue.toString())
+                expect(totalLeveragedValue).to.equal(ethers.utils.parseEther("1000"))
+
+                trueMaxLeverage = await contracts.tracer.trueMaxLeverage()
+                console.log(trueMaxLeverage)
+                expect(trueMaxLeverage).to.equal(maxLeverage)
+            })
+        })
     })
 
     context("Regular Trading over 24 hours", async () => {
         describe("when markets are operating as normal", async () => {
             it("passes", async () => {
                 // deposit from 4 accounts
+                await before24HourTest()
                 for (var i = 0; i < 4; i++) {
                     await quoteToken
                         .connect(accounts[i + 1])
