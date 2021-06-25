@@ -70,7 +70,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         bytes32 longOrderId,
         bytes32 shortOrderId
     );
-    event FailedOrders(address indexed long, address indexed short, bytes32 longOrderId, bytes32 shortOrderId);
+    event FailedOrders(
+        address indexed long,
+        address indexed short,
+        uint256 amount,
+        bytes32 longOrderId,
+        bytes32 shortOrderId
+    );
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -255,11 +261,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
                 trueMaxLeverage()
             )
         ) {
+            // long order must have a price >= short order
             // emit failed to match event and return false
             if (order1.side == Perpetuals.Side.Long) {
-                emit FailedOrders(order1.maker, order2.maker, order1Id, order2Id);
+                emit FailedOrders(order1.maker, order2.maker, fillAmount, order1Id, order2Id);
             } else {
-                emit FailedOrders(order2.maker, order1.maker, order2Id, order1Id);
+                emit FailedOrders(order2.maker, order1.maker, fillAmount, order2Id, order1Id);
             }
             return false;
         }

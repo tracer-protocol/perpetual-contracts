@@ -232,7 +232,7 @@ contract Trader is ITrader {
         bool order2Market = signedOrder2.order.market != address(0);
         bool order1Maker = signedOrder1.order.maker != address(0);
         bool order2Maker = signedOrder2.order.maker != address(0);
-        return order1Maker && order2Maker && order1Maker && order2Maker;
+        return order1Market && order2Market && order1Maker && order2Maker;
     }
 
     /**
