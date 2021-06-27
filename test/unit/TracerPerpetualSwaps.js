@@ -679,7 +679,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("100"),
                     side: 0, // long,
                     expires: now + 604800, // now + 7 days
-                    created: now - 1,
+                    created: now - 100,
                 }
                 const mockSignedOrder1 = [
                     order1,
@@ -695,7 +695,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("100"),
                     side: 1, // short,
                     expires: now + 604800, // now + 7 days
-                    created: now,
+                    created: now - 100,
                 }
                 const mockSignedOrder2 = [
                     order2,

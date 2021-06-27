@@ -115,7 +115,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("50"),
                     side: 0, // long,
                     expires: now + 604800, // now + 7 days
-                    created: now - 1,
+                    created: now - 100,
                 }
                 const mockSignedOrder1 = [
                     order1,
@@ -131,7 +131,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("40"),
                     side: 1, // short,
                     expires: now + 604800, // now + 7 days
-                    created: now,
+                    created: now - 100,
                 }
                 const mockSignedOrder2 = [
                     order2,
@@ -147,7 +147,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("10"),
                     side: 1, // short,
                     expires: now + 604800, // now + 7 days
-                    created: now,
+                    created: now - 100,
                 }
                 const mockSignedOrder3 = [
                     order3,
@@ -163,7 +163,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("50"),
                     side: 0, // long,
                     expires: now + 604800, // now + 7 days
-                    created: now - 1,
+                    created: now - 100,
                 }
                 const mockSignedOrder4 = [
                     order4,
@@ -179,7 +179,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     amount: ethers.utils.parseEther("10"),
                     side: 1, // short,
                     expires: now + 604800, // now + 7 days
-                    created: now,
+                    created: now - 100,
                 }
                 const mockSignedOrder5 = [
                     order5,
