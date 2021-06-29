@@ -61,7 +61,7 @@ contract AMM is Ownable {
      */
     constructor(
         address _tracer
-    ) public Ownable {
+    ) public Ownable() {
         tracer = ITracerPerpetualSwaps(_tracer);
     }
 
@@ -121,9 +121,9 @@ contract AMM is Ownable {
             pool = lowFeePool;
         }
 
-        (, int256 liquidityProviderBase, , , ,) = tracer.getBalance(
-                                                    address(hfAccount),
-                                                    address(tracer));
+        Balances.Account memory lpAccount = tracer.getBalance(msg.sender);
+        Balances.Position memory lpPosition = lpAccount.position;
+        int256 liquidityProviderBase = lpPosition.base;
 
         /* sync base and quote currencies */
         syncWithPosition();
