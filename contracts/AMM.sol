@@ -32,7 +32,7 @@ contract AMM is Ownable {
     struct Pool {
         Balances.Position actual;
         Balances.Position target;
-        Balances.Position foobarPosition;
+        Balances.Position foobarPosition; /* TODO: what is this for? */
         uint256 liquidityShareSupply;
         mapping (address => uint256) liquidityShares;
     }
@@ -58,8 +58,25 @@ contract AMM is Ownable {
      */
     constructor(
         address _tracer
-    ) public Ownable() {
+    ) Ownable() {
         tracer = ITracerPerpetualSwaps(_tracer);
+    }
+
+    function syncPoolWithPosition(Pool storage pool) internal {
+        /* targets change proportional to the change in base */
+        pool.target.base *= pool.actual.base / pool.foobarPosition.base;
+        pool.target.quote *= pool.actual.base / pool.foobarPosition.base;
+        pool.actual.base = pool.foobarPosition.base;
+
+        /* check that at least one currency is within target (note that it
+         * should not be possible for this condition to be true) */
+        if(pool.actual.base < pool.target.base && pool.actual.quote < pool.target.quote) {
+            /* reduce quote target to satisfy safety condition */
+            pool.target.quote = pool.actual.quote - (pool.target.base - pool.actual.base) / getFairPrice();
+
+            /* resync quote value now that quote target has changed */
+            pool.actual.quote = pool.target.quote + pool.foobarPosition.quote;
+        }
     }
 
     /**
@@ -68,39 +85,8 @@ contract AMM is Ownable {
      *
      */
     function syncWithPosition() public {
-        /* high-fee side */
-
-        /* targets change proportional to the change in base */
-        highFeePool.target.base *= highFeePool.actual.base / highFeePool.foobarPosition.base;
-        highFeePool.target.quote *= highFeePool.actual.base / highFeePool.foobarPosition.base;
-        highFeePool.actual.base = highFeePool.foobarPosition.base;
-
-        /* check that at least one currency is within target (note that it
-         * should not be possible for this condition to be true) */
-        if(highFeePool.actual.base < highFeePool.target.base && highFeePool.actual.quote < highFeePool.target.quote) {
-            /* reduce quote target to satisfy safety condition */
-            highFeePool.target.quote = highFeePool.actual.quote - (highFeePool.target.base - highFeePool.actual.base) / getFairPrice();
-
-            /* resync quote value now that quote target has changed */
-            highFeePool.actual.quote = highFeePool.target.quote + highFeePool.foobarPosition.quote;
-        }
-
-        /* low-fee side */
-
-        /* targets change proportional to the change in base */
-        lowFeePool.target.base *= lowFeePool.actual.base / lowFeePool.foobarPosition.base;
-        lowFeePool.target.quote *= lowFeePool.actual.base / lowFeePool.foobarPosition.base;
-        lowFeePool.actual.base = lowFeePool.foobarPosition.base;
-
-        /* check that at least one currency is within target (note that it
-         * should not be possible for this condition to be true) */
-        if(lowFeePool.actual.base < lowFeePool.target.base && lowFeePool.actual.quote < lowFeePool.target.quote) {
-            /* reduce quote target to satisfy safety condition */
-            lowFeePool.target.quote = lowFeePool.actual.quote - (lowFeePool.target.base - lowFeePool.actual.base) / getFairPrice();
-
-            /* resync quote value now that quote target has changed */
-            lowFeePool.actual.quote = lowFeePool.target.quote + lowFeePool.foobarPosition.quote;
-        }
+        syncPoolWithPosition(highFeePool);
+        syncPoolWithPosition(lowFeePool);
     }
 
     /**
