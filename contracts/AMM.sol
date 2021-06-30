@@ -21,8 +21,8 @@ contract AMM is Ownable {
     /********************************* STATE **********************************/
 
     ITracerPerpetualSwaps tracer;
-    Balances.Account hfAccount;
-    Balances.Account lfAccount;
+    Balances.Account highFeeAccount;
+    Balances.Account lowFeeAccount;
 
     enum PoolChoice {
         HIGH_FEE,
@@ -30,12 +30,9 @@ contract AMM is Ownable {
     }
 
     struct Pool {
-        int256 base;
-        int256 quote;
-        int256 baseTarget;
-        int256 quoteTarget;
-        int256 basePosition;
-        int256 quotePosition;
+        Balances.Position actual;
+        Balances.Position target;
+        Balances.Position foobarPosition;
         uint256 liquidityShareSupply;
         mapping (address => uint256) liquidityShares;
     }
@@ -74,35 +71,35 @@ contract AMM is Ownable {
         /* high-fee side */
 
         /* targets change proportional to the change in base */
-        highFeePool.baseTarget *= highFeePool.base / highFeePool.basePosition;
-        highFeePool.quoteTarget *= highFeePool.base / highFeePool.basePosition;
-        highFeePool.base = highFeePool.basePosition;
+        highFeePool.target.base *= highFeePool.actual.base / highFeePool.foobarPosition.base;
+        highFeePool.target.quote *= highFeePool.actual.base / highFeePool.foobarPosition.base;
+        highFeePool.actual.base = highFeePool.foobarPosition.base;
 
         /* check that at least one currency is within target (note that it
          * should not be possible for this condition to be true) */
-        if(highFeePool.base < highFeePool.baseTarget && highFeePool.quote < highFeePool.quoteTarget) {
+        if(highFeePool.actual.base < highFeePool.target.base && highFeePool.actual.quote < highFeePool.target.quote) {
             /* reduce quote target to satisfy safety condition */
-            highFeePool.quoteTarget = highFeePool.quote - (highFeePool.baseTarget - highFeePool.base) / getFairPrice();
+            highFeePool.target.quote = highFeePool.actual.quote - (highFeePool.target.base - highFeePool.actual.base) / getFairPrice();
 
             /* resync quote value now that quote target has changed */
-            highFeePool.quote = highFeePool.quoteTarget + highFeePool.quotePosition;
+            highFeePool.actual.quote = highFeePool.target.quote + highFeePool.foobarPosition.quote;
         }
 
         /* low-fee side */
 
         /* targets change proportional to the change in base */
-        lowFeePool.baseTarget *= lowFeePool.base / lowFeePool.basePosition;
-        lowFeePool.quoteTarget *= lowFeePool.base / lowFeePool.basePosition;
-        lowFeePool.base = lowFeePool.basePosition;
+        lowFeePool.target.base *= lowFeePool.actual.base / lowFeePool.foobarPosition.base;
+        lowFeePool.target.quote *= lowFeePool.actual.base / lowFeePool.foobarPosition.base;
+        lowFeePool.actual.base = lowFeePool.foobarPosition.base;
 
         /* check that at least one currency is within target (note that it
          * should not be possible for this condition to be true) */
-        if(lowFeePool.base < lowFeePool.baseTarget && lowFeePool.quote < lowFeePool.quoteTarget) {
+        if(lowFeePool.actual.base < lowFeePool.target.base && lowFeePool.actual.quote < lowFeePool.target.quote) {
             /* reduce quote target to satisfy safety condition */
-            lowFeePool.quoteTarget = lowFeePool.quote - (lowFeePool.baseTarget - lowFeePool.base) / getFairPrice();
+            lowFeePool.target.quote = lowFeePool.actual.quote - (lowFeePool.target.base - lowFeePool.actual.base) / getFairPrice();
 
             /* resync quote value now that quote target has changed */
-            lowFeePool.quote = lowFeePool.quoteTarget + lowFeePool.quotePosition;
+            lowFeePool.actual.quote = lowFeePool.target.quote + lowFeePool.foobarPosition.quote;
         }
     }
 
@@ -134,30 +131,30 @@ contract AMM is Ownable {
         /* retrieve the fair price for this market */
         int256 fairPrice = getFairPrice(); /* TODO: get fair price */
 
-        pool.basePosition  = pool.basePosition + amount;
-        pool.quoteTarget += amount / getFairPrice() * int(maxLeverage);
-        pool.quote += amount / getFairPrice() * int(maxLeverage);
+        pool.foobarPosition.base  = pool.foobarPosition.base + amount;
+        pool.target.quote += amount / getFairPrice() * int(maxLeverage);
+        pool.actual.quote += amount / getFairPrice() * int(maxLeverage);
 
         uint256 liquidityIncrease = 0;
 
-        if(pool.baseTarget == 0) { /* pool is empty */
+        if(pool.target.base == 0) { /* pool is empty */
             require(amount > 0);
             lastFeeUpdate = block.number;
             liquidityIncrease = uint(amount);
             pool.liquidityShares[msg.sender] += liquidityIncrease;
             pool.liquidityShareSupply += liquidityIncrease;
-        } else if(pool.baseTarget > 0) { /* pool already has liquidity */
-            liquidityIncrease = uint(amount * pool.baseTarget / pool.base);
+        } else if(pool.target.base > 0) { /* pool already has liquidity */
+            liquidityIncrease = uint(amount * pool.target.base / pool.actual.base);
 
             pool.liquidityShares[msg.sender] += uint(liquidityIncrease *
-                pool.liquidityShareSupply / uint(pool.baseTarget));
+                pool.liquidityShareSupply / uint(pool.target.base));
             pool.liquidityShareSupply += uint(liquidityIncrease *
-                pool.liquidityShareSupply / uint(pool.baseTarget));
+                pool.liquidityShareSupply / uint(pool.target.base));
         }
 
         /* update pool's target and position (in *base* currency) */
-        pool.baseTarget += int(liquidityIncrease);
-        pool.base += amount;
+        pool.target.base += int(liquidityIncrease);
+        pool.actual.base += amount;
     }
 
     /**
@@ -181,24 +178,24 @@ contract AMM is Ownable {
         pool.liquidityShares[msg.sender] -= uint(amount);
 
         /* transfer base currency to msg.sender */
-        pool.basePosition -= (pool.base * amount) / int(pool.liquidityShareSupply);
-        // lpBasePosition += (pool.base * amount) / pool.liquidityShares; /* TODO: API issue */
-        pool.base -= (pool.base * amount) / int(pool.liquidityShareSupply);
+        pool.foobarPosition.base -= (pool.actual.base * amount) / int(pool.liquidityShareSupply);
+        // lpBasePosition += (pool.actual.base * amount) / pool.liquidityShares; /* TODO: API issue */
+        pool.actual.base -= (pool.actual.base * amount) / int(pool.liquidityShareSupply);
 
         /* update the BaseTarget in order to remain proportionate */
-        pool.baseTarget -= ((pool.baseTarget / pool.base) * amount) /
+        pool.target.base -= ((pool.target.base / pool.actual.base) * amount) /
             int(pool.liquidityShareSupply);
-        pool.basePosition -= (pool.baseTarget * amount) / int(pool.liquidityShareSupply);
+        pool.foobarPosition.base -= (pool.target.base * amount) / int(pool.liquidityShareSupply);
 
         /* if the AMM is exposed at the time of withdrawal, the withdrawing LP
          * gets their portion of that exposure */
-        pool.quotePosition -= ((pool.quoteTarget - pool.quote) * amount) /
+        pool.foobarPosition.quote -= ((pool.target.quote - pool.actual.quote) * amount) /
             int(pool.liquidityShareSupply);
-        // lpPositionQuote += ((pool.quoteTarget - pool.quote) * amount) / /* TODO: API issue */
+        // lpPositionQuote += ((pool.target.quote - pool.actual.quote) * amount) / /* TODO: API issue */
         //     pool.liquidityShares;
-        pool.quote -= (pool.quoteTarget - pool.quote) * amount /
+        pool.actual.quote -= (pool.target.quote - pool.actual.quote) * amount /
             int(pool.liquidityShareSupply);
-        pool.quotePosition -= ((pool.quoteTarget - pool.quote) * amount) /
+        pool.foobarPosition.quote -= ((pool.target.quote - pool.actual.quote) * amount) /
             int(pool.liquidityShareSupply);
         pool.liquidityShareSupply -= uint(amount);
     }
@@ -214,10 +211,10 @@ contract AMM is Ownable {
         uint256 daysSinceFeeUpdate = (block.timestamp - lastFeeUpdate) /
             (SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY);
 
-        require(highFeePool.baseTarget > 0 || 0 < lowFeePool.baseTarget);
+        require(highFeePool.target.base > 0 || 0 < lowFeePool.target.base);
         require(daysSinceFeeUpdate > 1);
 
-        uint256 skew = uint((highFeePool.baseTarget / (highFeePool.baseTarget + lowFeePool.baseTarget)) * int(DECIMAL_FACTOR));
+        uint256 skew = uint((highFeePool.target.base / (highFeePool.target.base + lowFeePool.target.base)) * int(DECIMAL_FACTOR));
 
         uint256 adjustedMinutesSinceFeeUpdate = (block.timestamp - lastFeeUpdate -
             (SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY)) / SECONDS_PER_MINUTE;
@@ -256,10 +253,10 @@ contract AMM is Ownable {
 
         syncWithPosition();
 
-        if(pool.base == pool.baseTarget) {
+        if(pool.actual.base == pool.target.base) {
             require(amount < 0);
         } else {
-            require(pool.base < pool.baseTarget);
+            require(pool.actual.base < pool.target.base);
         }
 
         traderPositionBase -= int(amount);
@@ -267,8 +264,8 @@ contract AMM is Ownable {
         int256 fairPrice = getFairPrice(); // TODO: get fair price
         uint256 feeCollected = uint(amount) * lowFee * 2;
 
-        if(pool.base + amount < 0) {
-            feeCollected += (0 - (uint(pool.base + amount))) / maxLeverage;
+        if(pool.actual.base + amount < 0) {
+            feeCollected += (0 - (uint(pool.actual.base + amount))) / maxLeverage;
         }
 
         if(amount > 0) {
@@ -279,15 +276,15 @@ contract AMM is Ownable {
             amount += int(feeCollected);
         }
 
-        pool.quoteTarget += int(
-            int(feeCollected) / getFairPrice() * int(maxLeverage) * pool.quoteTarget / pool.quote);
-        pool.quote += int(feeCollected) * pool.baseTarget / pool.base;
+        pool.target.quote += int(
+            int(feeCollected) / getFairPrice() * int(maxLeverage) * pool.target.quote / pool.actual.quote);
+        pool.actual.quote += int(feeCollected) * pool.target.base / pool.actual.base;
 
         if (amount > 0) {
-            require(amount <= pool.baseTarget - pool.base);
+            require(amount <= pool.target.base - pool.actual.base);
         }
 
-        uint256 exposure = uint(((pool.base + amount / 2) - pool.baseTarget) / pool.baseTarget);
+        uint256 exposure = uint(((pool.actual.base + amount / 2) - pool.target.base) / pool.target.base);
         int256 tradePrice = getFairPrice() + int(sensitivity) * getFairPrice() * int(exposure);
 
         /* `quotePayment` is the amount of the quote asset LEAVING the AMM.
@@ -300,11 +297,11 @@ contract AMM is Ownable {
         /* Deposit `amount` of base int AMM now that the quote payment has been
          * determined.
          */
-        pool.basePosition += amount;
-        pool.base += amount;
+        pool.foobarPosition.base += amount;
+        pool.actual.base += amount;
 
         /* Transfer quote currency to `msg.sender` */
-        pool.quotePosition -= quotePayment;
+        pool.foobarPosition.quote -= quotePayment;
         traderPositionQuote += quotePayment;
     }
 
@@ -327,41 +324,41 @@ contract AMM is Ownable {
 
         syncWithPosition();
 
-        if(pool.quote == pool.quoteTarget) {
+        if(pool.actual.quote == pool.target.quote) {
             require(amount < 0);
         } else {
-            require(pool.quote < pool.quoteTarget);
+            require(pool.actual.quote < pool.target.quote);
         }
 
         traderPositionQuote -= amount;
         uint256 maxLeverage = getMaxLeverage();
-        uint256 exposure = uint((pool.quoteTarget - (pool.quote - amount / 2)) /
-                                pool.quoteTarget);
-        int256 hfPrice = getFairPrice() + int(sensitivity) * getFairPrice() * int(exposure);
-        uint256 feeCollected = uint(amount) * lowFee * 2 * uint(hfPrice);
+        uint256 exposure = uint((pool.target.quote - (pool.actual.quote - amount / 2)) /
+                                pool.target.quote);
+        int256 highFeePrice = getFairPrice() + int(sensitivity) * getFairPrice() * int(exposure);
+        uint256 feeCollected = uint(amount) * lowFee * 2 * uint(highFeePrice);
 
-        if (pool.quote + amount < 0) {
-            feeCollected += (0 - (uint(pool.quote + amount))) / maxLeverage * uint(getFairPrice());
+        if (pool.actual.quote + amount < 0) {
+            feeCollected += (0 - (uint(pool.actual.quote + amount))) / maxLeverage * uint(getFairPrice());
         }
 
         traderPositionBase -= int(feeCollected);
-        pool.basePosition += int(feeCollected);
-        pool.quoteTarget += int(feeCollected) / getFairPrice() * int(maxLeverage) *
-                                pool.quoteTarget / pool.quote;
-        pool.quote += int(feeCollected) / getFairPrice() * int(maxLeverage);
-        pool.baseTarget += int(feeCollected) * pool.baseTarget / pool.base;
-        pool.base += int(feeCollected);
+        pool.foobarPosition.base += int(feeCollected);
+        pool.target.quote += int(feeCollected) / getFairPrice() * int(maxLeverage) *
+                                pool.target.quote / pool.actual.quote;
+        pool.actual.quote += int(feeCollected) / getFairPrice() * int(maxLeverage);
+        pool.target.base += int(feeCollected) * pool.target.base / pool.actual.base;
+        pool.actual.base += int(feeCollected);
 
         if (amount > 0) {
-            require(amount <= pool.baseTarget - pool.base);
+            require(amount <= pool.target.base - pool.actual.base);
         }
 
         int256 tradePrice = getFairPrice() + int(sensitivity) * getFairPrice() * int(exposure);
         int256 basePayment = tradePrice * amount;
-        pool.quotePosition += amount;
-        pool.quote += amount;
+        pool.foobarPosition.quote += amount;
+        pool.actual.quote += amount;
 
-        pool.basePosition -= basePayment;
+        pool.foobarPosition.base -= basePayment;
         traderPositionBase += basePayment;
     }
 
