@@ -12,9 +12,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
+import "solidity-linked-list/contracts/StructuredLinkedList.sol";
+
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
+    using StructuredLinkedList for StructuredLinkedList.List;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
@@ -22,11 +25,21 @@ contract Insurance is IInsurance {
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public token; // token representation of a users holding in the pool
 
+    uint256 public delayedWithdrawalCounter;
+    mapping(uint256 => DelayedWithdrawal) delayedWithdrawalAccess;
+    StructuredLinkedList.List delayedWithdrawalIds;
+
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
+
+    struct DelayedWithdrawal {
+        uint256 creationTime;
+        uint256 withdrawalAmount;
+        bool processed;
+    }
 
     constructor(address _tracer) {
         require(_tracer != address(0), "INS: _tracer = address(0)");
@@ -36,6 +49,17 @@ contract Insurance is IInsurance {
         collateralAsset = tracer.tracerQuoteToken();
 
         emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
+    }
+
+    function addDelayedWithdrawal(uint256 amount) public override returns (uint256 id) {
+        pushFront(delayedWithdrawalIds, delayedWithdrawalCounter);
+        delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(block.timestamp, amount, false);
+        delayedWithdrawalCounter += 1;
+        return delayedWithdrawalCounter - 1;
+    }
+
+    function getDelayedWithdrawal(uint256 id) external override returns (DelayedWithdrawal memory) {
+        return delayedWithdrawalAccess[id];
     }
 
     /**
