@@ -244,23 +244,28 @@ module.exports = async function (hre) {
     )
 
     // this deploys a tracer, insurance, pricing and liquidation contract
-    await deployments.execute(
-        "TracerPerpetualsFactory",
-        {
-            from: deployer,
-            log: true,
-        },
-        "deployTracer",
-        deployTracerData,
-        oracleAdapter.address,
-        gasOracle.address,
-        maxLiquidationSlippage
-    )
+await deployments.execute(
+    "TracerPerpetualsFactory",
+    {
+        from: deployer,
+        log: true,
+    },
+    "deployTracer",
+    deployTracerData,
+    oracleAdapter.address,
+    gasOracle.address,
+    maxLiquidationSlippage
+)
 
     const tracerInstance = new ethers.Contract(
         await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
         tracerAbi
     ).connect(signers[0])
+
+
+    console.log(`Deployed Tracer Instance: ${tracerInstance.address}`)
+    console.log(`Deployed Factory: ${factory.address}`)
+    console.log(`Deployed Trader: ${trader.address}`)
 
     let insurance = await tracerInstance.insuranceContract()
     let pricing = await tracerInstance.pricingContract()
