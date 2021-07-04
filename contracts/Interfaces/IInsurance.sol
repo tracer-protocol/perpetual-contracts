@@ -6,6 +6,8 @@ interface IInsurance {
 
     function bufferCollateralAmount() external view returns (uint256);
 
+    function totalPendingWithdrawals() external view returns (uint256);
+
     function deposit(uint256 amount) external;
 
     function withdraw(uint256 amount) external;

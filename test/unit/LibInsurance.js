@@ -29,6 +29,37 @@ describe("Unit tests: LibInsurance.sol", function () {
         )
         accounts = await ethers.getSigners()
     })
+    describe("calculateImmediateWithdrawalFee", async () => {
+        context("When target is 0", async () => {
+            it("Returns 0", async () => {
+                const target = ethers.utils.parseEther("0")
+                const poolTokenUnderlying = ethers.utils.parseEther("1000")
+                const pendingWithdrawals = ethers.utils.parseEther("1234")
+                const wadCollateralAmount = ethers.utils.parseEther("4567")
+                let result = await libInsurance.calculateImmediateWithdrawalFee(target, poolTokenUnderlying, pendingWithdrawals, wadCollateralAmount)
+
+                const expectedResult = zero
+                expect(result).to.equal(expectedResult)
+            })
+        })
+        context("Normal case", async () => {
+            it.only("Calculates correctly", async () => {
+                const target = ethers.utils.parseEther("100")
+                const poolTokenUnderlying = ethers.utils.parseEther("90")
+                const pendingWithdrawals = ethers.utils.parseEther("20")
+                const wadCollateralAmount = ethers.utils.parseEther("15")
+
+                let result1 = await libInsurance.calcWithdrawAmount(target, poolTokenUnderlying, pendingWithdrawals)
+                console.log(result1)
+                let result = await libInsurance.calculateImmediateWithdrawalFee(target, poolTokenUnderlying, pendingWithdrawals, wadCollateralAmount)
+                console.log(ethers.utils.formatEther(result))
+
+                // (1 - 55/100) ^ 2 = 0.2025
+                const expectedResult = ethers.utils.parseEther("3.0375")
+                expect(result).to.equal(expectedResult)
+            })
+        })
+    })
 
     describe("calcMintAmount", async () => {
         context("when called with pool token total supply as 0", async () => {

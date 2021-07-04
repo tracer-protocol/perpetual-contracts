@@ -12,12 +12,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-import "solidity-linked-list/contracts/StructuredLinkedList.sol";
+import "hardhat/console.sol";
 
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
-    using StructuredLinkedList for StructuredLinkedList.List;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
@@ -27,7 +26,12 @@ contract Insurance is IInsurance {
 
     uint256 public delayedWithdrawalCounter;
     mapping(uint256 => DelayedWithdrawal) delayedWithdrawalAccess;
-    StructuredLinkedList.List delayedWithdrawalIds;
+    uint256 public oldestDelayedWithdrawal;
+    uint256 public youngestDelayedWithdrawal;
+    uint256 public override totalPendingWithdrawals;
+    // After 5 days, withdrawal can be executed for a 5 day window period
+    uint256 public constant delayedWithdrawalLock = 5 days;
+    uint256 public constant delayedWithdrawalWindow = 5 days;
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
@@ -36,9 +40,13 @@ contract Insurance is IInsurance {
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     struct DelayedWithdrawal {
+        uint256 id;
+        address account;
         uint256 creationTime;
         uint256 withdrawalAmount;
         bool processed;
+        uint256 previous;
+        uint256 next;
     }
 
     constructor(address _tracer) {
@@ -47,18 +55,171 @@ contract Insurance is IInsurance {
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
+        // Start with 1, so you can set 0 as null equivalent
+        delayedWithdrawalCounter = 1;
 
         emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
-    function addDelayedWithdrawal(uint256 amount) public override returns (uint256 id) {
-        pushFront(delayedWithdrawalIds, delayedWithdrawalCounter);
-        delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(block.timestamp, amount, false);
+    function commitToDelayedWithdrawal(uint256 amount) external {
+        updatePoolAmount();
+        uint256 balance = getPoolUserBalance(msg.sender);
+        require(balance >= amount, "INS: balance < amount");
+
+        IERC20 collateralToken = IERC20(collateralAsset);
+        InsurancePoolToken poolToken = InsurancePoolToken(token);
+
+        // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
+        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(
+            poolToken.totalSupply(),
+            publicCollateralAmount,
+            amount
+        );
+
+        // convert token amount to raw amount from WAD
+        uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
+
+        // pool amount is always in WAD format
+        publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
+
+        // burn pool tokens, return collateral tokens
+        poolToken.burnFrom(msg.sender, amount);
+        collateralToken.transfer(msg.sender, rawTokenAmount);
+
+        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
+    }
+
+    function addDelayedWithdrawal(
+        uint256 amount /*override*/
+    ) public returns (uint256 id) {
+        if (delayedWithdrawalCounter == 1) {
+            // List is empty
+            delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
+                delayedWithdrawalCounter,
+                msg.sender,
+                block.timestamp,
+                amount,
+                false,
+                0,
+                0
+            );
+            oldestDelayedWithdrawal = delayedWithdrawalCounter;
+            youngestDelayedWithdrawal = delayedWithdrawalCounter;
+        } else if (oldestDelayedWithdrawal == youngestDelayedWithdrawal) {
+            // List has one element
+            delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
+                delayedWithdrawalCounter,
+                msg.sender,
+                block.timestamp,
+                amount,
+                false,
+                youngestDelayedWithdrawal,
+                0
+            );
+            delayedWithdrawalAccess[youngestDelayedWithdrawal].next = delayedWithdrawalCounter;
+        } else {
+            // List has at least 2 elements
+            delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
+                delayedWithdrawalCounter,
+                msg.sender,
+                block.timestamp,
+                amount,
+                false,
+                youngestDelayedWithdrawal,
+                0
+            );
+            delayedWithdrawalAccess[youngestDelayedWithdrawal].next = delayedWithdrawalCounter;
+        }
+        youngestDelayedWithdrawal = delayedWithdrawalCounter;
         delayedWithdrawalCounter += 1;
         return delayedWithdrawalCounter - 1;
     }
 
-    function getDelayedWithdrawal(uint256 id) external override returns (DelayedWithdrawal memory) {
+    function scanDelayedWithdrawals(uint256 scanAmount) public /*override*/
+    {
+        for (uint256 i = 0; i < scanAmount; i++) {
+            if (
+                delayedWithdrawalAccess[oldestDelayedWithdrawal].processed == true ||
+                block.timestamp >
+                delayedWithdrawalAccess[oldestDelayedWithdrawal].creationTime +
+                    delayedWithdrawalWindow +
+                    delayedWithdrawalLock
+            ) {
+                // expired or executed
+            } else {
+                // We have reached one that isn't expired/executed. We can stop iterating
+                break;
+            }
+        }
+    }
+
+    // TODO make internal
+    function deleteDelayedWithdrawal(uint256 id) public /* override */
+    {
+        if (delayedWithdrawalAccess[id].creationTime == 0) {
+            // Doesn't exist
+            return;
+        }
+        uint256 nextId = delayedWithdrawalAccess[id].next;
+        uint256 previousId = delayedWithdrawalAccess[id].previous;
+        if (nextId > 0) {
+            delayedWithdrawalAccess[nextId].previous = previousId;
+        }
+        if (previousId > 0) {
+            delayedWithdrawalAccess[previousId].next = nextId;
+        }
+        delete delayedWithdrawalAccess[id];
+        if (nextId == 0) {
+            // this was youngest
+            youngestDelayedWithdrawal = previousId;
+        }
+        if (previousId == 0) {
+            // this was oldest
+            oldestDelayedWithdrawal = nextId;
+        }
+        if (previousId == 0 && nextId == 0) {
+            // This was the only element
+            delayedWithdrawalCounter = 1;
+        }
+    }
+
+    function printCurrentList() public {
+        uint256 counter = oldestDelayedWithdrawal;
+        while (true) {
+            if (delayedWithdrawalAccess[counter].creationTime == 0) {
+                // Doesn't exist
+                return;
+            }
+            getDelayedWithdrawal(counter);
+            if (counter >= 3) {
+                // return;
+            }
+            counter = delayedWithdrawalAccess[counter].next;
+        }
+    }
+
+    // TODO make sure delayedWithdrawalCounter = 1 on empty list
+
+    function getDelayedWithdrawal(
+        uint256 id /*override */
+    ) public returns (DelayedWithdrawal memory) {
+        DelayedWithdrawal memory ret = delayedWithdrawalAccess[id];
+        console.log("");
+        console.log("");
+        console.log("ret.id");
+        console.log(ret.id);
+        console.log("ret.account");
+        console.log(ret.account);
+        console.log("creationTime");
+        console.log(ret.creationTime);
+        console.log("ret.withdrawalAmount");
+        console.log(ret.withdrawalAmount);
+        console.log("ret.processed");
+        console.log(ret.processed);
+        console.log("ret.previous");
+        console.log(ret.previous);
+        console.log("ret.next");
+        console.log(ret.next);
         return delayedWithdrawalAccess[id];
     }
 

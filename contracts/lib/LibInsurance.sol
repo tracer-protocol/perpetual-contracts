@@ -46,4 +46,41 @@ library LibInsurance {
 
         return PRBMathUD60x18.mul(PRBMathUD60x18.div(poolTokenUnderlying, poolTokenSupply), wadAmount);
     }
+
+    /**
+     * @notice Calculate the immediate withdrawal fee a user must pay based on how much they want to withdraw,
+     *         and how full the insurance pool is.
+     * @param target The insurance pool target
+     * @param poolTokenUnderlying The holdings of the insurance pool collateral in quote tokens
+     * @param pendingWithdrawals The total amount of withdrawals that are currently pending
+     * @param collateralWithdrawalAmount the amount being withdrawn, in wad format
+     */
+    function calculateImmediateWithdrawalFee(
+        uint256 target,
+        uint256 poolTokenUnderlying,
+        uint256 pendingWithdrawals,
+        uint256 collateralWithdrawalAmount
+    ) internal pure returns (uint256) {
+        uint256 oneInWad = 1 * (10**18);
+        uint256 twoInWad = 2 * (10**18);
+        if (target == 0) {
+            return 0;
+        }
+        // uint256 fee = (1- (Fund % of target after withdrawal))^2
+        uint256 percentLeftover = PRBMathUD60x18.div(
+            poolTokenUnderlying - collateralWithdrawalAmount - pendingWithdrawals,
+            target
+        );
+        if (percentLeftover > oneInWad) {
+            // TODO Test this
+            return 0;
+        }
+        uint temp = oneInWad - percentLeftover;
+        uint test = oneInWad + oneInWad;
+        // PRBMath doesn't allow for .pow(x, y) to be called where x 
+        uint256 feeRate = PRBMathUD60x18.pow(test, twoInWad);
+        return feeRate;
+        uint256 fee = PRBMathUD60x18.mul(feeRate, collateralWithdrawalAmount);
+        return fee;
+    }
 }
