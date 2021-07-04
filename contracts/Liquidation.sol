@@ -143,7 +143,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param base Amount of base in the account to be liquidated (denominated in base tokens)
      * @param price Fair price of the asset (denominated in quote/base)
      * @param quote Amount of quote in the account to be liquidated (denominated in quote tokens)
-     * @param amount Amount of tokens to be liquidated
+     * @param amount Absolute amount of tokens to be liquidated
      * @param gasPrice Current gas price, denominated in gwei
      * @param account Account to be liquidated
      * @return Amount to be escrowed for the liquidation
