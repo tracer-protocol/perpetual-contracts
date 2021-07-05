@@ -9,7 +9,6 @@ import "prb-math/contracts/PRBMathSD59x18.sol";
 
 library LibLiquidation {
     using LibMath for uint256;
-    using LibMath for int256;
     using PRBMathUD60x18 for uint256;
     using PRBMathSD59x18 for int256;
 
@@ -34,7 +33,7 @@ library LibLiquidation {
      * @dev Assumes params are WAD
      * @param minMargin User's minimum margin
      * @param currentMargin User's current margin
-     * @param amount Amount being liquidated
+     * @param amount Absolute amount being liquidated
      * @param totalBase User's total base
      */
     function calcEscrowLiquidationAmount(
@@ -44,7 +43,11 @@ library LibLiquidation {
         int256 totalBase
     ) internal pure returns (uint256) {
         int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
-        int256 amountToEscrowProportional = PRBMathSD59x18.mul(amountToEscrow, PRBMathSD59x18.div(amount, totalBase));
+        int256 absoluteBase = PRBMathSD59x18.abs(totalBase);
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(
+            amountToEscrow,
+            PRBMathSD59x18.div(amount, absoluteBase)
+        );
         if (amountToEscrowProportional < 0) {
             return 0;
         }

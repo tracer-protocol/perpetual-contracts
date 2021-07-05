@@ -17,11 +17,33 @@ describe("Unit tests: LibLiquidation.sol", function () {
     })
 
     context("calcEscrowLiquidationAmount", async function () {
+        context("if base < 0", async function () {
+            it.only("Should escrow Correct amount", async function () {
+                const margin = ethers.utils.parseEther("100")
+                const minMargin = ethers.utils.parseEther("123")
+                const base = ethers.utils.parseEther("-100")
+                const amount = ethers.utils.parseEther("100")
+                // 100 - (123 - 100) = 77
+                const expectedEscrowAmount = ethers.utils.parseEther("77")
+
+                const escrowAmount =
+                    await libLiquidation.calcEscrowLiquidationAmount(
+                        minMargin,
+                        margin,
+                        amount,
+                        base
+                    )
+                expect(escrowAmount.toString()).to.equal(expectedEscrowAmount)
+            })
+        })
+    })
+
+    context("calcEscrowLiquidationAmount", async function () {
         context("if margin == minMargin", async function () {
             it("Should escrow full amount", async function () {
-                const margin = 123
-                const minMargin = 123
-                const amount = 100
+                const margin = ethers.utils.parseEther("123")
+                const minMargin = ethers.utils.parseEther("123")
+                const amount = ethers.utils.parseEther("100")
                 const expectedEscrowAmount = minMargin.toString()
 
                 const escrowAmount =
@@ -37,10 +59,11 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
         context("as margin drops below minMargin", async function () {
             it("Should escrow less", async function () {
-                const margin = 100
-                const minMargin = 123
-                const amount = 100
-                const expectedEscrowAmount = 77 // 100 - (123 - 100) = 77
+                const margin = ethers.utils.parseEther("100")
+                const minMargin = ethers.utils.parseEther("123")
+                const amount = ethers.utils.parseEther("100")
+                // 100 - (123 - 100) = 77
+                const expectedEscrowAmount = ethers.utils.parseEther("77")
 
                 const escrowAmount =
                     await libLiquidation.calcEscrowLiquidationAmount(
@@ -56,10 +79,11 @@ describe("Unit tests: LibLiquidation.sol", function () {
         })
         context("once margin hits 0", async function () {
             it("Should escrow 0", async function () {
-                const margin = 0
-                const minMargin = 123
-                const amount = 100
-                const expectedEscrowAmount = 0 // min(0, 0 - (123 - 0)) = 0
+                const margin = ethers.utils.parseEther("0")
+                const minMargin = ethers.utils.parseEther("123")
+                const amount = ethers.utils.parseEther("100")
+                // min(0, 0 - (123 - 0)) = 0
+                const expectedEscrowAmount = ethers.utils.parseEther("0")
 
                 const escrowAmount =
                     await libLiquidation.calcEscrowLiquidationAmount(
