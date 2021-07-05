@@ -200,18 +200,13 @@ contract Insurance is IInsurance {
     /**
      * @notice Gets the 8 hour funding rate for an insurance pool
      * @dev the funding rate is represented as
-     *      0.0036523 * (insurance_fund_target - insurance_fund_holdings) / leveraged_notional_value)
+     *      (182.648 / 8) * (5 * ((fundTarget - fundHoldings) / (fundTarget * 10_000))) ** 2
      */
     function getPoolFundingRate() external view override returns (uint256) {
-        // 0.0036523 as a WAD = 36523 * (10**11)
-        uint256 multiplyFactor = 36523 * (10**11);
-
-        uint256 levNotionalValue = tracer.leveragedNotionalValue();
-
-        // Traders only pay the insurance funding rate if the market has leverage
-        if (levNotionalValue == 0) {
-            return 0;
-        }
+        // Above equation can be refactored to have 0.000005707750000 as the constant in front
+        // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.000005707750000
+        // 0.000005707750000 as a WAD = 570775 * (10 ** 7)
+        uint256 multiplyFactor = 570775 * (10**7);
 
         uint256 poolHoldings = getPoolHoldings();
         uint256 poolTarget = getPoolTarget();
@@ -221,7 +216,7 @@ contract Insurance is IInsurance {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.div(poolTarget - poolHoldings, levNotionalValue);
+        uint256 ratio = PRBMathUD60x18.pow(PRBMathUD60x18.div(poolTarget - poolHoldings, poolTarget), 2 * 10**18);
 
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
