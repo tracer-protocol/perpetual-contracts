@@ -11,12 +11,14 @@ import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
+import "solidity-linked-list/contracts/StructuredLinkedList.sol";
 
 import "hardhat/console.sol";
 
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
+    using StructuredLinkedList for StructuredLinkedList.List;
     ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
@@ -25,18 +27,29 @@ contract Insurance is IInsurance {
     address public token; // token representation of a users holding in the pool
 
     uint256 public delayedWithdrawalCounter;
+    // Delayed withdrawal ID => DelayedWithdrawal
     mapping(uint256 => DelayedWithdrawal) delayedWithdrawalAccess;
+    // Address => Current delayedWithdrawal ID
+    mapping(address => uint256) public override accountsDelayedWithdrawal;
     uint256 public oldestDelayedWithdrawal;
     uint256 public youngestDelayedWithdrawal;
-    uint256 public override totalPendingWithdrawals;
+    uint256 public override totalPendingCollateralWithdrawals;
     // After 5 days, withdrawal can be executed for a 5 day window period
     uint256 public constant delayedWithdrawalLock = 5 days;
     uint256 public constant delayedWithdrawalWindow = 5 days;
+    StructuredLinkedList.List list;
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
+    event InsuranceDelayedWithdrawalCommit(
+        address indexed market,
+        address indexed user,
+        uint256 indexed collateralAmount,
+        uint256 fee,
+        uint256 id
+    );
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     struct DelayedWithdrawal {
@@ -65,6 +78,7 @@ contract Insurance is IInsurance {
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
+        require(accountsDelayedWithdrawal[msg.sender] == 0, "INS: Withdrawal already pending");
 
         IERC20 collateralToken = IERC20(collateralAsset);
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -76,9 +90,23 @@ contract Insurance is IInsurance {
             amount
         );
 
+        uint256 fee = LibInsurance.calculateDelayedWithdrawalFee(
+            getPoolTarget(),
+            publicCollateralAmount,
+            totalPendingCollateralWithdrawals,
+            wadTokensToSend
+        );
+        wadTokensToSend = wadTokensToSend - fee;
+        publicCollateralAmount -= fee;
+        bufferCollateralAmount += fee;
+        totalPendingCollateralWithdrawals += wadTokensToSend;
+
         // convert token amount to raw amount from WAD
         uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
+        uint256 id = addDelayedWithdrawal(rawTokenAmount);
+        emit InsuranceDelayedWithdrawalCommit(address(tracer), msg.sender, wadTokensToSend, fee, id);
+        /* TODO do the following in exceute delayed withdrawal
         // pool amount is always in WAD format
         publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
 
@@ -87,114 +115,86 @@ contract Insurance is IInsurance {
         collateralToken.transfer(msg.sender, rawTokenAmount);
 
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
+        */
     }
 
+    // function executeDelayedWithdrawal()
+
+    // TODO make internal
     function addDelayedWithdrawal(
         uint256 amount /*override*/
     ) public returns (uint256 id) {
-        if (delayedWithdrawalCounter == 1) {
-            // List is empty
-            delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
-                delayedWithdrawalCounter,
-                msg.sender,
-                block.timestamp,
-                amount,
-                false,
-                0,
-                0
-            );
-            oldestDelayedWithdrawal = delayedWithdrawalCounter;
-            youngestDelayedWithdrawal = delayedWithdrawalCounter;
-        } else if (oldestDelayedWithdrawal == youngestDelayedWithdrawal) {
-            // List has one element
-            delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
-                delayedWithdrawalCounter,
-                msg.sender,
-                block.timestamp,
-                amount,
-                false,
-                youngestDelayedWithdrawal,
-                0
-            );
-            delayedWithdrawalAccess[youngestDelayedWithdrawal].next = delayedWithdrawalCounter;
-        } else {
-            // List has at least 2 elements
-            delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
-                delayedWithdrawalCounter,
-                msg.sender,
-                block.timestamp,
-                amount,
-                false,
-                youngestDelayedWithdrawal,
-                0
-            );
-            delayedWithdrawalAccess[youngestDelayedWithdrawal].next = delayedWithdrawalCounter;
-        }
-        youngestDelayedWithdrawal = delayedWithdrawalCounter;
+        
+        list.pushBack(delayedWithdrawalCounter);
+        delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
+            delayedWithdrawalCounter,
+            msg.sender,
+            block.timestamp,
+            amount,
+            false,
+            0,
+            0
+        );
+        accountsDelayedWithdrawal[msg.sender] = delayedWithdrawalCounter;
         delayedWithdrawalCounter += 1;
         return delayedWithdrawalCounter - 1;
     }
 
-    function scanDelayedWithdrawals(uint256 scanAmount) public /*override*/
-    {
+    function scanDelayedWithdrawals(
+        uint256 scanAmount /*override*/
+    ) public {
         for (uint256 i = 0; i < scanAmount; i++) {
-            if (
-                delayedWithdrawalAccess[oldestDelayedWithdrawal].processed == true ||
-                block.timestamp >
-                delayedWithdrawalAccess[oldestDelayedWithdrawal].creationTime +
-                    delayedWithdrawalWindow +
-                    delayedWithdrawalLock
-            ) {
-                // expired or executed
-            } else {
+            if (!removeIfExpiredOrExecuted(i)) {
                 // We have reached one that isn't expired/executed. We can stop iterating
                 break;
             }
         }
     }
 
+    function removeIfExpiredOrExecuted(uint256 id) public returns (bool removed) {
+        (bool exists, ,) = list.getNode(id);
+        if (
+            (delayedWithdrawalAccess[id].processed == true ||
+            block.timestamp >
+            delayedWithdrawalAccess[id].creationTime + delayedWithdrawalWindow + delayedWithdrawalLock
+            ) && exists
+        ) {
+            // expired or executed
+            deleteDelayedWithdrawal(id);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     // TODO make internal
-    function deleteDelayedWithdrawal(uint256 id) public /* override */
-    {
+    function deleteDelayedWithdrawal(
+        uint256 id /* override */
+    ) public {
         if (delayedWithdrawalAccess[id].creationTime == 0) {
             // Doesn't exist
             return;
         }
-        uint256 nextId = delayedWithdrawalAccess[id].next;
-        uint256 previousId = delayedWithdrawalAccess[id].previous;
-        if (nextId > 0) {
-            delayedWithdrawalAccess[nextId].previous = previousId;
-        }
-        if (previousId > 0) {
-            delayedWithdrawalAccess[previousId].next = nextId;
-        }
+        list.remove(id);
         delete delayedWithdrawalAccess[id];
-        if (nextId == 0) {
-            // this was youngest
-            youngestDelayedWithdrawal = previousId;
-        }
-        if (previousId == 0) {
-            // this was oldest
-            oldestDelayedWithdrawal = nextId;
-        }
-        if (previousId == 0 && nextId == 0) {
-            // This was the only element
-            delayedWithdrawalCounter = 1;
-        }
     }
 
     function printCurrentList() public {
-        uint256 counter = oldestDelayedWithdrawal;
+        uint256 counter = 0;
+        uint256 id = list.popFront();
         while (true) {
-            if (delayedWithdrawalAccess[counter].creationTime == 0) {
+            if (delayedWithdrawalAccess[id].creationTime == 0) {
                 // Doesn't exist
                 return;
             }
-            getDelayedWithdrawal(counter);
-            if (counter >= 3) {
-                // return;
+            getDelayedWithdrawal(id);
+            list.pushFront(id);
+            (bool exists, uint256 _id) = list.getNextNode(id);
+            counter += 1;
+            if (!exists) {
+                return;
             }
-            counter = delayedWithdrawalAccess[counter].next;
+            id = _id;
         }
     }
 

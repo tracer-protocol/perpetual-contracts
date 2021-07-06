@@ -6,7 +6,10 @@ interface IInsurance {
 
     function bufferCollateralAmount() external view returns (uint256);
 
-    function totalPendingWithdrawals() external view returns (uint256);
+    function totalPendingCollateralWithdrawals() external view returns (uint256);
+
+    function totalPendingCollateralWithdrawals() external view returns (uint256);
+    mapping(address => uint256) public override accountsDelayedWithdrawal;
 
     function deposit(uint256 amount) external;
 
