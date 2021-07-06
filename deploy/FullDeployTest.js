@@ -262,6 +262,10 @@ module.exports = async function (hre) {
         tracerAbi
     ).connect(signers[0])
 
+    console.log(`Deployed Tracer Instance: ${tracerInstance.address}`)
+    console.log(`Deployed Factory: ${factory.address}`)
+    console.log(`Deployed Trader: ${trader.address}`)
+
     let insurance = await tracerInstance.insuranceContract()
     let pricing = await tracerInstance.pricingContract()
     let liquidation = await tracerInstance.liquidationContract()
