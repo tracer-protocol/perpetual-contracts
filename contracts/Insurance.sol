@@ -216,7 +216,13 @@ contract Insurance is IInsurance {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.pow(PRBMathUD60x18.div(poolTarget - poolHoldings, poolTarget), 2 * 10**18);
+        // (poolFundingNeeded / poolTarget) is less than 10**18, which you cannot square using PRB-math;
+        // thus, we do the multiplication manually
+        uint256 poolFundingNeeded = poolTarget - poolHoldings;
+        uint256 numerator = PRBMathUD60x18.mul(poolFundingNeeded, poolFundingNeeded);
+        uint256 denominator = PRBMathUD60x18.mul(poolTarget, poolTarget);
+
+        uint256 ratio = PRBMathUD60x18.div(numerator, denominator);
 
         return PRBMathUD60x18.mul(multiplyFactor, ratio);
     }
