@@ -18,7 +18,7 @@ describe("Unit tests: LibLiquidation.sol", function () {
 
     context("calcEscrowLiquidationAmount", async function () {
         context("if base < 0", async function () {
-            it.only("Should escrow Correct amount", async function () {
+            it("Should escrow Correct amount", async function () {
                 const margin = ethers.utils.parseEther("100")
                 const minMargin = ethers.utils.parseEther("123")
                 const base = ethers.utils.parseEther("-100")
