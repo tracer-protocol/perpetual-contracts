@@ -41,7 +41,8 @@ contract Liquidation is ILiquidation, Ownable {
         int256 liquidationAmount,
         Perpetuals.Side side,
         address indexed market,
-        uint256 liquidationId
+        uint256 liquidationId,
+        uint256 timestamp
     );
     event InvalidClaimOrder(uint256 indexed receiptId);
 
@@ -264,7 +265,8 @@ contract Liquidation is ILiquidation, Ownable {
             amount,
             (liquidatedBalance.position.base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long),
             address(tracer),
-            currentLiquidationId - 1
+            currentLiquidationId - 1,
+            block.timestamp
         );
     }
 
