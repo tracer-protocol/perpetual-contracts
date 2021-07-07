@@ -225,7 +225,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("50"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 0,
+                    lastUpdatedIndex: 1,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account2Expected = {
@@ -234,7 +234,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-40"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 0,
+                    lastUpdatedIndex: 1,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account3Expected = {
@@ -243,7 +243,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-10"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 0,
+                    lastUpdatedIndex: 1,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
 
@@ -272,7 +272,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // check funding index is 2
                 let fundingIndex = await pricing.currentFundingIndex()
-                expect(fundingIndex).to.equal(1)
+                expect(fundingIndex).to.equal(2)
 
                 // check pricing state
                 // derivative price should be the price of the first created trade
@@ -308,7 +308,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // check funding index is 3
                 fundingIndex = await pricing.currentFundingIndex()
-                expect(fundingIndex).to.equal(2)
+                expect(fundingIndex).to.equal(3)
 
                 // check pricing state
                 // derivative price should be the price of the first created trade

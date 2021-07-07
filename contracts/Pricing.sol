@@ -62,6 +62,7 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
+        currentFundingIndex = 1;
     }
 
     /**
@@ -156,11 +157,11 @@ contract Pricing is IPricing {
         );
 
         // Create variable with value of old & new cumulative funding rate values
-        int256 oldCumulativeFundingRate = fundingRates[currentFundingIndex].cumulativeFundingRate;
+        int256 oldCumulativeFundingRate = fundingRates[currentFundingIndex - 1].cumulativeFundingRate;
         int256 newCumulativeFundingRate = oldCumulativeFundingRate + fundingRate;
 
         // as above but with the cumulative insurance funding rates
-        int256 oldCumulativeIPoolFundingRate = insuranceFundingRates[currentFundingIndex].cumulativeFundingRate;
+        int256 oldCumulativeIPoolFundingRate = insuranceFundingRates[currentFundingIndex - 1].cumulativeFundingRate;
         int256 newCumulativeIPoolFundingRate = oldCumulativeIPoolFundingRate + iPoolFundingRate;
 
         // Call setter functions on calculated variables
