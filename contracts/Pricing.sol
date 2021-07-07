@@ -130,6 +130,7 @@ contract Pricing is IPricing {
                 hourlyTracerPrices[currentHour].cumulativePrice +
                 marketPrice;
             hourlyTracerPrices[currentHour].trades = hourlyTracerPrices[currentHour].trades + 1;
+
             // As above but with oracle price
             hourlyOraclePrices[currentHour].cumulativePrice =
                 hourlyOraclePrices[currentHour].cumulativePrice +
@@ -149,24 +150,26 @@ contract Pricing is IPricing {
         uint256 underlyingTWAP = twapPrices.underlying;
         uint256 derivativeTWAP = twapPrices.derivative;
 
-        int256 newFundingRate = PRBMathSD59x18.mul(
+        int256 fundingRate = PRBMathSD59x18.mul(
             derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue,
             _tracer.fundingRateSensitivity().toInt256()
         );
 
-        // Create variable with value of new funding rate value
-        int256 currentFundingRateValue = fundingRates[currentFundingIndex].cumulativeFundingRate;
-        int256 cumulativeFundingRate = currentFundingRateValue + newFundingRate;
+        // Create variable with value of old & new cumulative funding rate values
+        int256 oldCumulativeFundingRate = fundingRates[currentFundingIndex].cumulativeFundingRate;
+        int256 newCumulativeFundingRate = oldCumulativeFundingRate + fundingRate;
 
-        // as above but with insurance funding rate value
-        int256 currentInsuranceFundingRateValue = insuranceFundingRates[currentFundingIndex].cumulativeFundingRate;
-        int256 iPoolFundingRateValue = currentInsuranceFundingRateValue + iPoolFundingRate;
+        // as above but with the cumulative insurance funding rates
+        int256 oldCumulativeIPoolFundingRate = insuranceFundingRates[currentFundingIndex].cumulativeFundingRate;
+        int256 newCumulativeIPoolFundingRate = oldCumulativeIPoolFundingRate + iPoolFundingRate;
 
         // Call setter functions on calculated variables
-        setFundingRate(newFundingRate, cumulativeFundingRate);
-        emit FundingRateUpdated(newFundingRate, cumulativeFundingRate);
-        setInsuranceFundingRate(iPoolFundingRate, iPoolFundingRateValue);
-        emit InsuranceFundingRateUpdated(iPoolFundingRate, iPoolFundingRateValue);
+        setFundingRate(fundingRate, newCumulativeFundingRate);
+        emit FundingRateUpdated(fundingRate, newCumulativeFundingRate);
+
+        setInsuranceFundingRate(iPoolFundingRate, newCumulativeIPoolFundingRate);
+        emit InsuranceFundingRateUpdated(iPoolFundingRate, newCumulativeIPoolFundingRate);
+
         // increment funding index
         currentFundingIndex = currentFundingIndex + 1;
     }
