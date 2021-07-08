@@ -1,63 +1,33 @@
 const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const tokenAbi = require("../abi/@openzeppelin/contracts/token/ERC20/ERC20.sol/ERC20.json")
 const hre = require("hardhat")
-const fs = require("fs")
 
-const DEPOSIT_AMOUNT = ethers.utils.parseEther("1000")
-const NETWORK = "kovan"
-const PRIVATE_KEY_FILE = "pkey2.secret"
-const TRACER_ADDRESS = "0x5566eDe4eBF614831e6eFc538D51AF5c5FEeeA0d"
-
-// deposits quote token into a Tracer market
+// deposits 100 quote token into a locally deployed Tracer
 // this assumes the the user accounts already have a sufficient balance of QuoteToken
-// running FullDeployTest will give each account 10000 of them if a local deployment
+// running FullDeployTest will give each account 10000 of them
 async function main() {
     // deploy all contracts using hardhat deploy
-    const { ethers } = hre
+    const { deployments, ethers } = hre
     // first account is the deployer
+    const [, ...accounts] = await ethers.getSigners()
 
-    tracer = TRACER_ADDRESS
+    let tracer = await deployments.read(
+        "TracerPerpetualsFactory",
+        "tracersByIndex",
+        0
+    )
     let tracerInstance = new ethers.Contract(tracer, tracerAbi)
 
-    let pkey = fs.readFileSync(PRIVATE_KEY_FILE, "utf-8")
-    pkey = pkey.trim()
-    const wallet = new ethers.Wallet(
-        pkey,
-        ethers.getDefaultProvider(NETWORK ? NETWORK : null)
-    )
-    let tokenInstance = new ethers.Contract(
-        await tracerInstance.connect(wallet).tracerQuoteToken(),
-        tokenAbi
-    )
-
     // deposit some quote token into Tracer
-    for (let i = 0; i < 1; i++) {
-        tracerInstance = await tracerInstance.connect(wallet)
-        if (
-            (
-                await tokenInstance.allowance(
-                    wallet.address,
-                    tracerInstance.address
-                )
-            ).lt(DEPOSIT_AMOUNT)
-        ) {
-            const tx = await tokenInstance
-                .connect(wallet)
-                .approve(
-                    tracerInstance.address,
-                    ethers.utils.parseEther(
-                        DEPOSIT_AMOUNT.mul(BigNumber.from("9999999999"))
-                    )
-                )
-            await tx.wait()
-        }
-        const deposit = await tracerInstance.deposit(DEPOSIT_AMOUNT)
-        await deposit.wait()
-        console.log(
-            `balance of ${wallet.address} is now ${ethers.utils.formatEther(
-                (await tracerInstance.balances(wallet.address)).position.quote
-            )}`
+    for (let i = 0; i < 2; i++) {
+        tracerInstance = await tracerInstance.connect(accounts[i])
+        await deployments.execute(
+            "QuoteToken",
+            { from: accounts[i].address, log: true },
+            "approve",
+            tracer,
+            ethers.utils.parseEther("10000")
         )
+        await tracerInstance.deposit(ethers.utils.parseEther("1000"))
     }
 }
 
