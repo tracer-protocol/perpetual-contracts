@@ -34,7 +34,7 @@ module.exports = async function (hre) {
         from: deployer,
         log: true,
     })
-    const libPricing = await deploy("Prices", {
+    const libPrices = await deploy("Prices", {
         from: deployer,
         log: true,
     })
@@ -140,7 +140,7 @@ module.exports = async function (hre) {
         from: deployer,
         libraries: {
             LibMath: libMath.address,
-            Prices: libPricing.address,
+            Prices: libPrices.address,
         },
         log: true,
     })
@@ -153,7 +153,7 @@ module.exports = async function (hre) {
             LibMath: libMath.address,
             SafetyWithdraw: safetyWithdraw.address,
             Balances: libBalances.address,
-            Prices: libPricing.address,
+            Prices: libPrices.address,
         },
         log: true,
     })
@@ -301,6 +301,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: libPerpetuals.address,
         constructorArguments: [],
+        contracts: "contracts/lib/LibPerpetuals.sol:Perpetuals"
     })
     await hre.run("verify:verify", {
         address: libInsurance.address,
@@ -308,8 +309,9 @@ module.exports = async function (hre) {
         contract: "contracts/lib/LibInsurance.sol:LibInsurance",
     })
     await hre.run("verify:verify", {
-        address: libPricing.address,
+        address: libPrices.address,
         constructorArguments: [],
+        contracts: "contracts/lib/LibPrices.sol:Prices"
     })
     await hre.run("verify:verify", {
         address: trader.address,
