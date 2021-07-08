@@ -33,12 +33,18 @@ async function main() {
     // deposit some quote token into Tracer
     for (let i = 0; i < 1; i++) {
         tracerInstance = await tracerInstance.connect(wallet)
+        const quote = (await tracerInstance.balances(wallet.address)).position
+            .quote
+        // In reality, this should be checking base as well, but suffices for use case
+        if (quote.gt("0")) {
+            const tx = await tracerInstance.withdraw(quote)
+            await tx.wait()
+        }
         if (
             (
-                await tokenInstance.connect(wallet).allowance(
-                    wallet.address,
-                    tracerInstance.address
-                )
+                await tokenInstance
+                    .connect(wallet)
+                    .allowance(wallet.address, tracerInstance.address)
             ).lt(DEPOSIT_AMOUNT)
         ) {
             const tx = await tokenInstance
@@ -46,7 +52,7 @@ async function main() {
                 .approve(
                     tracerInstance.address,
                     ethers.utils.parseEther(
-                        DEPOSIT_AMOUNT.mul(BigNumber.from("9999999999"))
+                        DEPOSIT_AMOUNT.mul(ethers.utils.parseEther("99"))
                     )
                 )
             await tx.wait()
