@@ -35,7 +35,7 @@ async function main() {
         tracerInstance = await tracerInstance.connect(wallet)
         if (
             (
-                await tokenInstance.allowance(
+                await tokenInstance.connect(wallet).allowance(
                     wallet.address,
                     tracerInstance.address
                 )
