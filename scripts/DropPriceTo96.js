@@ -4,7 +4,7 @@ const fs = require("fs")
 
 // Address of the oracle to call `setPrice(...)` on
 const ORACLE_ADDRESS = "0xf051bCd20F02deF359cE8aA03a9e4C38b6a55a7c"
-const PRICE = "100000000"
+const PRICE = "96000000"
 const PRIVATE_KEY_FILE = "pkey2.secret"
 
 async function main() {
@@ -18,7 +18,7 @@ async function main() {
     // Create wallet with this private key, on kovan
     const wallet = new ethers.Wallet(pkey, ethers.getDefaultProvider("kovan"))
 
-    // Set price to $1
+    // Set price to $0.96
     let oracle = new ethers.Contract(ORACLE_ADDRESS, oracleAbi)
     await oracle.connect(wallet).setPrice(PRICE)
 }
