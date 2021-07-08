@@ -107,7 +107,7 @@ module.exports = async function (hre) {
             ethers.utils.parseEther("10000000"),
             "Tracer Test USDC",
             "tUSDC",
-            8
+            8,
         ], //10 mil supply
         from: deployer,
         log: true,
@@ -301,7 +301,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: libPerpetuals.address,
         constructorArguments: [],
-        contracts: "contracts/lib/LibPerpetuals.sol:Perpetuals"
+        contracts: "contracts/lib/LibPerpetuals.sol:Perpetuals",
     })
     await hre.run("verify:verify", {
         address: libInsurance.address,
@@ -311,7 +311,7 @@ module.exports = async function (hre) {
     await hre.run("verify:verify", {
         address: libPrices.address,
         constructorArguments: [],
-        contracts: "contracts/lib/LibPrices.sol:Prices"
+        contracts: "contracts/lib/LibPrices.sol:Prices",
     })
     await hre.run("verify:verify", {
         address: trader.address,
@@ -335,7 +335,7 @@ module.exports = async function (hre) {
             ethers.utils.parseEther("10000000"),
             "Tracer Test USDC",
             "tUSDC",
-            8
+            8,
         ],
         contract: "contracts/TestToken.sol:TestToken",
     })

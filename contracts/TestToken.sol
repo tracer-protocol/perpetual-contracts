@@ -16,8 +16,7 @@ contract TestToken is ERC20 {
         internalDecimals = _decimals;
     }
 
-    function decimals() public view override returns(uint8) {
+    function decimals() public view override returns (uint8) {
         return internalDecimals;
     }
-    
 }
