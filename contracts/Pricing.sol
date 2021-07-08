@@ -68,8 +68,9 @@ contract Pricing is IPricing {
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
      * @param tradePrice the price the trade executed at
+     * @param fillAmount the amount the trade was filled for
      */
-    function recordTrade(uint256 tradePrice) external override onlyTracer {
+    function recordTrade(uint256 tradePrice, uint256 fillAmount) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
         if (startLastHour <= block.timestamp - 1 hours) {
             // emit the old hourly average
@@ -97,10 +98,10 @@ contract Pricing is IPricing {
             }
 
             // add new pricing entry for new hour
-            updatePrice(tradePrice, currentOraclePrice, true);
+            updatePrice(tradePrice, currentOraclePrice, fillAmount, true);
         } else {
             // Update old pricing entry
-            updatePrice(tradePrice, currentOraclePrice, false);
+            updatePrice(tradePrice, currentOraclePrice, fillAmount, false);
         }
     }
 
@@ -109,32 +110,37 @@ contract Pricing is IPricing {
      *         and an oracle price.
      * @param marketPrice The price that a tracer was bought at, returned by the TracerPerpetualSwaps.sol contract when an order is filled
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
+     * @param fillAmount The amount of the order that was filled at some price
      * @param newRecord Bool that decides if a new hourly record should be started (true) or if a current hour should be updated (false)
      */
     function updatePrice(
         uint256 marketPrice,
         uint256 oraclePrice,
+        uint256 fillAmount,
         bool newRecord
     ) internal {
         // Price records entries updated every hour
         if (newRecord) {
-            // Make new hourly record, total = marketprice, numtrades set to 1;
-            Prices.PriceInstant memory newHourly = Prices.PriceInstant(marketPrice, 1);
+            // Make new hourly record, total = marketprice, numTrades set to the amount filled;
+            Prices.PriceInstant memory newHourly = Prices.PriceInstant(marketPrice * fillAmount, fillAmount);
             hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(oraclePrice, 1);
+            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(oraclePrice * fillAmount, fillAmount);
             hourlyOraclePrices[currentHour] = oracleHour;
         } else {
-            // If an update is needed, add the market price to a running total and increment number of trades
+            // If an update is needed, add the total market price of the trade to a running total
+            // and increment number of fill amounts
             hourlyTracerPrices[currentHour].cumulativePrice =
                 hourlyTracerPrices[currentHour].cumulativePrice +
-                marketPrice;
-            hourlyTracerPrices[currentHour].trades = hourlyTracerPrices[currentHour].trades + 1;
+                marketPrice *
+                fillAmount;
+            hourlyTracerPrices[currentHour].trades = hourlyTracerPrices[currentHour].trades + fillAmount;
             // As above but with oracle price
             hourlyOraclePrices[currentHour].cumulativePrice =
                 hourlyOraclePrices[currentHour].cumulativePrice +
-                oraclePrice;
-            hourlyOraclePrices[currentHour].trades = hourlyOraclePrices[currentHour].trades + 1;
+                oraclePrice *
+                fillAmount;
+            hourlyOraclePrices[currentHour].trades = hourlyOraclePrices[currentHour].trades + fillAmount;
         }
     }
 

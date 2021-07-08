@@ -35,10 +35,9 @@ async function main() {
         tracerInstance = await tracerInstance.connect(wallet)
         if (
             (
-                await tokenInstance.connect(wallet).allowance(
-                    wallet.address,
-                    tracerInstance.address
-                )
+                await tokenInstance
+                    .connect(wallet)
+                    .allowance(wallet.address, tracerInstance.address)
             ).lt(DEPOSIT_AMOUNT)
         ) {
             const tx = await tokenInstance

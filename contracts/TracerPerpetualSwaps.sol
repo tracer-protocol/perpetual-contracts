@@ -287,7 +287,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        pricingContract.recordTrade(executionPrice);
+        pricingContract.recordTrade(executionPrice, fillAmount);
 
         if (order1.side == Perpetuals.Side.Long) {
             emit MatchedOrders(order1.maker, order2.maker, fillAmount, executionPrice, order1Id, order2Id);
