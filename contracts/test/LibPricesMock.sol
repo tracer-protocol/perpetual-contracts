@@ -35,4 +35,29 @@ contract LibPricesMock {
     ) public pure returns (Prices.TWAP memory) {
         return Prices.calculateTWAP(hour, tracerPrices, oraclePrices);
     }
+
+    function applyFunding(
+        Balances.Position memory position,
+        Prices.FundingRateInstant memory globalRate,
+        Prices.FundingRateInstant memory userRate
+    ) public pure returns (Balances.Position memory) {
+        return Prices.applyFunding(position, globalRate, userRate);
+    }
+
+    function applyInsurance(
+        Balances.Position memory userPosition,
+        Balances.Position memory insurancePosition,
+        Prices.FundingRateInstant memory insuranceGlobalRate,
+        Prices.FundingRateInstant memory insuranceUserRate,
+        uint256 totalLeveragedValue
+    ) public pure returns (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) {
+        return
+            Prices.applyInsurance(
+                userPosition,
+                insurancePosition,
+                insuranceGlobalRate,
+                insuranceUserRate,
+                totalLeveragedValue
+            );
+    }
 }

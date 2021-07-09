@@ -27,6 +27,34 @@ const calcExpectedTwaps = (oraclePrices, tracerPrices, hour) => {
     ]
 }
 
+const calculateExpectedUserPosition = (
+    quote,
+    base,
+    globalCumulativeRate,
+    userCumulativeRate
+) => {
+    return [
+        quote.sub(
+            base
+                .mul(globalCumulativeRate.sub(userCumulativeRate))
+                .div(ethers.utils.parseEther("1")) // div by 10**18 for WAD maths
+        ),
+        base,
+    ]
+}
+
+const applyFundingWrapper = async (
+    userPosition,
+    globalCumulativeRate,
+    userCumulativeRate
+) => {
+    // timestamp & the individual funding rate for that hour don't matter, so we zero them out
+    let globalRate = [0, 0, globalCumulativeRate]
+    let userRate = [0, 0, userCumulativeRate]
+
+    return await libPrices.applyFunding(userPosition, globalRate, userRate)
+}
+
 describe("Unit tests: LibPrices.sol", function () {
     before(async function () {
         const { deployer } = await getNamedAccounts()
@@ -387,6 +415,167 @@ describe("Unit tests: LibPrices.sol", function () {
                         expectedTWAP[1].toString()
                     )
                 }
+            })
+        })
+    })
+
+    describe("applyFunding", async () => {
+        context(
+            "When the global rate is greater than the user rate & user has a long position",
+            async () => {
+                it("applies a negative change to the user's position", async () => {
+                    var quote = ethers.utils.parseEther("0")
+                    var base = ethers.utils.parseEther("50")
+
+                    var userPosition = [quote, base]
+
+                    let globalCumulativeRate = ethers.utils.parseEther("2300")
+                    let userCumulativeRate = ethers.utils.parseEther("2200")
+
+                    // Funding applied (i.e. quote diff) will be (50 base * (100 quote / base) = 5000 quote
+                    // Since user had zero quote, they should have -5000 now (take negative of funding applied)
+                    let expectedUserPosition = calculateExpectedUserPosition(
+                        quote,
+                        base,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+                    expect(expectedUserPosition[0]).to.equal(
+                        ethers.utils.parseEther("-5000")
+                    )
+
+                    let funding = await applyFundingWrapper(
+                        userPosition,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+
+                    expect(funding[0]).to.equal(expectedUserPosition[0]) // check quote is changed
+                    expect(funding[1]).to.equal(expectedUserPosition[1]) // check base is unchanged
+                })
+            }
+        )
+
+        context(
+            "When the global rate is less than the user rate & user has a long position",
+            async () => {
+                it("applies a positive change to the user's position", async () => {
+                    var quote = ethers.utils.parseEther("0")
+                    var base = ethers.utils.parseEther("50")
+
+                    var userPosition = [quote, base]
+
+                    let globalCumulativeRate = ethers.utils.parseEther("2200")
+                    let userCumulativeRate = ethers.utils.parseEther("2300")
+
+                    // Funding applied (i.e. quote diff) will be (50 base * (100 quote / base) = -5000 quote
+                    // Since user had zero quote, they should have 5000 now (take negative of funding applied)
+                    let expectedUserPosition = calculateExpectedUserPosition(
+                        quote,
+                        base,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+                    expect(expectedUserPosition[0]).to.equal(
+                        ethers.utils.parseEther("5000")
+                    )
+
+                    let funding = await applyFundingWrapper(
+                        userPosition,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+
+                    expect(funding[0]).to.equal(expectedUserPosition[0]) // check quote is changed
+                    expect(funding[1]).to.equal(expectedUserPosition[1]) // check base is unchanged
+                })
+            }
+        )
+
+        context(
+            "When the global rate is greater than the user rate & user has a short position",
+            async () => {
+                it("applies a positive change to the user's position", async () => {
+                    quote = ethers.utils.parseEther("0")
+                    base = ethers.utils.parseEther("-50")
+
+                    userPosition = [quote, base]
+
+                    let globalCumulativeRate = ethers.utils.parseEther("2300")
+                    let userCumulativeRate = ethers.utils.parseEther("2200")
+
+                    // Funding applied (i.e. quote diff) will be (-50 base * (100 quote / base) = -5000 quote
+                    // Since user had zero quote, they should have 5000 now (take negative of funding applied)
+                    let expectedUserPosition = calculateExpectedUserPosition(
+                        quote,
+                        base,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+                    expect(expectedUserPosition[0]).to.equal(
+                        ethers.utils.parseEther("5000")
+                    )
+
+                    let funding = await applyFundingWrapper(
+                        userPosition,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+
+                    expect(funding[0]).to.equal(expectedUserPosition[0]) // check quote is changed
+                    expect(funding[1]).to.equal(expectedUserPosition[1]) // check base is unchanged
+                })
+            }
+        )
+
+        context(
+            "When the global rate is less than the user rate & user has a short position",
+            async () => {
+                it("applies a negative change to the user's position", async () => {
+                    quote = ethers.utils.parseEther("0")
+                    base = ethers.utils.parseEther("-50")
+
+                    userPosition = [quote, base]
+
+                    let globalCumulativeRate = ethers.utils.parseEther("2200")
+                    let userCumulativeRate = ethers.utils.parseEther("2300")
+
+                    // Funding applied (i.e. quote diff) will be (-50 base * (-100 quote / base) = 5000 quote
+                    // Since user had zero quote, they should have -5000 now (take negative of funding applied)
+                    let expectedUserPosition = calculateExpectedUserPosition(
+                        quote,
+                        base,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+                    expect(expectedUserPosition[0]).to.equal(
+                        ethers.utils.parseEther("-5000")
+                    )
+
+                    let funding = await applyFundingWrapper(
+                        userPosition,
+                        globalCumulativeRate,
+                        userCumulativeRate
+                    )
+
+                    expect(funding[0]).to.equal(expectedUserPosition[0]) // check quote is changed
+                    expect(funding[1]).to.equal(expectedUserPosition[1]) // check base is unchanged
+                })
+            }
+        )
+    })
+
+    describe("applyInsurance", async () => {
+        context("when insurance funding has increased", async () => {
+            it("returns the correct insurance/user positions", async () => {
+                let userPosition = [
+                    ethers.utils.parseEther("0"),
+                    ethers.utils.parseEther("0"),
+                ] // quote, base
+                let insurancePosition = [] // quote, base
+                let insuranceGlobalRate = [] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceUserRate = [] // timestamp, fundingRate, cumulativeFundingRate
+                let totalLeveragedValue = ethers.utils.parseEther("100")
             })
         })
     })
