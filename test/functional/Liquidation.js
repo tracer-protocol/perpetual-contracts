@@ -639,13 +639,13 @@ describe("Liquidation functional tests", async () => {
                 const contracts = await setupLiquidationTest()
                 accounts = await ethers.getSigners()
 
-                const liquidationAmount = (
-                    await contracts.tracer.balances(accounts[0].address)
-                ).position.base
+                const liquidateeBalance = await contracts.tracer.balances(accounts[0].address)
+                const liquidationAmount = liquidateeBalance.position.base
 
                 const baseBefore = (
                     await contracts.tracer.balances(accounts[2].address)
                 ).position.base
+
 
                 // Normal liquidation
                 const tx = await contracts.liquidation.liquidate(
@@ -662,11 +662,16 @@ describe("Liquidation functional tests", async () => {
                 ).escrowedAmount
                 expect(escrowedAmount).to.equal(expectedEscrowedAmount)
 
-                const baseAfter = (
-                    await contracts.tracer.balances(accounts[2].address)
-                ).position.base
+                const liquidateeBalanceAfter = await contracts.tracer.balances(accounts[0].address)
+                const leveragedValueAfter = liquidateeBalanceAfter.totalLeveragedValue
 
+                const balanceAfter = await contracts.tracer.balances(accounts[2].address)
+                const baseAfter = balanceAfter.position.base
+
+                expect(liquidateeBalanceAfter.position.quote).to.equal("0")
+                expect(liquidateeBalanceAfter.position.base).to.equal("0")
                 expect(baseAfter).to.equal(baseBefore.add(liquidationAmount))
+                expect(leveragedValueAfter).to.equal(BigNumber.from("0"))
             })
         })
 
@@ -674,10 +679,9 @@ describe("Liquidation functional tests", async () => {
             it("Updates accounts and escrow correctly", async () => {
                 const contracts = await setupLiquidationTest()
                 accounts = await ethers.getSigners()
-
-                const liquidationAmount = (
-                    await contracts.tracer.balances(accounts[0].address)
-                ).position.base.div(2)
+                const liquidateeBalance = await contracts.tracer.balances(accounts[0].address)
+                const liquidationAmount = liquidateeBalance.position.base.div(2)
+                const leveragedValueBefore = liquidateeBalance.totalLeveragedValue
 
                 const baseBefore = (
                     await contracts.tracer.balances(accounts[2].address)
@@ -699,10 +703,15 @@ describe("Liquidation functional tests", async () => {
                 ).escrowedAmount
                 expect(escrowedAmount).to.equal(expectedEscrowedAmount)
 
+                const liquidateeBalanceAfter = await contracts.tracer.balances(accounts[0].address)
+                const leveragedValueAfter = liquidateeBalanceAfter.totalLeveragedValue
+
                 const baseAfter = (
                     await contracts.tracer.balances(accounts[2].address)
                 ).position.base
 
+                // Leveraged value should half
+                expect(leveragedValueAfter).to.equal(leveragedValueBefore.div(2))
                 expect(baseAfter).to.equal(baseBefore.add(liquidationAmount))
             })
         })
@@ -840,9 +849,9 @@ describe("Liquidation functional tests", async () => {
                     .div(BigNumber.from("100"))
                 const slippageAmount = receiptValue.sub(sellValue)
 
-                const liquidatorQuoteBefore = (
-                    await contracts.tracerPerps.balances(accounts[1].address)
-                ).position.quote
+                const liquidatorBefore = await contracts.tracerPerps.balances(accounts[1].address)
+                const liquidatorQuoteBefore = liquidatorBefore.position.quote
+
                 const liquidateeQuoteBefore = (
                     await contracts.tracerPerps.balances(accounts[0].address)
                 ).position.quote
@@ -860,9 +869,8 @@ describe("Liquidation functional tests", async () => {
                         contracts.modifiableTrader.address
                     )
 
-                const liquidatorQuoteAfter = (
-                    await contracts.tracerPerps.balances(accounts[1].address)
-                ).position.quote
+                const liquidatorAfter = await contracts.tracerPerps.balances(accounts[1].address)
+                const liquidatorQuoteAfter = liquidatorAfter.position.quote
                 const liquidateeQuoteAfter = (
                     await contracts.tracerPerps.balances(accounts[0].address)
                 ).position.quote
@@ -870,6 +878,9 @@ describe("Liquidation functional tests", async () => {
                 expect(liquidatorQuoteAfter).to.equal(
                     liquidatorQuoteBefore.add(slippageAmount)
                 )
+
+                // Total leveraged value should go down by slippageAmount
+                expect(liquidatorAfter.totalLeveragedValue).to.equal(liquidatorBefore.totalLeveragedValue.sub(slippageAmount))
 
                 const expectedLiquidateeDifference =
                     escrowedAmount.sub(slippageAmount)
@@ -1381,9 +1392,6 @@ describe("Liquidation functional tests", async () => {
                 it("Reverts", async () => {
                     const contracts = await setupReceiptTest()
                     accounts = await ethers.getSigners()
-                    const escrowedAmount = (
-                        await contracts.liquidation.liquidationReceipts(0)
-                    ).escrowedAmount
 
                     // This order sells all liquidationAmount at $0.5, even though the receipt is $0.95,
                     // so slippage is liquidationAmount*0.95 - liquidationAmount*0.5
@@ -1402,7 +1410,6 @@ describe("Liquidation functional tests", async () => {
                             [order],
                             contracts.modifiableTrader.address
                         )
-
                     await increaseFifteenMinutes()
                     const tx = contracts.liquidation
                         .connect(accounts[0])
@@ -1427,6 +1434,11 @@ describe("Liquidation functional tests", async () => {
                             accounts[0].address
                         )
                     ).position.quote
+                    const liquidatorBefore = 
+                        await contracts.tracerPerps.balances(
+                            accounts[2].address
+                        )
+                
 
                     await increaseFifteenMinutes()
                     await contracts.liquidation
@@ -1438,7 +1450,13 @@ describe("Liquidation functional tests", async () => {
                             accounts[0].address
                         )
                     ).position.quote
+                    const liquidatorAfter = 
+                        await contracts.tracerPerps.balances(
+                            accounts[2].address
+                        )
 
+                    expect(liquidatorAfter.position.quote).to.equal(liquidatorBefore.position.quote)
+                    expect(liquidatorAfter.position.base).to.equal(liquidatorBefore.position.base)
                     expect(quoteAfter).to.equal(quoteBefore.add(escrowedAmount))
                 })
             }
