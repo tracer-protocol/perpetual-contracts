@@ -25,10 +25,23 @@ library Prices {
         uint256 derivative;
     }
 
+    /**
+     * @notice Calculate the fair price, defined as oraclePrice - timeValue
+     * @param oraclePrice Oracle price
+     * @param _timeValue Time value
+     * @return Fair price of the market
+     */
     function fairPrice(uint256 oraclePrice, int256 _timeValue) internal pure returns (uint256) {
         return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
+    /**
+     * @notice Calculate the time value component for a given 24 hour period, which is the average premium over a 90 day period
+     * @dev After 24 hours pass in a tracer market, the result of this function is added to the global time value of the market
+     * @param averageTracerPrice Average tracer price over the last 24 hours
+     * @param averageOraclePrice Average oracle price over the last 24 hours
+     * @return Time value for the 24 hour period
+     */
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) internal pure returns (int256) {
         return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
     }
@@ -78,8 +91,7 @@ library Prices {
      * @param _globalLeverage Current global leverage
      * @param oldLeverage Old leverage of account
      * @param newLeverage New leverage of account
-     * @return New global leverage, calculated from the change from
-     *        the old to the new leverage for the account
+     * @return New global leverage, calculated from the change from the old to the new leverage for the account
      */
     function globalLeverage(
         uint256 _globalLeverage,
@@ -88,7 +100,7 @@ library Prices {
     ) internal pure returns (uint256) {
         int256 newGlobalLeverage = _globalLeverage.toInt256() + newLeverage.toInt256() - oldLeverage.toInt256();
 
-        // note: this would require a bug in how account leverage was recorded
+        // Note: This would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
         // markets leverage. This SHOULD NOT be possible, however this is here for sanity.
         if (newGlobalLeverage < 0) {
@@ -99,14 +111,12 @@ library Prices {
     }
 
     /**
-     * @notice calculates an 8 hour TWAP starting at the hour index amd moving
+     * @notice Calculates an 8 hour TWAP starting at the hour index amd moving
      * backwards in time.
      * @dev Ignores hours where the number of trades is zero
-     * @param hour the 24 hour index to start at
-     * @param tracerPrices the average hourly prices of the derivative over the last
-     * 24 hours
-     * @param oraclePrices the average hourly prices of the oracle over the last
-     * 24 hours
+     * @param hour The 24 hour index to start at
+     * @param tracerPrices The average hourly prices of the derivative over the last 24 hours
+     * @param oraclePrices The average hourly prices of the oracle over the last 24 hours
      */
     function calculateTWAP(
         uint256 hour,
@@ -164,6 +174,7 @@ library Prices {
      * @param position Position of the user
      * @param globalRate Global funding rate in current instance
      * @param userRate Last updated user funding rate
+     * @return The new position of the user (after the funding rate is applied)
      */
     function applyFunding(
         Balances.Position memory position,
@@ -208,7 +219,6 @@ library Prices {
 
         if (insuranceDelta > 0) {
             newUserPos = Balances.Position(userPosition.quote - insuranceDelta, userPosition.base);
-
             newInsurancePos = Balances.Position(insurancePosition.quote + insuranceDelta, insurancePosition.base);
 
             return (newUserPos, newInsurancePos);
