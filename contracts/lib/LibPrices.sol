@@ -45,7 +45,8 @@ library Prices {
         if (price.trades == 0) {
             return 0;
         }
-        return price.cumulativePrice / price.trades;
+
+        return PRBMathUD60x18.div(price.cumulativePrice, price.trades);
     }
 
     /**

@@ -7,6 +7,7 @@ const calcExpectedTwaps = (oraclePrices, tracerPrices, hour) => {
     let cumulativeDerivative = ethers.BigNumber.from("0")
     let cumulativeUnderlying = ethers.BigNumber.from("0")
     let totalTimeWeight = ethers.BigNumber.from("0")
+
     for (i = 0; i < 8; i++) {
         let currTimeWeight = 8 - i
         let j = hour < i ? 24 - i + hour : hour - i
@@ -15,12 +16,19 @@ const calcExpectedTwaps = (oraclePrices, tracerPrices, hour) => {
             ethers.BigNumber.from(currTimeWeight)
         )
         cumulativeDerivative = cumulativeDerivative.add(
-            tracerPrices[j][0].div(tracerPrices[j][1]).mul(currTimeWeight)
+            tracerPrices[j][0]
+                .mul(ethers.utils.parseEther("1"))
+                .div(tracerPrices[j][1])
+                .mul(currTimeWeight)
         )
         cumulativeUnderlying = cumulativeUnderlying.add(
-            oraclePrices[j][0].div(oraclePrices[j][1]).mul(currTimeWeight)
+            oraclePrices[j][0]
+                .mul(ethers.utils.parseEther("1"))
+                .div(oraclePrices[j][1])
+                .mul(currTimeWeight)
         )
     }
+
     return [
         cumulativeUnderlying.div(totalTimeWeight),
         cumulativeDerivative.div(totalTimeWeight),
@@ -196,7 +204,7 @@ describe("Unit tests: LibPrices.sol", function () {
                 let result = await libPrices.averagePrice(price)
 
                 expect(result.toString()).to.equal(
-                    ethers.BigNumber.from("10").toString()
+                    ethers.utils.parseEther("10").toString()
                 )
             })
         })
@@ -229,16 +237,17 @@ describe("Unit tests: LibPrices.sol", function () {
                 for (i = 0; i < n; i++) {
                     prices.push([
                         ethers.utils.parseEther((i + 1).toString()),
-                        ethers.BigNumber.from(i + 1),
+                        ethers.utils.parseEther((i + 1).toString()),
                     ])
                     let dayAverage = ethers.utils
                         .parseEther((i + 1).toString())
-                        .div(ethers.BigNumber.from(i + 1))
+                        .mul(ethers.utils.parseEther("1"))
+                        .div(ethers.utils.parseEther((i + 1).toString()))
                     priceAverages = priceAverages.add(dayAverage.toString())
                 }
 
                 let averagePriceForPeriod = priceAverages.div(
-                    ethers.BigNumber.from(n)
+                    ethers.BigNumber.from(n.toString())
                 )
                 let result = await libPrices.averagePriceForPeriod(prices)
 
@@ -317,12 +326,12 @@ describe("Unit tests: LibPrices.sol", function () {
                 // generate 24 hour oracle and tracer prices
                 for (i = 0; i < 24; i++) {
                     oraclePrices.push([
-                        ethers.utils.parseUnits((1 + 1 * i).toString(), 18),
-                        ethers.BigNumber.from("1"),
+                        ethers.utils.parseEther((1 + 1 * i).toString()),
+                        ethers.utils.parseEther("1"),
                     ])
                     tracerPrices.push([
-                        ethers.utils.parseUnits((1 + 0.5 * i).toString(), 18),
-                        ethers.BigNumber.from("1"),
+                        ethers.utils.parseEther((1 + 0.5 * i).toString()),
+                        ethers.utils.parseEther("1"),
                     ])
                 }
 

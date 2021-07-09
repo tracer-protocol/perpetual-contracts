@@ -8,6 +8,7 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Pricing is IPricing {
     using LibMath for uint256;
@@ -122,24 +123,28 @@ contract Pricing is IPricing {
         // Price records entries updated every hour
         if (newRecord) {
             // Make new hourly record, total = marketprice, numTrades set to the amount filled;
-            Prices.PriceInstant memory newHourly = Prices.PriceInstant(marketPrice * fillAmount, fillAmount);
+            Prices.PriceInstant memory newHourly = Prices.PriceInstant(
+                PRBMathUD60x18.mul(marketPrice, fillAmount),
+                fillAmount
+            );
             hourlyTracerPrices[currentHour] = newHourly;
             // As above but with Oracle price
-            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(oraclePrice * fillAmount, fillAmount);
+            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(
+                PRBMathUD60x18.mul(oraclePrice, fillAmount),
+                fillAmount
+            );
             hourlyOraclePrices[currentHour] = oracleHour;
         } else {
             // If an update is needed, add the total market price of the trade to a running total
             // and increment number of fill amounts
             hourlyTracerPrices[currentHour].cumulativePrice =
                 hourlyTracerPrices[currentHour].cumulativePrice +
-                marketPrice *
-                fillAmount;
+                PRBMathUD60x18.mul(marketPrice, fillAmount);
             hourlyTracerPrices[currentHour].trades = hourlyTracerPrices[currentHour].trades + fillAmount;
             // As above but with oracle price
             hourlyOraclePrices[currentHour].cumulativePrice =
                 hourlyOraclePrices[currentHour].cumulativePrice +
-                oraclePrice *
-                fillAmount;
+                PRBMathUD60x18.mul(oraclePrice, fillAmount);
             hourlyOraclePrices[currentHour].trades = hourlyOraclePrices[currentHour].trades + fillAmount;
         }
     }
