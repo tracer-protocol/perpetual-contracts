@@ -2,7 +2,7 @@ const { setPrice } = require("./SetPrice")
 
 // Address of the oracle to call `setPrice(...)` on
 const ORACLE_ADDRESS = "0xf051bCd20F02deF359cE8aA03a9e4C38b6a55a7c"
-const PRICE = "96000000"
+const PRICE = "102000000"
 const PRIVATE_KEY_FILE = "pkey2.secret"
 
 async function main() {
