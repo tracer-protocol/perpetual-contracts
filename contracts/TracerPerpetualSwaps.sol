@@ -395,6 +395,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // update liquidatee balance
         liquidateeBalance.position.quote = liquidateeBalance.position.quote + liquidateeQuoteChange;
         liquidateeBalance.position.base = liquidateeBalance.position.base + liquidateeBaseChange;
+        _updateAccountLeverage(liquidator);
+        _updateAccountLeverage(liquidatee);
 
         // Checks if the liquidator is in a valid position to process the liquidation
         require(userMarginIsValid(liquidator), "TCR: Liquidator under min margin");
@@ -423,6 +425,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         balances[insuranceAddr].position.quote = balances[insuranceAddr].position.quote - amountToTakeFromInsurance;
         balances[claimant].position.quote = balances[claimant].position.quote + amountToGiveToClaimant;
         balances[liquidatee].position.quote = balances[liquidatee].position.quote + amountToGiveToLiquidatee;
+        _updateAccountLeverage(claimant);
+        _updateAccountLeverage(liquidatee);
         require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not funded enough");
     }
 
