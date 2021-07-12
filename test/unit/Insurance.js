@@ -67,7 +67,12 @@ const setup = deployments.createFixture(async () => {
     _deployer = deployer
     // deploy a test token
     const TestToken = await ethers.getContractFactory("TestToken")
-    let testToken = await TestToken.deploy(ethers.utils.parseEther("100000000"))
+    let testToken = await TestToken.deploy(
+        ethers.utils.parseEther("100000000"),
+        "Test Token",
+        "TST",
+        18
+    )
     await testToken.deployed()
 
     // deploy mock tracer and libs
