@@ -10,6 +10,6 @@ contract SafetyWithdraw is Ownable, ISafetyWithdraw {
         address to,
         uint256 amount
     ) external override onlyOwner {
-        IERC20(tokenAddress).transfer(to, amount);
+        require(IERC20(tokenAddress).transfer(to, amount), "transfer failed");
     }
 }

@@ -157,7 +157,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // cast is safe since amount is a uint, and wadToToken can only
         // scale down the value
         uint256 rawTokenAmount = uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
-        IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), rawTokenAmount);
+        require(IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), rawTokenAmount), "transfer failed");
 
         // this prevents dust from being added to the user account
         // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
@@ -209,7 +209,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         tvl = tvl - amount;
 
         // perform transfer
-        IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount);
+        require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "transfer failed");
         emit Withdraw(msg.sender, uint256(convertedWadAmount));
     }
 
@@ -525,7 +525,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         tvl = tvl - tempFees;
 
         // Withdraw from the account
-        IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees);
+        require(IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees), "transfer failed");
         emit FeeWithdrawn(feeReceiver, tempFees);
     }
 
