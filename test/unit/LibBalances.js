@@ -28,7 +28,7 @@ const getTradePosition = (position, trade, feeRate) => {
     if (trade[2] === 0) {
         // long
         return [
-            position[0].sub(quoteChange).add(fee),
+            position[0].sub(quoteChange).sub(fee),
             position[1].add(trade[1]),
         ]
     } else {
@@ -593,14 +593,18 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("0"),
                 ]
-                // long 5 units at $2
+                // long 5 units at $1
                 let trade = [
-                    ethers.utils.parseEther("2"),
+                    ethers.utils.parseEther("1"),
                     ethers.utils.parseEther("5"),
                     0,
                 ]
-                let feeRate = ethers.BigNumber.from("0")
+                let feeRate = ethers.utils.parseEther("0.1")
                 let expected = getTradePosition(position, trade, feeRate)
+                // 5 units at $1, with a feeRate of 10% => $0.5 fee
+                // Starting base was $10; after the trade, goes down by $5 (5 units * $1 / unit)
+                // 10 - 5 - 0.5 = 4.5
+                expect(expected[0]).to.equal(ethers.utils.parseEther("4.5"))
                 let result = await libBalances.applyTrade(
                     position,
                     trade,
@@ -622,8 +626,12 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("5"),
                     1,
                 ]
-                let feeRate = ethers.BigNumber.from("0")
+                let feeRate = ethers.utils.parseEther("0.1")
                 let expected = getTradePosition(position, trade, feeRate)
+                // 5 units at $1, with a feeRate of 10% => $0.5 fee
+                // Starting base was $10; after the trade, goes up by $5 (5 units * $1 / unit)
+                // 10 + 5 - 0.5 = 14.5
+                expect(expected[0]).to.equal(ethers.utils.parseEther("14.5"))
                 let result = await libBalances.applyTrade(
                     position,
                     trade,

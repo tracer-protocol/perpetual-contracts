@@ -182,11 +182,11 @@ library Balances {
         int256 newBase = 0;
 
         if (trade.side == Perpetuals.Side.Long) {
-            // Long positions have their positions increased
+            // Long trades have their base increased & quote decreased
             newBase = position.base + signedAmount;
-            newQuote = position.quote - quoteChange + fee;
+            newQuote = position.quote - quoteChange - fee;
         } else if (trade.side == Perpetuals.Side.Short) {
-            // Short positions have their positions decreased
+            // Short trades have their base decreased & quote increased
             newBase = position.base - signedAmount;
             newQuote = position.quote + quoteChange - fee;
         }
