@@ -329,9 +329,9 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // settle accounts and measure funding rate affect
                 // fundingRate = derivative twap - underlying twap - time value
-                // $1.1333 - $1 - 0 = 0.1333
+                // ($1.1333 - $1 - 0) / 8 = 0.16666666666666666
                 let expectedFundingRate = ethers.utils.parseEther(
-                    "0.133333333333333333"
+                    "0.016666666666666666"
                 )
                 fundingIndex = await pricing.currentFundingIndex()
                 let fundingRate = await pricing.fundingRates(fundingIndex - 1)

@@ -39,6 +39,10 @@ contract Pricing is IPricing {
     uint256 public startLast24Hours;
     uint8 public override currentHour;
 
+    // The funding rate is supposed to be 8-hourly, but because it's paid hourly
+    // in the contracts, we offset the calculated rate by a factor of 8
+    int256 internal constant FUNDING_RATE_OFFSET = 8;
+
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
     event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
     event InsuranceFundingRateUpdated(int256 insuranceFundingRate, int256 insuranceFundingRateValue);
@@ -152,7 +156,7 @@ contract Pricing is IPricing {
         int256 newFundingRate = PRBMathSD59x18.mul(
             derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue,
             _tracer.fundingRateSensitivity().toInt256()
-        );
+        ) / FUNDING_RATE_OFFSET;
 
         // Create variable with value of new funding rate value
         int256 currentFundingRateValue = fundingRates[currentFundingIndex].cumulativeFundingRate;
