@@ -41,7 +41,7 @@ contract Pricing is IPricing {
 
     // The funding rate is supposed to be 8-hourly, but because it's paid hourly
     // in the contracts, we offset the calculated rate by a factor of 8
-    int256 internal constant FUNDING_RATE_OFFSET = 8;
+    int256 private constant FUNDING_RATE_OFFSET = 8;
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
     event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
