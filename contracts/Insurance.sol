@@ -22,6 +22,8 @@ contract Insurance is IInsurance {
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public token; // token representation of a users holding in the pool
 
+    uint256 private constant ONE_TOKEN = 1e18; // Constant for 10**18, i.e. one token in WAD format; used for drainPool
+
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
@@ -139,10 +141,10 @@ contract Insurance is IInsurance {
 
         if (amount >= poolHoldings) {
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
-            if (publicCollateralAmount > 10**18) {
+            if (publicCollateralAmount > ONE_TOKEN) {
                 // Leave 1 token for the public pool
-                amount = poolHoldings - 10**18;
-                publicCollateralAmount = 10**18;
+                amount = poolHoldings - ONE_TOKEN;
+                publicCollateralAmount = ONE_TOKEN;
             } else {
                 amount = bufferCollateralAmount;
             }
@@ -150,14 +152,14 @@ contract Insurance is IInsurance {
             // Drain buffer
             bufferCollateralAmount = 0;
         } else if (amount > bufferCollateralAmount) {
-            if (publicCollateralAmount < 10**18) {
+            if (publicCollateralAmount < ONE_TOKEN) {
                 // If there's not enough public collateral for there to be 1 token, cap amount being drained at the buffer
                 amount = bufferCollateralAmount;
-            } else if (poolHoldings - amount < 10**18) {
+            } else if (poolHoldings - amount < ONE_TOKEN) {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
-                amount = poolHoldings - 10**18;
-                publicCollateralAmount = 10**18;
+                amount = poolHoldings - ONE_TOKEN;
+                publicCollateralAmount = ONE_TOKEN;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
                 publicCollateralAmount = publicCollateralAmount - (amount - bufferCollateralAmount);
