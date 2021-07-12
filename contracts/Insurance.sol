@@ -17,10 +17,10 @@ contract Insurance is IInsurance {
     using LibMath for int256;
     ITracerPerpetualsFactory public perpsFactory;
 
-    address public collateralAsset; // Address of collateral asset
+    address public immutable collateralAsset; // Address of collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
-    address public token; // token representation of a users holding in the pool
+    address public immutable token; // token representation of a users holding in the pool
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
