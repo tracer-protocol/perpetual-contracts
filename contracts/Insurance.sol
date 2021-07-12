@@ -24,6 +24,12 @@ contract Insurance is IInsurance {
 
     uint256 private constant ONE_TOKEN = 1e18; // Constant for 10**18, i.e. one token in WAD format; used for drainPool
 
+    // The insurance pool funding rate calculation can be refactored to have 0.00000570775
+    // as the constant in front; see getPoolFundingRate for the formula
+    // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
+    // 0.00000570775 as a WAD = 570775 * (10 ** 7)
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
+
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
@@ -205,11 +211,6 @@ contract Insurance is IInsurance {
      *      (182.648 / 8) * (5 * ((fundTarget - fundHoldings) / (fundTarget * 10_000))) ** 2
      */
     function getPoolFundingRate() external view override returns (uint256) {
-        // Above equation can be refactored to have 0.000005707750000 as the constant in front
-        // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.000005707750000
-        // 0.000005707750000 as a WAD = 570775 * (10 ** 7)
-        uint256 multiplyFactor = 570775 * (10**7);
-
         uint256 poolHoldings = getPoolHoldings();
         uint256 poolTarget = getPoolTarget();
 
@@ -226,7 +227,7 @@ contract Insurance is IInsurance {
 
         uint256 ratio = PRBMathUD60x18.div(numerator, denominator);
 
-        return PRBMathUD60x18.mul(multiplyFactor, ratio);
+        return PRBMathUD60x18.mul(INSURANCE_FUNDING_RATE_FACTOR, ratio);
     }
 
     modifier onlyLiquidation() {
