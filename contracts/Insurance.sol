@@ -15,7 +15,6 @@ import "prb-math/contracts/PRBMathUD60x18.sol";
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
-    ITracerPerpetualsFactory public perpsFactory;
 
     address public collateralAsset; // Address of collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
