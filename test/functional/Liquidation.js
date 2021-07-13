@@ -337,8 +337,6 @@ describe("Liquidation functional tests", async () => {
         accounts = await ethers.getSigners()
     })
 
-    beforeEach(async function () {})
-
     context("calcAmountToReturn", async () => {
         context(
             "when units sold is greater than liquidation amount",

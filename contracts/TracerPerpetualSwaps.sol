@@ -490,7 +490,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
 
             // Update account index
             accountBalance.lastUpdatedIndex = lastEstablishedIndex;
-            require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
     }
