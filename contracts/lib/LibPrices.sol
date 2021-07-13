@@ -10,6 +10,7 @@ library Prices {
     using LibMath for uint256;
 
     uint256 private constant EIGHT_HOURS = 8; // Needed for TWAP calculations
+    int256 private constant NINETY_DAYS = 90; // Needed for daily time value calculation
 
     struct FundingRateInstant {
         uint256 timestamp;
@@ -32,7 +33,7 @@ library Prices {
     }
 
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) internal pure returns (int256) {
-        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
+        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / NINETY_DAYS;
     }
 
     /**
