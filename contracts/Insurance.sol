@@ -33,7 +33,7 @@ contract Insurance is IInsurance {
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
-        }
+    }
 
     /**
      * @notice Allows a user to deposit to a given tracer market insurance pool
