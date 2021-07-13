@@ -108,7 +108,7 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
-     * @notice Allows a trader to claim escrowed funds after the escrow period has expired
+     * @notice Transfers the escrowed funds to the trader if the escrow period has expired. Can be called by anyone.
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
     function claimEscrow(uint256 receiptId) public override {
