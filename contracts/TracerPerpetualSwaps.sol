@@ -157,7 +157,10 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // cast is safe since amount is a uint, and wadToToken can only
         // scale down the value
         uint256 rawTokenAmount = uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
-        require(IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), rawTokenAmount), "TCR: transfer failed");
+        require(
+            IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), rawTokenAmount),
+            "TCR: transfer failed"
+        );
 
         // this prevents dust from being added to the user account
         // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
