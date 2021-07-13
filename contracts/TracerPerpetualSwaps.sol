@@ -159,7 +159,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         uint256 rawTokenAmount = uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
         require(
             IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), rawTokenAmount),
-            "TCR: transfer failed"
+            "TCR: Transfer failed"
         );
 
         // this prevents dust from being added to the user account
@@ -212,7 +212,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         tvl = tvl - amount;
 
         // perform transfer
-        require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "TCR: transfer failed");
+        require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "TCR: Transfer failed");
         emit Withdraw(msg.sender, uint256(convertedWadAmount));
     }
 
@@ -528,7 +528,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         tvl = tvl - tempFees;
 
         // Withdraw from the account
-        require(IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees), "TCR: transfer failed");
+        require(IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees), "TCR: Transfer failed");
         emit FeeWithdrawn(feeReceiver, tempFees);
     }
 
