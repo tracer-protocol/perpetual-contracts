@@ -14,6 +14,7 @@ library Balances {
     using PRBMathUD60x18 for uint256;
 
     uint256 public constant MAX_DECIMALS = 18;
+    uint256 private constant LIQUIDATION_GAS_MULTIPLIER = 6;
 
     // Size of a position
     struct Position {
@@ -111,7 +112,7 @@ library Balances {
             return 0;
         }
 
-        uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
+        uint256 adjustedLiquidationGasCost = liquidationGasCost * LIQUIDATION_GAS_MULTIPLIER;
 
         uint256 _notionalValue = notionalValue(position, price);
         uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(_notionalValue, maximumLeverage);

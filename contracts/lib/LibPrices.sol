@@ -9,6 +9,9 @@ import "prb-math/contracts/PRBMathSD59x18.sol";
 library Prices {
     using LibMath for uint256;
 
+    uint256 private constant EIGHT_HOURS = 8; // Needed for TWAP calculations
+    int256 private constant NINETY_DAYS = 90; // Needed for daily time value calculation
+
     struct FundingRateInstant {
         uint256 timestamp;
         int256 fundingRate;
@@ -30,7 +33,7 @@ library Prices {
     }
 
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) internal pure returns (int256) {
-        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
+        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / NINETY_DAYS;
     }
 
     /**
@@ -120,8 +123,8 @@ library Prices {
         uint256 cumulativeDerivative = 0;
         uint256 cumulativeUnderlying = 0;
 
-        for (uint256 i = 0; i < 8; i++) {
-            uint256 currTimeWeight = 8 - i;
+        for (uint256 i = 0; i < EIGHT_HOURS; i++) {
+            uint256 currTimeWeight = EIGHT_HOURS - i;
             // if hour < i loop back towards 0 from 23.
             // otherwise move from hour towards 0
             uint256 j = hour < i ? 24 - i + hour : hour - i;
