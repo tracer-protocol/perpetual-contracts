@@ -62,23 +62,6 @@ contract AMM is Ownable {
         tracer = ITracerPerpetualSwaps(_tracer);
     }
 
-    function syncPoolWithPosition(Pool storage pool) internal {
-        /* targets change proportional to the change in base */
-        pool.target.base *= pool.actual.base / pool.foobarPosition.base;
-        pool.target.quote *= pool.actual.base / pool.foobarPosition.base;
-        pool.actual.base = pool.foobarPosition.base;
-
-        /* check that at least one currency is within target (note that it
-         * should not be possible for this condition to be true) */
-        if(pool.actual.base < pool.target.base && pool.actual.quote < pool.target.quote) {
-            /* reduce quote target to satisfy safety condition */
-            pool.target.quote = pool.actual.quote - (pool.target.base - pool.actual.base) / getFairPrice();
-
-            /* resync quote value now that quote target has changed */
-            pool.actual.quote = pool.target.quote + pool.foobarPosition.quote;
-        }
-    }
-
     /**
      * @notice Synchronise base and quote with AMM position from possible
      *          funding rate and liquidation expenses
@@ -346,6 +329,25 @@ contract AMM is Ownable {
 
         pool.foobarPosition.base -= basePayment;
         traderPositionBase += basePayment;
+    }
+
+    /*********************************** PRIVATE ******************************/
+    
+    function syncPoolWithPosition(Pool storage pool) internal {
+        /* targets change proportional to the change in base */
+        pool.target.base *= pool.actual.base / pool.foobarPosition.base;
+        pool.target.quote *= pool.actual.base / pool.foobarPosition.base;
+        pool.actual.base = pool.foobarPosition.base;
+
+        /* check that at least one currency is within target (note that it
+         * should not be possible for this condition to be true) */
+        if(pool.actual.base < pool.target.base && pool.actual.quote < pool.target.quote) {
+            /* reduce quote target to satisfy safety condition */
+            pool.target.quote = pool.actual.quote - (pool.target.base - pool.actual.base) / getFairPrice();
+
+            /* resync quote value now that quote target has changed */
+            pool.actual.quote = pool.target.quote + pool.foobarPosition.quote;
+        }
     }
 
     /********************************** UTILITIES *****************************/
