@@ -37,7 +37,6 @@ contract Insurance is IInsurance {
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
-    event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     constructor(address _tracer) {
         require(_tracer != address(0), "INS: _tracer = address(0)");
@@ -45,8 +44,6 @@ contract Insurance is IInsurance {
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
-
-        emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
     /**
