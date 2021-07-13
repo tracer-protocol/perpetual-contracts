@@ -30,6 +30,9 @@ contract Insurance is IInsurance {
     // 0.00000570775 as a WAD = 570775 * (10 ** 7)
     uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
 
+    // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
+    uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
+
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
@@ -202,7 +205,7 @@ contract Insurance is IInsurance {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        return tracer.leveragedNotionalValue() / 100;
+        return PRBMathUD60x18.mul(tracer.leveragedNotionalValue(), INSURANCE_POOL_TARGET_PERCENT);
     }
 
     /**
