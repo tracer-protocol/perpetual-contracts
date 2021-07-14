@@ -164,20 +164,12 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
         int256 currentMargin = Balances.margin(pos, price);
-        require(
-            currentMargin <= 0 ||
-                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
-            "LIQ: Account above margin"
-        );
+        uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
+        require(currentMargin <= 0 || uint256(currentMargin) < minimumMargin, "LIQ: Account above margin");
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
-        uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
-            currentMargin,
-            amount,
-            base
-        );
+        uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(minimumMargin, currentMargin, amount, base);
 
         // create a liquidation receipt
         Perpetuals.Side side = base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long;
