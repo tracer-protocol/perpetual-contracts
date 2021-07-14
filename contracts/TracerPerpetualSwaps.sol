@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
@@ -17,7 +16,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw {
+contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     using LibMath for uint256;
     using LibMath for int256;
     using PRBMathSD59x18 for int256;
