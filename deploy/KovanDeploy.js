@@ -14,10 +14,6 @@ module.exports = async function (hre) {
     const ethOracle = "0x9326BFA02ADD2366b30bacB125260Af641031331"
 
     // deploy libs
-    const safetyWithdraw = await deploy("SafetyWithdraw", {
-        from: deployer,
-        log: true,
-    })
     const libMath = await deploy("LibMath", {
         from: deployer,
         log: true,
@@ -130,7 +126,6 @@ module.exports = async function (hre) {
         libraries: {
             LibMath: libMath.address,
             Balances: libBalances.address,
-            SafetyWithdraw: safetyWithdraw.address,
             Insurance: libInsurance.address,
         },
         log: true,
@@ -151,7 +146,6 @@ module.exports = async function (hre) {
         libraries: {
             Perpetuals: libPerpetuals.address,
             LibMath: libMath.address,
-            SafetyWithdraw: safetyWithdraw.address,
             Balances: libBalances.address,
             Prices: libPrices.address,
         },
