@@ -3,7 +3,7 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const { smockit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
-const zeroAddress = "0x0000000000000000000000000000000000000000"
+
 const FUNDING_RATE_FACTOR = ethers.utils.parseEther("0.00000570775")
 
 const getCollaterals = async (insurance) => [
@@ -173,7 +173,7 @@ describe("Unit tests: Insurance.sol", function () {
             it("deploys a new pool token", async () => {
                 let poolToken = await insurance.token()
                 expect(poolToken.toString()).to.not.equal(
-                    zeroAddress.toString()
+                    ethers.constants.AddressZero
                 )
             })
             it("uses the same collateral as the quote of the market", async () => {
@@ -388,7 +388,7 @@ describe("Unit tests: Insurance.sol", function () {
             after(async () => {
                 // return mock to its previous state
                 mockTracer.smocked.liquidationContract.will.return.with(
-                    zeroAddress
+                    ethers.constants.AddressZero
                 )
             })
 

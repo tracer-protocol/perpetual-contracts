@@ -1,16 +1,7 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 
-/* integer bounds */
-// -2^255
-const minimumInt = ethers.BigNumber.from(2).pow(255).mul(-1)
-const maximumInt = ethers.BigNumber.from(2).pow(255).sub(1)
-const maximumUint = ethers.BigNumber.from(2).pow(256).sub(1)
 const WAD_POW = ethers.BigNumber.from(10).pow(18)
-// const minimumInt = ethers.constants.MaxUint256.div(
-//     ethers.BigNumber.from(2)
-// ).mul(ethers.BigNumber.from(-1))
-// const maximumInt = ethers.constants.MaxUint256.div(ethers.BigNumber.from(1))
 
 const getnotionalValue = (position, price) => {
     // base * price / (10^18) --> brings back to a WAD value
@@ -61,10 +52,10 @@ describe("Unit tests: LibBalances.sol", async () => {
 
         /* sample sets */
         edgePositions = [
-            [minimumInt, minimumInt], // min -> impossible position to actually be in
-            [minimumInt, maximumInt],
-            [maximumInt, minimumInt],
-            [maximumInt, maximumInt], // max -> impossible position to actually be in
+            [ethers.constants.MinInt256, ethers.constants.MinInt256], // min -> impossible position to actually be in
+            [ethers.constants.MinInt256, ethers.constants.MaxInt256],
+            [ethers.constants.MaxInt256, ethers.constants.MinInt256],
+            [ethers.constants.MaxInt256, ethers.constants.MaxInt256], // max -> impossible position to actually be in
         ]
 
         normalPositions = [
@@ -131,7 +122,7 @@ describe("Unit tests: LibBalances.sol", async () => {
             it("returns 0 for base as max int", async () => {
                 await edgePositions.forEach(async (position) => {
                     // only test max int
-                    if (position[1] === maximumInt) {
+                    if (position[1] === ethers.constants.MaxInt256) {
                         let expected = ethers.utils.parseEther("0")
                         let result = await libBalances.notionalValue(
                             position,
@@ -145,7 +136,7 @@ describe("Unit tests: LibBalances.sol", async () => {
             it("reverts for base as min int", async () => {
                 await edgePositions.forEach(async (position) => {
                     // only test max int
-                    if (position[1] === minimumInt) {
+                    if (position[1] === ethers.constants.MinInt256) {
                         expect(
                             libBalances.notionalValue(position, normalPrices[0])
                         ).to.be.reverted
@@ -374,7 +365,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("-1"),
                     ethers.utils.parseEther("1"),
                 ]
-                let price = maximumUint
+                let price = ethers.constants.MaxUint256
                 // base * price = 2^256 - 1
                 await expect(
                     libBalances.leveragedNotionalValue(position, price)
@@ -447,7 +438,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("10"),
                 ]
                 let price = ethers.utils.parseEther("1")
-                let gasCost = maximumUint
+                let gasCost = ethers.constants.MaxUint256
                 let maxLeverage = ethers.utils.parseEther("10")
                 expect(
                     libBalances.minimumMargin(
@@ -469,7 +460,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                         ethers.utils.parseEther("10"),
                     ]
                     let price = ethers.utils.parseEther("1")
-                    let gasCost = maximumUint.sub(ethers.BigNumber.from("1"))
+                    let gasCost = (ethers.constants.MaxUint256).sub(ethers.BigNumber.from("1"))
                     let maxLeverage = ethers.utils.parseEther("10")
                     expect(
                         libBalances.minimumMargin(
@@ -517,7 +508,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("10"),
                 ]
-                let trade = [ethers.utils.parseEther("1"), maximumUint, 0]
+                let trade = [ethers.utils.parseEther("1"), ethers.constants.MaxUint256, 0]
                 let feeRate = ethers.BigNumber.from("0")
                 await expect(libBalances.applyTrade(position, trade, feeRate))
                     .to.be.reverted
@@ -530,7 +521,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("10"),
                 ]
-                let trade = [maximumUint, ethers.utils.parseEther("1"), 0]
+                let trade = [ethers.constants.MaxUint256, ethers.utils.parseEther("1"), 0]
                 let feeRate = ethers.BigNumber.from("0")
                 await expect(libBalances.applyTrade(position, trade, feeRate))
                     .to.be.reverted
@@ -548,7 +539,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("1"),
                     0,
                 ]
-                let feeRate = maximumUint
+                let feeRate = ethers.constants.MaxUint256
                 await expect(libBalances.applyTrade(position, trade, feeRate))
                     .to.be.reverted
             })
@@ -561,7 +552,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("10"),
                 ]
                 // amount * price > max int
-                let trade = [maximumInt, maximumInt, 0]
+                let trade = [ethers.constants.MaxInt256, ethers.constants.MaxInt256, 0]
                 let feeRate = ethers.BigNumber.from("0")
                 await expect(libBalances.applyTrade(position, trade, feeRate))
                     .to.be.reverted
@@ -581,7 +572,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                     ethers.utils.parseEther("2"),
                     0,
                 ]
-                let feeRate = maximumInt
+                let feeRate = ethers.constants.MaxInt256
                 await expect(libBalances.applyTrade(position, trade, feeRate))
                     .to.be.reverted
             })
@@ -657,7 +648,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                 await expect(
                     libBalances.tokenToWad(
                         20,
-                        maximumInt.add(ethers.BigNumber.from("1"))
+                        (ethers.constants.MinInt256).add(ethers.BigNumber.from("1"))
                     )
                 ).to.be.reverted
             })
@@ -686,7 +677,7 @@ describe("Unit tests: LibBalances.sol", async () => {
                 await expect(
                     libBalances.wadToToken(
                         20,
-                        maximumInt.add(ethers.BigNumber.from("1"))
+                        (ethers.constants.MinInt256).add(ethers.BigNumber.from("1"))
                     )
                 ).to.be.reverted
             })

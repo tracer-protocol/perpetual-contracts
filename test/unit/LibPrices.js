@@ -1,8 +1,7 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
-const zeroAddress = "0x0000000000000000000000000000000000000000"
-const MAX_INT256 = ethers.BigNumber.from(2).pow(255).sub(1)
+
 const calcExpectedTwaps = (oraclePrices, tracerPrices, hour) => {
     let cumulativeDerivative = ethers.BigNumber.from("0")
     let cumulativeUnderlying = ethers.BigNumber.from("0")
@@ -94,7 +93,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
         context("when the oracle price is > max int", async () => {
             it("reverts", async () => {
-                let oraclePrice = MAX_INT256.add(ethers.BigNumber.from("1"))
+                let oraclePrice = (ethers.constants.MaxInt256).add(ethers.BigNumber.from("1"))
                 let timeValue = ethers.utils.parseEther("10")
 
                 await expect(
@@ -145,7 +144,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
         context("when average tracer price > max int", async () => {
             it("reverts", async () => {
-                let averageTracerPrice = MAX_INT256.add(
+                let averageTracerPrice = (ethers.constants.MaxInt256).add(
                     ethers.BigNumber.from("1")
                 )
                 let averageOraclePrice = ethers.utils.parseEther("9100")
@@ -158,7 +157,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
         context("when average oracle price > max int", async () => {
             it("reverts", async () => {
-                let averageOraclePrice = MAX_INT256.add(
+                let averageOraclePrice = (ethers.constants.MaxInt256).add(
                     ethers.BigNumber.from("1")
                 )
                 let averageTracerPrice = ethers.utils.parseEther("9100")

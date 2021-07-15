@@ -3,7 +3,7 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
-const zeroAddress = "0x0000000000000000000000000000000000000000"
+
 const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")

@@ -1,7 +1,6 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
-const zeroAddress = "0x0000000000000000000000000000000000000000"
 const { BigNumber } = require("ethers")
 
 describe("Unit tests: LibPerpetuals.sol", function () {
@@ -385,7 +384,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     priceA,
                     amount,
                     sideA,
@@ -394,7 +393,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     priceB,
                     amount,
                     sideB,
@@ -415,7 +414,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     priceA,
                     amount,
                     sideA,
@@ -424,7 +423,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     priceB,
                     amount,
                     sideB,
@@ -446,7 +445,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -455,7 +454,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -478,7 +477,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -487,7 +486,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -508,7 +507,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -517,7 +516,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -538,7 +537,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -547,7 +546,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -571,7 +570,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledB = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -580,7 +579,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -607,7 +606,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledB = amount
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -616,7 +615,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -643,7 +642,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledB = amount
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -652,7 +651,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -684,7 +683,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let filledB = 0
                     let orderA = [
                         accounts[1].address,
-                        zeroAddress,
+                        ethers.constants.AddressZero,
                         price,
                         amount,
                         sideA,
@@ -693,7 +692,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     ]
                     let orderB = [
                         accounts[2].address,
-                        zeroAddress,
+                        ethers.constants.AddressZero,
                         price,
                         amount,
                         sideB,
@@ -721,7 +720,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let filledB = 0
                     let orderA = [
                         accounts[1].address,
-                        zeroAddress,
+                        ethers.constants.AddressZero,
                         price,
                         amount,
                         sideA,
@@ -730,7 +729,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     ]
                     let orderB = [
                         accounts[2].address,
-                        zeroAddress,
+                        ethers.constants.AddressZero,
                         price,
                         amount,
                         sideB,
@@ -758,7 +757,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let filledB = 0
                     let orderA = [
                         accounts[1].address,
-                        zeroAddress,
+                        ethers.constants.AddressZero,
                         price,
                         amount,
                         sideA,
@@ -767,7 +766,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     ]
                     let orderB = [
                         accounts[2].address,
-                        zeroAddress,
+                        ethers.constants.AddressZero,
                         price,
                         amount,
                         sideB,
@@ -835,7 +834,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledB = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -844,7 +843,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
@@ -873,7 +872,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let filledB = 0
                 let orderA = [
                     accounts[1].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideA,
@@ -882,7 +881,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 ]
                 let orderB = [
                     accounts[2].address,
-                    zeroAddress,
+                    ethers.constants.AddressZero,
                     price,
                     amount,
                     sideB,
