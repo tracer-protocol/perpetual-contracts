@@ -42,20 +42,20 @@ module.exports = async function (hre) {
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     // Gas price oracle => fast gas / gwei
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     await execute(

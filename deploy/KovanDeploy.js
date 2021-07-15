@@ -49,14 +49,14 @@ module.exports = async function (hre) {
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     // deploy second asset oracle for custom testing
     const customOracle = await deploy("CustomOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     await execute(
