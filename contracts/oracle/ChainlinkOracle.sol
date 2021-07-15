@@ -6,7 +6,7 @@ import "../Interfaces/IChainlinkOracle.sol";
 /**
  * @dev The following is a mock Chainlink Price Feed Implementation.
  *      It is used purely for the purpose of testing.
- *      All Chainlink price feeds should be wrapped in a Tracer Chainlink Adapter 
+ *      All Chainlink price feeds should be wrapped in a Tracer Chainlink Adapter
  *      to ensure answers are returned in WAD format.
  *      see contracts/oracle/ChainlinkOracleAdapter.sol.
  */
@@ -14,31 +14,31 @@ contract ChainlinkOracle is IChainlinkOracle {
     int256 public price = 100000000;
     uint8 public override decimals = 8; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
 
-    function latestAnswer() external view override returns (int256){
+    function latestAnswer() external view override returns (int256) {
         revert("CO: Deprecated function");
     }
 
-    function latestTimestamp() external view override returns (uint256){
+    function latestTimestamp() external view override returns (uint256) {
         revert("CO: Deprecated function");
     }
 
-    function latestRound() external view override returns (uint256){
+    function latestRound() external view override returns (uint256) {
         revert("CO: Deprecated function");
     }
 
-    function getAnswer(uint256 roundId) external view override returns (int256){
+    function getAnswer(uint256 roundId) external view override returns (int256) {
         revert("CO: Deprecated function");
     }
 
-    function getTimestamp(uint256 roundId) external view override returns (uint256){
+    function getTimestamp(uint256 roundId) external view override returns (uint256) {
         revert("CO: Deprecated function");
     }
 
-    function description() external view override returns (string memory){
+    function description() external view override returns (string memory) {
         revert("CO: Deprecated function");
     }
 
-    function version() external view override returns (uint256){
+    function version() external view override returns (uint256) {
         revert("CO: Unimplemented function");
     }
 
@@ -52,7 +52,8 @@ contract ChainlinkOracle is IChainlinkOracle {
             uint256 startedAt,
             uint256 updatedAt,
             uint80 answeredInRound
-        ){
+        )
+    {
         revert("CO: Deprecated function");
     }
 
@@ -66,7 +67,8 @@ contract ChainlinkOracle is IChainlinkOracle {
             uint256 startedAt,
             uint256 updatedAt,
             uint80 answeredInRound
-    ){
+        )
+    {
         roundId = 1;
         answer = price;
         startedAt = 0;

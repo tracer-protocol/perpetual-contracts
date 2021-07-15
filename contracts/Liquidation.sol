@@ -479,7 +479,9 @@ contract Liquidation is ILiquidation, Ownable {
      *         Reverts if the latest round is incomplete or the answer is no longer current.
      */
     function _getFastGasPrice() internal view returns (uint256) {
-        (uint80 roundID, int256 fastGasPrice, , uint256 timeStamp, uint80 answeredInRound) = IChainlinkOracle(fastGasOracle).latestRoundData();
+        (uint80 roundID, int256 fastGasPrice, , uint256 timeStamp, uint80 answeredInRound) = IChainlinkOracle(
+            fastGasOracle
+        ).latestRoundData();
         require(answeredInRound >= roundID, "LIQ: Stale answer");
         require(timeStamp != 0, "LIQ: Round incomplete");
         return uint256(fastGasPrice);

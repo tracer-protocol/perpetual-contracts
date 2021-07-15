@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *      and ensure that the price is always returned in a WAD format.
  *      The upstream feed may be changed (Eg updated to a new Chainlink feed) while
  *      keeping price consistency for the actual Tracer perp market.
- *      The Fast Gas / GWEI Chainlink feed is an exception to this 
+ *      The Fast Gas / GWEI Chainlink feed is an exception to this
  *      as it is already formatted correctly.
  */
 contract OracleAdapter is IOracle, Ownable {
