@@ -3,35 +3,51 @@ const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 const MAX_INT256 = ethers.BigNumber.from(2).pow(255).sub(1)
-const calcExpectedTwaps = (oraclePrices, tracerPrices, hour) => {
+const calcExpectedTWAPs = (oraclePrices, tracerPrices, hour) => {
     let cumulativeDerivative = ethers.BigNumber.from("0")
     let cumulativeUnderlying = ethers.BigNumber.from("0")
-    let totalTimeWeight = ethers.BigNumber.from("0")
+    let totalDerivativeTimeWeight = ethers.BigNumber.from("0")
+    let totalUnderlyingTimeWeight = ethers.BigNumber.from("0")
 
     for (i = 0; i < 8; i++) {
         let currTimeWeight = 8 - i
         let j = hour < i ? 24 - i + hour : hour - i
 
-        totalTimeWeight = totalTimeWeight.add(
-            ethers.BigNumber.from(currTimeWeight)
-        )
-        cumulativeDerivative = cumulativeDerivative.add(
-            tracerPrices[j][0]
-                .mul(ethers.utils.parseEther("1"))
-                .div(tracerPrices[j][1])
-                .mul(currTimeWeight)
-        )
-        cumulativeUnderlying = cumulativeUnderlying.add(
-            oraclePrices[j][0]
-                .mul(ethers.utils.parseEther("1"))
-                .div(oraclePrices[j][1])
-                .mul(currTimeWeight)
-        )
+        if (tracerPrices[j][1].eq(ethers.BigNumber.from("0"))) {
+            continue
+        } else {
+            cumulativeDerivative = cumulativeDerivative.add(
+                tracerPrices[j][0]
+                    .mul(ethers.utils.parseEther("1"))
+                    .div(tracerPrices[j][1])
+                    .mul(currTimeWeight)
+            )
+            totalDerivativeTimeWeight = totalDerivativeTimeWeight.add(
+                ethers.BigNumber.from(currTimeWeight)
+            )
+        }
+        if (oraclePrices[j][1].eq(ethers.BigNumber.from("0"))) {
+            continue
+        } else {
+            cumulativeUnderlying = cumulativeUnderlying.add(
+                oraclePrices[j][0]
+                    .mul(ethers.utils.parseEther("1"))
+                    .div(oraclePrices[j][1])
+                    .mul(currTimeWeight)
+            )
+            totalUnderlyingTimeWeight = totalUnderlyingTimeWeight.add(
+                ethers.BigNumber.from(currTimeWeight)
+            )
+        }
     }
 
     return [
-        cumulativeUnderlying.div(totalTimeWeight),
-        cumulativeDerivative.div(totalTimeWeight),
+        totalUnderlyingTimeWeight == 0
+            ? 0
+            : cumulativeUnderlying.div(totalUnderlyingTimeWeight),
+        totalDerivativeTimeWeight == 0
+            ? 0
+            : cumulativeDerivative.div(totalDerivativeTimeWeight),
     ]
 }
 
@@ -68,9 +84,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.fairPrice(oraclePrice, timeValue)
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("90").toString()
-                )
+                expect(result).to.equal(ethers.utils.parseEther("90"))
             })
         })
 
@@ -81,9 +95,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.fairPrice(oraclePrice, timeValue)
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("110").toString()
-                )
+                expect(result).to.equal(ethers.utils.parseEther("110"))
             })
         })
 
@@ -94,9 +106,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.fairPrice(oraclePrice, timeValue)
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("10").toString()
-                )
+                expect(result).to.equal(ethers.utils.parseEther("10"))
             })
         })
 
@@ -125,9 +135,7 @@ describe("Unit tests: LibPrices.sol", function () {
                         averageOraclePrice
                     )
 
-                    expect(result.toString()).to.equal(
-                        ethers.utils.parseEther("-10").toString()
-                    )
+                    expect(result).to.equal(ethers.utils.parseEther("-10"))
                 })
             }
         )
@@ -144,9 +152,7 @@ describe("Unit tests: LibPrices.sol", function () {
                         averageOraclePrice
                     )
 
-                    expect(result.toString()).to.equal(
-                        ethers.utils.parseEther("10").toString()
-                    ) // (10000 - 9100) / 90 = 10
+                    expect(result).to.equal(ethers.utils.parseEther("10")) // (10000 - 9100) / 90 = 10
                 })
             }
         )
@@ -188,9 +194,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.averagePrice(price)
 
-                expect(result.toString()).to.equal(
-                    ethers.BigNumber.from("0").toString()
-                )
+                expect(result).to.equal(ethers.BigNumber.from("0"))
             })
         })
 
@@ -203,9 +207,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.averagePrice(price)
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("10").toString()
-                )
+                expect(result).to.equal(ethers.utils.parseEther("10"))
             })
         })
     })
@@ -218,7 +220,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 for (i = 0; i <= n; i++) {
                     prices.push([
-                        ethers.BigNumber.from((i * 100000).toString()),
+                        ethers.BigNumber.from(i * 100000),
                         ethers.BigNumber.from(50 - i),
                     ])
                 }
@@ -243,7 +245,7 @@ describe("Unit tests: LibPrices.sol", function () {
                         .parseEther((i + 1).toString())
                         .mul(ethers.utils.parseEther("1"))
                         .div(ethers.utils.parseEther((i + 1).toString()))
-                    priceAverages = priceAverages.add(dayAverage.toString())
+                    priceAverages = priceAverages.add(dayAverage)
                 }
 
                 let averagePriceForPeriod = priceAverages.div(
@@ -251,9 +253,7 @@ describe("Unit tests: LibPrices.sol", function () {
                 )
                 let result = await libPrices.averagePriceForPeriod(prices)
 
-                expect(result.toString()).to.equal(
-                    averagePriceForPeriod.toString()
-                )
+                expect(result).to.equal(averagePriceForPeriod)
             })
         })
     })
@@ -271,9 +271,7 @@ describe("Unit tests: LibPrices.sol", function () {
                     newAccountLeverage
                 )
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("110").toString()
-                )
+                expect(result).to.equal(ethers.utils.parseEther("110"))
             })
         })
 
@@ -289,9 +287,7 @@ describe("Unit tests: LibPrices.sol", function () {
                     newAccountLeverage
                 )
 
-                expect(result.toString()).to.equal(
-                    ethers.utils.parseEther("90").toString()
-                )
+                expect(result).to.equal(ethers.utils.parseEther("90"))
             })
         })
 
@@ -309,17 +305,56 @@ describe("Unit tests: LibPrices.sol", function () {
                         newAccountLeverage
                     )
 
-                    expect(result.toString()).to.equal(
-                        ethers.utils.parseEther("0").toString()
-                    )
+                    expect(result).to.equal(ethers.utils.parseEther("0"))
                 })
             }
         )
     })
 
-    describe("calculateTwap", async () => {
+    describe("calculateTWAP", async () => {
         context("for a range of hours", async () => {
-            it("returns as expected", async () => {
+            it("returns as expected #1", async () => {
+                let tracerPrices = [
+                    ["10", "4"], // 2.5
+                    ["5.5", "2"], // 2.75
+                    ["30", "10"], // 3
+                    ["25", "8"], // 3.125
+                    ["15", "5"], // 3
+                    ["15.95", "5.5"], // 2.95
+                    ["14", "5"], // 2.8
+                    ["10", "4"], // 2.5
+                ].map((x) => [
+                    ethers.utils.parseEther(x[0]),
+                    ethers.utils.parseEther(x[1]),
+                ])
+                for (i = 0; i < 16; i++) {
+                    tracerPrices.push([
+                        ethers.utils.parseEther("0"),
+                        ethers.utils.parseEther("0"),
+                    ])
+                }
+                let oraclePrices = tracerPrices // Calculation same for both, so ignore what oraclePrices is
+
+                for (var hour = 0; hour < 24; hour++) {
+                    let expectedTWAP = calcExpectedTWAPs(
+                        oraclePrices,
+                        tracerPrices,
+                        hour
+                    )
+                    console.log(hour, expectedTWAP[0].toString())
+                    let result = await libPrices.calculateTWAP(
+                        hour,
+                        tracerPrices,
+                        oraclePrices
+                    )
+
+                    expect(result[0].toString()).to.equal(
+                        expectedTWAP[0].toString()
+                    )
+                }
+            })
+
+            it("returns as expected #2", async () => {
                 let tracerPrices = new Array()
                 let oraclePrices = new Array()
 
@@ -335,10 +370,8 @@ describe("Unit tests: LibPrices.sol", function () {
                     ])
                 }
 
-                // generate expected results
-                expectedTwaps = new Array()
                 for (var hour = 0; hour < 24; hour++) {
-                    let expectedTWAP = calcExpectedTwaps(
+                    let expectedTWAP = calcExpectedTWAPs(
                         oraclePrices,
                         tracerPrices,
                         hour
@@ -348,12 +381,8 @@ describe("Unit tests: LibPrices.sol", function () {
                         tracerPrices,
                         oraclePrices
                     )
-                    expect(result[0].toString()).to.equal(
-                        expectedTWAP[0].toString()
-                    )
-                    expect(result[1].toString()).to.equal(
-                        expectedTWAP[1].toString()
-                    )
+                    expect(result[0]).to.equal(expectedTWAP[0])
+                    expect(result[1]).to.equal(expectedTWAP[1])
                 }
             })
         })
@@ -375,10 +404,8 @@ describe("Unit tests: LibPrices.sol", function () {
                     ])
                 }
 
-                // generate expected results
-                expectedTwaps = new Array()
                 for (var hour = 0; hour < 24; hour++) {
-                    let expectedTWAP = calcExpectedTwaps(
+                    let expectedTWAP = calcExpectedTWAPs(
                         oraclePrices,
                         tracerPrices,
                         hour
@@ -389,12 +416,8 @@ describe("Unit tests: LibPrices.sol", function () {
                         oraclePrices
                     )
 
-                    expect(result[0].toString()).to.equal(
-                        expectedTWAP[0].toString()
-                    )
-                    expect(result[1].toString()).to.equal(
-                        expectedTWAP[1].toString()
-                    )
+                    expect(result[0]).to.equal(expectedTWAP[0])
+                    expect(result[1]).to.equal(expectedTWAP[1])
                 }
             })
         })
