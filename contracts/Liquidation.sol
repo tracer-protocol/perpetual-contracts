@@ -453,7 +453,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Modifies the release time
      * @param _releaseTime new release time
      */
-    function setReleaseTime(uint256 _releaseTime) external onlyOwner() {
+    function setReleaseTime(uint256 _releaseTime) external onlyOwner {
         releaseTime = _releaseTime;
     }
 
@@ -462,7 +462,7 @@ contract Liquidation is ILiquidation, Ownable {
      *         the minimum leftover margin on partial liquidation
      * @param _minimumLeftoverGasCostMultiplier The new multiplier
      */
-    function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner() {
+    function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
     }
 
@@ -470,7 +470,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Modifies the max slippage
      * @param _maxSlippage new max slippage
      */
-    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
+    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
         maxSlippage = _maxSlippage;
     }
 

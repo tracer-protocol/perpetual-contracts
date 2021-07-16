@@ -65,7 +65,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         address oracle,
         address fastGasOracle,
         uint256 maxLiquidationSlippage
-    ) external onlyOwner() {
+    ) external onlyOwner {
         address tracer = _deployTracer(_data, owner(), oracle, fastGasOracle, maxLiquidationSlippage);
         // DAO deployed markets are automatically approved
         setApproved(address(tracer), true);
@@ -116,7 +116,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      * @notice Sets the perpsDeployer contract for tracers markets.
      * @param newDeployer the new perpsDeployer contract address
      */
-    function setPerpsDeployerContract(address newDeployer) public override nonZeroAddress(newDeployer) onlyOwner() {
+    function setPerpsDeployerContract(address newDeployer) public override nonZeroAddress(newDeployer) onlyOwner {
         perpsDeployer = newDeployer;
     }
 
@@ -124,7 +124,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         public
         override
         nonZeroAddress(newInsuranceDeployer)
-        onlyOwner()
+        onlyOwner
     {
         insuranceDeployer = newInsuranceDeployer;
     }
@@ -133,7 +133,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         public
         override
         nonZeroAddress(newPricingDeployer)
-        onlyOwner()
+        onlyOwner
     {
         pricingDeployer = newPricingDeployer;
     }
@@ -142,7 +142,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
         public
         override
         nonZeroAddress(newLiquidationDeployer)
-        onlyOwner()
+        onlyOwner
     {
         liquidationDeployer = newLiquidationDeployer;
     }
@@ -157,7 +157,7 @@ contract TracerPerpetualsFactory is Ownable, ITracerPerpetualsFactory {
      *         identify contracts that the DAO has "absorbed" into its control
      * @dev requires the contract to be owned by the DAO if being set to true.
      */
-    function setApproved(address market, bool value) public override onlyOwner() {
+    function setApproved(address market, bool value) public override onlyOwner {
         if (value) {
             require(Ownable(market).owner() == owner(), "TFC: Owner not DAO");
         }

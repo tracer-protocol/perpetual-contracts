@@ -139,7 +139,7 @@ contract Insurance is IInsurance {
      *      This was done because in such an emergency situation, we want to recover as much as possible
      * @param amount The desired amount to take from the insurance pool
      */
-    function drainPool(uint256 amount) external override onlyLiquidation() {
+    function drainPool(uint256 amount) external override onlyLiquidation {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         uint256 poolHoldings = getPoolHoldings();
