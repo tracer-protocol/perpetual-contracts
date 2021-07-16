@@ -100,20 +100,6 @@ contract Trader is ITrader {
 
             uint256 fillAmount = Balances.fillAmount(makeOrder, makeOrderFilled, takeOrder, takeOrderFilled);
 
-            uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
-            uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
-                makeOrderFilled,
-                averageExecutionPrice[makerOrderId],
-                fillAmount,
-                executionPrice
-            );
-            uint256 newTakeAverage = Perpetuals.calculateAverageExecutionPrice(
-                takeOrderFilled,
-                averageExecutionPrice[takerOrderId],
-                fillAmount,
-                executionPrice
-            );
-
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
@@ -128,6 +114,20 @@ contract Trader is ITrader {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+
+            uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
+            uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                makeOrderFilled,
+                averageExecutionPrice[makerOrderId],
+                fillAmount,
+                executionPrice
+            );
+            uint256 newTakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                takeOrderFilled,
+                averageExecutionPrice[takerOrderId],
+                fillAmount,
+                executionPrice
+            );
 
             // update order state
             filled[makerOrderId] = makeOrderFilled + fillAmount;
