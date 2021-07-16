@@ -18,25 +18,6 @@ contract ChainlinkOracle is IChainlinkOracle {
     uint80 private constant ROUND_ID = 1; // A mock round Id
 
     /**
-     * @notice this mock implementation does not support the getRoundData function
-     *         the Tracer system does not reference this function
-     */
-    function getRoundData(uint80 _roundId)
-        external
-        view
-        override
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        )
-    {
-        revert("CO: unimplemented function");
-    }
-
-    /**
      * @notice Returns round data with the set price as the answer.
      *         Other fields are returned as mock data to simulate a
      *         successful round.
