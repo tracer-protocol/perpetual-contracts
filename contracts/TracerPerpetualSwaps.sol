@@ -226,6 +226,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         Perpetuals.Order memory order2,
         uint256 fillAmount
     ) external override onlyWhitelisted returns (bool) {
+        require(order1.market == address(this), "TCR: Wrong market");
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
         uint256 filled1 = ITrader(msg.sender).filled(order1Id);
