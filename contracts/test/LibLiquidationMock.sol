@@ -29,7 +29,7 @@ library LibLiquidationMock {
         )
     {
         (_liquidatorQuoteChange, _liquidatorBaseChange, _liquidateeQuoteChange, _liquidateeBaseChange) = LibLiquidation
-        .liquidationBalanceChanges(liquidatedBase, liquidatedQuote, amount);
+            .liquidationBalanceChanges(liquidatedBase, liquidatedQuote, amount);
     }
 
     function calculateSlippage(
