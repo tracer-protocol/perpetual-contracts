@@ -13,35 +13,14 @@ import "../Interfaces/IChainlinkOracle.sol";
 contract ChainlinkOracle is IChainlinkOracle {
     int256 public price = 100000000;
     uint8 public override decimals = 8; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
+    string public override description = "A mock Chainlink V3 Aggregator";
+    uint256 public override version = 3; // Aggregator V3;
+    uint80 private constant ROUND_ID = 1; // A mock round Id
 
-    function latestAnswer() external view override returns (int256) {
-        revert("CO: Deprecated function");
-    }
-
-    function latestTimestamp() external view override returns (uint256) {
-        revert("CO: Deprecated function");
-    }
-
-    function latestRound() external view override returns (uint256) {
-        revert("CO: Deprecated function");
-    }
-
-    function getAnswer(uint256 roundId) external view override returns (int256) {
-        revert("CO: Deprecated function");
-    }
-
-    function getTimestamp(uint256 roundId) external view override returns (uint256) {
-        revert("CO: Deprecated function");
-    }
-
-    function description() external view override returns (string memory) {
-        revert("CO: Deprecated function");
-    }
-
-    function version() external view override returns (uint256) {
-        revert("CO: Unimplemented function");
-    }
-
+    /**
+     * @notice this mock implementation does not support the getRoundData function
+     *         the Tracer system does not reference this function
+     */
     function getRoundData(uint80 _roundId)
         external
         view
@@ -54,9 +33,14 @@ contract ChainlinkOracle is IChainlinkOracle {
             uint80 answeredInRound
         )
     {
-        revert("CO: Deprecated function");
+        revert("CO: unimplemented function");
     }
 
+    /**
+     * @notice Returns round data with the set price as the answer.
+     *         Other fields are returned as mock data to simulate a
+     *         successful round.
+     */
     function latestRoundData()
         external
         view
@@ -69,18 +53,25 @@ contract ChainlinkOracle is IChainlinkOracle {
             uint80 answeredInRound
         )
     {
-        roundId = 1;
+        roundId = ROUND_ID;
         answer = price;
         startedAt = 0;
-        updatedAt = 1;
-        answeredInRound = 1;
+        updatedAt = block.timestamp;
+        answeredInRound = ROUND_ID;
+
         return (roundId, answer, startedAt, updatedAt, answeredInRound);
     }
 
+    /**
+     * @notice Sets the answer that is returned by the Oracle when latestRoundData is called
+     */
     function setPrice(int256 _price) public {
         price = _price;
     }
 
+    /**
+     * @notice Sets the decimals returned in the answer
+     */
     function setDecimals(uint8 _decimals) external {
         decimals = _decimals;
     }
