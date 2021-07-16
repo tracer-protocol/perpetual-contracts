@@ -229,8 +229,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         require(order1.market == address(this), "TCR: Wrong market");
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
-        uint256 filled1 = ITrader(msg.sender).filled(order1Id);
-        uint256 filled2 = ITrader(msg.sender).filled(order2Id);
 
         uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
 
@@ -245,20 +243,27 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
             fillAmount,
             executionPrice
         );
+        uint256 _fairPrice = pricingContract.fairPrice();
+        uint256 _trueMaxLeverage = trueMaxLeverage();
         // validate orders can match, and outcome state is valid
         if (
-            !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
+            !Perpetuals.canMatch(
+                order1,
+                ITrader(msg.sender).filled(order1Id),
+                order2,
+                ITrader(msg.sender).filled(order2Id)
+            ) ||
             !Balances.marginIsValid(
                 newPos1,
                 balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
-                pricingContract.fairPrice(),
-                trueMaxLeverage()
+                _fairPrice,
+                _trueMaxLeverage
             ) ||
             !Balances.marginIsValid(
                 newPos2,
                 balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
-                pricingContract.fairPrice(),
-                trueMaxLeverage()
+                _fairPrice,
+                _trueMaxLeverage
             )
         ) {
             // long order must have a price >= short order
@@ -287,7 +292,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        pricingContract.recordTrade(executionPrice);
+        pricingContract.recordTrade(executionPrice, fillAmount);
 
         if (order1.side == Perpetuals.Side.Long) {
             emit MatchedOrders(order1.maker, order2.maker, fillAmount, executionPrice, order1Id, order2Id);
