@@ -227,6 +227,6 @@ library Balances {
      */
     function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
         uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
-        return uint256(wadAmount / scaler);
+        return wadAmount / scaler;
     }
 }
