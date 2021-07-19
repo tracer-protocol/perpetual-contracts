@@ -94,18 +94,10 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    // adapter converting ETH / USD to WAD
-    const ethOracleAdapter = await deploy("EthOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [ethOracle.address],
-        contract: "OracleAdapter",
-    })
-
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracleAdapter.address, gasOracle.address],
+        args: [ethOracle.address, gasOracle.address],
         contract: "GasOracle",
     })
 
