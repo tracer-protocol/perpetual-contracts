@@ -8,8 +8,7 @@ interface IInsurance {
 
     function totalPendingCollateralWithdrawals() external view returns (uint256);
 
-    function totalPendingCollateralWithdrawals() external view returns (uint256);
-    mapping(address => uint256) public override accountsDelayedWithdrawal;
+    function accountsDelayedWithdrawal(address account) external view returns (uint256);
 
     function deposit(uint256 amount) external;
 

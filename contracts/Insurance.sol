@@ -31,8 +31,6 @@ contract Insurance is IInsurance {
     mapping(uint256 => DelayedWithdrawal) delayedWithdrawalAccess;
     // Address => Current delayedWithdrawal ID
     mapping(address => uint256) public override accountsDelayedWithdrawal;
-    uint256 public oldestDelayedWithdrawal;
-    uint256 public youngestDelayedWithdrawal;
     uint256 public override totalPendingCollateralWithdrawals;
     // After 5 days, withdrawal can be executed for a 5 day window period
     uint256 public constant delayedWithdrawalLock = 5 days;
@@ -50,14 +48,16 @@ contract Insurance is IInsurance {
         uint256 fee,
         uint256 id
     );
+    event InsuranceDelayedWithdraw(address indexed market, address indexed user, uint256 indexed amount);
     event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     struct DelayedWithdrawal {
-        uint256 id;
+        bool executed;
         address account;
+        uint256 id;
         uint256 creationTime;
-        uint256 withdrawalAmount;
-        bool processed;
+        uint256 amount; // Pool tokens, In raw format (not WAD)
+        uint256 collateralAmountAtTimeOfCommit; // So we know how much to take from pending
         uint256 previous;
         uint256 next;
     }
@@ -76,11 +76,12 @@ contract Insurance is IInsurance {
 
     function commitToDelayedWithdrawal(uint256 amount) external {
         updatePoolAmount();
+        scanDelayedWithdrawals(10);
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
+        // TODO this should be replaced with an overwrite of old pending withdraw
         require(accountsDelayedWithdrawal[msg.sender] == 0, "INS: Withdrawal already pending");
 
-        IERC20 collateralToken = IERC20(collateralAsset);
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
         // tokens to return = (collateral holdings / pool token supply) * amount of pool tokens to withdraw
@@ -92,46 +93,72 @@ contract Insurance is IInsurance {
 
         uint256 fee = LibInsurance.calculateDelayedWithdrawalFee(
             getPoolTarget(),
-            publicCollateralAmount,
+            getPoolHoldings(),
             totalPendingCollateralWithdrawals,
             wadTokensToSend
         );
+
+        // Tokens to send should be decreased by fee paid, so you do not have wadTokensToSend + fee > amount entitled
         wadTokensToSend = wadTokensToSend - fee;
+        // fee can never be greater than publicCollateralAmount, since the `feeRate` in `feeRate * wadTokensToSend`
+        // will always be less than 1, meaning fee < wadTokensToSend.
+        // and wadTokensToSend <= publicCollateralAmount
         publicCollateralAmount -= fee;
         bufferCollateralAmount += fee;
         totalPendingCollateralWithdrawals += wadTokensToSend;
 
-        // convert token amount to raw amount from WAD
-        uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
-
-        uint256 id = addDelayedWithdrawal(rawTokenAmount);
+        uint256 id = addDelayedWithdrawal(amount, wadTokensToSend);
         emit InsuranceDelayedWithdrawalCommit(address(tracer), msg.sender, wadTokensToSend, fee, id);
-        /* TODO do the following in exceute delayed withdrawal
-        // pool amount is always in WAD format
-        publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
-
-        // burn pool tokens, return collateral tokens
-        poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, rawTokenAmount);
-
-        emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
-        */
     }
 
-    // function executeDelayedWithdrawal()
+    // TODO Insurance pool full-ness should be using holdings-pending
 
-    // TODO make internal
-    function addDelayedWithdrawal(
-        uint256 amount /*override*/
-    ) public returns (uint256 id) {
+    function executeDelayedWithdrawal() external {
+        updatePoolAmount();
+        // TODO figure out how many scans to do
+        uint256 balance = getPoolUserBalance(msg.sender);
+        uint256 id = accountsDelayedWithdrawal[msg.sender];
+        require(id != 0, "INS: No withdrawal pending");
+        require(!removeIfExpired(id), "INS: Withdrawal expired");
+
+        // It has not expired and has not yet been executed
+        DelayedWithdrawal memory withdrawal = delayedWithdrawalAccess[id];
+        require(balance >= withdrawal.amount, "INS: balance < amount");
+        require(block.timestamp >= withdrawal.creationTime + delayedWithdrawalLock, "INS: Withdrawal still pending");
+
+        uint256 poolTokenWadAmount = withdrawal.amount;
+        InsurancePoolToken poolToken = InsurancePoolToken(token);
+        uint256 wadTokensToSend = LibInsurance.calcWithdrawAmount(
+            poolToken.totalSupply(),
+            publicCollateralAmount,
+            poolTokenWadAmount
+        );
+        uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
+        uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, wadTokensToSend);
+        publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
+        delayedWithdrawalAccess[id].executed = true;
+        // burn pool tokens, return collateral tokens
+        poolToken.burnFrom(msg.sender, withdrawal.amount);
+        IERC20 collateralToken = IERC20(collateralAsset);
+        collateralToken.transfer(msg.sender, rawTokenAmount);
+        deleteDelayedWithdrawal(id);
+        emit InsuranceDelayedWithdraw(address(tracer), msg.sender, wadTokensToSend);
         
+    }
+
+    function addDelayedWithdrawal(
+        uint256 poolTokenAmount,
+        uint256 collateralAmount
+    ) public returns (uint256 id) {
+        // TODO override
         list.pushBack(delayedWithdrawalCounter);
         delayedWithdrawalAccess[delayedWithdrawalCounter] = DelayedWithdrawal(
-            delayedWithdrawalCounter,
-            msg.sender,
-            block.timestamp,
-            amount,
             false,
+            msg.sender,
+            delayedWithdrawalCounter,
+            block.timestamp,
+            poolTokenAmount,
+            collateralAmount,
             0,
             0
         );
@@ -144,20 +171,21 @@ contract Insurance is IInsurance {
         uint256 scanAmount /*override*/
     ) public {
         for (uint256 i = 0; i < scanAmount; i++) {
-            if (!removeIfExpiredOrExecuted(i)) {
+            if (!removeHeadIfExpiredOrExecuted()) {
                 // We have reached one that isn't expired/executed. We can stop iterating
                 break;
             }
         }
     }
 
-    function removeIfExpiredOrExecuted(uint256 id) public returns (bool removed) {
-        (bool exists, ,) = list.getNode(id);
+    // TODO go through all new functions and add any useful events
+
+    function removeIfExpired(uint256 id) public returns (bool removed) {
+        (bool exists, , ) = list.getNode(id);
         if (
-            (delayedWithdrawalAccess[id].processed == true ||
-            block.timestamp >
-            delayedWithdrawalAccess[id].creationTime + delayedWithdrawalWindow + delayedWithdrawalLock
-            ) && exists
+            (delayedWithdrawalAccess[id].executed == true ||
+                block.timestamp >
+                delayedWithdrawalAccess[id].creationTime + delayedWithdrawalWindow + delayedWithdrawalLock) && exists
         ) {
             // expired or executed
             deleteDelayedWithdrawal(id);
@@ -167,15 +195,24 @@ contract Insurance is IInsurance {
         }
     }
 
-    // TODO make internal
-    function deleteDelayedWithdrawal(
-        uint256 id /* override */
-    ) public {
-        if (delayedWithdrawalAccess[id].creationTime == 0) {
+    function removeHeadIfExpiredOrExecuted() public returns (bool removed) {
+        uint256 id = list.popFront();
+        if (id == 0) {
+            return false;
+        }
+        list.pushFront(id);
+        return removeIfExpired(id);
+    }
+
+    function deleteDelayedWithdrawal(uint256 id) internal {
+        if (id == 0 || delayedWithdrawalAccess[id].creationTime == 0) {
             // Doesn't exist
             return;
         }
         list.remove(id);
+        totalPendingCollateralWithdrawals -= delayedWithdrawalAccess[id].collateralAmountAtTimeOfCommit;
+        // Set the ID of the account to 0, to indicate they have no pending withdrawals
+        accountsDelayedWithdrawal[delayedWithdrawalAccess[id].account] = 0;
         delete delayedWithdrawalAccess[id];
     }
 
@@ -204,22 +241,6 @@ contract Insurance is IInsurance {
         uint256 id /*override */
     ) public returns (DelayedWithdrawal memory) {
         DelayedWithdrawal memory ret = delayedWithdrawalAccess[id];
-        console.log("");
-        console.log("");
-        console.log("ret.id");
-        console.log(ret.id);
-        console.log("ret.account");
-        console.log(ret.account);
-        console.log("creationTime");
-        console.log(ret.creationTime);
-        console.log("ret.withdrawalAmount");
-        console.log(ret.withdrawalAmount);
-        console.log("ret.processed");
-        console.log(ret.processed);
-        console.log("ret.previous");
-        console.log(ret.previous);
-        console.log("ret.next");
-        console.log(ret.next);
         return delayedWithdrawalAccess[id];
     }
 
@@ -259,6 +280,15 @@ contract Insurance is IInsurance {
      */
     function withdraw(uint256 amount) external override {
         updatePoolAmount();
+
+        uint256 delayedWithdrawalId = accountsDelayedWithdrawal[msg.sender];
+        if (delayedWithdrawalId != 0) {
+            // Delete any delayed withdrawal this account has pending
+            deleteDelayedWithdrawal(delayedWithdrawalId);
+        } else if (delayedWithdrawalId != 0) {
+            // Delete if expired
+            removeIfExpired(delayedWithdrawalId);
+        }
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
 
@@ -272,11 +302,21 @@ contract Insurance is IInsurance {
             amount
         );
 
+        uint256 fee = LibInsurance.calculateImmediateWithdrawalFee(
+            getPoolTarget(),
+            getPoolHoldings(),
+            totalPendingCollateralWithdrawals,
+            wadTokensToSend
+        );
+
+        wadTokensToSend -= fee;
+
         // convert token amount to raw amount from WAD
         uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
 
         // pool amount is always in WAD format
-        publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
+        publicCollateralAmount = publicCollateralAmount - wadTokensToSend - fee;
+        bufferCollateralAmount = bufferCollateralAmount + fee;
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
@@ -372,6 +412,12 @@ contract Insurance is IInsurance {
      */
     function getPoolHoldings() public view override returns (uint256) {
         return bufferCollateralAmount + publicCollateralAmount;
+    }
+
+    function get() public view returns (uint256) {
+        InsurancePoolToken poolToken = InsurancePoolToken(token);
+
+        return poolToken.totalSupply();
     }
 
     /**

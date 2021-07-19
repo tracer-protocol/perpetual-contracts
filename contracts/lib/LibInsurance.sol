@@ -80,7 +80,6 @@ library LibInsurance {
         uint256 collateralWithdrawalAmount
     ) internal pure returns (uint256) {
         uint256 oneInWad = 1 * (10**18);
-        uint256 twoInWad = 2 * (10**18);
         if (target == 0) {
             return 0;
         }
