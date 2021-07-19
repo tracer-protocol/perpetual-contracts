@@ -26,8 +26,8 @@ contract Insurance is IInsurance {
     // The insurance pool funding rate calculation can be refactored to have 0.00000570775
     // as the constant in front; see getPoolFundingRate for the formula
     // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
-    // 0.00000570775 as a WAD = 570775 * (10 ** 7)
-    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
+    // 0.00000570775 as a WAD = 5.70775e12
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 5.70775e12;
 
     // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
     uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
