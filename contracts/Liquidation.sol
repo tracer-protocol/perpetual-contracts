@@ -25,10 +25,10 @@ contract Liquidation is ILiquidation, Ownable {
     uint256 public override maxSlippage;
     uint256 public override releaseTime = 15 minutes;
     uint256 public override minimumLeftoverGasCostMultiplier = 10;
-    IPricing public pricing;
-    ITracerPerpetualSwaps public tracer;
-    address public insuranceContract;
-    address public fastGasOracle;
+    IPricing public immutable pricing;
+    ITracerPerpetualSwaps public immutable tracer;
+    address public immutable insuranceContract;
+    address public immutable fastGasOracle;
 
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;

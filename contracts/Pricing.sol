@@ -15,9 +15,9 @@ contract Pricing is IPricing {
     using LibMath for int256;
     using PRBMathSD59x18 for int256;
 
-    address public tracer;
-    IInsurance public insurance;
-    IOracle public oracle;
+    address public immutable tracer;
+    IInsurance public immutable insurance;
+    IOracle public immutable oracle;
 
     // pricing metrics
     Prices.PriceInstant[24] internal hourlyTracerPrices;
