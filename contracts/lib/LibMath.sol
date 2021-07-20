@@ -36,6 +36,7 @@ library LibMath {
      * @return Sum of first n elements
      */
     function sumN(uint256[] memory arr, uint256 n) internal pure returns (uint256) {
+        require(n <= arr.length, "N too high");
         uint256 total = 0;
 
         for (uint256 i = 0; i < n; i++) {
