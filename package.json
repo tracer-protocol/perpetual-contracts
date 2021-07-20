@@ -56,7 +56,7 @@
         "web3-eth-contract": "^1.3.0"
     },
     "scripts": {
-        "test": "npx hardhat test",
+        "test": "npx hardhat test test/functional/Liquidation.js test/functional/Insurance.js test/functional/TracerPerpetualSwaps.js test/unit/*.js",
         "test:functional": "npx hardhat test test/functional/*.js",
         "test:unit": "npx hardhat test test/unit/*.js",
         "compile": "npx hardhat compile",
