@@ -13,8 +13,6 @@ import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "solidity-linked-list/contracts/StructuredLinkedList.sol";
 
-import "hardhat/console.sol";
-
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
