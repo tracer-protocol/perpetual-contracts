@@ -37,6 +37,18 @@ contract Insurance is IInsurance {
     uint256 public constant delayedWithdrawalWindow = 5 days;
     StructuredLinkedList.List list;
 
+    // Approximate average gas it costs for each iteration in `scanDelayedWithdrawals(...)`
+    uint256 internal constant AVERAGE_SCAN_GAS_PER_ACCOUNT = 41120;
+    // Approximate gas it costs to call `commitToDelayedWithdrawal(...)`
+    uint256 internal constant AVERAGE_COMMIT_GAS = 384436;
+    // Approximate gas it costs to call `executeDelayedWithdrawal()`
+    uint256 internal constant AVERAGE_EXECUTE_GAS = 132412;
+    uint256 internal constant COMMIT_EXECUTE_GAS_SUM = AVERAGE_COMMIT_GAS + AVERAGE_EXECUTE_GAS;
+    // When committing, or executing a delayed withdrawal, spend half the amount of gas it would
+    // cost to run the function on scanning through the delayed withdrawals and deleting any expired ones
+    // This ends up being 6 iterations. i.e. At most do 6 iterations through the pending delayed withdrawals
+    uint256 internal constant SCAN_EXPIRED_WITHDRAWAL_COUNT = COMMIT_EXECUTE_GAS_SUM / 2 / AVERAGE_SCAN_GAS_PER_ACCOUNT;
+
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
@@ -74,13 +86,16 @@ contract Insurance is IInsurance {
         emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
-    function commitToDelayedWithdrawal(uint256 amount) external {
+    /**
+     *
+     */
+    function commitToDelayedWithdrawal(uint256 amount, uint256 extraScanIterations) external {
         updatePoolAmount();
-        scanDelayedWithdrawals(10);
+        scanDelayedWithdrawals(SCAN_EXPIRED_WITHDRAWAL_COUNT + extraScanIterations);
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
-        // TODO this should be replaced with an overwrite of old pending withdraw
-        require(accountsDelayedWithdrawal[msg.sender] == 0, "INS: Withdrawal already pending");
+
+        clearUserDelayedWithdrawal(msg.sender);
 
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
@@ -113,9 +128,9 @@ contract Insurance is IInsurance {
 
     // TODO Insurance pool full-ness should be using holdings-pending
 
-    function executeDelayedWithdrawal() external {
+    function executeDelayedWithdrawal(uint256 extraScanIterations) external {
         updatePoolAmount();
-        // TODO figure out how many scans to do
+        scanDelayedWithdrawals(SCAN_EXPIRED_WITHDRAWAL_COUNT + extraScanIterations);
         uint256 balance = getPoolUserBalance(msg.sender);
         uint256 id = accountsDelayedWithdrawal[msg.sender];
         require(id != 0, "INS: No withdrawal pending");
@@ -133,6 +148,7 @@ contract Insurance is IInsurance {
             publicCollateralAmount,
             poolTokenWadAmount
         );
+        // todo comment this stuff
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, wadTokensToSend);
         publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
@@ -274,6 +290,18 @@ contract Insurance is IInsurance {
     }
 
     /**
+     * @dev Delete any delayed withdrawal an account has pending
+     * @param account Delete any pending delayed withdrawals of this account
+     */
+    function clearUserDelayedWithdrawal(address account) internal {
+        uint256 delayedWithdrawalId = accountsDelayedWithdrawal[msg.sender];
+        if (delayedWithdrawalId != 0) {
+            deleteDelayedWithdrawal(delayedWithdrawalId);
+        }
+
+    }
+
+    /**
      * @notice Allows a user to withdraw their assets from a given insurance pool
      * @dev burns amount of tokens from the pool token
      * @param amount the amount of pool tokens to burn. Provided in WAD format
@@ -281,14 +309,8 @@ contract Insurance is IInsurance {
     function withdraw(uint256 amount) external override {
         updatePoolAmount();
 
-        uint256 delayedWithdrawalId = accountsDelayedWithdrawal[msg.sender];
-        if (delayedWithdrawalId != 0) {
-            // Delete any delayed withdrawal this account has pending
-            deleteDelayedWithdrawal(delayedWithdrawalId);
-        } else if (delayedWithdrawalId != 0) {
-            // Delete if expired
-            removeIfExpired(delayedWithdrawalId);
-        }
+        clearUserDelayedWithdrawal(msg.sender);
+
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
 
@@ -414,7 +436,7 @@ contract Insurance is IInsurance {
         return bufferCollateralAmount + publicCollateralAmount;
     }
 
-    function get() public view returns (uint256) {
+    function getPoolTokenTotalSupply() external view override returns (uint256) {
         InsurancePoolToken poolToken = InsurancePoolToken(token);
 
         return poolToken.totalSupply();
