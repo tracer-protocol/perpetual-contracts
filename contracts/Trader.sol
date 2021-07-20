@@ -25,7 +25,7 @@ contract Trader is ITrader {
             "Order(address maker,address market,uint256 price,uint256 amount,uint256 side,uint256 expires,uint256 created)"
         );
 
-    uint256 public constant override chainId = 1337; // Changes per chain
+    uint256 public constant override chainId = 42; // Changes per chain
     bytes32 public immutable override EIP712_DOMAIN;
 
     // order hash to memory
@@ -78,8 +78,8 @@ contract Trader is ITrader {
         for (uint256 i = 0; i < n; i++) {
             // verify each order individually and together
             if (
-                !isValidSignature(makers[i].order.maker, makers[i]) ||
-                !isValidSignature(takers[i].order.maker, takers[i]) ||
+                !verifySignature(makers[i].order.maker, makers[i]) ||
+                !verifySignature(takers[i].order.maker, takers[i]) ||
                 !isValidPair(takers[i], makers[i]) ||
                 !areValidAddresses(makers[i], takers[i])
             ) {
@@ -100,20 +100,6 @@ contract Trader is ITrader {
 
             uint256 fillAmount = Balances.fillAmount(makeOrder, makeOrderFilled, takeOrder, takeOrderFilled);
 
-            uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
-            uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
-                makeOrderFilled,
-                averageExecutionPrice[makerOrderId],
-                fillAmount,
-                executionPrice
-            );
-            uint256 newTakeAverage = Perpetuals.calculateAverageExecutionPrice(
-                takeOrderFilled,
-                averageExecutionPrice[takerOrderId],
-                fillAmount,
-                executionPrice
-            );
-
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
@@ -128,6 +114,20 @@ contract Trader is ITrader {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+
+            uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
+            uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                makeOrderFilled,
+                averageExecutionPrice[makerOrderId],
+                fillAmount,
+                executionPrice
+            );
+            uint256 newTakeAverage = Perpetuals.calculateAverageExecutionPrice(
+                takeOrderFilled,
+                averageExecutionPrice[takerOrderId],
+                fillAmount,
+                executionPrice
+            );
 
             // update order state
             filled[makerOrderId] = makeOrderFilled + fillAmount;
@@ -195,17 +195,6 @@ contract Trader is ITrader {
      */
     function getDomain() external view override returns (bytes32) {
         return EIP712_DOMAIN;
-    }
-
-    /**
-     * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
-     * @param signer The signer who is being verified against the order
-     * @param signedOrder The signed order to verify the signature of
-     * @return if an order has a valid signature and a valid nonce
-     * @dev does not throw if the signature is invalid.
-     */
-    function isValidSignature(address signer, Types.SignedLimitOrder memory signedOrder) internal view returns (bool) {
-        return verifySignature(signer, signedOrder);
     }
 
     /**

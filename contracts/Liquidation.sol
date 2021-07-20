@@ -25,10 +25,10 @@ contract Liquidation is ILiquidation, Ownable {
     uint256 public override maxSlippage;
     uint256 public override releaseTime = 15 minutes;
     uint256 public override minimumLeftoverGasCostMultiplier = 10;
-    IPricing public pricing;
-    ITracerPerpetualSwaps public tracer;
-    address public insuranceContract;
-    address public fastGasOracle;
+    IPricing public immutable pricing;
+    ITracerPerpetualSwaps public immutable tracer;
+    address public immutable insuranceContract;
+    address public immutable fastGasOracle;
 
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
@@ -41,7 +41,8 @@ contract Liquidation is ILiquidation, Ownable {
         int256 liquidationAmount,
         Perpetuals.Side side,
         address indexed market,
-        uint256 liquidationId
+        uint256 liquidationId,
+        uint256 timestamp
     );
     event InvalidClaimOrder(uint256 indexed receiptId);
 
@@ -107,10 +108,10 @@ contract Liquidation is ILiquidation, Ownable {
     }
 
     /**
-     * @notice Allows a trader to claim escrowed funds after the escrow period has expired
+     * @notice Transfers the escrowed funds to the trader if the escrow period has expired. Can be called by anyone.
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId) public override {
+    function claimEscrow(uint256 receiptId) external override {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
@@ -143,7 +144,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param base Amount of base in the account to be liquidated (denominated in base tokens)
      * @param price Fair price of the asset (denominated in quote/base)
      * @param quote Amount of quote in the account to be liquidated (denominated in quote tokens)
-     * @param amount Amount of tokens to be liquidated
+     * @param amount Absolute amount of tokens to be liquidated
      * @param gasPrice Current gas price, denominated in gwei
      * @param account Account to be liquidated
      * @return Amount to be escrowed for the liquidation
@@ -163,20 +164,12 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
         int256 currentMargin = Balances.margin(pos, price);
-        require(
-            currentMargin <= 0 ||
-                uint256(currentMargin) < Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
-            "LIQ: Account above margin"
-        );
+        uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
+        require(currentMargin <= 0 || uint256(currentMargin) < minimumMargin, "LIQ: Account above margin");
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
-        uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(
-            Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage()),
-            currentMargin,
-            amount,
-            base
-        );
+        uint256 amountToEscrow = LibLiquidation.calcEscrowLiquidationAmount(minimumMargin, currentMargin, amount, base);
 
         // create a liquidation receipt
         Perpetuals.Side side = base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long;
@@ -264,7 +257,8 @@ contract Liquidation is ILiquidation, Ownable {
             amount,
             (liquidatedBalance.position.base < 0 ? Perpetuals.Side.Short : Perpetuals.Side.Long),
             address(tracer),
-            currentLiquidationId - 1
+            currentLiquidationId - 1,
+            block.timestamp
         );
     }
 
@@ -460,7 +454,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Modifies the release time
      * @param _releaseTime new release time
      */
-    function setReleaseTime(uint256 _releaseTime) external onlyOwner() {
+    function setReleaseTime(uint256 _releaseTime) external onlyOwner {
         releaseTime = _releaseTime;
     }
 
@@ -469,7 +463,7 @@ contract Liquidation is ILiquidation, Ownable {
      *         the minimum leftover margin on partial liquidation
      * @param _minimumLeftoverGasCostMultiplier The new multiplier
      */
-    function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner() {
+    function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
     }
 
@@ -477,7 +471,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Modifies the max slippage
      * @param _maxSlippage new max slippage
      */
-    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner() {
+    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
         maxSlippage = _maxSlippage;
     }
 

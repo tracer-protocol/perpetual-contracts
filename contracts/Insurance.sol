@@ -19,12 +19,22 @@ contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
     using StructuredLinkedList for StructuredLinkedList.List;
-    ITracerPerpetualsFactory public perpsFactory;
 
-    address public collateralAsset; // Address of collateral asset
+    address public immutable collateralAsset; // Address of collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
-    address public token; // token representation of a users holding in the pool
+    address public immutable token; // token representation of a users holding in the pool
+
+    uint256 private constant ONE_TOKEN = 1e18; // Constant for 10**18, i.e. one token in WAD format; used for drainPool
+
+    // The insurance pool funding rate calculation can be refactored to have 0.00000570775
+    // as the constant in front; see getPoolFundingRate for the formula
+    // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
+    // 0.00000570775 as a WAD = 570775 * (10 ** 7)
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
+
+    // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
+    uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
 
     uint256 public delayedWithdrawalCounter;
     // Delayed withdrawal ID => DelayedWithdrawal
@@ -61,7 +71,6 @@ contract Insurance is IInsurance {
         uint256 id
     );
     event InsuranceDelayedWithdraw(address indexed market, address indexed user, uint256 indexed amount);
-    event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     constructor(address _tracer) {
         require(_tracer != address(0), "INS: _tracer = address(0)");
@@ -71,8 +80,6 @@ contract Insurance is IInsurance {
         collateralAsset = tracer.tracerQuoteToken();
         // Start with 1, so you can set 0 as null equivalent
         delayedWithdrawalCounter = 1;
-
-        emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
     /**
@@ -361,17 +368,17 @@ contract Insurance is IInsurance {
      *      This was done because in such an emergency situation, we want to recover as much as possible
      * @param amount The desired amount to take from the insurance pool
      */
-    function drainPool(uint256 amount) external override onlyLiquidation() {
+    function drainPool(uint256 amount) external override onlyLiquidation {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         uint256 poolHoldings = getPoolHoldings();
 
         if (amount >= poolHoldings) {
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
-            if (publicCollateralAmount > 10**18) {
+            if (publicCollateralAmount > ONE_TOKEN) {
                 // Leave 1 token for the public pool
-                amount = poolHoldings - 10**18;
-                publicCollateralAmount = 10**18;
+                amount = poolHoldings - ONE_TOKEN;
+                publicCollateralAmount = ONE_TOKEN;
             } else {
                 amount = bufferCollateralAmount;
             }
@@ -379,14 +386,14 @@ contract Insurance is IInsurance {
             // Drain buffer
             bufferCollateralAmount = 0;
         } else if (amount > bufferCollateralAmount) {
-            if (publicCollateralAmount < 10**18) {
+            if (publicCollateralAmount < ONE_TOKEN) {
                 // If there's not enough public collateral for there to be 1 token, cap amount being drained at the buffer
                 amount = bufferCollateralAmount;
-            } else if (poolHoldings - amount < 10**18) {
+            } else if (poolHoldings - amount < ONE_TOKEN) {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
-                amount = poolHoldings - 10**18;
-                publicCollateralAmount = 10**18;
+                amount = poolHoldings - ONE_TOKEN;
+                publicCollateralAmount = ONE_TOKEN;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
                 publicCollateralAmount = publicCollateralAmount - (amount - bufferCollateralAmount);
@@ -440,15 +447,16 @@ contract Insurance is IInsurance {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        return tracer.leveragedNotionalValue() / 100;
+        return PRBMathUD60x18.mul(tracer.leveragedNotionalValue(), INSURANCE_POOL_TARGET_PERCENT);
     }
 
     /**
      * @notice Gets the 8 hour funding rate for an insurance pool
      * @dev the funding rate is represented as
-     *      0.0036523 * (insurance_fund_target - insurance_fund_holdings) / leveraged_notional_value)
+     *      (182.648 / 8) * (5 * ((fundTarget - fundHoldings) / (fundTarget * 10_000))) ** 2
      */
     function getPoolFundingRate() external view override returns (uint256) {
+<<<<<<< HEAD
         // 0.0036523 as a WAD = 36523 * (10**11)
         uint256 multiplyFactor = 36523 * (10**11);
 
@@ -460,6 +468,9 @@ contract Insurance is IInsurance {
         }
 
         uint256 poolHoldings = getPoolHoldingsWithPending();
+=======
+        uint256 poolHoldings = getPoolHoldings();
+>>>>>>> c4e8f9f3aaad8dd603a07c461a85b1753e21553c
         uint256 poolTarget = getPoolTarget();
 
         // If the pool is above the target, we don't pay the insurance funding rate
@@ -467,9 +478,15 @@ contract Insurance is IInsurance {
             return 0;
         }
 
-        uint256 ratio = PRBMathUD60x18.div(poolTarget - poolHoldings, levNotionalValue);
+        // (poolFundingNeeded / poolTarget) is less than 10**18, which you cannot square using PRB-math;
+        // thus, we do the multiplication manually
+        uint256 poolFundingNeeded = poolTarget - poolHoldings;
+        uint256 numerator = PRBMathUD60x18.mul(poolFundingNeeded, poolFundingNeeded);
+        uint256 denominator = PRBMathUD60x18.mul(poolTarget, poolTarget);
 
-        return PRBMathUD60x18.mul(multiplyFactor, ratio);
+        uint256 ratio = PRBMathUD60x18.div(numerator, denominator);
+
+        return PRBMathUD60x18.mul(INSURANCE_FUNDING_RATE_FACTOR, ratio);
     }
 
     modifier onlyLiquidation() {

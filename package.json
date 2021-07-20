@@ -15,6 +15,7 @@
         "@openzeppelin/contracts-upgradeable": "^4.0.0",
         "@openzeppelin/truffle-upgrades": "^1.5.2",
         "@tracer-protocol/tracer-utils": "^0.1.2",
+        "commander": "^8.0.0",
         "dotenv": "^8.2.0",
         "eth-sig-util": "^2.5.3",
         "ethereum-waffle": "^3.3.0",

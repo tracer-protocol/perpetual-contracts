@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./lib/SafetyWithdraw.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
@@ -17,7 +16,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
-contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw {
+contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     using LibMath for uint256;
     using LibMath for int256;
     using PRBMathSD59x18 for int256;
@@ -227,10 +226,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         Perpetuals.Order memory order2,
         uint256 fillAmount
     ) external override onlyWhitelisted returns (bool) {
+        require(order1.market == address(this), "TCR: Wrong market");
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
-        uint256 filled1 = ITrader(msg.sender).filled(order1Id);
-        uint256 filled2 = ITrader(msg.sender).filled(order2Id);
 
         uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
 
@@ -245,20 +243,27 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
             fillAmount,
             executionPrice
         );
+        uint256 _fairPrice = pricingContract.fairPrice();
+        uint256 _trueMaxLeverage = trueMaxLeverage();
         // validate orders can match, and outcome state is valid
         if (
-            !Perpetuals.canMatch(order1, filled1, order2, filled2) ||
+            !Perpetuals.canMatch(
+                order1,
+                ITrader(msg.sender).filled(order1Id),
+                order2,
+                ITrader(msg.sender).filled(order2Id)
+            ) ||
             !Balances.marginIsValid(
                 newPos1,
                 balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
-                pricingContract.fairPrice(),
-                trueMaxLeverage()
+                _fairPrice,
+                _trueMaxLeverage
             ) ||
             !Balances.marginIsValid(
                 newPos2,
                 balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
-                pricingContract.fairPrice(),
-                trueMaxLeverage()
+                _fairPrice,
+                _trueMaxLeverage
             )
         ) {
             // long order must have a price >= short order
@@ -287,7 +292,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         _updateAccountLeverage(order2.maker);
 
         // Update internal trade state
-        pricingContract.recordTrade(executionPrice);
+        pricingContract.recordTrade(executionPrice, fillAmount);
 
         if (order1.side == Perpetuals.Side.Long) {
             emit MatchedOrders(order1.maker, order2.maker, fillAmount, executionPrice, order1Id, order2Id);
@@ -395,6 +400,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         // update liquidatee balance
         liquidateeBalance.position.quote = liquidateeBalance.position.quote + liquidateeQuoteChange;
         liquidateeBalance.position.base = liquidateeBalance.position.base + liquidateeBaseChange;
+        _updateAccountLeverage(liquidator);
+        _updateAccountLeverage(liquidatee);
 
         // Checks if the liquidator is in a valid position to process the liquidation
         require(userMarginIsValid(liquidator), "TCR: Liquidator under min margin");
@@ -423,6 +430,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
         balances[insuranceAddr].position.quote = balances[insuranceAddr].position.quote - amountToTakeFromInsurance;
         balances[claimant].position.quote = balances[claimant].position.quote + amountToGiveToClaimant;
         balances[liquidatee].position.quote = balances[liquidatee].position.quote + amountToGiveToLiquidatee;
+        _updateAccountLeverage(claimant);
+        _updateAccountLeverage(liquidatee);
         require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not funded enough");
     }
 
@@ -486,7 +495,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
 
             // Update account index
             accountBalance.lastUpdatedIndex = lastEstablishedIndex;
-            require(userMarginIsValid(account), "TCR: Target under-margined");
             emit Settled(account, accountBalance.position.quote);
         }
     }

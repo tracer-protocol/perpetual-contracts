@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 library Perpetuals {
+    uint256 private constant PERCENT_MULTIPLIER = 100;
+
     // Sides that an order can take
     enum Side {
         Long,
@@ -75,7 +77,7 @@ library Perpetuals {
             return lowestMaxLeverage;
         }
         uint256 percentFull = PRBMathUD60x18.div(collateralAmount, poolTarget);
-        percentFull = percentFull * 100; // To bring it up to the same percentage units as everything else
+        percentFull = percentFull * PERCENT_MULTIPLIER; // To bring it up to the same percentage units as everything else
 
         if (percentFull >= deleveragingCliff) {
             return defaultMaxLeverage;
