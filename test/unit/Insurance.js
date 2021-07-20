@@ -96,6 +96,7 @@ const setup = deployments.createFixture(async () => {
         "TracerPerpetualSwaps"
     )
 
+    let maxLeverage = ethers.utils.parseEther("12.5")
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
     let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
@@ -105,7 +106,7 @@ const setup = deployments.createFixture(async () => {
         testToken.address,
         18,
         deployer, // Dummy address so it is not address(0)
-        1,
+        maxLeverage,
         1,
         1,
         deployer, // Dummy address so it is not address(0)

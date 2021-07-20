@@ -107,6 +107,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         uint256 _lowestMaxLeverage,
         uint256 _insurancePoolSwitchStage
     ) Ownable() {
+        require(_lowestMaxLeverage <= _maxLeverage, "TCR: Invalid leverage");
+        require(_insurancePoolSwitchStage < _deleveragingCliff, "TCR: Invalid switch stage");
         // don't convert to interface as we don't need to interact with the contract
         require(_tracerQuoteToken != address(0), "TCR: _tracerQuoteToken = address(0)");
         require(_gasPriceOracle != address(0), "TCR: _gasPriceOracle = address(0)");
@@ -568,6 +570,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
+        require(_maxLeverage >= lowestMaxLeverage, "TCR: Invalid max leverage");
         maxLeverage = _maxLeverage;
     }
 
@@ -576,14 +579,17 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
+        require(_deleveragingCliff > insurancePoolSwitchStage, "TCR: Invalid delev cliff");
         deleveragingCliff = _deleveragingCliff;
     }
 
     function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external override onlyOwner {
+        require(_lowestMaxLeverage <= maxLeverage, "TCR: Invalid low. max lev.");
         lowestMaxLeverage = _lowestMaxLeverage;
     }
 
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
+        require(_insurancePoolSwitchStage < deleveragingCliff, "TCR: Invalid pool switch");
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
     }
 
@@ -597,7 +603,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     modifier nonZeroAddress(address providedAddress) {
-        require(providedAddress != address(0), "address(0) given");
+        require(providedAddress != address(0), "TCR: address(0) given");
         _;
     }
 
