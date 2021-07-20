@@ -524,6 +524,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *      don't otherwise get subtracted from the tvl of the market
      */
     function withdrawFees() external override {
+        require(fees != 0, "TCR: no fees");
         uint256 tempFees = fees;
         fees = 0;
         tvl = tvl - tempFees;
