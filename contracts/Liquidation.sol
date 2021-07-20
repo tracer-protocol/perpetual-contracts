@@ -47,6 +47,9 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 timestamp
     );
     event InvalidClaimOrder(uint256 indexed receiptId);
+    event ReleaseTimeUpdated(address indexed owner, uint256 releaseTime);
+    event MinimumLeftoverGasCostMultiplierUpdated(address indexed owner, uint256 minimumLeftoverGasCostMultiplier);
+    event MaxSlippageUpdated(address indexed owner, uint256 maxSlippage);
 
     /**
      * @param _pricing Pricing.sol contract address
@@ -459,6 +462,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setReleaseTime(uint256 _releaseTime) external onlyOwner {
         releaseTime = _releaseTime;
+        emit ReleaseTimeUpdated(msg.sender, releaseTime);
     }
 
     /**
@@ -468,6 +472,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
+        emit MinimumLeftoverGasCostMultiplierUpdated(msg.sender, minimumLeftoverGasCostMultiplier);
     }
 
     /**
@@ -477,6 +482,7 @@ contract Liquidation is ILiquidation, Ownable {
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
         require(_maxSlippage <= MAX_PERCENT, "LIQ: Invalid max slippage");
         maxSlippage = _maxSlippage;
+        emit MaxSlippageUpdated(msg.sender, maxSlippage);
     }
 
     modifier nonZeroAddress(address providedAddress) {

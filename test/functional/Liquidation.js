@@ -1532,9 +1532,10 @@ describe("Liquidation functional tests", async () => {
                 const contracts = await setupReceiptTest()
                 accounts = await ethers.getSigners()
                 // set max slippage as 123%
-                await expect(contracts.liquidation
-                    .connect(accounts[0])
-                    .setMaxSlippage(ethers.utils.parseEther("123"))
+                await expect(
+                    contracts.liquidation
+                        .connect(accounts[0])
+                        .setMaxSlippage(ethers.utils.parseEther("123"))
                 ).to.be.revertedWith("LIQ: Invalid max slippage")
             })
         })
