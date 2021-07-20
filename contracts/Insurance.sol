@@ -456,21 +456,7 @@ contract Insurance is IInsurance {
      *      (182.648 / 8) * (5 * ((fundTarget - fundHoldings) / (fundTarget * 10_000))) ** 2
      */
     function getPoolFundingRate() external view override returns (uint256) {
-<<<<<<< HEAD
-        // 0.0036523 as a WAD = 36523 * (10**11)
-        uint256 multiplyFactor = 36523 * (10**11);
-
-        uint256 levNotionalValue = tracer.leveragedNotionalValue();
-
-        // Traders only pay the insurance funding rate if the market has leverage
-        if (levNotionalValue == 0) {
-            return 0;
-        }
-
         uint256 poolHoldings = getPoolHoldingsWithPending();
-=======
-        uint256 poolHoldings = getPoolHoldings();
->>>>>>> c4e8f9f3aaad8dd603a07c461a85b1753e21553c
         uint256 poolTarget = getPoolTarget();
 
         // If the pool is above the target, we don't pay the insurance funding rate
