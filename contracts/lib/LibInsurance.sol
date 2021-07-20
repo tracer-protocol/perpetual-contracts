@@ -3,6 +3,17 @@ pragma solidity ^0.8.0;
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 library LibInsurance {
+    struct DelayedWithdrawal {
+        bool executed;
+        address account;
+        uint256 id;
+        uint256 creationTime;
+        uint256 amount; // Pool tokens, In raw format (not WAD)
+        uint256 collateralAmountAtTimeOfCommit; // So we know how much to take from pending
+        uint256 previous;
+        uint256 next;
+    }
+
     /**
     * @notice calculates the amount of insurance pool tokens to mint
     * @dev wadAmount is the amount of quote tokens being provided, converted to WAD

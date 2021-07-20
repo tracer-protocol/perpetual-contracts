@@ -133,7 +133,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable, SafetyWithdraw 
 
         return
             Perpetuals.calculateTrueMaxLeverage(
-                insurance.getPoolHoldings(),
+                insurance.getPoolHoldingsWithPending(),
                 insurance.getPoolTarget(),
                 maxLeverage,
                 lowestMaxLeverage,
