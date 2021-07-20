@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
-import "./lib/LibPerpetuals.sol";
-import "./lib/LibBalances.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**

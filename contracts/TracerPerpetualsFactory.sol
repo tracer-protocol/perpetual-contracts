@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ILiquidation.sol";
-import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./Interfaces/deployers/IPerpsDeployer.sol";
 import "./Interfaces/deployers/ILiquidationDeployer.sol";
