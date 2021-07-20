@@ -1516,12 +1516,26 @@ describe("Liquidation functional tests", async () => {
             it("correctly updates ", async () => {
                 const contracts = await setupReceiptTest()
                 accounts = await ethers.getSigners()
+                // set max slippage as 50%
+                let newMaxSlippage = ethers.utils.parseEther("0.5")
                 await contracts.liquidation
                     .connect(accounts[0])
-                    .setMaxSlippage("123")
+                    .setMaxSlippage(newMaxSlippage)
                 expect(await contracts.liquidation.maxSlippage()).to.equal(
-                    "123"
+                    newMaxSlippage
                 )
+            })
+        })
+
+        context("when max slippage is greater than 100%", async () => {
+            it("reverts", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                // set max slippage as 123%
+                await expect(contracts.liquidation
+                    .connect(accounts[0])
+                    .setMaxSlippage(ethers.utils.parseEther("123"))
+                ).to.be.revertedWith("LIQ: Invalid max slippage")
             })
         })
     })

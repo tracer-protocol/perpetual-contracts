@@ -30,6 +30,8 @@ contract Liquidation is ILiquidation, Ownable {
     address public immutable insuranceContract;
     address public immutable fastGasOracle;
 
+    uint256 private constant MAX_PERCENT = 1e18; // 100% as a decimal in WAD format, used to check valid parameters.
+
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
 
@@ -65,6 +67,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(_tracer != address(0), "LIQ: _tracer = address(0)");
         require(_insuranceContract != address(0), "LIQ: _insuranceContract = address(0)");
         require(_fastGasOracle != address(0), "LIQ: _fastGasOracle = address(0)");
+        require(_maxSlippage <= MAX_PERCENT, "LIQ: Invalid max slippage");
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -472,6 +475,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param _maxSlippage new max slippage
      */
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
+        require(_maxSlippage <= MAX_PERCENT, "LIQ: Invalid max slippage");
         maxSlippage = _maxSlippage;
     }
 
