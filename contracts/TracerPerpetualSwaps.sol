@@ -33,7 +33,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override fees;
     address public override feeReceiver;
 
-    uint256 private constant MAX_PERCENT = 1e20; // Constant for 100% in WAD format, used to check valid parameters
+    uint256 private constant MAX_PERCENT = 100e18; // 100% in WAD format, used to check valid parameters.
+    uint256 private constant MAX_PERCENT_DECIMAL = 1e18; // 100% expressed as a decimal, in WAD format.
 
     /* Config variables */
     // The price of gas in gwei
@@ -88,7 +89,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid; u60.18-decimal fixed-point number (WAD value)
-     * @param _feeRate the fee taken on trades; WAD value. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _feeRate the fee taken on trades; decimal percentage converted to WAD value. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      * @param _feeReceiver the address of the person who can withdraw the fees from trades in this market
      * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
      *                           WAD value. e.g. 20% = 20*10^18
@@ -109,7 +110,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         uint256 _lowestMaxLeverage,
         uint256 _insurancePoolSwitchStage
     ) Ownable() {
-        require(_feeRate <= MAX_PERCENT, "TCR: Fee rate > 100%");
+        require(_feeRate <= MAX_PERCENT_DECIMAL, "TCR: Fee rate > 100%");
         require(_deleveragingCliff <= MAX_PERCENT, "TCR: Delev cliff > 100%");
         require(_lowestMaxLeverage <= _maxLeverage, "TCR: Invalid leverage");
         require(_insurancePoolSwitchStage < _deleveragingCliff, "TCR: Invalid switch stage");
@@ -570,7 +571,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     function setFeeRate(uint256 _feeRate) external override onlyOwner {
-        require(_feeRate <= MAX_PERCENT, "TCR: Fee rate > 100%");
+        require(_feeRate <= MAX_PERCENT_DECIMAL, "TCR: Fee rate > 100%");
         feeRate = _feeRate;
     }
 

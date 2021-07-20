@@ -773,7 +773,8 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         context("when fee rate is greater than 100%", async () => {
             it("reverts", async () => {
                 await expect(
-                    tracer.setFeeRate(ethers.utils.parseEther("101"))
+                    // Set fee rate to 101%
+                    tracer.setFeeRate(ethers.utils.parseEther("1.01"))
                 ).to.be.revertedWith("TCR: Fee rate > 100")
             })
         })
