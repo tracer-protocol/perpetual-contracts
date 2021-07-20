@@ -490,7 +490,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
                 );
 
                 balances[account].position = newUserPos;
-                balances[(address(insuranceContract))].position = newInsurancePos;
+                insuranceBalance.position = newInsurancePos;
             }
 
             // Update account index
