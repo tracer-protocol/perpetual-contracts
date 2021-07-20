@@ -33,6 +33,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override fees;
     address public override feeReceiver;
 
+    uint256 private constant MAX_PERCENT = 1e20; // Constant for 100% in WAD format, used to check valid parameters
+
     /* Config variables */
     // The price of gas in gwei
     address public override gasPriceOracle;
@@ -107,6 +109,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         uint256 _lowestMaxLeverage,
         uint256 _insurancePoolSwitchStage
     ) Ownable() {
+        require(_feeRate <= MAX_PERCENT, "TCR: Fee rate > 100%");
+        require(_deleveragingCliff <= MAX_PERCENT, "TCR: Delev cliff > 100%");
         require(_lowestMaxLeverage <= _maxLeverage, "TCR: Invalid leverage");
         require(_insurancePoolSwitchStage < _deleveragingCliff, "TCR: Invalid switch stage");
         // don't convert to interface as we don't need to interact with the contract
@@ -566,6 +570,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     function setFeeRate(uint256 _feeRate) external override onlyOwner {
+        require(_feeRate <= MAX_PERCENT, "TCR: Fee rate > 100%");
         feeRate = _feeRate;
     }
 
@@ -579,6 +584,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
+        require(_deleveragingCliff <= MAX_PERCENT, "TCR: Delev cliff > 100%");
         require(_deleveragingCliff > insurancePoolSwitchStage, "TCR: Invalid delev cliff");
         deleveragingCliff = _deleveragingCliff;
     }

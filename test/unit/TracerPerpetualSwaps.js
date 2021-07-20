@@ -769,6 +769,14 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
         })
+
+        context("when fee rate is greater than 100%", async () => {
+            it("reverts", async () => {
+                await expect(
+                    tracer.setFeeRate(ethers.utils.parseEther("101"))
+                ).to.be.revertedWith("TCR: Fee rate > 100")
+            })
+        })
     })
 
     describe("setMaxLeverage", async () => {
@@ -863,6 +871,14 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 })
             }
         )
+
+        context("when deleveraging cliff is greater than 100%", async () => {
+            it("reverts", async () => {
+                await expect(
+                    tracer.setDeleveragingCliff(ethers.utils.parseEther("101"))
+                ).to.be.revertedWith("TCR: Delev cliff > 100%")
+            })
+        })
     })
 
     describe("setLowestMaxLeverage", async () => {
