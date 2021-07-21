@@ -1511,6 +1511,71 @@ describe("Liquidation functional tests", async () => {
         })
     })
 
+    context("setReleaseTime", async () => {
+        context("releaseTime", async () => {
+            it("correctly updates ", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                // set multiplier as 20 minutes
+                let newReleaseTime = 20 * 60
+                await contracts.liquidation
+                    .connect(accounts[0])
+                    .setReleaseTime(newReleaseTime)
+                expect(await contracts.liquidation.releaseTime()).to.equal(
+                    newReleaseTime
+                )
+            })
+
+            it("emits an event", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                // set multiplier as 20 minutes
+                let newReleaseTime = 20 * 60
+                expect(
+                    await contracts.liquidation
+                        .connect(accounts[0])
+                        .setReleaseTime(newReleaseTime)
+                )
+                    .to.emit(contracts.liquidation, "ReleaseTimeUpdated")
+                    .withArgs(newReleaseTime)
+            })
+        })
+    })
+
+    context("setMinimumLeftoverGasCostMultiplier", async () => {
+        context("maxSlippage", async () => {
+            it("correctly updates ", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                // set multiplier as 8
+                let newMultiplier = 8
+                await contracts.liquidation
+                    .connect(accounts[0])
+                    .setMinimumLeftoverGasCostMultiplier(newMultiplier)
+                expect(
+                    await contracts.liquidation.minimumLeftoverGasCostMultiplier()
+                ).to.equal(newMultiplier)
+            })
+
+            it("emits an event", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                // set multiplier as 8
+                let newMultiplier = 8
+                expect(
+                    await contracts.liquidation
+                        .connect(accounts[0])
+                        .setMinimumLeftoverGasCostMultiplier(newMultiplier)
+                )
+                    .to.emit(
+                        contracts.liquidation,
+                        "MinimumLeftoverGasCostMultiplierUpdated"
+                    )
+                    .withArgs(newMultiplier)
+            })
+        })
+    })
+
     context("setMaxSlippage", async () => {
         context("maxSlippage", async () => {
             it("correctly updates ", async () => {
@@ -1524,6 +1589,20 @@ describe("Liquidation functional tests", async () => {
                 expect(await contracts.liquidation.maxSlippage()).to.equal(
                     newMaxSlippage
                 )
+            })
+
+            it("emits an event", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                // set max slippage as 50%
+                let newMaxSlippage = ethers.utils.parseEther("0.5")
+                expect(
+                    await contracts.liquidation
+                        .connect(accounts[0])
+                        .setMaxSlippage(newMaxSlippage)
+                )
+                    .to.emit(contracts.liquidation, "MaxSlippageUpdated")
+                    .withArgs(newMaxSlippage)
             })
         })
 
