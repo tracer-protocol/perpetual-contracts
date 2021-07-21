@@ -73,11 +73,18 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         bytes32 longOrderId,
         bytes32 shortOrderId
     );
-    event LiquidationContractUpdated(address indexed owner, address newLiquidationAddress);
-    event InsuranceContractUpdated(address indexed owner, address newInsuranceAddress);
-    event PricingContractUpdated(address indexed owner, address newPricingAddress);
-    event GasOracleContractUpdated(address indexed owner, address newGasOracleAddress);
-    event FeeReceiverUpdated(address indexed owner, address newReceiverAddresss);
+    event LiquidationContractUpdated(address newLiquidationAddress);
+    event InsuranceContractUpdated(address newInsuranceAddress);
+    event PricingContractUpdated(address newPricingAddress);
+    event GasOracleContractUpdated(address newGasOracleAddress);
+    event FeeReceiverUpdated(address newReceiverAddresss);
+    event FeeRateUpdated(uint256 newFeeRate);
+    event MaxLeverageUpdated(uint256 newMaxLeverage);
+    event FundingRateSensitivityUpdated(uint256 newFundingRateSensitivity);
+    event DeleveragingCliffUpdated(uint256 newDeleveragingCliff);
+    event LowestMaxLeverageUpdated(uint256 newLowestMaxLeverage);
+    event InsurancePoolSwitchStageUpdated(uint256 newInsurancePoolSwitch);
+    event TradingContractWhitelisted(address whitelistedAddress);
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -547,51 +554,57 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         onlyOwner
     {
         liquidationContract = _liquidationContract;
-        emit LiquidationContractUpdated(msg.sender, liquidationContract);
+        emit LiquidationContractUpdated(liquidationContract);
     }
 
     function setInsuranceContract(address insurance) external override nonZeroAddress(insurance) onlyOwner {
         insuranceContract = IInsurance(insurance);
-        emit InsuranceContractUpdated(msg.sender, insurance);
+        emit InsuranceContractUpdated(insurance);
     }
 
     function setPricingContract(address pricing) external override nonZeroAddress(pricing) onlyOwner {
         pricingContract = IPricing(pricing);
-        emit PricingContractUpdated(msg.sender, pricing);
+        emit PricingContractUpdated(pricing);
     }
 
     function setGasOracle(address _gasOracle) external override nonZeroAddress(_gasOracle) onlyOwner {
         gasPriceOracle = _gasOracle;
-        emit GasOracleContractUpdated(msg.sender, gasPriceOracle);
+        emit GasOracleContractUpdated(gasPriceOracle);
     }
 
     function setFeeReceiver(address _feeReceiver) external override nonZeroAddress(_feeReceiver) onlyOwner {
         feeReceiver = _feeReceiver;
-        emit FeeReceiverUpdated(msg.sender, _feeReceiver);
+        emit FeeReceiverUpdated(_feeReceiver);
     }
 
     function setFeeRate(uint256 _feeRate) external override onlyOwner {
         feeRate = _feeRate;
+        emit FeeRateUpdated(feeRate);
     }
 
     function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
         maxLeverage = _maxLeverage;
+        emit MaxLeverageUpdated(maxLeverage);
     }
 
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external override onlyOwner {
         fundingRateSensitivity = _fundingRateSensitivity;
+        emit FundingRateSensitivityUpdated(fundingRateSensitivity);
     }
 
     function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
         deleveragingCliff = _deleveragingCliff;
+        emit DeleveragingCliffUpdated(deleveragingCliff);
     }
 
     function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external override onlyOwner {
         lowestMaxLeverage = _lowestMaxLeverage;
+        emit LowestMaxLeverageUpdated(lowestMaxLeverage);
     }
 
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
+        emit InsurancePoolSwitchStageUpdated(insurancePoolSwitchStage);
     }
 
     function transferOwnership(address newOwner)
@@ -616,6 +629,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      */
     function setWhitelist(address tradingContract, bool whitelisted) external onlyOwner {
         tradingWhitelist[tradingContract] = whitelisted;
+        emit TradingContractWhitelisted(tradingContract);
     }
 
     // Modifier such that only the set liquidation contract can call a function
