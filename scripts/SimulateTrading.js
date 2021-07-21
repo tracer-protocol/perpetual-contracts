@@ -2,6 +2,9 @@ const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpe
 const hre = require("hardhat")
 const fs = require("fs")
 
+/**
+ * Helper function to record deployed contract addresses in a json
+ * */
 const writeOutFiles = (factoryAddress, traderAddress) => {
     console.log("Writing out contract addresses")
     const data = {
