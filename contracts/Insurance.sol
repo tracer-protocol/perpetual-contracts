@@ -3,13 +3,11 @@ pragma solidity ^0.8.0;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Insurance is IInsurance {
@@ -26,8 +24,8 @@ contract Insurance is IInsurance {
     // The insurance pool funding rate calculation can be refactored to have 0.00000570775
     // as the constant in front; see getPoolFundingRate for the formula
     // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
-    // 0.00000570775 as a WAD = 570775 * (10 ** 7)
-    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
+    // 0.00000570775 as a WAD = 5.70775e12
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 5.70775e12;
 
     // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
     uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;

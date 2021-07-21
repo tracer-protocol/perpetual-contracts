@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "./lib/LibMath.sol";
-import "./lib/LibPrices.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";

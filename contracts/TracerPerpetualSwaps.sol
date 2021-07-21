@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import {Types} from "./Interfaces/Types.sol";
-import "./lib/LibPrices.sol";
-import "./lib/LibPerpetuals.sol";
 import "./Interfaces/IOracle.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
@@ -490,7 +488,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
                 );
 
                 balances[account].position = newUserPos;
-                balances[(address(insuranceContract))].position = newInsurancePos;
+                insuranceBalance.position = newInsurancePos;
             }
 
             // Update account index
@@ -524,6 +522,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *      don't otherwise get subtracted from the tvl of the market
      */
     function withdrawFees() external override {
+        require(fees != 0, "TCR: no fees");
         uint256 tempFees = fees;
         fees = 0;
         tvl = tvl - tempFees;
