@@ -3,31 +3,29 @@ pragma solidity ^0.8.0;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
 
-    address public collateralAsset; // Address of collateral asset
+    address public immutable collateralAsset; // Address of collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
-    address public token; // token representation of a users holding in the pool
+    address public immutable token; // token representation of a users holding in the pool
 
     uint256 private constant ONE_TOKEN = 1e18; // Constant for 10**18, i.e. one token in WAD format; used for drainPool
 
     // The insurance pool funding rate calculation can be refactored to have 0.00000570775
     // as the constant in front; see getPoolFundingRate for the formula
     // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
-    // 0.00000570775 as a WAD = 570775 * (10 ** 7)
-    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
+    // 0.00000570775 as a WAD = 5.70775e12
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 5.70775e12;
 
     // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
     uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
