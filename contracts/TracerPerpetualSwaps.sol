@@ -54,7 +54,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
 
-    event FeeReceiverUpdated(address indexed receiver);
     event FeeWithdrawn(address indexed receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
@@ -74,6 +73,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         bytes32 longOrderId,
         bytes32 shortOrderId
     );
+    event LiquidationContractUpdated(address indexed owner, address newLiquidationAddress);
+    event InsuranceContractUpdated(address indexed owner, address newInsuranceAddress);
+    event PricingContractUpdated(address indexed owner, address newPricingAddress);
+    event GasOracleContractUpdated(address indexed owner, address newGasOracleAddress);
+    event FeeReceiverUpdated(address indexed owner, address newReceiverAddresss);
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -543,23 +547,27 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         onlyOwner
     {
         liquidationContract = _liquidationContract;
+        emit LiquidationContractUpdated(msg.sender, liquidationContract);
     }
 
     function setInsuranceContract(address insurance) external override nonZeroAddress(insurance) onlyOwner {
         insuranceContract = IInsurance(insurance);
+        emit InsuranceContractUpdated(msg.sender, insurance);
     }
 
     function setPricingContract(address pricing) external override nonZeroAddress(pricing) onlyOwner {
         pricingContract = IPricing(pricing);
+        emit PricingContractUpdated(msg.sender, pricing);
     }
 
     function setGasOracle(address _gasOracle) external override nonZeroAddress(_gasOracle) onlyOwner {
         gasPriceOracle = _gasOracle;
+        emit GasOracleContractUpdated(msg.sender, gasPriceOracle);
     }
 
     function setFeeReceiver(address _feeReceiver) external override nonZeroAddress(_feeReceiver) onlyOwner {
         feeReceiver = _feeReceiver;
-        emit FeeReceiverUpdated(_feeReceiver);
+        emit FeeReceiverUpdated(msg.sender, _feeReceiver);
     }
 
     function setFeeRate(uint256 _feeRate) external override onlyOwner {
