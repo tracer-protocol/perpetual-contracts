@@ -6,10 +6,6 @@ module.exports = async function (hre) {
     const { deployer, acc1, acc2, acc3 } = await getNamedAccounts()
     const signers = await ethers.getSigners()
     // deploy libs
-    const safetyWithdraw = await deploy("SafetyWithdraw", {
-        from: deployer,
-        log: true,
-    })
     const libMath = await deploy("LibMath", {
         from: deployer,
         log: true,
@@ -116,7 +112,7 @@ module.exports = async function (hre) {
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: [ethers.utils.parseEther("10000000")], //10 mil supply
+        args: [ethers.utils.parseEther("10000000"), "Test Token", "TST", 18], //10 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
@@ -164,7 +160,6 @@ module.exports = async function (hre) {
         libraries: {
             LibMath: libMath.address,
             Balances: libBalances.address,
-            SafetyWithdraw: safetyWithdraw.address,
             Insurance: libInsurance.address,
         },
         log: true,
@@ -185,7 +180,6 @@ module.exports = async function (hre) {
         libraries: {
             Perpetuals: libPerpetuals.address,
             LibMath: libMath.address,
-            SafetyWithdraw: safetyWithdraw.address,
             Balances: libBalances.address,
             Prices: libPricing.address,
         },

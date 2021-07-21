@@ -29,7 +29,7 @@ library LibLiquidation {
 
     /**
      * @return The amount a liquidator must escrow in order to liquidate a given position.
-     *         Calculated as currentMargin - (minMargin - currentMargin) * portion of whole position being liquidated
+     *         Calculated as (currentMargin - (minMargin - currentMargin)) * portion of whole position being liquidated
      * @dev Assumes params are WAD
      * @param minMargin User's minimum margin
      * @param currentMargin User's current margin
@@ -150,7 +150,7 @@ library LibLiquidation {
 
     /**
      * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
-     * @dev Assumes params are WAD except liquidationGasCost
+     * @dev Assumes params are WAD except liquidationGasCost and minimumLeftoverGasCostMultiplier
      * @param updatedPosition The agent's position after being liquidated
      * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
      * @param liquidationGasCost Approximately how much gas is used to call liquidate()

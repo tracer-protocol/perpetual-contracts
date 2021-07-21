@@ -3,6 +3,7 @@ const tokenAbi = require("../abi/@openzeppelin/contracts/token/ERC20/ERC20.sol/E
 const hre = require("hardhat")
 const fs = require("fs")
 
+const { ethers } = hre
 const DEPOSIT_AMOUNT = ethers.utils.parseEther("1000")
 const NETWORK = "kovan"
 const PRIVATE_KEY_FILE = "pkey2.secret"
@@ -13,7 +14,6 @@ const TRACER_ADDRESS = "0x5566eDe4eBF614831e6eFc538D51AF5c5FEeeA0d"
 // running FullDeployTest will give each account 10000 of them if a local deployment
 async function main() {
     // deploy all contracts using hardhat deploy
-    const { ethers } = hre
     // first account is the deployer
 
     tracer = TRACER_ADDRESS
