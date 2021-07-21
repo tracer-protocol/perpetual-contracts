@@ -54,7 +54,7 @@ contract Insurance is IInsurance {
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
-        collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
+        require(collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount), "INS: Transfer failed");
 
         // amount in wad format after being converted from token format
         uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
@@ -100,7 +100,7 @@ contract Insurance is IInsurance {
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, rawTokenAmount);
+        require(collateralToken.transfer(msg.sender, rawTokenAmount), "INS: Transfer failed");
 
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
