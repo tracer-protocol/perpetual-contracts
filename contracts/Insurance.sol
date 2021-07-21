@@ -46,16 +46,17 @@ contract Insurance is IInsurance {
     StructuredLinkedList.List list;
 
     // Approximate average gas it costs for each iteration in `scanDelayedWithdrawals(...)`
-    uint256 internal constant AVERAGE_SCAN_GAS_PER_ACCOUNT = 41120;
+    // AVERAGE_SCAN_GAS_PER_ACCOUNT = 41120;
     // Approximate gas it costs to call `commitToDelayedWithdrawal(...)`
-    uint256 internal constant AVERAGE_COMMIT_GAS = 384436;
+    // AVERAGE_COMMIT_GAS = 384436;
     // Approximate gas it costs to call `executeDelayedWithdrawal()`
-    uint256 internal constant AVERAGE_EXECUTE_GAS = 132412;
-    uint256 internal constant COMMIT_EXECUTE_GAS_SUM = AVERAGE_COMMIT_GAS + AVERAGE_EXECUTE_GAS;
+    // AVERAGE_EXECUTE_GAS = 132412;
+    // COMMIT_EXECUTE_GAS_SUM = AVERAGE_COMMIT_GAS + AVERAGE_EXECUTE_GAS;
     // When committing, or executing a delayed withdrawal, spend half the amount of gas it would
     // cost to run the function on scanning through the delayed withdrawals and deleting any expired ones
+    // SCAN_EXPIRED_WITHDRAWAL_COUNT = COMMIT_EXECUTE_GAS_SUM / 2 / AVERAGE_SCAN_GAS_PER_ACCOUNT;
     // This ends up being 6 iterations. i.e. At most do 6 iterations through the pending delayed withdrawals
-    uint256 internal constant SCAN_EXPIRED_WITHDRAWAL_COUNT = COMMIT_EXECUTE_GAS_SUM / 2 / AVERAGE_SCAN_GAS_PER_ACCOUNT;
+    uint256 SCAN_EXPIRED_WITHDRAWAL_COUNT = 6;
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
