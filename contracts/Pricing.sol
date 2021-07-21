@@ -71,6 +71,7 @@ contract Pricing is IPricing {
     /**
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
+     * @dev emits the last hourly average tracer price. Max integer is emitted if no trades occurred.
      * @param tradePrice the price the trade executed at
      * @param fillAmount the amount the trade was filled for
      */
@@ -257,6 +258,7 @@ contract Pricing is IPricing {
 
     /**
      * @notice Gets a 24 hour tracer and oracle price for a given tracer market
+     * @notice Returns max integer (uint256) if there were no trades in the 24 hour period
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
     function get24HourPrices() public view override returns (uint256, uint256) {
@@ -265,6 +267,7 @@ contract Pricing is IPricing {
 
     /**
      * @notice Gets the average tracer price for a given market during a certain hour
+     * @notice Returns max integer (uint256) if there were no trades in the hour
      * @param hour The hour of which you want the hourly average Price
      * @return the average price of the tracer for a particular hour
      */
@@ -274,6 +277,7 @@ contract Pricing is IPricing {
 
     /**
      * @notice Gets the average oracle price for a given market during a certain hour
+     * @notice Returns max integer (uint256) if there were no trades in the hour
      * @param hour The hour of which you want the hourly average Price
      */
     function getHourlyAvgOraclePrice(uint256 hour) external view override returns (uint256) {
