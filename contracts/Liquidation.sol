@@ -232,10 +232,10 @@ contract Liquidation is ILiquidation, Ownable {
             int256 liquidateeQuoteChange,
             int256 liquidateeBaseChange
         ) = LibLiquidation.liquidationBalanceChanges(
-            liquidatedBalance.position.base,
-            liquidatedBalance.position.quote,
-            amount
-        );
+                liquidatedBalance.position.base,
+                liquidatedBalance.position.quote,
+                amount
+            );
 
         Balances.Position memory updatedPosition = Balances.Position(
             liquidatedBalance.position.quote + liquidateeQuoteChange,
