@@ -1,18 +1,23 @@
 const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const hre = require("hardhat")
-const fs = require('fs');
+const fs = require("fs")
 
 const writeOutFiles = (factoryAddress, traderAddress) => {
     console.log("Writing out contract addresses")
-    const data = ({
+    const data = {
         factory: factoryAddress,
-        trader: traderAddress
-    })
-    fs.writeFile("./contract-addresses.json", JSON.stringify(data), 'utf8', (err) => {
-        if (err) {
-            console.error('Error', err)
+        trader: traderAddress,
+    }
+    fs.writeFile(
+        "./contract-addresses.json",
+        JSON.stringify(data),
+        "utf8",
+        (err) => {
+            if (err) {
+                console.error("Error", err)
+            }
         }
-    })
+    )
 }
 
 // small sample script for using deploys and then deploying a trace
@@ -35,7 +40,7 @@ async function main() {
         traderDeployment.abi,
         traderDeployment.address
     )
-    const factoryDeployment = await deployments.get("TracerPerpetualsFactory");
+    const factoryDeployment = await deployments.get("TracerPerpetualsFactory")
 
     writeOutFiles(factoryDeployment.address, traderDeployment.address)
 
@@ -146,9 +151,6 @@ async function main() {
             newPrice
         )
     }
-
-    
-
 }
 
 // We recommend this pattern to be able to use async/await everywhere
