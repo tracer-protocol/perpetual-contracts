@@ -10,7 +10,7 @@ import "prb-math/contracts/PRBMathUD60x18.sol";
 /**
  * @dev The following is a sample Gas Price Oracle Implementation for a Tracer Oracle.
  *      It references the Chainlink fast gas price and ETH/USD price to get a gas cost
- *      estimate in USD.
+ *      estimate in USD. Both these feeds are converted to WAD format.
  */
 contract GasOracle is IOracle, Ownable {
     using LibMath for uint256;
@@ -44,22 +44,26 @@ contract GasOracle is IOracle, Ownable {
      * @dev Since the answer is provided in Gwei, the number is scaled to 9 decimals to convert to WAD.
      */
     function _gasPriceToWad() internal view returns (uint256) {
-        uint256 result = uint256(gasOracle.latestAnswer());
+        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = gasOracle.latestRoundData();
+        require(answeredInRound >= roundID, "GAS: Stale answer");
+        require(timeStamp != 0, "GAS: Incomplete round");
         uint8 _decimals = gasOracle.decimals();
-        require(_decimals <= MAX_GWEI_DECIMALS, "GAS: too many decimals");
+        require(_decimals <= MAX_GWEI_DECIMALS, "GAS: Too many decimals");
         uint256 scaler = uint256(10**(MAX_GWEI_DECIMALS - _decimals));
-        return result * scaler;
+        return uint256(price) * scaler;
     }
 
     /**
-     * @notice Returns the latest answer from the ETH/USD oracle in WAD format (USD/ETH * 10^18).
+     * @notice Returns the latest answer from the ETH/USD price feed and converts it to WAD format (USD/ETH * 10^18).
      */
     function _ethPriceToWad() internal view returns (uint256) {
-        uint256 result = uint256(priceOracle.latestAnswer());
+        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = priceOracle.latestRoundData();
+        require(answeredInRound >= roundID, "GAS: Stale answer");
+        require(timeStamp != 0, "GAS: Incomplete round");
         uint8 _decimals = priceOracle.decimals();
-        require(_decimals <= MAX_DECIMALS, "GAS: too many decimals");
+        require(_decimals <= MAX_DECIMALS, "GAS: Too many decimals");
         uint256 scaler = uint256(10**(MAX_DECIMALS - _decimals));
-        return result * scaler;
+        return uint256(price) * scaler;
     }
 
     function setGasOracle(address _gasOracle) public nonZeroAddress(_gasOracle) onlyOwner {

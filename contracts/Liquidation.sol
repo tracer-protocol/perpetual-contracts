@@ -6,7 +6,7 @@ import "./lib/LibLiquidation.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/ITrader.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/IOracle.sol";
+import "./Interfaces/IChainlinkOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
@@ -155,8 +155,7 @@ contract Liquidation is ILiquidation, Ownable {
         address account
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
-        require(tx.gasprice <= IOracle(fastGasOracle).latestAnswer(), "LIQ: GasPrice > FGasPrice");
-
+        require(tx.gasprice <= _getFastGasPrice(), "LIQ: GasPrice > FGasPrice");
         Balances.Position memory pos = Balances.Position(quote, base);
         uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
 
@@ -470,6 +469,19 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
         maxSlippage = _maxSlippage;
+    }
+
+    /**
+     * @notice Returns the latest answer from the Fast Gas / GWEI Chainlink feed.
+     *         Reverts if the latest round is incomplete or the answer is no longer current.
+     */
+    function _getFastGasPrice() internal view returns (uint256) {
+        (uint80 roundID, int256 fastGasPrice, , uint256 timeStamp, uint80 answeredInRound) = IChainlinkOracle(
+            fastGasOracle
+        ).latestRoundData();
+        require(answeredInRound >= roundID, "LIQ: Stale answer");
+        require(timeStamp != 0, "LIQ: Round incomplete");
+        return uint256(fastGasPrice);
     }
 
     modifier nonZeroAddress(address providedAddress) {

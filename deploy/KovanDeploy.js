@@ -49,14 +49,14 @@ module.exports = async function (hre) {
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     // deploy second asset oracle for custom testing
     const customOracle = await deploy("CustomOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     await execute(
@@ -88,12 +88,12 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    // takes in the chainlink oracle wrapped (to return 10^18) and a gas price oracle
-    // not wrapped (to return 10^9)
+    // takes in the Fast Gas/Gwei and ETH/USD Chainlink oracles (not wrapped in adapter)
+    // provides the USD/Gas price in WAD format
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracleAdapter.address, gasOracle.address],
+        args: [ethOracle, gasOracle.address],
         contract: "GasOracle",
     })
 
@@ -321,7 +321,7 @@ module.exports = async function (hre) {
     })
     await hre.run("verify:verify", {
         address: gasPriceOracle.address,
-        constructorArguments: [ethOracleAdapter.address, gasOracle.address],
+        constructorArguments: [ethOracle, gasOracle.address],
     })
     await hre.run("verify:verify", {
         address: token.address,
