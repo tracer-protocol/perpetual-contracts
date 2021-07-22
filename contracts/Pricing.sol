@@ -204,8 +204,11 @@ contract Pricing is IPricing {
      */
     function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
-
-        timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+        // get 24 hours returns max integer if no trades occurred
+        // don't update in this case
+        if (avgPrice != type(uint256).max){
+            timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+        }
     }
 
     /**
