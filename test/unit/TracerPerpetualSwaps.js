@@ -796,6 +796,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
                 expect(await tracer.feeRate()).to.equal(newFeeRate)
             })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setFeeRate(
+                        ethers.utils.parseEther("0.5")
+                    )
+                )
+                    .to.emit(tracer, "FeeRateUpdated")
+                    .withArgs(ethers.utils.parseEther("0.5"))
+            })
         })
 
         context("when called by someone who isn't the owner", async () => {
@@ -817,6 +827,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 expect(await tracer.maxLeverage()).to.equal(
                     ethers.utils.parseEther("2")
                 )
+            })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setMaxLeverage(
+                        ethers.utils.parseEther("2")
+                    )
+                )
+                    .to.emit(tracer, "MaxLeverageUpdated")
+                    .withArgs(ethers.utils.parseEther("2"))
             })
         })
 
@@ -841,6 +861,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 expect(await tracer.fundingRateSensitivity()).to.equal(
                     ethers.utils.parseEther("2")
                 )
+            })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setFundingRateSensitivity(
+                        ethers.utils.parseEther("2")
+                    )
+                )
+                    .to.emit(tracer, "FundingRateSensitivityUpdated")
+                    .withArgs(ethers.utils.parseEther("2"))
             })
         })
 
