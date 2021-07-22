@@ -72,9 +72,9 @@ library Prices {
                 j++;
             }
         }
-        
+
         // return max integer if no trades occurred in the last 24 hours
-        if(j == 0){
+        if (j == 0) {
             return type(uint256).max;
         }
 

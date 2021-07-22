@@ -265,11 +265,11 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 )
                 await traderInstance.clearFilled(mockSignedOrder4)
                 await traderInstance.clearFilled(mockSignedOrder5)
-                
+
                 // check pricing is in hour 1
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(1)
-                
+
                 // check funding index is 2
                 let fundingIndex = await pricing.currentFundingIndex()
                 expect(fundingIndex).to.equal(1)

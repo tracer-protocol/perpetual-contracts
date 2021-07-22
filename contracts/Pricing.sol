@@ -82,7 +82,7 @@ contract Pricing is IPricing {
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
 
             // emit the hourly average and udpate funding rate if trades occurred
-            if (hourlyTracerPrice != type(uint256).max){
+            if (hourlyTracerPrice != type(uint256).max) {
                 // emit the old hourly average
                 emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
@@ -95,7 +95,7 @@ contract Pricing is IPricing {
                 // Update the interest rate every 24 hours
                 updateTimeValue();
                 startLast24Hours = block.timestamp;
-            }   
+            }
 
             // update the current hour
             uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
@@ -206,7 +206,7 @@ contract Pricing is IPricing {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         // get 24 hours returns max integer if no trades occurred
         // don't update in this case
-        if (avgPrice != type(uint256).max){
+        if (avgPrice != type(uint256).max) {
             timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
         }
     }
