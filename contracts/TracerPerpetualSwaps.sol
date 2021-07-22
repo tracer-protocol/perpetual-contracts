@@ -54,7 +54,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
 
-    event FeeReceiverUpdated(address indexed receiver);
     event FeeWithdrawn(address indexed receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
@@ -74,6 +73,18 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         bytes32 longOrderId,
         bytes32 shortOrderId
     );
+    event LiquidationContractUpdated(address newLiquidationAddress);
+    event InsuranceContractUpdated(address newInsuranceAddress);
+    event PricingContractUpdated(address newPricingAddress);
+    event GasOracleUpdated(address newGasOracleAddress);
+    event FeeReceiverUpdated(address newReceiverAddresss);
+    event FeeRateUpdated(uint256 newFeeRate);
+    event MaxLeverageUpdated(uint256 newMaxLeverage);
+    event FundingRateSensitivityUpdated(uint256 newFundingRateSensitivity);
+    event DeleveragingCliffUpdated(uint256 newDeleveragingCliff);
+    event LowestMaxLeverageUpdated(uint256 newLowestMaxLeverage);
+    event InsurancePoolSwitchStageUpdated(uint256 newInsurancePoolSwitch);
+    event WhitelistUpdated(address indexed updatedContract, bool whitelistStatus);
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -546,18 +557,22 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         onlyOwner
     {
         liquidationContract = _liquidationContract;
+        emit LiquidationContractUpdated(liquidationContract);
     }
 
     function setInsuranceContract(address insurance) external override nonZeroAddress(insurance) onlyOwner {
         insuranceContract = IInsurance(insurance);
+        emit InsuranceContractUpdated(insurance);
     }
 
     function setPricingContract(address pricing) external override nonZeroAddress(pricing) onlyOwner {
         pricingContract = IPricing(pricing);
+        emit PricingContractUpdated(pricing);
     }
 
     function setGasOracle(address _gasOracle) external override nonZeroAddress(_gasOracle) onlyOwner {
         gasPriceOracle = _gasOracle;
+        emit GasOracleUpdated(gasPriceOracle);
     }
 
     function setFeeReceiver(address _feeReceiver) external override nonZeroAddress(_feeReceiver) onlyOwner {
@@ -567,26 +582,32 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
     function setFeeRate(uint256 _feeRate) external override onlyOwner {
         feeRate = _feeRate;
+        emit FeeRateUpdated(feeRate);
     }
 
     function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
         maxLeverage = _maxLeverage;
+        emit MaxLeverageUpdated(maxLeverage);
     }
 
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external override onlyOwner {
         fundingRateSensitivity = _fundingRateSensitivity;
+        emit FundingRateSensitivityUpdated(fundingRateSensitivity);
     }
 
     function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
         deleveragingCliff = _deleveragingCliff;
+        emit DeleveragingCliffUpdated(deleveragingCliff);
     }
 
     function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external override onlyOwner {
         lowestMaxLeverage = _lowestMaxLeverage;
+        emit LowestMaxLeverageUpdated(lowestMaxLeverage);
     }
 
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
+        emit InsurancePoolSwitchStageUpdated(insurancePoolSwitchStage);
     }
 
     function transferOwnership(address newOwner)
@@ -611,6 +632,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      */
     function setWhitelist(address tradingContract, bool whitelisted) external onlyOwner {
         tradingWhitelist[tradingContract] = whitelisted;
+        emit WhitelistUpdated(tradingContract, whitelisted);
     }
 
     // Modifier such that only the set liquidation contract can call a function
