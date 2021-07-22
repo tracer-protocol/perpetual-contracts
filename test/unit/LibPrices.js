@@ -194,7 +194,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.averagePrice(price)
 
-                expect(result).to.equal(ethers.BigNumber.from("0"))
+                expect(result).to.equal(ethers.constants.MaxUint256)
             })
         })
 

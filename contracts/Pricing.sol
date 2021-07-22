@@ -71,36 +71,38 @@ contract Pricing is IPricing {
     /**
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
-     * @dev emits the last hourly average tracer price. Max integer is emitted if no trades occurred.
      * @param tradePrice the price the trade executed at
      * @param fillAmount the amount the trade was filled for
      */
     function recordTrade(uint256 tradePrice, uint256 fillAmount) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
+        // update rates if a trade has not been recorded in the last hour
         if (startLastHour <= block.timestamp - 1 hours) {
-            // emit the old hourly average
+            // get the last recorded hourly price, returns max integer if no trades occurred
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
-            emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // update funding rate for the previous hour
-            updateFundingRate();
+            // emit the hourly average and udpate funding rate if trades occurred
+            if (hourlyTracerPrice != type(uint256).max){
+                // emit the old hourly average
+                emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
+
+                // update funding rate for the previous hour
+                updateFundingRate();
+            }
 
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
                 updateTimeValue();
                 startLast24Hours = block.timestamp;
-            }
+            }   
 
-            // update time metrics after all other state
+            // update the current hour
+            uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
+            currentHour = (currentHour + uint8(elapsedHours)) % 24;
+
+            // update time of last hourly recording
             startLastHour = block.timestamp;
-
-            // Check current hour and loop around if need be
-            if (currentHour == 23) {
-                currentHour = 0;
-            } else {
-                currentHour = currentHour + 1;
-            }
 
             // add new pricing entry for new hour
             updatePrice(tradePrice, currentOraclePrice, fillAmount, true);
