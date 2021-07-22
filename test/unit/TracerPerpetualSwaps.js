@@ -997,6 +997,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     false
                 )
             })
+
+            it("emits an event", async () => {
+                expect(await tracer.setWhitelist(accounts[1].address, true))
+                    .to.emit(tracer, "WhitelistUpdated")
+                    .withArgs(accounts[1].address, true)
+            })
         })
 
         context("when called by someone who isn't the owner", async () => {

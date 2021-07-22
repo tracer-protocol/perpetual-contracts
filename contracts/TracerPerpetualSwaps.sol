@@ -84,7 +84,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     event DeleveragingCliffUpdated(uint256 newDeleveragingCliff);
     event LowestMaxLeverageUpdated(uint256 newLowestMaxLeverage);
     event InsurancePoolSwitchStageUpdated(uint256 newInsurancePoolSwitch);
-    event TradingContractWhitelisted(address whitelistedAddress);
+    event WhitelistUpdated(address indexed updatedContract, bool whitelistStatus);
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -629,7 +629,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      */
     function setWhitelist(address tradingContract, bool whitelisted) external onlyOwner {
         tradingWhitelist[tradingContract] = whitelisted;
-        emit TradingContractWhitelisted(tradingContract);
+        emit WhitelistUpdated(tradingContract, whitelisted);
     }
 
     // Modifier such that only the set liquidation contract can call a function
