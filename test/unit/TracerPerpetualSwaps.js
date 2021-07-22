@@ -798,11 +798,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             })
 
             it("emits an event", async () => {
-                expect(
-                    await tracer.setFeeRate(
-                        ethers.utils.parseEther("0.5")
-                    )
-                )
+                expect(await tracer.setFeeRate(ethers.utils.parseEther("0.5")))
                     .to.emit(tracer, "FeeRateUpdated")
                     .withArgs(ethers.utils.parseEther("0.5"))
             })
@@ -831,9 +827,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
             it("emits an event", async () => {
                 expect(
-                    await tracer.setMaxLeverage(
-                        ethers.utils.parseEther("2")
-                    )
+                    await tracer.setMaxLeverage(ethers.utils.parseEther("2"))
                 )
                     .to.emit(tracer, "MaxLeverageUpdated")
                     .withArgs(ethers.utils.parseEther("2"))
