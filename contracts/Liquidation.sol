@@ -109,6 +109,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
     function claimEscrow(uint256 receiptId) external override {
+        require(receiptId < currentLiquidationId, "LIQ: Invalid receipt");
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
         require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
