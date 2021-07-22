@@ -112,7 +112,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(receiptId < currentLiquidationId, "LIQ: Invalid receipt");
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
-        require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
+        require(block.timestamp >= receipt.releaseTime, "LIQ: Not released");
 
         // Mark as claimed
         liquidationReceipts[receiptId].escrowClaimed = true;
@@ -399,7 +399,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
         liquidationReceipts[receiptId].escrowClaimed = true;
-        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(block.timestamp <= receipt.releaseTime, "LIQ: claim time passed");
         require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
         uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
