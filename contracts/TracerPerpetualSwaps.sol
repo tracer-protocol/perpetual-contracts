@@ -76,7 +76,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     event LiquidationContractUpdated(address newLiquidationAddress);
     event InsuranceContractUpdated(address newInsuranceAddress);
     event PricingContractUpdated(address newPricingAddress);
-    event GasOracleContractUpdated(address newGasOracleAddress);
+    event GasOracleUpdated(address newGasOracleAddress);
     event FeeReceiverUpdated(address newReceiverAddresss);
     event FeeRateUpdated(uint256 newFeeRate);
     event MaxLeverageUpdated(uint256 newMaxLeverage);
@@ -569,7 +569,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
     function setGasOracle(address _gasOracle) external override nonZeroAddress(_gasOracle) onlyOwner {
         gasPriceOracle = _gasOracle;
-        emit GasOracleContractUpdated(gasPriceOracle);
+        emit GasOracleUpdated(gasPriceOracle);
     }
 
     function setFeeReceiver(address _feeReceiver) external override nonZeroAddress(_feeReceiver) onlyOwner {
