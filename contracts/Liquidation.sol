@@ -404,18 +404,14 @@ contract Liquidation is ILiquidation, Ownable {
 
         uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
 
-        if (amountToReturn > receipt.escrowedAmount) {
-            liquidationReceipts[receiptId].escrowedAmount = 0;
-        } else {
-            liquidationReceipts[receiptId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
-        }
-
         // Keep track of how much was actually taken out of insurance
         uint256 amountTakenFromInsurance;
         uint256 amountToGiveToClaimant;
         uint256 amountToGiveToLiquidatee;
 
-        if (amountToReturn > receipt.escrowedAmount) {
+        if (amountToReturn >= receipt.escrowedAmount) {
+            liquidationReceipts[receiptId].escrowedAmount = 0;
+
             // Need to cover some loses with the insurance contract
             // Whatever is the remainder that can't be covered from escrow
             uint256 amountWantedFromInsurance = amountToReturn - receipt.escrowedAmount;
@@ -424,8 +420,11 @@ contract Liquidation is ILiquidation, Ownable {
                 receipt
             );
         } else {
+            uint256 remainingEscrow = receipt.escrowedAmount - amountToReturn;
+            liquidationReceipts[receiptId].escrowedAmount = remainingEscrow;
+
             amountToGiveToClaimant = amountToReturn;
-            amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
+            amountToGiveToLiquidatee = remainingEscrow;
         }
 
         tracer.updateAccountsOnClaim(
