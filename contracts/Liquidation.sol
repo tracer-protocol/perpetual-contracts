@@ -162,7 +162,7 @@ contract Liquidation is ILiquidation, Ownable {
 
         int256 currentMargin = Balances.margin(pos, price);
         uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
-        require(currentMargin <= 0 || uint256(currentMargin) < minimumMargin, "LIQ: Account above margin");
+        require(currentMargin <= 0 || uint256(currentMargin) <= minimumMargin, "LIQ: Account above margin");
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
