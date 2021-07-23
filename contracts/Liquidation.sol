@@ -467,7 +467,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Modifies the max slippage
      * @param _maxSlippage new max slippage
      */
-    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
+    function setMaxSlippage(uint256 _maxSlippage) external override onlyOwner {
         maxSlippage = _maxSlippage;
     }
 
