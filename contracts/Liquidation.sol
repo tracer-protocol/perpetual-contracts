@@ -157,7 +157,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
         require(tx.gasprice <= _getFastGasPrice(), "LIQ: GasPrice > FGasPrice");
         Balances.Position memory pos = Balances.Position(quote, base);
-        uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
+        uint256 gasCost = gasPrice * tracer.liquidationGasCost();
 
         int256 currentMargin = Balances.margin(pos, price);
         uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
@@ -183,7 +183,7 @@ contract Liquidation is ILiquidation, Ownable {
         view
         returns (bool)
     {
-        uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
+        uint256 liquidationGasCost = tracer.liquidationGasCost();
         uint256 price = pricing.fairPrice();
 
         return

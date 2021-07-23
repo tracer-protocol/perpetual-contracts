@@ -20,7 +20,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     using PRBMathSD59x18 for int256;
     using PRBMathUD60x18 for uint256;
 
-    uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     address public immutable override tracerQuoteToken;
     uint256 public immutable override quoteTokenDecimals;
     bytes32 public immutable override marketId;
@@ -45,6 +44,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override insurancePoolSwitchStage;
     // The lowest value that maxLeverage can be, if insurance pool is empty.
     uint256 public override lowestMaxLeverage;
+    // The gas cost of liquidations
+    uint256 public override liquidationGasCost = 63516;
 
     // Account State Variables
     mapping(address => Balances.Account) public balances;
@@ -84,6 +85,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     event DeleveragingCliffUpdated(uint256 newDeleveragingCliff);
     event LowestMaxLeverageUpdated(uint256 newLowestMaxLeverage);
     event InsurancePoolSwitchStageUpdated(uint256 newInsurancePoolSwitch);
+    event LiquidationGasCostUpdated(uint256 newLiquidationGasCost);
     event WhitelistUpdated(address indexed updatedContract, bool whitelistStatus);
 
     /**
@@ -205,7 +207,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         require(
             Balances.marginIsValid(
                 newPosition,
-                userBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                userBalance.lastUpdatedGasPrice * liquidationGasCost,
                 pricingContract.fairPrice(),
                 trueMaxLeverage()
             ),
@@ -267,13 +269,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
             ) ||
             !Balances.marginIsValid(
                 newPos1,
-                balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                balances[order1.maker].lastUpdatedGasPrice * liquidationGasCost,
                 _fairPrice,
                 _trueMaxLeverage
             ) ||
             !Balances.marginIsValid(
                 newPos2,
-                balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                balances[order2.maker].lastUpdatedGasPrice * liquidationGasCost,
                 _fairPrice,
                 _trueMaxLeverage
             )
@@ -521,7 +523,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         return
             Balances.marginIsValid(
                 accountBalance.position,
-                accountBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                accountBalance.lastUpdatedGasPrice * liquidationGasCost,
                 pricingContract.fairPrice(),
                 trueMaxLeverage()
             );
@@ -608,6 +610,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
         emit InsurancePoolSwitchStageUpdated(insurancePoolSwitchStage);
+    }
+
+    function setLiquidationGasCost(uint256 _liquidationGasCost) external override onlyOwner {
+        liquidationGasCost = _liquidationGasCost;
+        emit LiquidationGasCostUpdated(liquidationGasCost);
     }
 
     function transferOwnership(address newOwner)

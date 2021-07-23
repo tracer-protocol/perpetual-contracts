@@ -983,6 +983,30 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
     })
 
+    describe("setLiquidationGasCost", async () => {
+        context("when called by the owner", async () => {
+            it("sets the new liquidation gas cost", async () => {
+                await tracer.setLiquidationGasCost(1)
+
+                expect(await tracer.liquidationGasCost()).to.equal(1)
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setLiquidationGasCost(1))
+                    .to.emit(tracer, "LiquidationGasCostUpdated")
+                    .withArgs(1)
+            })
+        })
+
+        context("when called by someone who isn't the owner", async () => {
+            it("reverts", async () => {
+                await expect(
+                    tracer.connect(accounts[1]).setLiquidationGasCost(1)
+                ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+    })
+
     describe("transferOwnership", async () => {
         context("when called by the owner", async () => {
             it("sets a new owner", async () => {
