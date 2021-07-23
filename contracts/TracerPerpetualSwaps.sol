@@ -44,8 +44,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override insurancePoolSwitchStage;
     // The lowest value that maxLeverage can be, if insurance pool is empty.
     uint256 public override lowestMaxLeverage;
-    // The gas cost of liquidations
-    uint256 public override liquidationGasCost = 63516;
+    // The average expected gas cost of liquidations
+    uint256 public override liquidationGasCost;
 
     // Account State Variables
     mapping(address => Balances.Account) public balances;
@@ -104,6 +104,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
      * @param _insurancePoolSwitchStage The percentage of insurance holdings to target at which the insurance pool
      *                                  funding rate changes, and lowestMaxLeverage is reached
+     * @param _liquidationGasCost The average expected gas cost for liquidations. Used to calculate the maintenance margin
      */
     constructor(
         bytes32 _marketId,
@@ -116,7 +117,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         address _feeReceiver,
         uint256 _deleveragingCliff,
         uint256 _lowestMaxLeverage,
-        uint256 _insurancePoolSwitchStage
+        uint256 _insurancePoolSwitchStage,
+        uint256 _liquidationGasCost
     ) Ownable() {
         // don't convert to interface as we don't need to interact with the contract
         require(_tracerQuoteToken != address(0), "TCR: _tracerQuoteToken = address(0)");
@@ -133,6 +135,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         deleveragingCliff = _deleveragingCliff;
         lowestMaxLeverage = _lowestMaxLeverage;
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
+        liquidationGasCost = _liquidationGasCost;
     }
 
     /**

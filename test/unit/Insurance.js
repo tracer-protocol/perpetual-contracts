@@ -98,7 +98,8 @@ const setup = deployments.createFixture(async () => {
 
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let liquidationGasCost = 63516
 
     const tracer = await tracerContractFactory.deploy(
         ethers.utils.formatBytes32String("TEST/USD"),
@@ -111,7 +112,8 @@ const setup = deployments.createFixture(async () => {
         deployer, // Dummy address so it is not address(0)
         deleveragingCliff,
         lowestMaxLeverage,
-        _insurancePoolSwitchStage
+        insurancePoolSwitchStage,
+        liquidationGasCost
     )
 
     let mockTracer = await smockit(tracer)
