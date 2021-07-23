@@ -52,7 +52,7 @@ contract OracleAdapter is IOracle, Ownable {
     /**
      * @notice Change the upstream feed address.
      */
-    function changeOracle(address newOracle) public onlyOwner {
+    function changeOracle(address newOracle) external onlyOwner {
         setOracle(newOracle);
     }
 
