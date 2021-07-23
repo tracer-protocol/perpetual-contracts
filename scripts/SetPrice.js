@@ -1,4 +1,4 @@
-const oracleAbi = require("../abi/contracts/oracle/Oracle.sol/Oracle.json")
+const oracleAbi = require("../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
 const { Command } = require("commander")
 const hre = require("hardhat")
 const fs = require("fs")

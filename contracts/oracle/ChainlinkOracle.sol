@@ -13,8 +13,8 @@ import "../Interfaces/IChainlinkOracle.sol";
 contract ChainlinkOracle is IChainlinkOracle {
     int256 public price = 100000000;
     uint8 public override decimals = 8; // default of 8 decimals for USD price feeds in the Chainlink ecosystem
-    string public override description = "A mock Chainlink V3 Aggregator";
-    uint256 public override version = 3; // Aggregator V3;
+    string public constant override description = "A mock Chainlink V3 Aggregator";
+    uint256 public constant override version = 3; // Aggregator V3;
     uint80 private constant ROUND_ID = 1; // A mock round Id
 
     /**
