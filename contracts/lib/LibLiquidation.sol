@@ -134,7 +134,7 @@ library LibLiquidation {
             } else if (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
-            if (amountToReturn <= 0) {
+            if (amountToReturn == 0) {
                 return 0;
             }
 
