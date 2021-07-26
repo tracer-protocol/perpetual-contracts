@@ -645,13 +645,17 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         emit WhitelistUpdated(tradingContract, whitelisted);
     }
 
-    // Modifier such that only the set liquidation contract can call a function
+    /**
+     * @dev Modifier such that only the set liquidation contract can call a function
+     */
     modifier onlyLiquidation() {
         require(msg.sender == liquidationContract, "TCR: Sender not liquidation");
         _;
     }
 
-    // Modifier such that only a whitelisted trader can call a function
+    /**
+     * @dev Modifier such that only a whitelisted trader can call a function
+     */
     modifier onlyWhitelisted() {
         require(tradingWhitelist[msg.sender], "TCR: Contract not whitelisted");
         _;
