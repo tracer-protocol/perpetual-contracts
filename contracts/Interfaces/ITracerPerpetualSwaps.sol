@@ -44,6 +44,8 @@ interface ITracerPerpetualSwaps {
 
     function feeReceiver() external view returns (address);
 
+    function protocolPaused() external view returns (bool);
+
     function maxLeverage() external view returns (uint256);
 
     function trueMaxLeverage() external view returns (uint256);
@@ -85,6 +87,8 @@ interface ITracerPerpetualSwaps {
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external;
 
     function setLiquidationGasCost(uint256 _liquidationGasCost) external;
+
+    function setProtocolPause(bool _pause) external;
 
     function transferOwnership(address newOwner) external;
 

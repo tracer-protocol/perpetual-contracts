@@ -30,6 +30,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override fees;
     address public override feeReceiver;
 
+    // Switch to pause the functionality of the entire protocol
+    bool public override protocolPaused;
+
     /* Config variables */
     // The price of gas in gwei
     address public override gasPriceOracle;
@@ -87,6 +90,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     event InsurancePoolSwitchStageUpdated(uint256 newInsurancePoolSwitch);
     event LiquidationGasCostUpdated(uint256 newLiquidationGasCost);
     event WhitelistUpdated(address indexed updatedContract, bool whitelistStatus);
+    event ProtocolPaused(bool pause);
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -629,6 +633,16 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         super.transferOwnership(newOwner);
     }
 
+    /**
+      @dev   Sets the paused/unpaused state of the protocol. Can only be called by the owner of the market.
+      @dev   It emits a `ProtocolPaused` event.
+      @param pause Boolean flag to switch externally facing functionality in the protocol on/off.
+    */
+    function setProtocolPause(bool pause) external override onlyOwner {
+        protocolPaused = pause;
+        emit ProtocolPaused(pause);
+    }
+
     modifier nonZeroAddress(address providedAddress) {
         require(providedAddress != address(0), "address(0) given");
         _;
@@ -658,6 +672,14 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      */
     modifier onlyWhitelisted() {
         require(tradingWhitelist[msg.sender], "TCR: Contract not whitelisted");
+        _;
+    }
+
+    /**
+     * @dev Modifier that only allows function to be called when the protocol is not paused
+     */
+    modifier whenNotPaused() {
+        require(!protocolPaused, "TCR: Proto paused");
         _;
     }
 }

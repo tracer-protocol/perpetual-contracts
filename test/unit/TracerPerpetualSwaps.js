@@ -1063,4 +1063,35 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             })
         })
     })
+
+    describe("setProtocolPause", async () => {
+        context("when called by the owner", async () => {
+            it("can set the protocol state to paused", async () => {
+                await tracer.setProtocolPause(true)
+
+                expect(await tracer.protocolPaused()).to.equal(true)
+            })
+
+            it("can set the protocol state to unpaused", async () => {
+                await tracer.setProtocolPause(true)
+                await tracer.setProtocolPause(false)
+
+                expect(await tracer.protocolPaused()).to.equal(false)
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setProtocolPause(true))
+                    .to.emit(tracer, "ProtocolPaused")
+                    .withArgs(true)
+            })
+        })
+
+        context("when called by someone who isn't the owner", async () => {
+            it("reverts", async () => {
+                await expect(
+                    tracer.connect(accounts[1]).setProtocolPause(true)
+                ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+    })
 })
