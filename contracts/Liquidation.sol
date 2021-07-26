@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/LibMath.sol";
 import "./lib/LibLiquidation.sol";
-import "./lib/LibBalances.sol";
-import "./lib/LibPerpetuals.sol";
 import "./Interfaces/ILiquidation.sol";
 import "./Interfaces/ITrader.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
-import "./Interfaces/IOracle.sol";
+import "./Interfaces/IChainlinkOracle.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/IInsurance.sol";
 
@@ -112,9 +109,10 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
     function claimEscrow(uint256 receiptId) external override {
+        require(receiptId < currentLiquidationId, "LIQ: Invalid receipt");
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
-        require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
+        require(block.timestamp >= receipt.releaseTime, "LIQ: Not released");
 
         // Mark as claimed
         liquidationReceipts[receiptId].escrowClaimed = true;
@@ -158,14 +156,13 @@ contract Liquidation is ILiquidation, Ownable {
         address account
     ) internal returns (uint256) {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
-        require(tx.gasprice <= IOracle(fastGasOracle).latestAnswer(), "LIQ: GasPrice > FGasPrice");
-
+        require(tx.gasprice <= _getFastGasPrice(), "LIQ: GasPrice > FGasPrice");
         Balances.Position memory pos = Balances.Position(quote, base);
-        uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
+        uint256 gasCost = gasPrice * tracer.liquidationGasCost();
 
         int256 currentMargin = Balances.margin(pos, price);
         uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
-        require(currentMargin <= 0 || uint256(currentMargin) < minimumMargin, "LIQ: Account above margin");
+        require(currentMargin <= 0 || uint256(currentMargin) <= minimumMargin, "LIQ: Account above margin");
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
@@ -187,7 +184,7 @@ contract Liquidation is ILiquidation, Ownable {
         view
         returns (bool)
     {
-        uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
+        uint256 liquidationGasCost = tracer.liquidationGasCost();
         uint256 price = pricing.fairPrice();
 
         return
@@ -402,23 +399,19 @@ contract Liquidation is ILiquidation, Ownable {
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
         liquidationReceipts[receiptId].escrowClaimed = true;
-        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(block.timestamp <= receipt.releaseTime, "LIQ: claim time passed");
         require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
         uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
-
-        if (amountToReturn > receipt.escrowedAmount) {
-            liquidationReceipts[receiptId].escrowedAmount = 0;
-        } else {
-            liquidationReceipts[receiptId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
-        }
 
         // Keep track of how much was actually taken out of insurance
         uint256 amountTakenFromInsurance;
         uint256 amountToGiveToClaimant;
         uint256 amountToGiveToLiquidatee;
 
-        if (amountToReturn > receipt.escrowedAmount) {
+        if (amountToReturn >= receipt.escrowedAmount) {
+            liquidationReceipts[receiptId].escrowedAmount = 0;
+
             // Need to cover some loses with the insurance contract
             // Whatever is the remainder that can't be covered from escrow
             uint256 amountWantedFromInsurance = amountToReturn - receipt.escrowedAmount;
@@ -427,8 +420,11 @@ contract Liquidation is ILiquidation, Ownable {
                 receipt
             );
         } else {
+            uint256 remainingEscrow = receipt.escrowedAmount - amountToReturn;
+            liquidationReceipts[receiptId].escrowedAmount = remainingEscrow;
+
             amountToGiveToClaimant = amountToReturn;
-            amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
+            amountToGiveToLiquidatee = remainingEscrow;
         }
 
         tracer.updateAccountsOnClaim(
@@ -473,6 +469,19 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
         maxSlippage = _maxSlippage;
+    }
+
+    /**
+     * @notice Returns the latest answer from the Fast Gas / GWEI Chainlink feed.
+     *         Reverts if the latest round is incomplete or the answer is no longer current.
+     */
+    function _getFastGasPrice() internal view returns (uint256) {
+        (uint80 roundID, int256 fastGasPrice, , uint256 timeStamp, uint80 answeredInRound) = IChainlinkOracle(
+            fastGasOracle
+        ).latestRoundData();
+        require(answeredInRound >= roundID, "LIQ: Stale answer");
+        require(timeStamp != 0, "LIQ: Round incomplete");
+        return uint256(fastGasPrice);
     }
 
     modifier nonZeroAddress(address providedAddress) {

@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
-import "./lib/LibPerpetuals.sol";
-import "./lib/LibBalances.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
