@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 /**
  * This interface follows the AggregatorV3 interface. The getRoundData has been excluded as only the
