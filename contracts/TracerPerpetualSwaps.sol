@@ -165,7 +165,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
      * should be given in WAD format.
      */
-    function deposit(uint256 amount) external override {
+    function deposit(uint256 amount) external override whenNotPaused {
         Balances.Account storage userBalance = balances[msg.sender];
         // settle outstanding payments
         settle(msg.sender);
@@ -198,7 +198,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
      * should be given in WAD format
      */
-    function withdraw(uint256 amount) external override {
+    function withdraw(uint256 amount) external override whenNotPaused {
         // settle outstanding payments
         settle(msg.sender);
 
@@ -246,7 +246,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         Perpetuals.Order memory order1,
         Perpetuals.Order memory order2,
         uint256 fillAmount
-    ) external override onlyWhitelisted returns (bool) {
+    ) external override onlyWhitelisted whenNotPaused returns (bool) {
         require(order1.market == address(this), "TCR: Wrong market");
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
@@ -403,7 +403,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         int256 liquidateeQuoteChange,
         int256 liquidateeBaseChange,
         uint256 amountToEscrow
-    ) external override onlyLiquidation {
+    ) external override onlyLiquidation whenNotPaused {
         // Limits the gas use when liquidating
         uint256 gasPrice = IOracle(gasPriceOracle).latestAnswer();
         // Update liquidators last updated gas price
@@ -446,7 +446,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         address liquidatee,
         int256 amountToGiveToLiquidatee,
         int256 amountToTakeFromInsurance
-    ) external override onlyLiquidation {
+    ) external override onlyLiquidation whenNotPaused {
         address insuranceAddr = address(insuranceContract);
         balances[insuranceAddr].position.quote = balances[insuranceAddr].position.quote - amountToTakeFromInsurance;
         balances[claimant].position.quote = balances[claimant].position.quote + amountToGiveToClaimant;
@@ -464,7 +464,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @param account the address to settle.
      * @dev This function aggregates data to feed into account.sols settle function which sets
      */
-    function settle(address account) public override {
+    function settle(address account) public override whenNotPaused {
         // Get account and global last updated indexes
         uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
         uint256 currentGlobalFundingIndex = pricingContract.currentFundingIndex();
@@ -544,7 +544,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *      fees are taken out of trades that result in users' quotes being modified, and
      *      don't otherwise get subtracted from the tvl of the market
      */
-    function withdrawFees() external override {
+    function withdrawFees() external override whenNotPaused {
         require(fees != 0, "TCR: no fees");
         uint256 tempFees = fees;
         fees = 0;
