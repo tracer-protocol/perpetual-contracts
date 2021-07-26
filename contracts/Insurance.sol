@@ -48,7 +48,7 @@ contract Insurance is IInsurance {
      * @dev Mints amount of the pool token to the user
      * @param amount the amount of tokens to deposit. Provided in WAD format
      */
-    function deposit(uint256 amount) external override {
+    function deposit(uint256 amount) external override whenNotPaused {
         IERC20 collateralToken = IERC20(collateralAsset);
 
         // convert token amount to WAD
@@ -77,7 +77,7 @@ contract Insurance is IInsurance {
      * @dev burns amount of tokens from the pool token
      * @param amount the amount of pool tokens to burn. Provided in WAD format
      */
-    function withdraw(uint256 amount) external override {
+    function withdraw(uint256 amount) external override whenNotPaused {
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
         require(balance >= amount, "INS: balance < amount");
@@ -109,7 +109,7 @@ contract Insurance is IInsurance {
      * @notice Internally updates a given tracer's pool amount according to the tracer contract
      * @dev Withdraws from tracer, and adds amount to the pool's amount field.
      */
-    function updatePoolAmount() public override {
+    function updatePoolAmount() public override whenNotPaused {
         uint256 quote = uint256((tracer.getBalance(address(this))).position.quote);
 
         tracer.withdraw(quote);
@@ -137,7 +137,7 @@ contract Insurance is IInsurance {
      *      This was done because in such an emergency situation, we want to recover as much as possible
      * @param amount The desired amount to take from the insurance pool
      */
-    function drainPool(uint256 amount) external override onlyLiquidation {
+    function drainPool(uint256 amount) external override onlyLiquidation whenNotPaused {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         uint256 poolHoldings = getPoolHoldings();
@@ -229,6 +229,14 @@ contract Insurance is IInsurance {
 
     modifier onlyLiquidation() {
         require(msg.sender == tracer.liquidationContract(), "INS: sender not LIQ contract");
+        _;
+    }
+
+    /**
+     * @dev Modifier that only allows function to be called when the protocol is not paused
+     */
+    modifier whenNotPaused() {
+        require(!tracer.protocolPaused(), "INS: Proto paused");
         _;
     }
 }

@@ -370,28 +370,29 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
     context("Protocol Pause", async () => {
         describe("when the protocol is paused", async () => {
-            it("reverts all core functions", async () => {
+            beforeEach(async () => {
                 // Pause the protocol
                 await tracer.setLiquidationContract(accounts[0].address)
                 await tracer.setProtocolPause(true)
-                
-                // Test Tracer functions
+            })
+            it("reverts all core Tracer functions", async () => {
                 // deposit
                 await quoteToken
+                    .connect(accounts[1])
+                    .approve(tracer.address, ethers.utils.parseEther("1000"))
+                await expect(
+                    tracer
                         .connect(accounts[1])
-                        .approve(
-                            tracer.address,
-                            ethers.utils.parseEther("1000")
-                        )
-                await expect(tracer
-                    .connect(accounts[1])
-                    .deposit(ethers.utils.parseEther("1000"))).to.be.revertedWith("TCR: Proto paused")
-                
+                        .deposit(ethers.utils.parseEther("1000"))
+                ).to.be.revertedWith("TCR: Proto paused")
+
                 // withdraw
-                await expect(tracer
-                    .connect(accounts[1])
-                    .withdraw(ethers.utils.parseEther("1000"))).to.be.revertedWith("TCR: Proto paused")
-                
+                await expect(
+                    tracer
+                        .connect(accounts[1])
+                        .withdraw(ethers.utils.parseEther("1000"))
+                ).to.be.revertedWith("TCR: Proto paused")
+
                 // Match Orders
                 let order1 = {
                     maker: accounts[1].address,
@@ -412,41 +413,77 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     created: now - 100,
                 }
                 await expect(
-                    tracer.connect(accounts[0]).matchOrders(order1, order2, ethers.utils.parseEther("40"))
+                    tracer
+                        .connect(accounts[0])
+                        .matchOrders(
+                            order1,
+                            order2,
+                            ethers.utils.parseEther("40")
+                        )
                 ).to.be.revertedWith("TCR: Proto paused")
-                
+
                 // updateAccountsOnLiquidation
                 let mockValue = ethers.utils.parseEther("1")
                 await expect(
-                    tracer.connect(accounts[0]).updateAccountsOnLiquidation(
-                        accounts[0].address,
-                        accounts[1].address,
-                        mockValue,
-                        mockValue,
-                        mockValue,
-                        mockValue,
-                        mockValue,
-                    )
+                    tracer
+                        .connect(accounts[0])
+                        .updateAccountsOnLiquidation(
+                            accounts[0].address,
+                            accounts[1].address,
+                            mockValue,
+                            mockValue,
+                            mockValue,
+                            mockValue,
+                            mockValue
+                        )
                 ).to.be.revertedWith("TCR: Proto paused")
-                
+
                 // updateAccountsOnClaim
                 await expect(
-                    tracer.connect(accounts[0]).updateAccountsOnClaim(
-                        deployer,
-                        mockValue,
-                        deployer,
-                        mockValue,
-                        mockValue,
-                    )
+                    tracer
+                        .connect(accounts[0])
+                        .updateAccountsOnClaim(
+                            deployer,
+                            mockValue,
+                            deployer,
+                            mockValue,
+                            mockValue
+                        )
                 ).to.be.revertedWith("TCR: Proto paused")
-                
+
                 // settle
-                await expect(tracer.settle(deployer)).to.be.revertedWith("TCR: Proto paused")
-                
+                await expect(tracer.settle(deployer)).to.be.revertedWith(
+                    "TCR: Proto paused"
+                )
+
                 // withdrawFees
-                await expect(tracer.withdrawFees()).to.be.revertedWith("TCR: Proto paused")
+                await expect(tracer.withdrawFees()).to.be.revertedWith(
+                    "TCR: Proto paused"
+                )
 
                 // Todo Execute Order
+            })
+
+            it("reverts all core Insurance functions", async () => {
+                // deposit
+                await expect(
+                    insurance.deposit(ethers.utils.parseEther("1"))
+                ).to.be.revertedWith("INS: Proto paused")
+
+                // withdraw
+                await expect(
+                    insurance.withdraw(ethers.utils.parseEther("1"))
+                ).to.be.revertedWith("INS: Proto paused")
+
+                // updatePoolAmount
+                await expect(insurance.updatePoolAmount()).to.be.revertedWith(
+                    "INS: Proto paused"
+                )
+
+                // drainPool
+                await expect(
+                    insurance.drainPool(ethers.utils.parseEther("1"))
+                ).to.be.revertedWith("INS: Proto paused")
             })
         })
     })
