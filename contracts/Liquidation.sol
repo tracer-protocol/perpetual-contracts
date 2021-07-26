@@ -109,9 +109,10 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
     function claimEscrow(uint256 receiptId) external override {
+        require(receiptId < currentLiquidationId, "LIQ: Invalid receipt");
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
-        require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
+        require(block.timestamp >= receipt.releaseTime, "LIQ: Not released");
 
         // Mark as claimed
         liquidationReceipts[receiptId].escrowClaimed = true;
@@ -161,7 +162,7 @@ contract Liquidation is ILiquidation, Ownable {
 
         int256 currentMargin = Balances.margin(pos, price);
         uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
-        require(currentMargin <= 0 || uint256(currentMargin) < minimumMargin, "LIQ: Account above margin");
+        require(currentMargin <= 0 || uint256(currentMargin) <= minimumMargin, "LIQ: Account above margin");
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
@@ -398,23 +399,19 @@ contract Liquidation is ILiquidation, Ownable {
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
         liquidationReceipts[receiptId].escrowClaimed = true;
-        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(block.timestamp <= receipt.releaseTime, "LIQ: claim time passed");
         require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
         uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
-
-        if (amountToReturn > receipt.escrowedAmount) {
-            liquidationReceipts[receiptId].escrowedAmount = 0;
-        } else {
-            liquidationReceipts[receiptId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
-        }
 
         // Keep track of how much was actually taken out of insurance
         uint256 amountTakenFromInsurance;
         uint256 amountToGiveToClaimant;
         uint256 amountToGiveToLiquidatee;
 
-        if (amountToReturn > receipt.escrowedAmount) {
+        if (amountToReturn >= receipt.escrowedAmount) {
+            liquidationReceipts[receiptId].escrowedAmount = 0;
+
             // Need to cover some loses with the insurance contract
             // Whatever is the remainder that can't be covered from escrow
             uint256 amountWantedFromInsurance = amountToReturn - receipt.escrowedAmount;
@@ -423,8 +420,11 @@ contract Liquidation is ILiquidation, Ownable {
                 receipt
             );
         } else {
+            uint256 remainingEscrow = receipt.escrowedAmount - amountToReturn;
+            liquidationReceipts[receiptId].escrowedAmount = remainingEscrow;
+
             amountToGiveToClaimant = amountToReturn;
-            amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
+            amountToGiveToLiquidatee = remainingEscrow;
         }
 
         tracer.updateAccountsOnClaim(
