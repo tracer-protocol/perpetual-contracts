@@ -836,10 +836,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
             it("emits an event", async () => {
                 expect(
-                    await tracer.setMaxLeverage(ethers.utils.parseEther("2"))
+                    await tracer.setMaxLeverage(ethers.utils.parseEther("12.5"))
                 )
                     .to.emit(tracer, "MaxLeverageUpdated")
-                    .withArgs(ethers.utils.parseEther("2"))
+                    .withArgs(ethers.utils.parseEther("12.5"))
             })
         })
 
@@ -913,11 +913,11 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             it("emits an event", async () => {
                 expect(
                     await tracer.setDeleveragingCliff(
-                        ethers.utils.parseEther("0.5")
+                        ethers.utils.parseEther("2")
                     )
                 )
                     .to.emit(tracer, "DeleveragingCliffUpdated")
-                    .withArgs(ethers.utils.parseEther("0.5"))
+                    .withArgs(ethers.utils.parseEther("2"))
             })
         })
 
