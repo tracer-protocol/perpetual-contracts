@@ -43,20 +43,20 @@ module.exports = async function (hre) {
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     // Gas price oracle => fast gas / gwei
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     await execute(
@@ -95,18 +95,10 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    // adapter converting ETH / USD to WAD
-    const ethOracleAdapter = await deploy("EthOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [ethOracle.address],
-        contract: "OracleAdapter",
-    })
-
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracleAdapter.address, gasOracle.address],
+        args: [ethOracle.address, gasOracle.address],
         contract: "GasOracle",
     })
 
@@ -206,7 +198,8 @@ module.exports = async function (hre) {
     let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let liquidationGasCost = 63516
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
@@ -221,6 +214,7 @@ module.exports = async function (hre) {
             "uint256", // _deleveragingCliff
             "uint256", // _lowestMaxLeverage
             "uint256", // _insurancePoolSwitchStage
+            "uint256", // _liquidationGasCost
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -233,7 +227,8 @@ module.exports = async function (hre) {
             deployer,
             deleveragingCliff,
             lowestMaxLeverage,
-            _insurancePoolSwitchStage,
+            insurancePoolSwitchStage,
+            liquidationGasCost,
         ]
     )
 

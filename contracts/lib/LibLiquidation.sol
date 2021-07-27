@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./LibMath.sol";
 import "./LibPerpetuals.sol";
@@ -134,7 +134,7 @@ library LibLiquidation {
             } else if (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
-            if (amountToReturn <= 0) {
+            if (amountToReturn == 0) {
                 return 0;
             }
 

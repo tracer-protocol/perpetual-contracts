@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
@@ -20,7 +20,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     using PRBMathSD59x18 for int256;
     using PRBMathUD60x18 for uint256;
 
-    uint256 public constant override LIQUIDATION_GAS_COST = 63516;
     address public immutable override tracerQuoteToken;
     uint256 public immutable override quoteTokenDecimals;
     bytes32 public immutable override marketId;
@@ -30,6 +29,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override feeRate;
     uint256 public override fees;
     address public override feeReceiver;
+
+    uint256 private constant MAX_PERCENT = 100e18; // 100% in WAD format, used to check valid parameters.
+    uint256 private constant MAX_PERCENT_DECIMAL = 1e18; // 100% expressed as a decimal, in WAD format.
 
     /* Config variables */
     // The price of gas in gwei
@@ -45,6 +47,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     uint256 public override insurancePoolSwitchStage;
     // The lowest value that maxLeverage can be, if insurance pool is empty.
     uint256 public override lowestMaxLeverage;
+    // The average expected gas cost of liquidations
+    uint256 public override liquidationGasCost;
 
     // Account State Variables
     mapping(address => Balances.Account) public balances;
@@ -54,7 +58,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     // Trading interfaces whitelist
     mapping(address => bool) public override tradingWhitelist;
 
-    event FeeReceiverUpdated(address indexed receiver);
     event FeeWithdrawn(address indexed receiver, uint256 feeAmount);
     event Deposit(address indexed user, uint256 indexed amount);
     event Withdraw(address indexed user, uint256 indexed amount);
@@ -74,6 +77,19 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         bytes32 longOrderId,
         bytes32 shortOrderId
     );
+    event LiquidationContractUpdated(address newLiquidationAddress);
+    event InsuranceContractUpdated(address newInsuranceAddress);
+    event PricingContractUpdated(address newPricingAddress);
+    event GasOracleUpdated(address newGasOracleAddress);
+    event FeeReceiverUpdated(address newReceiverAddresss);
+    event FeeRateUpdated(uint256 newFeeRate);
+    event MaxLeverageUpdated(uint256 newMaxLeverage);
+    event FundingRateSensitivityUpdated(uint256 newFundingRateSensitivity);
+    event DeleveragingCliffUpdated(uint256 newDeleveragingCliff);
+    event LowestMaxLeverageUpdated(uint256 newLowestMaxLeverage);
+    event InsurancePoolSwitchStageUpdated(uint256 newInsurancePoolSwitch);
+    event LiquidationGasCostUpdated(uint256 newLiquidationGasCost);
+    event WhitelistUpdated(address indexed updatedContract, bool whitelistStatus);
 
     /**
      * @notice Creates a new tracer market and sets the initial funding rate of the market. Anyone
@@ -84,13 +100,14 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid; u60.18-decimal fixed-point number (WAD value)
-     * @param _feeRate the fee taken on trades; WAD value. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
+     * @param _feeRate the fee taken on trades; decimal percentage converted to WAD value. e.g. 2% fee = 0.02 * 10^18 = 2 * 10^16
      * @param _feeReceiver the address of the person who can withdraw the fees from trades in this market
      * @param _deleveragingCliff The percentage for insurance pool holdings/pool target where deleveraging begins.
      *                           WAD value. e.g. 20% = 20*10^18
      * @param _lowestMaxLeverage The lowest value that maxLeverage can be, if insurance pool is empty.
      * @param _insurancePoolSwitchStage The percentage of insurance holdings to target at which the insurance pool
      *                                  funding rate changes, and lowestMaxLeverage is reached
+     * @param _liquidationGasCost The average expected gas cost for liquidations. Used to calculate the maintenance margin
      */
     constructor(
         bytes32 _marketId,
@@ -103,8 +120,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         address _feeReceiver,
         uint256 _deleveragingCliff,
         uint256 _lowestMaxLeverage,
-        uint256 _insurancePoolSwitchStage
+        uint256 _insurancePoolSwitchStage,
+        uint256 _liquidationGasCost
     ) Ownable() {
+        require(_feeRate <= MAX_PERCENT_DECIMAL, "TCR: Fee rate > 100%");
+        require(_deleveragingCliff <= MAX_PERCENT, "TCR: Delev cliff > 100%");
+        require(_lowestMaxLeverage <= _maxLeverage, "TCR: Invalid leverage");
+        require(_insurancePoolSwitchStage < _deleveragingCliff, "TCR: Invalid switch stage");
         // don't convert to interface as we don't need to interact with the contract
         require(_tracerQuoteToken != address(0), "TCR: _tracerQuoteToken = address(0)");
         require(_gasPriceOracle != address(0), "TCR: _gasPriceOracle = address(0)");
@@ -120,6 +142,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         deleveragingCliff = _deleveragingCliff;
         lowestMaxLeverage = _lowestMaxLeverage;
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
+        liquidationGasCost = _liquidationGasCost;
     }
 
     /**
@@ -194,7 +217,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         require(
             Balances.marginIsValid(
                 newPosition,
-                userBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                userBalance.lastUpdatedGasPrice * liquidationGasCost,
                 pricingContract.fairPrice(),
                 trueMaxLeverage()
             ),
@@ -256,13 +279,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
             ) ||
             !Balances.marginIsValid(
                 newPos1,
-                balances[order1.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                balances[order1.maker].lastUpdatedGasPrice * liquidationGasCost,
                 _fairPrice,
                 _trueMaxLeverage
             ) ||
             !Balances.marginIsValid(
                 newPos2,
-                balances[order2.maker].lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                balances[order2.maker].lastUpdatedGasPrice * liquidationGasCost,
                 _fairPrice,
                 _trueMaxLeverage
             )
@@ -510,7 +533,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         return
             Balances.marginIsValid(
                 accountBalance.position,
-                accountBalance.lastUpdatedGasPrice * LIQUIDATION_GAS_COST,
+                accountBalance.lastUpdatedGasPrice * liquidationGasCost,
                 pricingContract.fairPrice(),
                 trueMaxLeverage()
             );
@@ -546,18 +569,22 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         onlyOwner
     {
         liquidationContract = _liquidationContract;
+        emit LiquidationContractUpdated(liquidationContract);
     }
 
     function setInsuranceContract(address insurance) external override nonZeroAddress(insurance) onlyOwner {
         insuranceContract = IInsurance(insurance);
+        emit InsuranceContractUpdated(insurance);
     }
 
     function setPricingContract(address pricing) external override nonZeroAddress(pricing) onlyOwner {
         pricingContract = IPricing(pricing);
+        emit PricingContractUpdated(pricing);
     }
 
     function setGasOracle(address _gasOracle) external override nonZeroAddress(_gasOracle) onlyOwner {
         gasPriceOracle = _gasOracle;
+        emit GasOracleUpdated(gasPriceOracle);
     }
 
     function setFeeReceiver(address _feeReceiver) external override nonZeroAddress(_feeReceiver) onlyOwner {
@@ -566,27 +593,44 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     function setFeeRate(uint256 _feeRate) external override onlyOwner {
+        require(_feeRate <= MAX_PERCENT_DECIMAL, "TCR: Fee rate > 100%");
         feeRate = _feeRate;
+        emit FeeRateUpdated(feeRate);
     }
 
     function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
+        require(_maxLeverage >= lowestMaxLeverage, "TCR: Invalid max leverage");
         maxLeverage = _maxLeverage;
+        emit MaxLeverageUpdated(maxLeverage);
     }
 
     function setFundingRateSensitivity(uint256 _fundingRateSensitivity) external override onlyOwner {
         fundingRateSensitivity = _fundingRateSensitivity;
+        emit FundingRateSensitivityUpdated(fundingRateSensitivity);
     }
 
     function setDeleveragingCliff(uint256 _deleveragingCliff) external override onlyOwner {
+        require(_deleveragingCliff <= MAX_PERCENT, "TCR: Delev cliff > 100%");
+        require(_deleveragingCliff > insurancePoolSwitchStage, "TCR: Invalid delev cliff");
         deleveragingCliff = _deleveragingCliff;
+        emit DeleveragingCliffUpdated(deleveragingCliff);
     }
 
     function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external override onlyOwner {
+        require(_lowestMaxLeverage <= maxLeverage, "TCR: Invalid low. max lev.");
         lowestMaxLeverage = _lowestMaxLeverage;
+        emit LowestMaxLeverageUpdated(lowestMaxLeverage);
     }
 
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external override onlyOwner {
+        require(_insurancePoolSwitchStage < deleveragingCliff, "TCR: Invalid pool switch");
         insurancePoolSwitchStage = _insurancePoolSwitchStage;
+        emit InsurancePoolSwitchStageUpdated(insurancePoolSwitchStage);
+    }
+
+    function setLiquidationGasCost(uint256 _liquidationGasCost) external override onlyOwner {
+        liquidationGasCost = _liquidationGasCost;
+        emit LiquidationGasCostUpdated(liquidationGasCost);
     }
 
     function transferOwnership(address newOwner)
@@ -599,7 +643,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     modifier nonZeroAddress(address providedAddress) {
-        require(providedAddress != address(0), "address(0) given");
+        require(providedAddress != address(0), "TCR: address(0) given");
         _;
     }
 
@@ -611,6 +655,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      */
     function setWhitelist(address tradingContract, bool whitelisted) external onlyOwner {
         tradingWhitelist[tradingContract] = whitelisted;
+        emit WhitelistUpdated(tradingContract, whitelisted);
     }
 
     // Modifier such that only the set liquidation contract can call a function
