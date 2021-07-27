@@ -231,7 +231,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         _updateAccountLeverage(msg.sender);
 
         // Safemath will throw if tvl < amount
-        tvl = tvl - amount;
+        tvl = tvl - uint256(convertedWadAmount);
 
         // perform transfer
         require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "TCR: Transfer failed");
