@@ -50,10 +50,9 @@ IInsurance.sol is an interface that describes the functions that an Insurance co
 => The Insurance Pool Token implementation can be found in InsurancePoolToken.sol 
 
 **IOracle.sol**   
-IOracle.sol is an interface that describes the functions that a Gov (governance) contract should implement.   
-=>The specific implementation of this interface as a contract can be found in Oracle.sol (this is an example of a Tracer oracle)     
-=>The specific implementation of this interface as a contract can be found in GasOracle.sol (An example an oracle that references Chainlink fast gas price and ETH/USD price to get a gas cost in $USD)  
-**Explanation:** This interface described the minimum functionality that a Tracer/Gas Oracle need to have. Each oracle can have different implementations (although they must conform to IOracle.sol), the Oracle must be community approved. Chainlink reference data contracts currently conform to the IOracle specification (as of 04/11/2020) and as such Chainlink data contracts can be used as the oracle implementation. 
+IOracle.sol is an interface that describes the functions that an Oracle Feed contract should implement.   
+=>The specific implementation of this interface as a contract can be found in GasOracle.sol (An example an oracle that references Chainlink fast gas price and ETH/USD price to get a gas cost in $USD  
+**Explanation:** This interface described the minimum functionality that a Tracer/Gas Oracle need to have. Each oracle can have different implementations (although they must conform to IOracle.sol), the Oracle must be community approved. Chainlink feed contracts (excluding the Fast Gas / GWEI feed) must be wrapped in a Tracer Chainlink Adapter which conforms to the IOracle specification (ChainlinkOracleAdapter.sol).
 
 **IReceipt.sol**   
 IReceipt.sol is an interface that describes the functions that a Receipt contract should implement.   

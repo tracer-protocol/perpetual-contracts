@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 import "../lib/LibPerpetuals.sol";
 import "../lib/LibBalances.sol";
 
@@ -48,13 +48,13 @@ interface ITracerPerpetualSwaps {
 
     function trueMaxLeverage() external view returns (uint256);
 
-    function LIQUIDATION_GAS_COST() external view returns (uint256);
-
     function fundingRateSensitivity() external view returns (uint256);
 
     function deleveragingCliff() external view returns (uint256);
 
     function lowestMaxLeverage() external view returns (uint256);
+
+    function liquidationGasCost() external view returns (uint256);
 
     function insurancePoolSwitchStage() external view returns (uint256);
 
@@ -83,6 +83,8 @@ interface ITracerPerpetualSwaps {
     function setLowestMaxLeverage(uint256 _lowestMaxLeverage) external;
 
     function setInsurancePoolSwitchStage(uint256 _insurancePoolSwitchStage) external;
+
+    function setLiquidationGasCost(uint256 _liquidationGasCost) external;
 
     function transferOwnership(address newOwner) external;
 

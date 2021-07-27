@@ -1341,6 +1341,17 @@ describe("Liquidation functional tests", async () => {
             await network.provider.send("evm_mine", [])
         }
 
+        context("when receipt does not exist", async () => {
+            it("Reverts ", async () => {
+                const contracts = await setupReceiptTest()
+                accounts = await ethers.getSigners()
+                const tx = contracts.liquidation
+                    .connect(accounts[0])
+                    .claimEscrow(1)
+                await expect(tx).to.be.revertedWith("LIQ: Invalid receipt")
+            })
+        })
+
         context(
             "when receipt already claimed through claimEscrow",
             async () => {

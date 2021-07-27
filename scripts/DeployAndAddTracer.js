@@ -15,7 +15,7 @@ async function main() {
     let gasPriceOracle = await deployments.get("GasPriceOracle")
     let trader = await deployments.get("Trader")
     let factory = await deployments.get("TracerPerpetualsFactory")
-    let oracle = await deployments.get("Oracle")
+    let oracle = await deployments.get("ChainlinkOracle")
     let factoryInstance = new ethers.Contract(
         factory.address,
         factory.abi
