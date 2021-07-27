@@ -105,6 +105,17 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let tvl = await tracer.tvl()
                 expect(tvl).to.equal(ethers.utils.parseEther("5"))
             })
+
+            it("emits an event", async () => {
+                await quoteToken.approve(
+                    tracer.address,
+                    ethers.utils.parseEther("5")
+                )
+
+                await expect(tracer.deposit(ethers.utils.parseEther("5")))
+                    .to.emit(tracer, "Deposit")
+                    .withArgs(accounts[0].address, "5000000000000000000")
+            })
         })
 
         context("when the user has not set allowance", async () => {
@@ -174,6 +185,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             it("updates the total TVL", async () => {
                 let tvl = await tracer.tvl()
                 expect(tvl).to.equal(ethers.utils.parseEther("4"))
+            })
+
+            it("emits an event", async () => {
+                await expect(tracer.withdraw(ethers.utils.parseEther("1")))
+                    .to.emit(tracer, "Withdraw")
+                    .withArgs(accounts[0].address, "1000000000000000000")
             })
         })
 
