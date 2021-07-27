@@ -108,7 +108,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Transfers the escrowed funds to the trader if the escrow period has expired. Can be called by anyone.
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
-    function claimEscrow(uint256 receiptId) external override {
+    function claimEscrow(uint256 receiptId) external override whenNotPaused {
         require(receiptId < currentLiquidationId, "LIQ: Invalid receipt");
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
@@ -203,7 +203,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param amount The amount of tokens to be liquidated
      * @param account The account that is to be liquidated.
      */
-    function liquidate(int256 amount, address account) external override {
+    function liquidate(int256 amount, address account) external override whenNotPaused {
         /* Liquidated account's balance */
         require(account != address(0), "LIQ: Liquidate zero address");
         Balances.Account memory liquidatedBalance = tracer.getBalance(account);
@@ -270,7 +270,7 @@ contract Liquidation is ILiquidation, Ownable {
         Perpetuals.Order[] memory orders,
         address traderContract,
         uint256 receiptId
-    ) public override returns (uint256, uint256) {
+    ) public override whenNotPaused returns (uint256, uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         uint256 unitsSold;
         uint256 avgPrice;
@@ -325,7 +325,7 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 escrowId,
         Perpetuals.Order[] memory orders,
         address traderContract
-    ) public override returns (uint256) {
+    ) public override whenNotPaused returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
         // Validate the escrowed order was fully sold
         (uint256 unitsSold, uint256 avgPrice) = calcUnitsSold(orders, traderContract, escrowId);
@@ -391,7 +391,7 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 receiptId,
         Perpetuals.Order[] memory orders,
         address traderContract
-    ) external override {
+    ) external override whenNotPaused {
         // Claim the receipts from the escrow system, get back amount to return
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(receipt.liquidator == msg.sender, "LIQ: Liquidator mismatch");
@@ -486,6 +486,14 @@ contract Liquidation is ILiquidation, Ownable {
 
     modifier nonZeroAddress(address providedAddress) {
         require(providedAddress != address(0), "address(0) given");
+        _;
+    }
+
+    /**
+     * @dev Modifier that only allows function to be called when the protocol is not paused
+     */
+    modifier whenNotPaused() {
+        require(!tracer.protocolPaused(), "LIQ: Proto paused");
         _;
     }
 }

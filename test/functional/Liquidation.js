@@ -1820,4 +1820,53 @@ describe("Liquidation functional tests", async () => {
             }
         )
     })
+
+    context("Protocol Pause", async () => {
+        context("when the protocol is paused", async () => {
+            it("Reverts major liquidation functions", async () => {
+                const contracts = await setupReceiptTest()
+                await contracts.tracerPerps
+                    .connect(accounts[0])
+                    .setProtocolPause(true)
+
+                // claimEscrow
+                await expect(
+                    contracts.liquidation.claimEscrow(1)
+                ).to.be.revertedWith("LIQ: Proto paused")
+
+                // liquidate
+                await expect(
+                    contracts.liquidation.liquidate(1, accounts[1].address)
+                ).to.be.revertedWith("LIQ: Proto paused")
+
+                // calcUnitsSold
+                let tx = contracts.liquidation.callStatic.calcUnitsSold(
+                    [],
+                    contracts.modifiableTrader.address,
+                    0
+                )
+                await expect(tx).to.be.revertedWith("LIQ: Proto paused")
+
+                // calcAmountToReturn
+                tx = contracts.liquidation.calcAmountToReturn(
+                    0,
+                    [
+                        contracts.sellHalfLiquidationAmount,
+                        contracts.sellHalfLiquidationAmountSecond,
+                        contracts.sellHalfLiquidationAmountThird,
+                    ],
+                    contracts.modifiableTrader.address
+                )
+                await expect(tx).to.be.revertedWith("LIQ: Proto paused")
+
+                // claimReceipt
+                tx = contracts.liquidation.claimReceipt(
+                    32,
+                    [],
+                    accounts[0].address
+                )
+                await expect(tx).to.be.revertedWith("LIQ: Proto paused")
+            })
+        })
+    })
 })
