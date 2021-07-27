@@ -90,22 +90,28 @@ contract Pricing is IPricing {
                 updateFundingRate();
             }
 
+            uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
+            // if more than one hour passed, update any skipped hour prices as 0
+            if (elapsedHours > 1) {
+                for (uint256 i = 0; i < elapsedHours - 1; i++) {
+                    currentHour = (currentHour + 1) % 24;
+                    updatePrice(0, 0, 0, true);
+                }
+            }
+
+            // increment current hour by 1 and add new pricing entry for new hour
+            currentHour = (currentHour + 1) % 24;
+            updatePrice(tradePrice, currentOraclePrice, fillAmount, true);
+
+            // update time of last hourly recording
+            startLastHour = block.timestamp;
+
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
                 // Update the interest rate every 24 hours
                 updateTimeValue();
                 startLast24Hours = block.timestamp;
             }
-
-            // update the current hour
-            uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
-            currentHour = (currentHour + uint8(elapsedHours)) % 24;
-
-            // update time of last hourly recording
-            startLastHour = block.timestamp;
-
-            // add new pricing entry for new hour
-            updatePrice(tradePrice, currentOraclePrice, fillAmount, true);
         } else {
             // Update old pricing entry
             updatePrice(tradePrice, currentOraclePrice, fillAmount, false);
