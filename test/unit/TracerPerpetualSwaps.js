@@ -773,10 +773,8 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let balanceBefore = await quoteToken.balanceOf(feeReceiver)
                 await tracer.connect(accounts[0]).withdrawFees()
                 let balanceAfter = await quoteToken.balanceOf(feeReceiver)
-                // 2 quote tokens received as fees (1% of 100 * 2)
-                expect(balanceAfter.sub(balanceBefore)).to.equal(
-                    ethers.utils.parseEther("2")
-                )
+                // 2 quote tokens (8 decimals) received as fees (1% of 100 * 2)
+                expect(balanceAfter.sub(balanceBefore)).to.equal("200000000")
             })
 
             it("resets fees to 0", async () => {
@@ -784,6 +782,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await tracer.connect(accounts[0]).withdrawFees()
                 let feesAfter = await tracer.fees()
                 expect(feesAfter).to.equal(0)
+                // fees are represented in WAD format by the contract
                 expect(feesBefore.sub(feesAfter)).to.equal(
                     ethers.utils.parseEther("2")
                 )
@@ -793,7 +792,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let feeReceiver = await tracer.feeReceiver()
                 await expect(tracer.withdrawFees())
                     .to.emit(tracer, "FeeWithdrawn")
-                    .withArgs(feeReceiver, ethers.utils.parseEther("2"))
+                    .withArgs(feeReceiver, "200000000")
             })
 
             it("subtracts fees from the tvl of the market", async () => {

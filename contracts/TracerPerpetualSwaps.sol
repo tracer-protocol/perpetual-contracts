@@ -555,9 +555,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         fees = 0;
         tvl = tvl - tempFees;
 
+        // Convert fees from WAD format to token representation
+        uint256 rawTokenFees = Balances.wadToToken(quoteTokenDecimals, tempFees);
+
         // Withdraw from the account
-        require(IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees), "TCR: Transfer failed");
-        emit FeeWithdrawn(feeReceiver, tempFees);
+        require(IERC20(tracerQuoteToken).transfer(feeReceiver, rawTokenFees), "TCR: Transfer failed");
+        emit FeeWithdrawn(feeReceiver, rawTokenFees);
     }
 
     function getBalance(address account) external view override returns (Balances.Account memory) {
