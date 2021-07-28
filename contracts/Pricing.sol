@@ -92,23 +92,28 @@ contract Pricing is IPricing {
 
             uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
 
-            // if more than one hour passed, update any skipped hour prices as 0 to remove stale entries
-            if (elapsedHours > 1) {
-                // cap elapsed hours to 24 hours to limit for loop iterations
-                if (elapsedHours > 24) {
-                    elapsedHours = 24;
-                }
-
-                uint8 staleHour = currentHour;
-                for (uint256 i = 0; i < elapsedHours - 1; i++) {
-                    staleHour = (staleHour + 1) % 24;
-                    updatePrice(0, 0, 0, true, staleHour);
-                }
-            }
-
             // update the current hour and enter the new price
             currentHour = (currentHour + uint8(elapsedHours)) % 24;
             updatePrice(tradePrice, currentOraclePrice, fillAmount, true, currentHour);
+
+            // if more than one hour passed, update any skipped hour prices as 0 to remove stale entries
+            if (elapsedHours > 1) {
+                // calculate the number of hours to overwrite
+                // cap elapsed hours to 24 hours to limit for loop iterations
+                // subtract 1 since the last elapsed hour is the recorded trade with data
+                uint8 skippedHours = uint8(elapsedHours > 24 ? 24 : elapsedHours) - 1;
+
+                uint8 staleHour = currentHour;
+                for (uint256 i = 0; i < skippedHours; i++) {
+                    // decrement stale hour backwards from current time to update skipped entries
+                    if (staleHour > 0) {
+                        staleHour--;
+                    } else {
+                        staleHour = 23;
+                    }
+                    updatePrice(0, 0, 0, true, staleHour);
+                }
+            }
 
             // update time of last hourly recording
             startLastHour = block.timestamp;
