@@ -95,7 +95,7 @@ contract Pricing is IPricing {
             // if more than one hour passed, update any skipped hour prices as 0 to remove stale entries
             if (elapsedHours > 1) {
                 // cap elapsed hours to 24 hours to limit for loop iterations
-                if (elapsedHours > 24){
+                if (elapsedHours > 24) {
                     elapsedHours = 24;
                 }
 
