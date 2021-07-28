@@ -91,8 +91,13 @@ contract Pricing is IPricing {
             }
 
             uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
-            // if more than one hour passed, update any skipped hour prices as 0
+
+            // if more than one hour passed, update any skipped hour prices as 0 to remove stale entries
             if (elapsedHours > 1) {
+                // cap elapsed hours to 24 hours to limit for loop iterations
+                if (elapsedHours > 24){
+                    elapsedHours = 24;
+                }
                 for (uint256 i = 0; i < elapsedHours - 1; i++) {
                     currentHour = (currentHour + 1) % 24;
                     updatePrice(0, 0, 0, true);
