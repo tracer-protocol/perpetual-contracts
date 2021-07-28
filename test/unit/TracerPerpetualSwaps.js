@@ -127,28 +127,31 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("when the token amount is a WAD value", async () => {
-            it("update their quote as a WAD value", async () => {
+            it("updates their quote without dust", async () => {
                 let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
 
-                // deposit 1 token with dust
+                // token has 8 decimals, deposit 1 token with 1 dust
                 await quoteToken.approve(
                     tracer.address,
                     ethers.utils.parseEther("1.000000001")
                 )
                 await tracer.deposit(ethers.utils.parseEther("1.000000001"))
 
-                // ensure that token amount has decreased by correct units
+                // ensure that token amount has decreased correctly
                 let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
                 let difference = tokenBalanceBefore.sub(tokenBalanceAfter)
-                let expected = ethers.utils.parseEther("1.000000001")
-                // default token only uses 8 decimals, so the last bit should be ignored
-                expect(difference.toString()).to.equal(expected)
 
-                // ensure balance in contract has updated by a WAD amount
+                // difference should be 1 token (with 8 decimals)
+                expect(difference.toString()).to.equal("100000000")
+
+                // default token only uses 8 decimals, so the last bit should be ignored in contract balance
+                let expected = ethers.utils.parseEther("1.000000000")
                 let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("1.000000001")
-                )
+                await expect(balance.position.quote).to.equal(expected)
+
+                // check TVL has been updated without dust
+                let tvl = await tracer.tvl()
+                await expect(tvl).to.be.equal(expected)
             })
         })
     })
@@ -204,14 +207,14 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 // ensure that token amount has decreased by correct units
                 let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
                 let difference = tokenBalanceAfter.sub(tokenBalanceBefore)
-                let expected = ethers.utils.parseEther("1.000000001")
-                // default token only uses 8 decimals, so the last bit should be ignored
-                expect(difference).to.equal(expected)
 
-                // ensure balance in contract has updated by a WAD amount
+                // user token balance should decrease by 1 (with 8 decimals)
+                expect(difference).to.equal("100000000")
+
+                // default token only uses 8 decimals, so the last bit should be ignored in contract balance
                 let balance = await tracer.balances(deployer)
                 await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("3.999999999")
+                    ethers.utils.parseEther("4.000000000")
                 )
             })
         })
