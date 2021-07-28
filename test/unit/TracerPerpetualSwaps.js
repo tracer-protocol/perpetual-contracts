@@ -212,10 +212,13 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 expect(difference).to.equal("100000000")
 
                 // default token only uses 8 decimals, so the last bit should be ignored in contract balance
+                let expected = ethers.utils.parseEther("4.000000000")
                 let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("4.000000000")
-                )
+                await expect(balance.position.quote).to.equal(expected)
+
+                // check TVL has been updated without dust
+                let tvl = await tracer.tvl()
+                await expect(tvl).to.be.equal(expected)
             })
         })
     })
