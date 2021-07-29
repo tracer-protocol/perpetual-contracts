@@ -103,7 +103,7 @@ contract Trader is ITrader {
             // make low level call to catch revert
             // todo this could be succeptible to re-entrancy as
             // market is never verified
-            (bool success, ) = makeOrder.market.call(
+            (bool success, bytes memory data) = makeOrder.market.call(
                 abi.encodePacked(
                     ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
                     abi.encode(makeOrder, takeOrder, fillAmount)
@@ -112,6 +112,8 @@ contract Trader is ITrader {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+            bool orderStatus = abi.decode(data, (bool));
+            if (!orderStatus) continue;
 
             uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
             uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
