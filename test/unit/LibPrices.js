@@ -194,7 +194,7 @@ describe("Unit tests: LibPrices.sol", function () {
 
                 let result = await libPrices.averagePrice(price)
 
-                expect(result).to.equal(ethers.BigNumber.from("0"))
+                expect(result).to.equal(ethers.constants.MaxUint256)
             })
         })
 
@@ -213,24 +213,7 @@ describe("Unit tests: LibPrices.sol", function () {
     })
 
     describe("averagePriceForPeriod", async () => {
-        context("when prices length > 24", async () => {
-            it("returns the average price for the first 24 periods", async () => {
-                let n = 26
-                let prices = new Array()
-
-                for (i = 0; i <= n; i++) {
-                    prices.push([
-                        ethers.BigNumber.from(i * 100000),
-                        ethers.BigNumber.from(50 - i),
-                    ])
-                }
-
-                await expect(libPrices.averagePriceForPeriod(prices)).to.be
-                    .reverted
-            })
-        })
-
-        context("when prices length <= 24", async () => {
+        context("when prices length is 24", async () => {
             it("returns the average price for the number of periods present", async () => {
                 let n = 24
                 let prices = new Array()
@@ -254,6 +237,56 @@ describe("Unit tests: LibPrices.sol", function () {
                 let result = await libPrices.averagePriceForPeriod(prices)
 
                 expect(result).to.equal(averagePriceForPeriod)
+            })
+        })
+
+        context("when prices length != 24", async () => {
+            it("reverts", async () => {
+                // prices length > 24
+                let n = 26
+                let prices = new Array()
+
+                for (i = 0; i < n; i++) {
+                    prices.push([
+                        ethers.BigNumber.from(i * 100000),
+                        ethers.BigNumber.from(50 - i),
+                    ])
+                }
+
+                await expect(libPrices.averagePriceForPeriod(prices)).to.be
+                    .reverted
+
+                // prices length < 24
+                n = 20
+                prices = new Array()
+
+                for (i = 0; i < n; i++) {
+                    prices.push([
+                        ethers.BigNumber.from(i * 100000),
+                        ethers.BigNumber.from(50 - i),
+                    ])
+                }
+
+                await expect(libPrices.averagePriceForPeriod(prices)).to.be
+                    .reverted
+            })
+        })
+
+        context("when no trades occurred in the last 24 hours", async () => {
+            it("returns the maximum integer", async () => {
+                let n = 24
+                let prices = new Array()
+
+                // set all price instants to have 0 trades
+                for (i = 0; i < n; i++) {
+                    prices.push([
+                        ethers.BigNumber.from("0"),
+                        ethers.BigNumber.from("0"),
+                    ])
+                }
+
+                let tx = await libPrices.averagePriceForPeriod(prices)
+                expect(tx).to.equal(ethers.constants.MaxUint256)
             })
         })
     })
