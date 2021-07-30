@@ -76,7 +76,7 @@ contract Pricing is IPricing {
      */
     function recordTrade(uint256 tradePrice, uint256 fillAmount) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
-        // update rates if a trade has not been recorded in the last hour
+        // update pricing information if a trade has not been recorded in the last hour
         if (startLastHour <= block.timestamp - 1 hours) {
             // get the last recorded hourly price, returns max integer if no trades occurred
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
@@ -116,7 +116,7 @@ contract Pricing is IPricing {
             }
 
             // update time of last hourly recording
-            startLastHour = block.timestamp;
+            startLastHour += (elapsedHours * 3600);
 
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
