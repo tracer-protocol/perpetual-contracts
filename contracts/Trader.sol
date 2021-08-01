@@ -103,8 +103,6 @@ contract Trader is ITrader, ReentrancyGuard {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
-            // todo this could be succeptible to re-entrancy as
-            // market is never verified
             (bool success, ) = makeOrder.market.call(
                 abi.encodePacked(
                     ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
