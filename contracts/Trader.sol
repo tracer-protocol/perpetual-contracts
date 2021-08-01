@@ -5,11 +5,12 @@ import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader is ITrader {
+contract Trader is ITrader, ReentrancyGuard {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -65,6 +66,7 @@ contract Trader is ITrader {
     function executeTrade(Types.SignedLimitOrder[] memory makers, Types.SignedLimitOrder[] memory takers)
         external
         override
+        nonReentrant
     {
         require(makers.length == takers.length, "TDR: Lengths differ");
 
