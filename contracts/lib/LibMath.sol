@@ -66,6 +66,7 @@ library LibMath {
      * @return Average of first n elements
      */
     function meanN(uint256[] memory arr, uint256 len) internal pure returns (uint256) {
+        require(len != 0, "len is 0");
         return sumN(arr, len) / len;
     }
 

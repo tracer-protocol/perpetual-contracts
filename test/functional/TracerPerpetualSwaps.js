@@ -72,122 +72,125 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
     let accounts, deployer
     let insurance, pricing, liquidation, tracer, quoteToken, traderInstance
     let now
+    let order1, order2, order3, order4, order5
+    let mockSignedOrder1,
+        mockSignedOrder2,
+        mockSignedOrder3,
+        mockSignedOrder4,
+        mockSignedOrder5
 
-    before(async function () {
-        const _setup = await setup()
-        quoteToken = _setup.quoteToken
-        tracer = _setup.tracer
-        insurance = _setup.insurance
-        pricing = _setup.pricing
-        liquidation = _setup.liquidation
-        deployer = _setup.deployer
-        traderInstance = _setup.traderInstance
-        accounts = await ethers.getSigners()
-        // transfer tokesn to account 4
-        await quoteToken.transfer(
-            accounts[4].address,
-            ethers.utils.parseEther("1000")
-        )
-        now = Math.floor(new Date().getTime() / 1000)
-    })
+    context("Regular Trading", async () => {
+        beforeEach(async () => {
+            const _setup = await setup()
+            quoteToken = _setup.quoteToken
+            tracer = _setup.tracer
+            insurance = _setup.insurance
+            pricing = _setup.pricing
+            liquidation = _setup.liquidation
+            deployer = _setup.deployer
+            traderInstance = _setup.traderInstance
+            accounts = await ethers.getSigners()
+            // transfer tokesn to account 4
+            await quoteToken.transfer(
+                accounts[4].address,
+                ethers.utils.parseEther("1000")
+            )
+            now = Math.floor(new Date().getTime() / 1000)
 
-    context("Regular Trading over 24 hours", async () => {
+            // set up accounts
+            for (var i = 0; i < 4; i++) {
+                await quoteToken
+                    .connect(accounts[i + 1])
+                    .approve(tracer.address, ethers.utils.parseEther("1000"))
+                await tracer
+                    .connect(accounts[i + 1])
+                    .deposit(ethers.utils.parseEther("1000"))
+            }
+
+            // set up basic trades
+            order1 = {
+                maker: accounts[1].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("50"),
+                side: 0, // long,
+                expires: now + 604800, // now + 7 days
+                created: now - 100,
+            }
+            mockSignedOrder1 = [
+                order1,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            order2 = {
+                maker: accounts[2].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("0.9"),
+                amount: ethers.utils.parseEther("40"),
+                side: 1, // short,
+                expires: now + 604800, // now + 7 days
+                created: now - 100,
+            }
+            mockSignedOrder2 = [
+                order2,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            order3 = {
+                maker: accounts[3].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("0.9"),
+                amount: ethers.utils.parseEther("10"),
+                side: 1, // short,
+                expires: now + 604800, // now + 7 days
+                created: now - 100,
+            }
+            mockSignedOrder3 = [
+                order3,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            order4 = {
+                maker: accounts[1].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1.25"),
+                amount: ethers.utils.parseEther("50"),
+                side: 0, // long,
+                expires: now + 604800, // now + 7 days
+                created: now - 100,
+            }
+            mockSignedOrder4 = [
+                order4,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            order5 = {
+                maker: accounts[2].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1.10"),
+                amount: ethers.utils.parseEther("10"),
+                side: 1, // short,
+                expires: now + 604800, // now + 7 days
+                created: now - 100,
+            }
+            mockSignedOrder5 = [
+                order5,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+        })
+
         describe("when markets are operating as normal", async () => {
             it("passes", async () => {
-                // deposit from 4 accounts
-                for (var i = 0; i < 4; i++) {
-                    await quoteToken
-                        .connect(accounts[i + 1])
-                        .approve(
-                            tracer.address,
-                            ethers.utils.parseEther("1000")
-                        )
-                    await tracer
-                        .connect(accounts[i + 1])
-                        .deposit(ethers.utils.parseEther("1000"))
-                }
-
-                // make some basic trades
-                let order1 = {
-                    maker: accounts[1].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1"),
-                    amount: ethers.utils.parseEther("50"),
-                    side: 0, // long,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 100,
-                }
-                const mockSignedOrder1 = [
-                    order1,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order2 = {
-                    maker: accounts[2].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("0.9"),
-                    amount: ethers.utils.parseEther("40"),
-                    side: 1, // short,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 100,
-                }
-                const mockSignedOrder2 = [
-                    order2,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order3 = {
-                    maker: accounts[3].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("0.9"),
-                    amount: ethers.utils.parseEther("10"),
-                    side: 1, // short,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 100,
-                }
-                const mockSignedOrder3 = [
-                    order3,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order4 = {
-                    maker: accounts[1].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1.25"),
-                    amount: ethers.utils.parseEther("50"),
-                    side: 0, // long,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 100,
-                }
-                const mockSignedOrder4 = [
-                    order4,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order5 = {
-                    maker: accounts[2].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1.10"),
-                    amount: ethers.utils.parseEther("10"),
-                    side: 1, // short,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 100,
-                }
-                const mockSignedOrder5 = [
-                    order5,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
                 // STATE 1:
                 // hour = 0
                 // funding index = 0
@@ -256,7 +259,9 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // STATE 2:
                 // hour = 1
-                // funding index = 1
+                // funding index = 0
+                // note that funding index was not updated by last trade since
+                // it was made less than an hour since the pricing contract was created
 
                 // make trade in new hour to tick over funding index
                 await traderInstance.executeTrade(
@@ -270,7 +275,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(1)
 
-                // check funding index is 2
+                // check funding index is 1
                 let fundingIndex = await pricing.currentFundingIndex()
                 expect(fundingIndex).to.equal(1)
 
@@ -292,7 +297,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 await forwardTime(120 * 60 + 100)
 
                 // STATE 3:
-                // hour = 2
+                // hour = 4
                 // funding index = 2
 
                 await traderInstance.executeTrade(
@@ -302,11 +307,11 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 await traderInstance.clearFilled(mockSignedOrder1)
                 await traderInstance.clearFilled(mockSignedOrder2)
 
-                // check pricing is in hour 2 (hours with no trades are ignored currently)
+                // check pricing is in hour 3 (2 hours passed)
                 currentHour = await pricing.currentHour()
-                expect(currentHour).to.equal(2)
+                expect(currentHour).to.equal(3)
 
-                // check funding index is 3
+                // check funding index is 2
                 fundingIndex = await pricing.currentFundingIndex()
                 expect(fundingIndex).to.equal(2)
 
@@ -364,6 +369,104 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         balanceBeforeSettle.position.quote
                     )
                 ).to.equal(expectedDifference)
+            })
+        })
+
+        describe("when market has extended periods with no trades", async () => {
+            it("dismisses periods with no trades", async () => {
+                // STATE 1:
+                // hour = 0
+                // funding index = 0
+
+                // check pricing is in hour 0
+                let currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(0)
+
+                // fast forward 2 hours without trades
+                await forwardTime(2 * 60 * 60 + 100)
+
+                // STATE 2:
+                // hour = 2
+                // funding index = 0
+
+                // place a trade
+                await traderInstance.executeTrade(
+                    [mockSignedOrder1],
+                    [mockSignedOrder2]
+                )
+                await traderInstance.clearFilled(mockSignedOrder1)
+                await traderInstance.clearFilled(mockSignedOrder2)
+
+                // check account state
+                let account1 = await tracer.balances(accounts[1].address)
+                let account2 = await tracer.balances(accounts[2].address)
+
+                let lastUpdatedGas = "60000000000000"
+                let account1Expected = {
+                    position: {
+                        quote: ethers.utils.parseEther("960"),
+                        base: ethers.utils.parseEther("40"),
+                    },
+                    totalLeveragedValue: 0,
+                    lastUpdatedIndex: 0,
+                    lastUpdatedGasPrice: lastUpdatedGas,
+                }
+                let account2Expected = {
+                    position: {
+                        quote: ethers.utils.parseEther("1040"),
+                        base: ethers.utils.parseEther("-40"),
+                    },
+                    totalLeveragedValue: 0,
+                    lastUpdatedIndex: 0,
+                    lastUpdatedGasPrice: lastUpdatedGas,
+                }
+
+                compareAccountState(account1, account1Expected)
+                compareAccountState(account2, account2Expected)
+
+                // check pricing is in hour 2
+                currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(2)
+
+                // funding rate index should still be 0 since no past trades have occurred
+                let fundingIndex = await pricing.currentFundingIndex()
+                expect(fundingIndex).to.equal(0)
+
+                // time travel forward 26 hours to check pricing state after no trades occurred
+                await forwardTime(26 * 60 * 60 + 100)
+
+                // STATE 2:
+                // hour = (2 + 26) % 24 = 4
+                // funding index = 0
+
+                // average 24 hour price should be 1.00 from prior trade
+                let average24Hour = await pricing.get24HourPrices()
+                await expect(average24Hour[0].toString()).to.equal(
+                    "1000000000000000000"
+                )
+
+                // make trade in new hour to tick over funding index
+                await traderInstance.executeTrade(
+                    [mockSignedOrder4],
+                    [mockSignedOrder5]
+                )
+                await traderInstance.clearFilled(mockSignedOrder4)
+                await traderInstance.clearFilled(mockSignedOrder5)
+
+                // check pricing is in hour 4
+                currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(4)
+
+                // check the average price has not included last price recording which is stale
+                // new average should just be price of new trade, 1.25
+                average24Hour = await pricing.get24HourPrices()
+                await expect(average24Hour[0].toString()).to.equal(
+                    "1250000000000000000"
+                )
+
+                // check funding index is 1
+                fundingIndex = await pricing.currentFundingIndex()
+                expect(fundingIndex).to.equal(1)
             })
         })
     })

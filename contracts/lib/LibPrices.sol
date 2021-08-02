@@ -37,16 +37,14 @@ library Prices {
     }
 
     /**
-     * @notice Calculate the average price of trades in a PriceInstant instance
+     * @notice Calculate the average price of trades in a PriceInstant instance.
+     * @notice Returns max integer (uint256) if there were no trades in the instance.
      * @param price Current cumulative price and number of trades in a time period
-     * @return Average price for given instance
+     * @return Average price for given instance.
      */
     function averagePrice(PriceInstant memory price) internal pure returns (uint256) {
-        // todo double check safety of this.
-        // average price == 0 is not neccesarily the
-        // same as no trades in average
         if (price.trades == 0) {
-            return 0;
+            return type(uint256).max;
         }
 
         return PRBMathUD60x18.div(price.cumulativePrice, price.trades);
@@ -54,6 +52,7 @@ library Prices {
 
     /**
      * @notice Calculates average price over a time period of 24 hours
+     * @notice If no trades occurred in last 24 hours, max integer (uint256) is returned
      * @dev Ignores hours where the number of trades is zero
      * @param prices Array of PriceInstant instances in the 24 hour period
      * @return Average price in the time period (non-weighted)
@@ -72,6 +71,11 @@ library Prices {
                 averagePrices[j] = averagePrice(currPrice);
                 j++;
             }
+        }
+
+        // return max integer if no trades occurred in the last 24 hours
+        if (j == 0) {
+            return type(uint256).max;
         }
 
         return LibMath.meanN(averagePrices, j);
