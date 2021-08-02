@@ -273,7 +273,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
      */
     function calcUnitsSold(
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract,
         uint256 receiptId
     ) public override returns (uint256, uint256) {
@@ -329,7 +329,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function calcAmountToReturn(
         uint256 escrowId,
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract
     ) public override returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
@@ -395,7 +395,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimReceipt(
         uint256 receiptId,
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
