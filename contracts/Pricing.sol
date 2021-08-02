@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./lib/LibMath.sol";
-import "./lib/LibPrices.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
 import "./Interfaces/IOracle.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Pricing is IPricing {
     using LibMath for uint256;
     using LibMath for int256;
     using PRBMathSD59x18 for int256;
 
-    address public tracer;
-    IInsurance public insurance;
-    IOracle public oracle;
+    address public immutable tracer;
+    IInsurance public immutable insurance;
+    IOracle public immutable oracle;
 
     // pricing metrics
     Prices.PriceInstant[24] internal hourlyTracerPrices;
@@ -38,6 +38,10 @@ contract Pricing is IPricing {
     uint256 public startLastHour;
     uint256 public startLast24Hours;
     uint8 public override currentHour;
+
+    // The funding rate is supposed to be 8-hourly, but because it's paid hourly
+    // in the contracts, we offset the calculated rate by a factor of 8
+    int256 private constant FUNDING_RATE_OFFSET = 8;
 
     event HourlyPriceUpdated(uint256 price, uint256 currentHour);
     event FundingRateUpdated(int256 fundingRate, int256 cumulativeFundingRate);
@@ -69,16 +73,51 @@ contract Pricing is IPricing {
      * @notice Updates pricing information given a trade of a certain volume at
      *         a set price
      * @param tradePrice the price the trade executed at
+     * @param fillAmount the amount the trade was filled for
      */
-    function recordTrade(uint256 tradePrice) external override onlyTracer {
+    function recordTrade(uint256 tradePrice, uint256 fillAmount) external override onlyTracer {
         uint256 currentOraclePrice = oracle.latestAnswer();
+        // update rates if a trade has not been recorded in the last hour
         if (startLastHour <= block.timestamp - 1 hours) {
-            // emit the old hourly average
+            // get the last recorded hourly price, returns max integer if no trades occurred
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
-            emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
 
-            // update funding rate for the previous hour
-            updateFundingRate();
+            // emit the hourly average and udpate funding rate if trades occurred
+            if (hourlyTracerPrice != type(uint256).max) {
+                // emit the old hourly average
+                emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
+
+                // update funding rate for the previous hour
+                updateFundingRate();
+            }
+
+            uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
+
+            // update the current hour and enter the new price
+            currentHour = (currentHour + uint8(elapsedHours)) % 24;
+            updatePrice(tradePrice, currentOraclePrice, fillAmount, true, currentHour);
+
+            // if more than one hour passed, update any skipped hour prices as 0 to remove stale entries
+            if (elapsedHours > 1) {
+                // calculate the number of hours to overwrite
+                // cap elapsed hours to 24 hours to limit for loop iterations
+                // subtract 1 since the last elapsed hour is the recorded trade with data
+                uint8 skippedHours = uint8(elapsedHours > 24 ? 24 : elapsedHours) - 1;
+
+                uint8 staleHour = currentHour;
+                for (uint256 i = 0; i < skippedHours; i++) {
+                    // decrement stale hour backwards from current time to update skipped entries
+                    if (staleHour > 0) {
+                        staleHour--;
+                    } else {
+                        staleHour = 23;
+                    }
+                    updatePrice(0, 0, 0, true, staleHour);
+                }
+            }
+
+            // update time of last hourly recording
+            startLastHour = block.timestamp;
 
             // update the time value
             if (startLast24Hours <= block.timestamp - 24 hours) {
@@ -86,22 +125,9 @@ contract Pricing is IPricing {
                 updateTimeValue();
                 startLast24Hours = block.timestamp;
             }
-
-            // update time metrics after all other state
-            startLastHour = block.timestamp;
-
-            // Check current hour and loop around if need be
-            if (currentHour == 23) {
-                currentHour = 0;
-            } else {
-                currentHour = currentHour + 1;
-            }
-
-            // add new pricing entry for new hour
-            updatePrice(tradePrice, currentOraclePrice, true);
         } else {
             // Update old pricing entry
-            updatePrice(tradePrice, currentOraclePrice, false);
+            updatePrice(tradePrice, currentOraclePrice, fillAmount, false, currentHour);
         }
     }
 
@@ -110,33 +136,43 @@ contract Pricing is IPricing {
      *         and an oracle price.
      * @param marketPrice The price that a tracer was bought at, returned by the TracerPerpetualSwaps.sol contract when an order is filled
      * @param oraclePrice The price of the underlying asset that the Tracer is based upon as returned by a Chainlink Oracle
+     * @param fillAmount The amount of the order that was filled at some price
      * @param newRecord Bool that decides if a new hourly record should be started (true) or if a current hour should be updated (false)
+     * @param hour the hour to udpate in the hourly Oracle and Tracer price arrays
      */
     function updatePrice(
         uint256 marketPrice,
         uint256 oraclePrice,
-        bool newRecord
+        uint256 fillAmount,
+        bool newRecord,
+        uint8 hour
     ) internal {
         // Price records entries updated every hour
         if (newRecord) {
-            // Make new hourly record, total = marketprice, numtrades set to 1;
-            Prices.PriceInstant memory newHourly = Prices.PriceInstant(marketPrice, 1);
-            hourlyTracerPrices[currentHour] = newHourly;
+            // Make new hourly record, total = marketprice, numTrades set to the amount filled;
+            Prices.PriceInstant memory newHourly = Prices.PriceInstant(
+                PRBMathUD60x18.mul(marketPrice, fillAmount),
+                fillAmount
+            );
+            hourlyTracerPrices[hour] = newHourly;
             // As above but with Oracle price
-            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(oraclePrice, 1);
-            hourlyOraclePrices[currentHour] = oracleHour;
+            Prices.PriceInstant memory oracleHour = Prices.PriceInstant(
+                PRBMathUD60x18.mul(oraclePrice, fillAmount),
+                fillAmount
+            );
+            hourlyOraclePrices[hour] = oracleHour;
         } else {
-            // If an update is needed, add the market price to a running total and increment number of trades
-            hourlyTracerPrices[currentHour].cumulativePrice =
-                hourlyTracerPrices[currentHour].cumulativePrice +
-                marketPrice;
-            hourlyTracerPrices[currentHour].trades = hourlyTracerPrices[currentHour].trades + 1;
-
+            // If an update is needed, add the total market price of the trade to a running total
+            // and increment number of fill amounts
+            hourlyTracerPrices[hour].cumulativePrice =
+                hourlyTracerPrices[hour].cumulativePrice +
+                PRBMathUD60x18.mul(marketPrice, fillAmount);
+            hourlyTracerPrices[hour].trades = hourlyTracerPrices[hour].trades + fillAmount;
             // As above but with oracle price
-            hourlyOraclePrices[currentHour].cumulativePrice =
-                hourlyOraclePrices[currentHour].cumulativePrice +
-                oraclePrice;
-            hourlyOraclePrices[currentHour].trades = hourlyOraclePrices[currentHour].trades + 1;
+            hourlyOraclePrices[hour].cumulativePrice =
+                hourlyOraclePrices[hour].cumulativePrice +
+                PRBMathUD60x18.mul(oraclePrice, fillAmount);
+            hourlyOraclePrices[hour].trades = hourlyOraclePrices[hour].trades + fillAmount;
         }
     }
 
@@ -154,7 +190,7 @@ contract Pricing is IPricing {
         int256 fundingRate = PRBMathSD59x18.mul(
             derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue,
             _tracer.fundingRateSensitivity().toInt256()
-        );
+        ) / FUNDING_RATE_OFFSET;
 
         // Create variable with value of old & new cumulative funding rate values
         int256 oldCumulativeFundingRate = fundingRates[currentFundingIndex - 1].cumulativeFundingRate;
@@ -191,8 +227,11 @@ contract Pricing is IPricing {
      */
     function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
-
-        timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+        // get 24 hours returns max integer if no trades occurred
+        // don't update in this case
+        if (avgPrice != type(uint256).max) {
+            timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+        }
     }
 
     /**
@@ -247,6 +286,7 @@ contract Pricing is IPricing {
 
     /**
      * @notice Gets a 24 hour tracer and oracle price for a given tracer market
+     * @notice Returns max integer (uint256) if there were no trades in the 24 hour period
      * @return the average price over a 24 hour period for oracle and Tracer price
      */
     function get24HourPrices() public view override returns (uint256, uint256) {
@@ -255,6 +295,7 @@ contract Pricing is IPricing {
 
     /**
      * @notice Gets the average tracer price for a given market during a certain hour
+     * @notice Returns max integer (uint256) if there were no trades in the hour
      * @param hour The hour of which you want the hourly average Price
      * @return the average price of the tracer for a particular hour
      */
@@ -264,6 +305,7 @@ contract Pricing is IPricing {
 
     /**
      * @notice Gets the average oracle price for a given market during a certain hour
+     * @notice Returns max integer (uint256) if there were no trades in the hour
      * @param hour The hour of which you want the hourly average Price
      */
     function getHourlyAvgOraclePrice(uint256 hour) external view override returns (uint256) {

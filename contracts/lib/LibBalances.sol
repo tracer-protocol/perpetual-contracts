@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./LibMath.sol";
 import "../Interfaces/Types.sol";
@@ -14,6 +14,7 @@ library Balances {
     using PRBMathUD60x18 for uint256;
 
     uint256 public constant MAX_DECIMALS = 18;
+    uint256 private constant LIQUIDATION_GAS_MULTIPLIER = 6;
 
     // Size of a position
     struct Position {
@@ -38,7 +39,7 @@ library Balances {
 
     /**
      * @notice Calculates the notional value of a position as base * price
-     * @param position the position the account is currently in
+     * @param position The position the account is currently in
      * @param price The (fair) price of the base asset
      * @return Notional value of a position given the price
      */
@@ -106,15 +107,14 @@ library Balances {
         uint256 liquidationGasCost,
         uint256 maximumLeverage
     ) internal pure returns (uint256) {
-        // There should be no Minimum margin when user has no position
+        // There should be no minimum margin when user has no position
         if (position.base == 0) {
             return 0;
         }
 
+        uint256 adjustedLiquidationGasCost = liquidationGasCost * LIQUIDATION_GAS_MULTIPLIER;
+
         uint256 _notionalValue = notionalValue(position, price);
-
-        uint256 adjustedLiquidationGasCost = liquidationGasCost * 6;
-
         uint256 minimumMarginWithoutGasCost = PRBMathUD60x18.div(_notionalValue, maximumLeverage);
 
         return adjustedLiquidationGasCost + minimumMarginWithoutGasCost;
@@ -124,7 +124,7 @@ library Balances {
      * @notice Checks the validity of a potential margin given the necessary parameters
      * @param position The position
      * @param liquidationGasCost The cost of calling liquidate
-     * @return a bool representing the validity of a margin
+     * @return Whether the margin of a given position is valid
      */
     function marginIsValid(
         Balances.Position memory position,
@@ -183,16 +183,16 @@ library Balances {
         int256 newBase = 0;
 
         if (trade.side == Perpetuals.Side.Long) {
+            // Long trades have their base increased & quote decreased
             newBase = position.base + signedAmount;
-            newQuote = position.quote - quoteChange + fee;
+            newQuote = position.quote - quoteChange - fee;
         } else if (trade.side == Perpetuals.Side.Short) {
+            // Short trades have their base decreased & quote increased
             newBase = position.base - signedAmount;
             newQuote = position.quote + quoteChange - fee;
         }
 
-        Position memory newPosition = Position(newQuote, newBase);
-
-        return newPosition;
+        return Position({quote: newQuote, base: newBase});
     }
 
     /**
@@ -209,24 +209,26 @@ library Balances {
     ) internal pure returns (int256) {
         uint256 quoteChange = PRBMathUD60x18.mul(amount, executionPrice);
 
-        int256 fee = PRBMathUD60x18.mul(quoteChange, feeRate).toInt256();
-        return fee;
+        // fee = quoteChange * feeRate
+        return PRBMathUD60x18.mul(quoteChange, feeRate).toInt256();
     }
 
     /**
-     * @notice converts a raw token amount to its WAD representation. Used for tokens
+     * @notice Converts a raw token amount to its WAD representation. Used for tokens
      * that don't have 18 decimal places
      */
     function tokenToWad(uint256 tokenDecimals, uint256 amount) internal pure returns (int256) {
+        require(tokenDecimals <= MAX_DECIMALS, "Max decimals exceeded");
         uint256 scaler = 10**(MAX_DECIMALS - tokenDecimals);
         return amount.toInt256() * scaler.toInt256();
     }
 
     /**
-     * @notice converts a wad token amount to its raw representation.
+     * @notice Converts a wad token amount to its raw representation.
      */
     function wadToToken(uint256 tokenDecimals, uint256 wadAmount) internal pure returns (uint256) {
-        uint256 scaler = uint256(10**(MAX_DECIMALS - tokenDecimals));
-        return uint256(wadAmount / scaler);
+        require(tokenDecimals <= MAX_DECIMALS, "Max decimals exceeded");
+        uint256 scaler = 10**(MAX_DECIMALS - tokenDecimals);
+        return wadAmount / scaler;
     }
 }

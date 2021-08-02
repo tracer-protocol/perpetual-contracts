@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "../lib/LibPrices.sol";
 
@@ -24,5 +24,5 @@ interface IPricing {
 
     function getHourlyAvgOraclePrice(uint256 hour) external view returns (uint256);
 
-    function recordTrade(uint256 tradePrice) external;
+    function recordTrade(uint256 tradePrice, uint256 fillAmount) external;
 }

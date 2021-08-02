@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./LibMath.sol";
 import "./LibPerpetuals.sol";
@@ -9,7 +9,6 @@ import "prb-math/contracts/PRBMathSD59x18.sol";
 
 library LibLiquidation {
     using LibMath for uint256;
-    using LibMath for int256;
     using PRBMathUD60x18 for uint256;
     using PRBMathSD59x18 for int256;
 
@@ -30,11 +29,11 @@ library LibLiquidation {
 
     /**
      * @return The amount a liquidator must escrow in order to liquidate a given position.
-     *         Calculated as currentMargin - (minMargin - currentMargin) * portion of whole position being liquidated
+     *         Calculated as (currentMargin - (minMargin - currentMargin)) * portion of whole position being liquidated
      * @dev Assumes params are WAD
      * @param minMargin User's minimum margin
      * @param currentMargin User's current margin
-     * @param amount Amount being liquidated
+     * @param amount Absolute amount being liquidated
      * @param totalBase User's total base
      */
     function calcEscrowLiquidationAmount(
@@ -44,7 +43,11 @@ library LibLiquidation {
         int256 totalBase
     ) internal pure returns (uint256) {
         int256 amountToEscrow = currentMargin - (minMargin.toInt256() - currentMargin);
-        int256 amountToEscrowProportional = PRBMathSD59x18.mul(amountToEscrow, PRBMathSD59x18.div(amount, totalBase));
+        int256 absoluteBase = PRBMathSD59x18.abs(totalBase);
+        int256 amountToEscrowProportional = PRBMathSD59x18.mul(
+            amountToEscrow,
+            PRBMathSD59x18.div(amount, absoluteBase)
+        );
         if (amountToEscrowProportional < 0) {
             return 0;
         }
@@ -131,7 +134,7 @@ library LibLiquidation {
             } else if (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
-            if (amountToReturn <= 0) {
+            if (amountToReturn == 0) {
                 return 0;
             }
 
@@ -147,7 +150,7 @@ library LibLiquidation {
 
     /**
      * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
-     * @dev Assumes params are WAD except liquidationGasCost
+     * @dev Assumes params are WAD except liquidationGasCost and minimumLeftoverGasCostMultiplier
      * @param updatedPosition The agent's position after being liquidated
      * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
      * @param liquidationGasCost Approximately how much gas is used to call liquidate()
