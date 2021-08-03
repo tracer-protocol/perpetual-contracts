@@ -14,7 +14,8 @@ contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
 
-    address public immutable collateralAsset; // Address of collateral asset
+    address public immutable collateralAsset; // address of collateral asset
+    uint256 public immutable collateralAssetDecimals; // decimals used by collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public immutable token; // token representation of a users holding in the pool
@@ -41,6 +42,7 @@ contract Insurance is IInsurance {
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
+        collateralAssetDecimals = tracer.quoteTokenDecimals();
     }
 
     /**
@@ -52,12 +54,11 @@ contract Insurance is IInsurance {
         IERC20 collateralToken = IERC20(collateralAsset);
 
         // convert token amount to WAD
-        uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
-        uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
+        uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, amount);
         require(collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount), "INS: Transfer failed");
 
         // amount in wad format after being converted from token format
-        uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
+        uint256 wadAmount = uint256(Balances.tokenToWad(collateralAssetDecimals, rawTokenAmount));
 
         // Update pool balances and user
         updatePoolAmount();
@@ -93,7 +94,7 @@ contract Insurance is IInsurance {
         );
 
         // convert token amount to raw amount from WAD
-        uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
+        uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, wadTokensToSend);
 
         // pool amount is always in WAD format
         publicCollateralAmount = publicCollateralAmount - wadTokensToSend;
@@ -138,7 +139,7 @@ contract Insurance is IInsurance {
      * @param amount The desired amount to take from the insurance pool
      */
     function drainPool(uint256 amount) external override onlyLiquidation {
-        IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
+        IERC20 tracerMarginToken = IERC20(collateralAsset);
 
         uint256 poolHoldings = getPoolHoldings();
 
@@ -175,8 +176,9 @@ contract Insurance is IInsurance {
             bufferCollateralAmount = bufferCollateralAmount - amount;
         }
 
-        tracerMarginToken.approve(address(tracer), amount);
-        tracer.deposit(amount);
+        uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, amount);
+        tracerMarginToken.approve(address(tracer), rawTokenAmount);
+        tracer.deposit(rawTokenAmount);
     }
 
     /**
