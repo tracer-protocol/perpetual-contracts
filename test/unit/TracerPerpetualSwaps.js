@@ -43,7 +43,7 @@ const setup = deployments.createFixture(async () => {
     await tracer.setInsuranceContract(insurance.address)
     await tracer.setLiquidationContract(liquidation.address)
 
-    pricing.smocked.currentFundingIndex.will.return(0)
+    pricing.smocked.lastUpdatedFundingIndex.will.return(0)
     // pricing.smocked.getFundingRate.will.return
     // pricing.smocked.getInsuranceFundingRate.will.return
     const traderDeployment = await deployments.get("Trader")
@@ -468,7 +468,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         context("if the account isn't up to date", async () => {
             beforeEach(async () => {
                 // mock funding index and rates
-                pricing.smocked.currentFundingIndex.will.return.with(2)
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
                 pricing.smocked.getFundingRate.will.return.with((index) => {
                     if (ethers.BigNumber.from("1").eq(index)) {
                         // User rate
