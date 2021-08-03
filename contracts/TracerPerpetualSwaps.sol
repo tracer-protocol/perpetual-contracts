@@ -246,8 +246,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @return Whether the two orders were able to be matched successfully
      */
     function matchOrders(
-        Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
+        Perpetuals.Order calldata order1,
+        Perpetuals.Order calldata order2,
         uint256 fillAmount
     ) external override onlyWhitelisted returns (bool) {
         require(order1.market == address(this), "TCR: Wrong market");
@@ -335,8 +335,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @return The new balances of the two accounts after the trade
      */
     function _executeTrade(
-        Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
+        Perpetuals.Order calldata order1,
+        Perpetuals.Order calldata order2,
         uint256 fillAmount,
         uint256 executionPrice
     ) internal view returns (Balances.Position memory, Balances.Position memory) {
