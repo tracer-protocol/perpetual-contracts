@@ -178,7 +178,7 @@ contract Insurance is IInsurance {
 
         uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, amount);
         tracerMarginToken.approve(address(tracer), rawTokenAmount);
-        tracer.deposit(rawTokenAmount);
+        tracer.deposit(amount);
     }
 
     /**
