@@ -470,26 +470,23 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     function settle(address account) public override {
         // Get account and global last updated indexes
         uint256 accountLastUpdatedIndex = balances[account].lastUpdatedIndex;
-        uint256 currentGlobalFundingIndex = pricingContract.currentFundingIndex();
+        uint256 globalLastUpdatedIndex = pricingContract.lastUpdatedFundingIndex();
         Balances.Account storage accountBalance = balances[account];
 
         // if this user has no positions, bring them in sync
         if (accountBalance.position.base == 0) {
             // set to the last fully established index
-            accountBalance.lastUpdatedIndex = currentGlobalFundingIndex;
+            accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
-        } else if (accountLastUpdatedIndex + 1 < currentGlobalFundingIndex) {
+        } else if (accountLastUpdatedIndex< globalLastUpdatedIndex) {
             // Only settle account if its last updated index was before the last established
             // global index this is since we reference the last global index
             // Get current and global funding statuses
-            uint256 lastEstablishedIndex = currentGlobalFundingIndex - 1;
-            // Note: global rates reference the last fully established rate (hence the -1), and not
-            // the current global rate. User rates reference the last saved user rate
-            Prices.FundingRateInstant memory currGlobalRate = pricingContract.getFundingRate(lastEstablishedIndex);
+            Prices.FundingRateInstant memory currGlobalRate = pricingContract.getFundingRate(globalLastUpdatedIndex);
             Prices.FundingRateInstant memory currUserRate = pricingContract.getFundingRate(accountLastUpdatedIndex);
 
             Prices.FundingRateInstant memory currInsuranceGlobalRate = pricingContract.getInsuranceFundingRate(
-                lastEstablishedIndex
+                globalLastUpdatedIndex
             );
 
             Prices.FundingRateInstant memory currInsuranceUserRate = pricingContract.getInsuranceFundingRate(
@@ -518,7 +515,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
             }
 
             // Update account index
-            accountBalance.lastUpdatedIndex = lastEstablishedIndex;
+            accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             emit Settled(account, accountBalance.position.quote);
         }
     }

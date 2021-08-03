@@ -31,8 +31,8 @@ contract Pricing is IPricing {
     // market's time value
     int256 public override timeValue;
 
-    // funding index
-    uint256 public override currentFundingIndex;
+    // the last established funding index
+    uint256 public override lastUpdatedFundingIndex;
 
     // timing variables
     uint256 public startLastHour;
@@ -66,7 +66,6 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
-        currentFundingIndex = 1;
     }
 
     /**
@@ -193,11 +192,11 @@ contract Pricing is IPricing {
         ) / FUNDING_RATE_OFFSET;
 
         // Create variable with value of old & new cumulative funding rate values
-        int256 oldCumulativeFundingRate = fundingRates[currentFundingIndex - 1].cumulativeFundingRate;
+        int256 oldCumulativeFundingRate = fundingRates[lastUpdatedFundingIndex].cumulativeFundingRate;
         int256 newCumulativeFundingRate = oldCumulativeFundingRate + fundingRate;
 
         // as above but with the cumulative insurance funding rates
-        int256 oldCumulativeIPoolFundingRate = insuranceFundingRates[currentFundingIndex - 1].cumulativeFundingRate;
+        int256 oldCumulativeIPoolFundingRate = insuranceFundingRates[lastUpdatedFundingIndex].cumulativeFundingRate;
         int256 newCumulativeIPoolFundingRate = oldCumulativeIPoolFundingRate + iPoolFundingRate;
 
         // Call setter functions on calculated variables
@@ -208,7 +207,7 @@ contract Pricing is IPricing {
         emit InsuranceFundingRateUpdated(iPoolFundingRate, newCumulativeIPoolFundingRate);
 
         // increment funding index
-        currentFundingIndex = currentFundingIndex + 1;
+        lastUpdatedFundingIndex = lastUpdatedFundingIndex + 1;
     }
 
     /**
@@ -240,7 +239,7 @@ contract Pricing is IPricing {
      * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
     function setFundingRate(int256 fundingRate, int256 cumulativeFundingRate) internal {
-        fundingRates[currentFundingIndex] = Prices.FundingRateInstant(
+        fundingRates[lastUpdatedFundingIndex + 1] = Prices.FundingRateInstant(
             block.timestamp,
             fundingRate,
             cumulativeFundingRate
@@ -253,7 +252,7 @@ contract Pricing is IPricing {
      * @param cumulativeFundingRate The cumulativeFundingRate, incremented each time the funding rate is updated
      */
     function setInsuranceFundingRate(int256 fundingRate, int256 cumulativeFundingRate) internal {
-        insuranceFundingRates[currentFundingIndex] = Prices.FundingRateInstant(
+        insuranceFundingRates[lastUpdatedFundingIndex + 1] = Prices.FundingRateInstant(
             block.timestamp,
             fundingRate,
             cumulativeFundingRate

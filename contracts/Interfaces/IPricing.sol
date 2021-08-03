@@ -10,7 +10,7 @@ interface IPricing {
 
     function getInsuranceFundingRate(uint256 index) external view returns (Prices.FundingRateInstant memory);
 
-    function currentFundingIndex() external view returns (uint256);
+    function lastUpdatedFundingIndex() external view returns (uint256);
 
     function fairPrice() external view returns (uint256);
 

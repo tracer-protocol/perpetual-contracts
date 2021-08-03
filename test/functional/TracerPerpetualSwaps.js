@@ -228,7 +228,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("50"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account2Expected = {
@@ -237,7 +237,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-40"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account3Expected = {
@@ -246,7 +246,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-10"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
 
@@ -273,9 +273,9 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(1)
 
-                // check funding index is 2
-                let fundingIndex = await pricing.currentFundingIndex()
-                expect(fundingIndex).to.equal(2)
+                // check funding index is 1
+                let fundingIndex = await pricing.lastUpdatedFundingIndex()
+                expect(fundingIndex).to.equal(1)
 
                 // check pricing state
                 // derivative price should be the price of the first created trade
@@ -296,7 +296,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // STATE 3:
                 // hour = 4
-                // funding index = 3
+                // funding index = 2
 
                 await traderInstance.executeTrade(
                     [mockSignedOrder1],
@@ -309,9 +309,9 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(3)
 
-                // check funding index is 3
-                fundingIndex = await pricing.currentFundingIndex()
-                expect(fundingIndex).to.equal(3)
+                // check funding index is 2
+                fundingIndex = await pricing.lastUpdatedFundingIndex()
+                expect(fundingIndex).to.equal(2)
 
                 // check pricing state
                 // derivative price should be the price of the first created trade
@@ -336,8 +336,8 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 let expectedFundingRate = ethers.utils.parseEther(
                     "0.016666666666666666"
                 )
-                fundingIndex = await pricing.currentFundingIndex()
-                let fundingRate = await pricing.fundingRates(fundingIndex - 1)
+                fundingIndex = await pricing.lastUpdatedFundingIndex()
+                let fundingRate = await pricing.fundingRates(fundingIndex)
 
                 // previous funding rate was 0, so instant and cumulative should be same
                 expect(fundingRate.cumulativeFundingRate).to.equal(
@@ -374,7 +374,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
             it("dismisses periods with no trades", async () => {
                 // STATE 1:
                 // hour = 0
-                // funding index = 1
+                // funding index = 0
 
                 // check pricing is in hour 0
                 let currentHour = await pricing.currentHour()
@@ -385,7 +385,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // STATE 2:
                 // hour = 2
-                // funding index = 1
+                // funding index = 0
 
                 // place a trade
                 await traderInstance.executeTrade(
@@ -406,7 +406,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("40"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
                 let account2Expected = {
@@ -415,7 +415,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                         base: ethers.utils.parseEther("-40"),
                     },
                     totalLeveragedValue: 0,
-                    lastUpdatedIndex: 1,
+                    lastUpdatedIndex: 0,
                     lastUpdatedGasPrice: lastUpdatedGas,
                 }
 
@@ -426,8 +426,8 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(2)
 
-                let fundingIndex = await pricing.currentFundingIndex()
-                expect(fundingIndex).to.equal(1)
+                let fundingIndex = await pricing.lastUpdatedFundingIndex()
+                expect(fundingIndex).to.equal(0)
 
                 // time travel forward 26 hours to check pricing state after no trades occurred
                 await forwardTime(26 * 60 * 60 + 100)
@@ -461,8 +461,8 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     "1250000000000000000"
                 )
 
-                fundingIndex = await pricing.currentFundingIndex()
-                expect(fundingIndex).to.equal(2)
+                fundingIndex = await pricing.lastUpdatedFundingIndex()
+                expect(fundingIndex).to.equal(1)
             })
         })
     })
