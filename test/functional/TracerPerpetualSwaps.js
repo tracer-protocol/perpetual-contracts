@@ -290,7 +290,6 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(twap[1].toString()).to.equal(
                     expectedDerivative.toString()
                 )
-
                 // time travel forward 2 hours without any trades happening
                 await forwardTime(120 * 60 + 100)
 

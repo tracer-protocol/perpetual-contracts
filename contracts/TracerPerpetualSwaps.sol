@@ -478,7 +478,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
             // set to the last fully established index
             accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
-        } else if (accountLastUpdatedIndex< globalLastUpdatedIndex) {
+        } else if (accountLastUpdatedIndex < globalLastUpdatedIndex) {
             // Only settle account if its last updated index was before the last established
             // global index this is since we reference the last global index
             // Get current and global funding statuses
