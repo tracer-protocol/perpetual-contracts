@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/LibMath.sol";
 import "./lib/LibLiquidation.sol";
@@ -27,6 +27,8 @@ contract Liquidation is ILiquidation, Ownable {
     address public immutable insuranceContract;
     address public immutable fastGasOracle;
 
+    uint256 private constant MAX_PERCENT = 1e18; // 100% as a decimal in WAD format, used to check valid parameters.
+
     // Receipt ID => LiquidationReceipt
     mapping(uint256 => LibLiquidation.LiquidationReceipt) public liquidationReceipts;
 
@@ -42,6 +44,9 @@ contract Liquidation is ILiquidation, Ownable {
         uint256 timestamp
     );
     event InvalidClaimOrder(uint256 indexed receiptId);
+    event ReleaseTimeUpdated(uint256 releaseTime);
+    event MinimumLeftoverGasCostMultiplierUpdated(uint256 minimumLeftoverGasCostMultiplier);
+    event MaxSlippageUpdated(uint256 maxSlippage);
 
     /**
      * @param _pricing Pricing.sol contract address
@@ -62,6 +67,7 @@ contract Liquidation is ILiquidation, Ownable {
         require(_tracer != address(0), "LIQ: _tracer = address(0)");
         require(_insuranceContract != address(0), "LIQ: _insuranceContract = address(0)");
         require(_fastGasOracle != address(0), "LIQ: _fastGasOracle = address(0)");
+        require(_maxSlippage <= MAX_PERCENT, "LIQ: Invalid max slippage");
         pricing = IPricing(_pricing);
         tracer = ITracerPerpetualSwaps(_tracer);
         insuranceContract = _insuranceContract;
@@ -109,9 +115,10 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId The ID number of the insurance receipt from which funds are being claimed from
      */
     function claimEscrow(uint256 receiptId) external override {
+        require(receiptId < currentLiquidationId, "LIQ: Invalid receipt");
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[receiptId];
         require(!receipt.escrowClaimed, "LIQ: Escrow claimed");
-        require(block.timestamp > receipt.releaseTime, "LIQ: Not released");
+        require(block.timestamp >= receipt.releaseTime, "LIQ: Not released");
 
         // Mark as claimed
         liquidationReceipts[receiptId].escrowClaimed = true;
@@ -157,11 +164,11 @@ contract Liquidation is ILiquidation, Ownable {
         require(amount > 0, "LIQ: Liquidation amount <= 0");
         require(tx.gasprice <= _getFastGasPrice(), "LIQ: GasPrice > FGasPrice");
         Balances.Position memory pos = Balances.Position(quote, base);
-        uint256 gasCost = gasPrice * tracer.LIQUIDATION_GAS_COST();
+        uint256 gasCost = gasPrice * tracer.liquidationGasCost();
 
         int256 currentMargin = Balances.margin(pos, price);
         uint256 minimumMargin = Balances.minimumMargin(pos, price, gasCost, tracer.trueMaxLeverage());
-        require(currentMargin <= 0 || uint256(currentMargin) < minimumMargin, "LIQ: Account above margin");
+        require(currentMargin <= 0 || uint256(currentMargin) <= minimumMargin, "LIQ: Account above margin");
         require(amount <= base.abs(), "LIQ: Liquidate Amount > Position");
 
         // calc funds to liquidate and move to Escrow
@@ -183,7 +190,7 @@ contract Liquidation is ILiquidation, Ownable {
         view
         returns (bool)
     {
-        uint256 liquidationGasCost = tracer.LIQUIDATION_GAS_COST();
+        uint256 liquidationGasCost = tracer.liquidationGasCost();
         uint256 price = pricing.fairPrice();
 
         return
@@ -266,7 +273,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
      */
     function calcUnitsSold(
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract,
         uint256 receiptId
     ) public override returns (uint256, uint256) {
@@ -322,7 +329,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function calcAmountToReturn(
         uint256 escrowId,
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract
     ) public override returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
@@ -388,7 +395,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimReceipt(
         uint256 receiptId,
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
@@ -398,23 +405,19 @@ contract Liquidation is ILiquidation, Ownable {
         require(!receipt.liquidatorRefundClaimed, "LIQ: Already claimed");
         liquidationReceipts[receiptId].liquidatorRefundClaimed = true;
         liquidationReceipts[receiptId].escrowClaimed = true;
-        require(block.timestamp < receipt.releaseTime, "LIQ: claim time passed");
+        require(block.timestamp <= receipt.releaseTime, "LIQ: claim time passed");
         require(tracer.tradingWhitelist(traderContract), "LIQ: Trader is not whitelisted");
 
         uint256 amountToReturn = calcAmountToReturn(receiptId, orders, traderContract);
-
-        if (amountToReturn > receipt.escrowedAmount) {
-            liquidationReceipts[receiptId].escrowedAmount = 0;
-        } else {
-            liquidationReceipts[receiptId].escrowedAmount = receipt.escrowedAmount - amountToReturn;
-        }
 
         // Keep track of how much was actually taken out of insurance
         uint256 amountTakenFromInsurance;
         uint256 amountToGiveToClaimant;
         uint256 amountToGiveToLiquidatee;
 
-        if (amountToReturn > receipt.escrowedAmount) {
+        if (amountToReturn >= receipt.escrowedAmount) {
+            liquidationReceipts[receiptId].escrowedAmount = 0;
+
             // Need to cover some loses with the insurance contract
             // Whatever is the remainder that can't be covered from escrow
             uint256 amountWantedFromInsurance = amountToReturn - receipt.escrowedAmount;
@@ -423,8 +426,11 @@ contract Liquidation is ILiquidation, Ownable {
                 receipt
             );
         } else {
+            uint256 remainingEscrow = receipt.escrowedAmount - amountToReturn;
+            liquidationReceipts[receiptId].escrowedAmount = remainingEscrow;
+
             amountToGiveToClaimant = amountToReturn;
-            amountToGiveToLiquidatee = receipt.escrowedAmount - amountToReturn;
+            amountToGiveToLiquidatee = remainingEscrow;
         }
 
         tracer.updateAccountsOnClaim(
@@ -452,6 +458,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setReleaseTime(uint256 _releaseTime) external onlyOwner {
         releaseTime = _releaseTime;
+        emit ReleaseTimeUpdated(releaseTime);
     }
 
     /**
@@ -461,14 +468,18 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function setMinimumLeftoverGasCostMultiplier(uint256 _minimumLeftoverGasCostMultiplier) external onlyOwner {
         minimumLeftoverGasCostMultiplier = _minimumLeftoverGasCostMultiplier;
+        emit MinimumLeftoverGasCostMultiplierUpdated(minimumLeftoverGasCostMultiplier);
     }
 
     /**
      * @notice Modifies the max slippage
      * @param _maxSlippage new max slippage
      */
+
     function setMaxSlippage(uint256 _maxSlippage) external override onlyOwner {
+        require(_maxSlippage <= MAX_PERCENT, "LIQ: Invalid max slippage");
         maxSlippage = _maxSlippage;
+        emit MaxSlippageUpdated(maxSlippage);
     }
 
     /**
