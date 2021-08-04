@@ -85,7 +85,6 @@ library LibLiquidation {
             PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
         );
 
-        // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
         if (liquidatedBase < 0) {
             _liquidatorBaseChange = amount * (-1);
             _liquidateeBaseChange = amount;

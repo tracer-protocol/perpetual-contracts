@@ -257,7 +257,6 @@ contract Pricing is IPricing {
         );
     }
 
-    // todo by using public variables lots of these can be removed
     /**
      * @return each variable of the fundingRate struct of a particular tracer at a particular funding rate index
      */
