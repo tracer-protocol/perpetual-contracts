@@ -569,6 +569,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
                 expect(await tracer.liquidationContract()).to.equal(deployer)
             })
+
+            it("emits an event", async () => {
+                expect(await tracer.setLiquidationContract(deployer))
+                    .to.emit(tracer, "LiquidationContractUpdated")
+                    .withArgs(deployer)
+            })
         })
 
         context("when called by someone who isn't the owner", async () => {
@@ -581,14 +587,42 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
     })
 
+    describe("setInsuranceContract", async () => {
+        context("when called by the owner", async () => {
+            it("sets a new insurance contract address", async () => {
+                tracer.setInsuranceContract(deployer)
+
+                expect(await tracer.insuranceContract()).to.equal(deployer)
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setInsuranceContract(deployer))
+                    .to.emit(tracer, "InsuranceContractUpdated")
+                    .withArgs(deployer)
+            })
+        })
+
+        context("when called by someone who isn't the owner", async () => {
+            it("reverts", async () => {
+                expect(
+                    tracer.connect(accounts[1]).setLiquidationContract(deployer)
+                ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+    })
+
     describe("setPricingContract", async () => {
         context("when called by the owner", async () => {
             it("sets a new pricing contract address", async () => {
-                tracer.setPricingContract(insurance.address)
+                tracer.setPricingContract(deployer)
 
-                expect(await tracer.pricingContract()).to.equal(
-                    insurance.address
-                )
+                expect(await tracer.pricingContract()).to.equal(deployer)
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setPricingContract(deployer))
+                    .to.emit(tracer, "PricingContractUpdated")
+                    .withArgs(deployer)
             })
         })
 
@@ -604,11 +638,15 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     describe("setGasOracle", async () => {
         context("when called by the owner", async () => {
             it("sets a new gas oracle contract address", async () => {
-                tracer.setGasOracle(insurance.address)
+                tracer.setGasOracle(deployer)
 
-                expect(await tracer.gasPriceOracle()).to.equal(
-                    insurance.address
-                )
+                expect(await tracer.gasPriceOracle()).to.equal(deployer)
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setGasOracle(deployer))
+                    .to.emit(tracer, "GasOracleUpdated")
+                    .withArgs(deployer)
             })
         })
 
@@ -758,6 +796,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
                 expect(await tracer.feeRate()).to.equal(newFeeRate)
             })
+
+            it("emits an event", async () => {
+                expect(await tracer.setFeeRate(ethers.utils.parseEther("0.5")))
+                    .to.emit(tracer, "FeeRateUpdated")
+                    .withArgs(ethers.utils.parseEther("0.5"))
+            })
         })
 
         context("when called by someone who isn't the owner", async () => {
@@ -769,16 +813,33 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
         })
+
+        context("when fee rate is greater than 100%", async () => {
+            it("reverts", async () => {
+                await expect(
+                    // Set fee rate to 101%
+                    tracer.setFeeRate(ethers.utils.parseEther("1.01"))
+                ).to.be.revertedWith("TCR: Fee rate > 100")
+            })
+        })
     })
 
     describe("setMaxLeverage", async () => {
         context("when called by the owner", async () => {
             it("sets the new max leverage", async () => {
-                await tracer.setMaxLeverage(ethers.utils.parseEther("2"))
+                await tracer.setMaxLeverage(ethers.utils.parseEther("12.5"))
 
                 expect(await tracer.maxLeverage()).to.equal(
-                    ethers.utils.parseEther("2")
+                    ethers.utils.parseEther("12.5")
                 )
+            })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setMaxLeverage(ethers.utils.parseEther("12.5"))
+                )
+                    .to.emit(tracer, "MaxLeverageUpdated")
+                    .withArgs(ethers.utils.parseEther("12.5"))
             })
         })
 
@@ -791,6 +852,18 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
         })
+
+        context(
+            "when max leverage is less than lowest max leverage",
+            async () => {
+                it("reverts", async () => {
+                    await expect(
+                        // lowest max leverage = 12.5
+                        tracer.setMaxLeverage(ethers.utils.parseEther("2"))
+                    ).to.be.revertedWith("TCR: Invalid max leverage")
+                })
+            }
+        )
     })
 
     describe("setFundingRateSensitivity", async () => {
@@ -803,6 +876,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 expect(await tracer.fundingRateSensitivity()).to.equal(
                     ethers.utils.parseEther("2")
                 )
+            })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setFundingRateSensitivity(
+                        ethers.utils.parseEther("2")
+                    )
+                )
+                    .to.emit(tracer, "FundingRateSensitivityUpdated")
+                    .withArgs(ethers.utils.parseEther("2"))
             })
         })
 
@@ -820,13 +903,21 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     describe("setDeleveragingCliff", async () => {
         context("when called by the owner", async () => {
             it("sets a new deleveraging cliff", async () => {
-                await tracer.setDeleveragingCliff(
-                    ethers.utils.parseEther("0.5")
-                )
+                await tracer.setDeleveragingCliff(ethers.utils.parseEther("2"))
 
                 expect(await tracer.deleveragingCliff()).to.equal(
-                    ethers.utils.parseEther("0.5")
+                    ethers.utils.parseEther("2")
                 )
+            })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setDeleveragingCliff(
+                        ethers.utils.parseEther("2")
+                    )
+                )
+                    .to.emit(tracer, "DeleveragingCliffUpdated")
+                    .withArgs(ethers.utils.parseEther("2"))
             })
         })
 
@@ -837,6 +928,28 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         .connect(accounts[1])
                         .setDeleveragingCliff(ethers.utils.parseEther("0.5"))
                 ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+
+        context(
+            "when deleveraging cliff is lower than pool switch stage",
+            async () => {
+                it("reverts", async () => {
+                    // insurance pool switch stage = 1
+                    await expect(
+                        tracer.setDeleveragingCliff(
+                            ethers.utils.parseEther("0.5")
+                        )
+                    ).to.be.revertedWith("TCR: Invalid delev cliff")
+                })
+            }
+        )
+
+        context("when deleveraging cliff is greater than 100%", async () => {
+            it("reverts", async () => {
+                await expect(
+                    tracer.setDeleveragingCliff(ethers.utils.parseEther("101"))
+                ).to.be.revertedWith("TCR: Delev cliff > 100%")
             })
         })
     })
@@ -852,6 +965,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     ethers.utils.parseEther("0.5")
                 )
             })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setLowestMaxLeverage(
+                        ethers.utils.parseEther("0.5")
+                    )
+                )
+                    .to.emit(tracer, "LowestMaxLeverageUpdated")
+                    .withArgs(ethers.utils.parseEther("0.5"))
+            })
         })
 
         context("when called by someone who isn't the owner", async () => {
@@ -863,6 +986,20 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
         })
+
+        context(
+            "when lowest max leverage is greater than max leverage",
+            async () => {
+                it("reverts", async () => {
+                    // max leverage = 12.5
+                    await expect(
+                        tracer.setLowestMaxLeverage(
+                            ethers.utils.parseEther("13")
+                        )
+                    ).to.be.revertedWith("TCR: Invalid low. max lev.")
+                })
+            }
+        )
     })
 
     describe("setInsurancePoolSwitchStage", async () => {
@@ -876,6 +1013,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     ethers.utils.parseEther("0.5")
                 )
             })
+
+            it("emits an event", async () => {
+                expect(
+                    await tracer.setInsurancePoolSwitchStage(
+                        ethers.utils.parseEther("0.5")
+                    )
+                )
+                    .to.emit(tracer, "InsurancePoolSwitchStageUpdated")
+                    .withArgs(ethers.utils.parseEther("0.5"))
+            })
         })
 
         context("when called by someone who isn't the owner", async () => {
@@ -886,6 +1033,44 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                         .setInsurancePoolSwitchStage(
                             ethers.utils.parseEther("0.5")
                         )
+                ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+
+        context(
+            "when pool switch is greater than deleveraging cliff",
+            async () => {
+                it("reverts", async () => {
+                    // deleveraging cliff = 20
+                    await expect(
+                        tracer.setInsurancePoolSwitchStage(
+                            ethers.utils.parseEther("25")
+                        )
+                    ).to.be.revertedWith("TCR: Invalid pool switch")
+                })
+            }
+        )
+    })
+
+    describe("setLiquidationGasCost", async () => {
+        context("when called by the owner", async () => {
+            it("sets the new liquidation gas cost", async () => {
+                await tracer.setLiquidationGasCost(1)
+
+                expect(await tracer.liquidationGasCost()).to.equal(1)
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setLiquidationGasCost(1))
+                    .to.emit(tracer, "LiquidationGasCostUpdated")
+                    .withArgs(1)
+            })
+        })
+
+        context("when called by someone who isn't the owner", async () => {
+            it("reverts", async () => {
+                await expect(
+                    tracer.connect(accounts[1]).setLiquidationGasCost(1)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
         })
@@ -928,6 +1113,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 expect(await tracer.tradingWhitelist(pricing.address)).to.equal(
                     false
                 )
+            })
+
+            it("emits an event", async () => {
+                expect(await tracer.setWhitelist(accounts[1].address, true))
+                    .to.emit(tracer, "WhitelistUpdated")
+                    .withArgs(accounts[1].address, true)
             })
         })
 

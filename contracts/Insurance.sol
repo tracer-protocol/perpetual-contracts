@@ -1,32 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 contract Insurance is IInsurance {
     using LibMath for uint256;
     using LibMath for int256;
-    ITracerPerpetualsFactory public perpsFactory;
 
-    address public collateralAsset; // Address of collateral asset
+    address public immutable collateralAsset; // Address of collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
-    address public token; // token representation of a users holding in the pool
+    address public immutable token; // token representation of a users holding in the pool
+
+    uint256 private constant ONE_TOKEN = 1e18; // Constant for 10**18, i.e. one token in WAD format; used for drainPool
+
+    // The insurance pool funding rate calculation can be refactored to have 0.00000570775
+    // as the constant in front; see getPoolFundingRate for the formula
+    // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
+    // 0.00000570775 as a WAD = 5.70775e12
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 5.70775e12;
+
+    // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
+    uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
-    event InsurancePoolDeployed(address indexed market, address indexed asset);
 
     constructor(address _tracer) {
         require(_tracer != address(0), "INS: _tracer = address(0)");
@@ -34,8 +41,6 @@ contract Insurance is IInsurance {
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
-
-        emit InsurancePoolDeployed(_tracer, tracer.tracerQuoteToken());
     }
 
     /**
@@ -49,7 +54,7 @@ contract Insurance is IInsurance {
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
-        collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
+        require(collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount), "INS: Transfer failed");
 
         // amount in wad format after being converted from token format
         uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
@@ -95,7 +100,7 @@ contract Insurance is IInsurance {
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, rawTokenAmount);
+        require(collateralToken.transfer(msg.sender, rawTokenAmount), "INS: Transfer failed");
 
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
@@ -132,17 +137,17 @@ contract Insurance is IInsurance {
      *      This was done because in such an emergency situation, we want to recover as much as possible
      * @param amount The desired amount to take from the insurance pool
      */
-    function drainPool(uint256 amount) external override onlyLiquidation() {
+    function drainPool(uint256 amount) external override onlyLiquidation {
         IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
 
         uint256 poolHoldings = getPoolHoldings();
 
         if (amount >= poolHoldings) {
             // If public collateral left after draining is less than 1 token, we want to keep it at 1 token
-            if (publicCollateralAmount > 10**18) {
+            if (publicCollateralAmount > ONE_TOKEN) {
                 // Leave 1 token for the public pool
-                amount = poolHoldings - 10**18;
-                publicCollateralAmount = 10**18;
+                amount = poolHoldings - ONE_TOKEN;
+                publicCollateralAmount = ONE_TOKEN;
             } else {
                 amount = bufferCollateralAmount;
             }
@@ -150,14 +155,14 @@ contract Insurance is IInsurance {
             // Drain buffer
             bufferCollateralAmount = 0;
         } else if (amount > bufferCollateralAmount) {
-            if (publicCollateralAmount < 10**18) {
+            if (publicCollateralAmount < ONE_TOKEN) {
                 // If there's not enough public collateral for there to be 1 token, cap amount being drained at the buffer
                 amount = bufferCollateralAmount;
-            } else if (poolHoldings - amount < 10**18) {
+            } else if (poolHoldings - amount < ONE_TOKEN) {
                 // If the amount of collateral left in the public insurance would be less than 1 token, cap amount being drained
                 // from the public insurance such that 1 token is left in the public buffer
-                amount = poolHoldings - 10**18;
-                publicCollateralAmount = 10**18;
+                amount = poolHoldings - ONE_TOKEN;
+                publicCollateralAmount = ONE_TOKEN;
             } else {
                 // Take out what you need from the public pool; there's enough for there to be >= 1 token left
                 publicCollateralAmount = publicCollateralAmount - (amount - bufferCollateralAmount);
@@ -194,7 +199,7 @@ contract Insurance is IInsurance {
      * @dev The target amount is 1% of the leveraged notional value of the tracer being insured.
      */
     function getPoolTarget() public view override returns (uint256) {
-        return tracer.leveragedNotionalValue() / 100;
+        return PRBMathUD60x18.mul(tracer.leveragedNotionalValue(), INSURANCE_POOL_TARGET_PERCENT);
     }
 
     /**
@@ -203,11 +208,6 @@ contract Insurance is IInsurance {
      *      (182.648 / 8) * (5 * ((fundTarget - fundHoldings) / (fundTarget * 10_000))) ** 2
      */
     function getPoolFundingRate() external view override returns (uint256) {
-        // Above equation can be refactored to have 0.000005707750000 as the constant in front
-        // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.000005707750000
-        // 0.000005707750000 as a WAD = 570775 * (10 ** 7)
-        uint256 multiplyFactor = 570775 * (10**7);
-
         uint256 poolHoldings = getPoolHoldings();
         uint256 poolTarget = getPoolTarget();
 
@@ -224,7 +224,7 @@ contract Insurance is IInsurance {
 
         uint256 ratio = PRBMathUD60x18.div(numerator, denominator);
 
-        return PRBMathUD60x18.mul(multiplyFactor, ratio);
+        return PRBMathUD60x18.mul(INSURANCE_FUNDING_RATE_FACTOR, ratio);
     }
 
     modifier onlyLiquidation() {

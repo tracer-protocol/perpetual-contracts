@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./LibMath.sol";
 import "./LibBalances.sol";
@@ -8,6 +8,9 @@ import "prb-math/contracts/PRBMathSD59x18.sol";
 
 library Prices {
     using LibMath for uint256;
+
+    uint256 private constant EIGHT_HOURS = 8; // Needed for TWAP calculations
+    int256 private constant NINETY_DAYS = 90; // Needed for daily time value calculation
 
     struct FundingRateInstant {
         uint256 timestamp;
@@ -43,26 +46,26 @@ library Prices {
      * @return Time value for the 24 hour period
      */
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) internal pure returns (int256) {
-        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / 90;
+        return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / NINETY_DAYS;
     }
 
     /**
-     * @notice Calculate the average price of trades in a PriceInstant instance
+     * @notice Calculate the average price of trades in a PriceInstant instance.
+     * @notice Returns max integer (uint256) if there were no trades in the instance.
      * @param price Current cumulative price and number of trades in a time period
-     * @return Average price for given instance
+     * @return Average price for given instance.
      */
     function averagePrice(PriceInstant memory price) internal pure returns (uint256) {
-        // todo double check safety of this.
-        // average price == 0 is not neccesarily the
-        // same as no trades in average
         if (price.trades == 0) {
-            return 0;
+            return type(uint256).max;
         }
-        return price.cumulativePrice / price.trades;
+
+        return PRBMathUD60x18.div(price.cumulativePrice, price.trades);
     }
 
     /**
      * @notice Calculates average price over a time period of 24 hours
+     * @notice If no trades occurred in last 24 hours, max integer (uint256) is returned
      * @dev Ignores hours where the number of trades is zero
      * @param prices Array of PriceInstant instances in the 24 hour period
      * @return Average price in the time period (non-weighted)
@@ -81,6 +84,11 @@ library Prices {
                 averagePrices[j] = averagePrice(currPrice);
                 j++;
             }
+        }
+
+        // return max integer if no trades occurred in the last 24 hours
+        if (j == 0) {
+            return type(uint256).max;
         }
 
         return LibMath.meanN(averagePrices, j);
@@ -130,8 +138,8 @@ library Prices {
         uint256 cumulativeDerivative = 0;
         uint256 cumulativeUnderlying = 0;
 
-        for (uint256 i = 0; i < 8; i++) {
-            uint256 currTimeWeight = 8 - i;
+        for (uint256 i = 0; i < EIGHT_HOURS; i++) {
+            uint256 currTimeWeight = EIGHT_HOURS - i;
             // if hour < i loop back towards 0 from 23.
             // otherwise move from hour towards 0
             uint256 j = hour < i ? 24 - i + hour : hour - i;

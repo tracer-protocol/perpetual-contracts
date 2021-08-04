@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "../TracerPerpetualSwaps.sol";
 import "../Interfaces/deployers/IPerpsDeployer.sol";
@@ -20,11 +20,25 @@ contract PerpsDeployerV1 is IPerpsDeployer {
             address _feeReceiver,
             uint256 _deleveragingCliff,
             uint256 _lowestMaxLeverage,
-            uint256 _insurancePoolSwitchStage
+            uint256 _insurancePoolSwitchStage,
+            uint256 _liquidationGasCost
         ) = abi.decode(
-            _data,
-            (bytes32, address, uint256, address, uint256, uint256, uint256, address, uint256, uint256, uint256)
-        );
+                _data,
+                (
+                    bytes32,
+                    address,
+                    uint256,
+                    address,
+                    uint256,
+                    uint256,
+                    uint256,
+                    address,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256
+                )
+            );
         require(_tracerQuoteToken != address(0), "TCRDeploy: _tracerQuoteToken = 0");
         require(_gasPriceOracle != address(0), "TCRDeploy: _gasPriceOracle = 0");
         require(_feeReceiver != address(0), "TCRDeploy: _feeReceiver = 0");
@@ -39,7 +53,8 @@ contract PerpsDeployerV1 is IPerpsDeployer {
             _feeReceiver,
             _deleveragingCliff,
             _lowestMaxLeverage,
-            _insurancePoolSwitchStage
+            _insurancePoolSwitchStage,
+            _liquidationGasCost
         );
         tracer.transferOwnership(msg.sender);
         return address(tracer);

@@ -6,10 +6,6 @@ module.exports = async function (hre) {
     const { deployer, acc1, acc2, acc3 } = await getNamedAccounts()
     const signers = await ethers.getSigners()
     // deploy libs
-    const safetyWithdraw = await deploy("SafetyWithdraw", {
-        from: deployer,
-        log: true,
-    })
     const libMath = await deploy("LibMath", {
         from: deployer,
         log: true,
@@ -47,20 +43,20 @@ module.exports = async function (hre) {
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     // Gas price oracle => fast gas / gwei
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     await execute(
@@ -99,24 +95,16 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    // adapter converting ETH / USD to WAD
-    const ethOracleAdapter = await deploy("EthOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [ethOracle.address],
-        contract: "OracleAdapter",
-    })
-
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracleAdapter.address, gasOracle.address],
+        args: [ethOracle.address, gasOracle.address],
         contract: "GasOracle",
     })
 
     // deploy token with an initial supply of 100000
     const token = await deploy("QuoteToken", {
-        args: [ethers.utils.parseEther("10000000")], //10 mil supply
+        args: [ethers.utils.parseEther("10000000"), "Test Token", "TST", 18], //10 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
@@ -164,7 +152,6 @@ module.exports = async function (hre) {
         libraries: {
             LibMath: libMath.address,
             Balances: libBalances.address,
-            SafetyWithdraw: safetyWithdraw.address,
             Insurance: libInsurance.address,
         },
         log: true,
@@ -185,7 +172,6 @@ module.exports = async function (hre) {
         libraries: {
             Perpetuals: libPerpetuals.address,
             LibMath: libMath.address,
-            SafetyWithdraw: safetyWithdraw.address,
             Balances: libBalances.address,
             Prices: libPricing.address,
         },
@@ -212,7 +198,8 @@ module.exports = async function (hre) {
     let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let liquidationGasCost = 63516
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
@@ -227,6 +214,7 @@ module.exports = async function (hre) {
             "uint256", // _deleveragingCliff
             "uint256", // _lowestMaxLeverage
             "uint256", // _insurancePoolSwitchStage
+            "uint256", // _liquidationGasCost
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
@@ -239,7 +227,8 @@ module.exports = async function (hre) {
             deployer,
             deleveragingCliff,
             lowestMaxLeverage,
-            _insurancePoolSwitchStage,
+            insurancePoolSwitchStage,
+            liquidationGasCost,
         ]
     )
 

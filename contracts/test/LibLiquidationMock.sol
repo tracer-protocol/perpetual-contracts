@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "../lib/LibLiquidation.sol";
 import "../lib/LibPerpetuals.sol";
@@ -29,7 +29,7 @@ library LibLiquidationMock {
         )
     {
         (_liquidatorQuoteChange, _liquidatorBaseChange, _liquidateeQuoteChange, _liquidateeBaseChange) = LibLiquidation
-        .liquidationBalanceChanges(liquidatedBase, liquidatedQuote, amount);
+            .liquidationBalanceChanges(liquidatedBase, liquidatedQuote, amount);
     }
 
     function calculateSlippage(

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./LibMath.sol";
 import "./LibPerpetuals.sol";
@@ -29,7 +29,7 @@ library LibLiquidation {
 
     /**
      * @return The amount a liquidator must escrow in order to liquidate a given position.
-     *         Calculated as currentMargin - (minMargin - currentMargin) * portion of whole position being liquidated
+     *         Calculated as (currentMargin - (minMargin - currentMargin)) * portion of whole position being liquidated
      * @dev Assumes params are WAD
      * @param minMargin User's minimum margin
      * @param currentMargin User's current margin
@@ -85,7 +85,6 @@ library LibLiquidation {
             PRBMathSD59x18.div(amount, PRBMathSD59x18.abs(liquidatedBase))
         );
 
-        // todo with the below * -1, note ints can overflow as 2^-127 is valid but 2^127 is not.
         if (liquidatedBase < 0) {
             _liquidatorBaseChange = amount * (-1);
             _liquidateeBaseChange = amount;
@@ -134,7 +133,7 @@ library LibLiquidation {
             } else if (avgPrice > receipt.price && receipt.liquidationSide == Perpetuals.Side.Short) {
                 amountToReturn = amountSoldFor - amountExpectedFor;
             }
-            if (amountToReturn <= 0) {
+            if (amountToReturn == 0) {
                 return 0;
             }
 
@@ -150,7 +149,7 @@ library LibLiquidation {
 
     /**
      * @return true if the margin is greater than 10x liquidation gas cost (in quote tokens)
-     * @dev Assumes params are WAD except liquidationGasCost
+     * @dev Assumes params are WAD except liquidationGasCost and minimumLeftoverGasCostMultiplier
      * @param updatedPosition The agent's position after being liquidated
      * @param lastUpdatedGasPrice The last updated gas price of the account to be liquidated
      * @param liquidationGasCost Approximately how much gas is used to call liquidate()

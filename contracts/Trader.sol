@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
-import "./lib/LibPerpetuals.sol";
-import "./lib/LibBalances.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader is ITrader {
+contract Trader is ITrader, ReentrancyGuard {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -25,7 +24,7 @@ contract Trader is ITrader {
             "Order(address maker,address market,uint256 price,uint256 amount,uint256 side,uint256 expires,uint256 created)"
         );
 
-    uint256 public constant override chainId = 1337; // Changes per chain
+    uint256 public constant override chainId = 42; // Changes per chain
     bytes32 public immutable override EIP712_DOMAIN;
 
     // order hash to memory
@@ -50,11 +49,11 @@ contract Trader is ITrader {
         );
     }
 
-    function filledAmount(Perpetuals.Order memory order) external view override returns (uint256) {
+    function filledAmount(Perpetuals.Order calldata order) external view override returns (uint256) {
         return filled[Perpetuals.orderId(order)];
     }
 
-    function getAverageExecutionPrice(Perpetuals.Order memory order) external view override returns (uint256) {
+    function getAverageExecutionPrice(Perpetuals.Order calldata order) external view override returns (uint256) {
         return averageExecutionPrice[Perpetuals.orderId(order)];
     }
 
@@ -64,9 +63,10 @@ contract Trader is ITrader {
      * @param makers An array of signed make orders
      * @param takers An array of signed take orders
      */
-    function executeTrade(Types.SignedLimitOrder[] memory makers, Types.SignedLimitOrder[] memory takers)
+    function executeTrade(Types.SignedLimitOrder[] calldata makers, Types.SignedLimitOrder[] calldata takers)
         external
         override
+        nonReentrant
     {
         require(makers.length == takers.length, "TDR: Lengths differ");
 
@@ -78,8 +78,8 @@ contract Trader is ITrader {
         for (uint256 i = 0; i < n; i++) {
             // verify each order individually and together
             if (
-                !isValidSignature(makers[i].order.maker, makers[i]) ||
-                !isValidSignature(takers[i].order.maker, takers[i]) ||
+                !verifySignature(makers[i].order.maker, makers[i]) ||
+                !verifySignature(takers[i].order.maker, takers[i]) ||
                 !isValidPair(takers[i], makers[i]) ||
                 !areValidAddresses(makers[i], takers[i])
             ) {
@@ -100,6 +100,21 @@ contract Trader is ITrader {
 
             uint256 fillAmount = Balances.fillAmount(makeOrder, makeOrderFilled, takeOrder, takeOrderFilled);
 
+            // match orders
+            // referencing makeOrder.market is safe due to above require
+            // make low level call to catch revert
+            (bool success, bytes memory data) = makeOrder.market.call(
+                abi.encodePacked(
+                    ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
+                    abi.encode(makeOrder, takeOrder, fillAmount)
+                )
+            );
+
+            // ignore orders that cannot be executed
+            if (!success) continue;
+            bool orderStatus = abi.decode(data, (bool));
+            if (!orderStatus) continue;
+
             uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
             uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
                 makeOrderFilled,
@@ -113,21 +128,6 @@ contract Trader is ITrader {
                 fillAmount,
                 executionPrice
             );
-
-            // match orders
-            // referencing makeOrder.market is safe due to above require
-            // make low level call to catch revert
-            // todo this could be succeptible to re-entrancy as
-            // market is never verified
-            (bool success, ) = makeOrder.market.call(
-                abi.encodePacked(
-                    ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
-                    abi.encode(makeOrder, takeOrder, fillAmount)
-                )
-            );
-
-            // ignore orders that cannot be executed
-            if (!success) continue;
 
             // update order state
             filled[makerOrderId] = makeOrderFilled + fillAmount;
@@ -145,7 +145,7 @@ contract Trader is ITrader {
      * @dev Should only be called with a verified signedOrder and with index
      *      < signedOrders.length
      */
-    function grabOrder(Types.SignedLimitOrder[] memory signedOrders, uint256 index)
+    function grabOrder(Types.SignedLimitOrder[] calldata signedOrders, uint256 index)
         internal
         returns (Perpetuals.Order memory)
     {
@@ -168,7 +168,7 @@ contract Trader is ITrader {
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
-    function hashOrder(Perpetuals.Order memory order) public view override returns (bytes32) {
+    function hashOrder(Perpetuals.Order calldata order) public view override returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(
@@ -198,24 +198,13 @@ contract Trader is ITrader {
     }
 
     /**
-     * @notice Verifies a given limit order has been signed by a given signer and has a correct nonce
-     * @param signer The signer who is being verified against the order
-     * @param signedOrder The signed order to verify the signature of
-     * @return if an order has a valid signature and a valid nonce
-     * @dev does not throw if the signature is invalid.
-     */
-    function isValidSignature(address signer, Types.SignedLimitOrder memory signedOrder) internal view returns (bool) {
-        return verifySignature(signer, signedOrder);
-    }
-
-    /**
      * @notice Validates a given pair of signed orders against each other
      * @param signedOrder1 the first signed order
      * @param signedOrder2 the second signed order
      * @return if signedOrder1 is compatible with signedOrder2
      * @dev does not throw if pairs are invalid
      */
-    function isValidPair(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
+    function isValidPair(Types.SignedLimitOrder calldata signedOrder1, Types.SignedLimitOrder calldata signedOrder2)
         internal
         pure
         returns (bool)
@@ -223,11 +212,10 @@ contract Trader is ITrader {
         return (signedOrder1.order.market == signedOrder2.order.market);
     }
 
-    function areValidAddresses(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
-        internal
-        pure
-        returns (bool)
-    {
+    function areValidAddresses(
+        Types.SignedLimitOrder calldata signedOrder1,
+        Types.SignedLimitOrder calldata signedOrder2
+    ) internal pure returns (bool) {
         bool order1Market = signedOrder1.order.market != address(0);
         bool order2Market = signedOrder2.order.market != address(0);
         bool order1Maker = signedOrder1.order.maker != address(0);
@@ -241,7 +229,7 @@ contract Trader is ITrader {
      * @param signedOrder The unsigned order to verify the signature of
      * @return true is signer has signed the order, else false
      */
-    function verifySignature(address signer, Types.SignedLimitOrder memory signedOrder)
+    function verifySignature(address signer, Types.SignedLimitOrder calldata signedOrder)
         public
         view
         override
