@@ -113,7 +113,7 @@ contract TraderMock is ITrader, ReentrancyGuard {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
-            (bool success, ) = makeOrder.market.call(
+            (bool success, bytes memory data) = makeOrder.market.call(
                 abi.encodePacked(
                     ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
                     abi.encode(makeOrder, takeOrder, fillAmount)
@@ -122,6 +122,8 @@ contract TraderMock is ITrader, ReentrancyGuard {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+            bool orderStatus = abi.decode(data, (bool));
+            if (!orderStatus) continue;
 
             // update order state
             filled[makerOrderId] = makeOrderFilled + fillAmount;

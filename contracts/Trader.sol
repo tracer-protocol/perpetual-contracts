@@ -103,7 +103,7 @@ contract Trader is ITrader, ReentrancyGuard {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
-            (bool success, ) = makeOrder.market.call(
+            (bool success, bytes memory data) = makeOrder.market.call(
                 abi.encodePacked(
                     ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
                     abi.encode(makeOrder, takeOrder, fillAmount)
@@ -112,6 +112,8 @@ contract Trader is ITrader, ReentrancyGuard {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+            bool orderStatus = abi.decode(data, (bool));
+            if (!orderStatus) continue;
 
             uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
             uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
