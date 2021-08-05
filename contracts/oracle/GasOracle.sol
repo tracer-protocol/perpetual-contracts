@@ -66,11 +66,11 @@ contract GasOracle is IOracle, Ownable {
         return uint256(price) * scaler;
     }
 
-    function setGasOracle(address _gasOracle) public nonZeroAddress(_gasOracle) onlyOwner {
+    function setGasOracle(address _gasOracle) external nonZeroAddress(_gasOracle) onlyOwner {
         gasOracle = IChainlinkOracle(_gasOracle);
     }
 
-    function setPriceOracle(address _priceOracle) public nonZeroAddress(_priceOracle) onlyOwner {
+    function setPriceOracle(address _priceOracle) external nonZeroAddress(_priceOracle) onlyOwner {
         priceOracle = IChainlinkOracle(_priceOracle);
     }
 

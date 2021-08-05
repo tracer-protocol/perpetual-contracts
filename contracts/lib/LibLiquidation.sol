@@ -65,7 +65,7 @@ library LibLiquidation {
         int256 liquidatedQuote, //10^18
         int256 amount //10^18
     )
-        public
+        external
         pure
         returns (
             int256 _liquidatorQuoteChange,
