@@ -93,7 +93,7 @@ contract Pricing is IPricing {
             uint256 elapsedHours = (block.timestamp - startLastHour) / 3600;
 
             // update the current hour and enter the new price
-            currentHour = (currentHour + uint8(elapsedHours)) % 24;
+            currentHour = uint8((uint256(currentHour) + elapsedHours) % 24);
             createPriceEntry(tradePrice, currentOraclePrice, fillAmount, currentHour);
 
             // if more than one hour passed, update any skipped hour prices as 0 to remove stale entries
