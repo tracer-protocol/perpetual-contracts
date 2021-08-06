@@ -1,7 +1,6 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
-const zeroAddress = "0x0000000000000000000000000000000000000000"
 const MAX_INT256 = ethers.BigNumber.from(2).pow(255).sub(1)
 const calcExpectedTWAPs = (oraclePrices, tracerPrices, hour) => {
     let cumulativeDerivative = ethers.BigNumber.from("0")
@@ -635,12 +634,84 @@ describe("Unit tests: LibPrices.sol", function () {
             it("returns the correct insurance/user positions", async () => {
                 let userPosition = [
                     ethers.utils.parseEther("0"),
+                    ethers.utils.parseEther("110"),
+                ] // quote, base
+                let insurancePosition = [
+                    ethers.utils.parseEther("0"),
                     ethers.utils.parseEther("0"),
                 ] // quote, base
-                let insurancePosition = [] // quote, base
-                let insuranceGlobalRate = [] // timestamp, fundingRate, cumulativeFundingRate
-                let insuranceUserRate = [] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceGlobalRate = [0, ethers.utils.parseEther("10"), 0] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceUserRate = [0, ethers.utils.parseEther("5"), 0] // timestamp, fundingRate, cumulativeFundingRate
                 let totalLeveragedValue = ethers.utils.parseEther("100")
+
+                // expected change in quote = (insurance rate - user rate) * leveraged value
+                // (10 - 5) * 100 = 500
+                let expectedUserPosition = [
+                    ethers.utils.parseEther("-500"),
+                    ethers.utils.parseEther("110"),
+                ]
+                let expectedInsurancePosition = [
+                    ethers.utils.parseEther("500"),
+                    ethers.utils.parseEther("0"),
+                ]
+
+                let result = await libPrices.applyInsurance(
+                    userPosition,
+                    insurancePosition,
+                    insuranceGlobalRate,
+                    insuranceUserRate,
+                    totalLeveragedValue
+                )
+                let newUserPosition = result[0]
+                let newInsurancePosition = result[1]
+
+                await expect(newUserPosition[0]).to.be.equal(
+                    expectedUserPosition[0]
+                )
+                await expect(newUserPosition[1]).to.be.equal(
+                    expectedUserPosition[1]
+                )
+                await expect(newInsurancePosition[0]).to.be.equal(
+                    expectedInsurancePosition[0]
+                )
+                await expect(newInsurancePosition[1]).to.be.equal(
+                    expectedInsurancePosition[1]
+                )
+            })
+        })
+
+        context("when insurance funding has decreased", async () => {
+            it("does not change user positions", async () => {
+                let userPosition = [
+                    ethers.utils.parseEther("0"),
+                    ethers.utils.parseEther("110"),
+                ] // quote, base
+                let insurancePosition = [
+                    ethers.utils.parseEther("0"),
+                    ethers.utils.parseEther("0"),
+                ] // quote, base
+                let insuranceGlobalRate = [0, ethers.utils.parseEther("2"), 0] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceUserRate = [0, ethers.utils.parseEther("5"), 0] // timestamp, fundingRate, cumulativeFundingRate
+                let totalLeveragedValue = ethers.utils.parseEther("100")
+
+                let result = await libPrices.applyInsurance(
+                    userPosition,
+                    insurancePosition,
+                    insuranceGlobalRate,
+                    insuranceUserRate,
+                    totalLeveragedValue
+                )
+                let newUserPosition = result[0]
+                let newInsurancePosition = result[1]
+
+                await expect(newUserPosition[0]).to.be.equal(userPosition[0])
+                await expect(newUserPosition[1]).to.be.equal(userPosition[1])
+                await expect(newInsurancePosition[0]).to.be.equal(
+                    insurancePosition[0]
+                )
+                await expect(newInsurancePosition[1]).to.be.equal(
+                    insurancePosition[1]
+                )
             })
         })
     })
