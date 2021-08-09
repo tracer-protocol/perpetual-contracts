@@ -221,7 +221,7 @@ library Prices {
         uint256 totalLeveragedValue
     ) internal pure returns (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) {
         int256 insuranceDelta = PRBMathSD59x18.mul(
-            insuranceGlobalRate.fundingRate - insuranceUserRate.fundingRate,
+            insuranceGlobalRate.cumulativeFundingRate - insuranceUserRate.cumulativeFundingRate,
             totalLeveragedValue.toInt256()
         );
 

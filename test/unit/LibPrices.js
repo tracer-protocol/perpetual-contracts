@@ -640,8 +640,8 @@ describe("Unit tests: LibPrices.sol", function () {
                     ethers.utils.parseEther("0"),
                     ethers.utils.parseEther("0"),
                 ] // quote, base
-                let insuranceGlobalRate = [0, ethers.utils.parseEther("10"), 0] // timestamp, fundingRate, cumulativeFundingRate
-                let insuranceUserRate = [0, ethers.utils.parseEther("5"), 0] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceGlobalRate = [0, 0, ethers.utils.parseEther("10")] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceUserRate = [0, 0, ethers.utils.parseEther("5")] // timestamp, fundingRate, cumulativeFundingRate
                 let totalLeveragedValue = ethers.utils.parseEther("100")
 
                 // expected change in quote = (insurance rate - user rate) * leveraged value
@@ -690,8 +690,8 @@ describe("Unit tests: LibPrices.sol", function () {
                     ethers.utils.parseEther("0"),
                     ethers.utils.parseEther("0"),
                 ] // quote, base
-                let insuranceGlobalRate = [0, ethers.utils.parseEther("2"), 0] // timestamp, fundingRate, cumulativeFundingRate
-                let insuranceUserRate = [0, ethers.utils.parseEther("5"), 0] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceGlobalRate = [0, 0, ethers.utils.parseEther("2")] // timestamp, fundingRate, cumulativeFundingRate
+                let insuranceUserRate = [0, 0, ethers.utils.parseEther("5")] // timestamp, fundingRate, cumulativeFundingRate
                 let totalLeveragedValue = ethers.utils.parseEther("100")
 
                 let result = await libPrices.applyInsurance(
