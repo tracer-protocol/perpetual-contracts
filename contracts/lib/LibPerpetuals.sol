@@ -119,37 +119,6 @@ library Perpetuals {
     }
 
     /**
-     * @notice Checks if two orders can be matched given their price, side of trade
-     *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
-     *  markets being the same, makers being different, and time validation.
-     * @param a The first order
-     * @param aFilled Amount of the first order that has already been filled
-     * @param b The second order
-     * @param bFilled Amount of the second order that has already been filled
-     */
-    function canMatch(
-        Order memory a,
-        uint256 aFilled,
-        Order memory b,
-        uint256 bFilled
-    ) internal view returns (bool) {
-        uint256 currentTime = block.timestamp;
-
-        /* predicates */
-        bool opposingSides = a.side != b.side;
-        // long order must have a price >= short order
-        bool pricesMatch = a.side == Side.Long ? a.price >= b.price : a.price <= b.price;
-        bool marketsMatch = a.market == b.market;
-        bool makersDifferent = a.maker != b.maker;
-        bool notExpired = currentTime < a.expires && currentTime < b.expires;
-        bool notFilled = aFilled < a.amount && bFilled < b.amount;
-        bool createdBefore = currentTime >= a.created && currentTime >= b.created;
-
-        return
-            pricesMatch && makersDifferent && marketsMatch && opposingSides && notExpired && notFilled && createdBefore;
-    }
-
-    /**
      * @notice Gets the execution price of two orders, given their creation times
      * @param a The first order
      * @param b The second order
