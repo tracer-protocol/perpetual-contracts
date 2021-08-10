@@ -71,6 +71,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         bytes32 shortOrderId
     );
     event FailedOrders(
+        Perpetuals.OrderMatchingResult status,
         address indexed long,
         address indexed short,
         uint256 amount,
@@ -246,13 +247,30 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @return Whether the two orders were able to be matched successfully
      */
     function matchOrders(
-        Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
+        Perpetuals.Order calldata order1,
+        Perpetuals.Order calldata order2,
         uint256 fillAmount
     ) external override onlyWhitelisted returns (bool) {
         require(order1.market == address(this), "TCR: Wrong market");
+        // ensure that order 1 is long and order 2 is short
+        if (order2.side == Perpetuals.Side.Long) {
+            (order1, order2) = (order2, order1);
+        }
+
         bytes32 order1Id = Perpetuals.orderId(order1);
         bytes32 order2Id = Perpetuals.orderId(order2);
+
+        // validate orders can match
+        Perpetuals.OrderMatchingResult matchingResult = Perpetuals.canMatch(
+            order1,
+            ITrader(msg.sender).filled(order1Id),
+            order2,
+            ITrader(msg.sender).filled(order2Id)
+        );
+        if (matchingResult != Perpetuals.OrderMatchingResult.VALID) {
+            emit FailedOrders(matchingResult, order1.maker, order2.maker, fillAmount, order1Id, order2Id);
+            return false;
+        }
 
         uint256 executionPrice = Perpetuals.getExecutionPrice(order1, order2);
 
@@ -267,36 +285,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
             fillAmount,
             executionPrice
         );
-        uint256 _fairPrice = pricingContract.fairPrice();
-        uint256 _trueMaxLeverage = trueMaxLeverage();
-        // validate orders can match, and outcome state is valid
-        if (
-            !Perpetuals.canMatch(
-                order1,
-                ITrader(msg.sender).filled(order1Id),
-                order2,
-                ITrader(msg.sender).filled(order2Id)
-            ) ||
-            !Balances.marginIsValid(
-                newPos1,
-                balances[order1.maker].lastUpdatedGasPrice * liquidationGasCost,
-                _fairPrice,
-                _trueMaxLeverage
-            ) ||
-            !Balances.marginIsValid(
-                newPos2,
-                balances[order2.maker].lastUpdatedGasPrice * liquidationGasCost,
-                _fairPrice,
-                _trueMaxLeverage
-            )
-        ) {
-            // long order must have a price >= short order
-            // emit failed to match event and return false
-            if (order1.side == Perpetuals.Side.Long) {
-                emit FailedOrders(order1.maker, order2.maker, fillAmount, order1Id, order2Id);
-            } else {
-                emit FailedOrders(order2.maker, order1.maker, fillAmount, order2Id, order1Id);
-            }
+
+        // check that user margins are valid in outcome state
+        matchingResult = _validateMargins(newPos1, order1.maker, newPos2, order2.maker);
+        if (matchingResult != Perpetuals.OrderMatchingResult.VALID) {
+            emit FailedOrders(matchingResult, order1.maker, order2.maker, fillAmount, order1Id, order2Id);
             return false;
         }
 
@@ -318,11 +311,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         // Update internal trade state
         pricingContract.recordTrade(executionPrice, fillAmount);
 
-        if (order1.side == Perpetuals.Side.Long) {
-            emit MatchedOrders(order1.maker, order2.maker, fillAmount, executionPrice, order1Id, order2Id);
-        } else {
-            emit MatchedOrders(order2.maker, order1.maker, fillAmount, executionPrice, order2Id, order1Id);
-        }
+        emit MatchedOrders(order1.maker, order2.maker, fillAmount, executionPrice, order1Id, order2Id);
         return true;
     }
 
@@ -335,8 +324,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      * @return The new balances of the two accounts after the trade
      */
     function _executeTrade(
-        Perpetuals.Order memory order1,
-        Perpetuals.Order memory order2,
+        Perpetuals.Order calldata order1,
+        Perpetuals.Order calldata order2,
         uint256 fillAmount,
         uint256 executionPrice
     ) internal view returns (Balances.Position memory, Balances.Position memory) {
@@ -358,6 +347,43 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
         // return new account state
         return (newPos1, newPos2);
+    }
+
+    /**
+     * @notice given the positions of two traders, determine if they have sufficient margin.
+     * @return return Perpetuals.OrderMatchingResult.VALID if both positions are valid.
+     *         return Perpetuals.OrderMatchingResult.SHORT_MARGIN or LONG_MARGIN if one of the trader positions is invalid.
+     */
+    function _validateMargins(
+        Balances.Position memory newPositionLong,
+        address longMaker,
+        Balances.Position memory newPositionShort,
+        address shortMaker
+    ) internal view returns (Perpetuals.OrderMatchingResult) {
+        uint256 _fairPrice = pricingContract.fairPrice();
+        uint256 _trueMaxLeverage = trueMaxLeverage();
+        // check that post-trade positions result in valid margins
+        bool longOrderValid = Balances.marginIsValid(
+            newPositionLong,
+            balances[longMaker].lastUpdatedGasPrice * liquidationGasCost,
+            _fairPrice,
+            _trueMaxLeverage
+        );
+        if (!longOrderValid) {
+            return Perpetuals.OrderMatchingResult.LONG_MARGIN;
+        }
+
+        bool shortOrderValid = Balances.marginIsValid(
+            newPositionShort,
+            balances[shortMaker].lastUpdatedGasPrice * liquidationGasCost,
+            _fairPrice,
+            _trueMaxLeverage
+        );
+        if (!shortOrderValid) {
+            return Perpetuals.OrderMatchingResult.SHORT_MARGIN;
+        }
+
+        return Perpetuals.OrderMatchingResult.VALID;
     }
 
     /**

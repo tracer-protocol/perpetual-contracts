@@ -46,7 +46,7 @@ contract ChainlinkOracle is IChainlinkOracle {
     /**
      * @notice Sets the answer that is returned by the Oracle when latestRoundData is called
      */
-    function setPrice(int256 _price) public {
+    function setPrice(int256 _price) external {
         price = _price;
     }
 

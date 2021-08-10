@@ -6,11 +6,12 @@ import "../Interfaces/Types.sol";
 import "../Interfaces/ITrader.sol";
 import "../lib/LibPerpetuals.sol";
 import "../lib/LibBalances.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract TraderMock is ITrader {
+contract TraderMock is ITrader, ReentrancyGuard {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -66,6 +67,7 @@ contract TraderMock is ITrader {
     function executeTrade(Types.SignedLimitOrder[] memory makers, Types.SignedLimitOrder[] memory takers)
         external
         override
+        nonReentrant
     {
         require(makers.length == takers.length, "TDR: Lengths differ");
 
@@ -111,9 +113,7 @@ contract TraderMock is ITrader {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
-            // todo this could be succeptible to re-entrancy as
-            // market is never verified
-            (bool success, ) = makeOrder.market.call(
+            (bool success, bytes memory data) = makeOrder.market.call(
                 abi.encodePacked(
                     ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
                     abi.encode(makeOrder, takeOrder, fillAmount)
@@ -122,6 +122,8 @@ contract TraderMock is ITrader {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+            bool orderStatus = abi.decode(data, (bool));
+            if (!orderStatus) continue;
 
             // update order state
             filled[makerOrderId] = makeOrderFilled + fillAmount;
@@ -174,7 +176,7 @@ contract TraderMock is ITrader {
      * @return An order that has been previously created in contract, given a user-supplied order
      * @dev Useful for checking to see if a supplied order has actually been created
      */
-    function getOrder(Perpetuals.Order calldata order) public view override returns (Perpetuals.Order memory) {
+    function getOrder(Perpetuals.Order calldata order) external view override returns (Perpetuals.Order memory) {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
     }

@@ -429,7 +429,8 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(fundingIndex).to.equal(0)
 
                 // time travel forward 26 hours to check pricing state after no trades occurred
-                await forwardTime(26 * 60 * 60 + 100)
+                let passedHours = 26
+                await forwardTime(passedHours * 60 * 60 + 100)
 
                 // STATE 2:
                 // hour = (2 + 26) % 24 = 4
@@ -441,7 +442,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     "1000000000000000000"
                 )
 
-                // make trade in new hour to tick over funding index
+                // execute new trade with price of 1.25
                 await traderInstance.executeTrade(
                     [mockSignedOrder4],
                     [mockSignedOrder5]
@@ -449,9 +450,9 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 await traderInstance.clearFilled(mockSignedOrder4)
                 await traderInstance.clearFilled(mockSignedOrder5)
 
-                // check pricing is in hour 4
+                let expectedHour = (2 + passedHours) % 24
                 currentHour = await pricing.currentHour()
-                expect(currentHour).to.equal(4)
+                expect(currentHour).to.equal(expectedHour)
 
                 // check the average price has not included last price recording which is stale
                 // new average should just be price of new trade, 1.25

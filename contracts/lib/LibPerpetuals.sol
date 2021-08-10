@@ -11,6 +11,19 @@ library Perpetuals {
         Short
     }
 
+    enum OrderMatchingResult {
+        VALID,
+        MARKET_MISMATCH,
+        SIDE_MISMATCH,
+        PRICE_MISMATCH,
+        SAME_MAKER,
+        EXPIRED,
+        FILLED,
+        INVALID_TIME,
+        LONG_MARGIN,
+        SHORT_MARGIN
+    }
+
     // Information about a given order
     struct Order {
         address maker;
@@ -122,31 +135,39 @@ library Perpetuals {
      * @notice Checks if two orders can be matched given their price, side of trade
      *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
      *  markets being the same, makers being different, and time validation.
-     * @param a The first order
-     * @param aFilled Amount of the first order that has already been filled
-     * @param b The second order
-     * @param bFilled Amount of the second order that has already been filled
+     * @param long The long side order
+     * @param longFilled Amount of the first order that has already been filled
+     * @param short The short side order
+     * @param shortFilled Amount of the second order that has already been filled
+     * @return OrderMatchingResult indicating if the two orders can be matched, or the reason if they can't
      */
     function canMatch(
-        Order memory a,
-        uint256 aFilled,
-        Order memory b,
-        uint256 bFilled
-    ) internal view returns (bool) {
+        Order calldata long,
+        uint256 longFilled,
+        Order calldata short,
+        uint256 shortFilled
+    ) internal view returns (OrderMatchingResult) {
         uint256 currentTime = block.timestamp;
 
-        /* predicates */
-        bool opposingSides = a.side != b.side;
+        if (long.market != short.market) {
+            return OrderMatchingResult.MARKET_MISMATCH;
+        } else if (long.side == short.side) {
+            return OrderMatchingResult.SIDE_MISMATCH;
+        }
         // long order must have a price >= short order
-        bool pricesMatch = a.side == Side.Long ? a.price >= b.price : a.price <= b.price;
-        bool marketsMatch = a.market == b.market;
-        bool makersDifferent = a.maker != b.maker;
-        bool notExpired = currentTime < a.expires && currentTime < b.expires;
-        bool notFilled = aFilled < a.amount && bFilled < b.amount;
-        bool createdBefore = currentTime >= a.created && currentTime >= b.created;
-
-        return
-            pricesMatch && makersDifferent && marketsMatch && opposingSides && notExpired && notFilled && createdBefore;
+        else if (long.price < short.price) {
+            return OrderMatchingResult.PRICE_MISMATCH;
+        } else if (long.maker == short.maker) {
+            return OrderMatchingResult.SAME_MAKER;
+        } else if (currentTime > long.expires || currentTime > short.expires) {
+            return OrderMatchingResult.EXPIRED;
+        } else if (longFilled >= long.amount || shortFilled >= short.amount) {
+            return OrderMatchingResult.FILLED;
+        } else if (currentTime < long.created || currentTime < short.created) {
+            return OrderMatchingResult.INVALID_TIME;
+        } else {
+            return OrderMatchingResult.VALID;
+        }
     }
 
     /**

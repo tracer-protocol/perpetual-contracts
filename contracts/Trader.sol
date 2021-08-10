@@ -49,11 +49,11 @@ contract Trader is ITrader, ReentrancyGuard {
         );
     }
 
-    function filledAmount(Perpetuals.Order memory order) external view override returns (uint256) {
+    function filledAmount(Perpetuals.Order calldata order) external view override returns (uint256) {
         return filled[Perpetuals.orderId(order)];
     }
 
-    function getAverageExecutionPrice(Perpetuals.Order memory order) external view override returns (uint256) {
+    function getAverageExecutionPrice(Perpetuals.Order calldata order) external view override returns (uint256) {
         return averageExecutionPrice[Perpetuals.orderId(order)];
     }
 
@@ -63,7 +63,7 @@ contract Trader is ITrader, ReentrancyGuard {
      * @param makers An array of signed make orders
      * @param takers An array of signed take orders
      */
-    function executeTrade(Types.SignedLimitOrder[] memory makers, Types.SignedLimitOrder[] memory takers)
+    function executeTrade(Types.SignedLimitOrder[] calldata makers, Types.SignedLimitOrder[] calldata takers)
         external
         override
         nonReentrant
@@ -103,7 +103,7 @@ contract Trader is ITrader, ReentrancyGuard {
             // match orders
             // referencing makeOrder.market is safe due to above require
             // make low level call to catch revert
-            (bool success, ) = makeOrder.market.call(
+            (bool success, bytes memory data) = makeOrder.market.call(
                 abi.encodePacked(
                     ITracerPerpetualSwaps(makeOrder.market).matchOrders.selector,
                     abi.encode(makeOrder, takeOrder, fillAmount)
@@ -112,6 +112,8 @@ contract Trader is ITrader, ReentrancyGuard {
 
             // ignore orders that cannot be executed
             if (!success) continue;
+            bool orderStatus = abi.decode(data, (bool));
+            if (!orderStatus) continue;
 
             uint256 executionPrice = Perpetuals.getExecutionPrice(makeOrder, takeOrder);
             uint256 newMakeAverage = Perpetuals.calculateAverageExecutionPrice(
@@ -143,7 +145,7 @@ contract Trader is ITrader, ReentrancyGuard {
      * @dev Should only be called with a verified signedOrder and with index
      *      < signedOrders.length
      */
-    function grabOrder(Types.SignedLimitOrder[] memory signedOrders, uint256 index)
+    function grabOrder(Types.SignedLimitOrder[] calldata signedOrders, uint256 index)
         internal
         returns (Perpetuals.Order memory)
     {
@@ -166,7 +168,7 @@ contract Trader is ITrader, ReentrancyGuard {
      * @param order the limit order being hashed
      * @return an EIP712 compliant hash (with headers) of the limit order
      */
-    function hashOrder(Perpetuals.Order memory order) public view override returns (bytes32) {
+    function hashOrder(Perpetuals.Order calldata order) public view override returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(
@@ -202,7 +204,7 @@ contract Trader is ITrader, ReentrancyGuard {
      * @return if signedOrder1 is compatible with signedOrder2
      * @dev does not throw if pairs are invalid
      */
-    function isValidPair(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
+    function isValidPair(Types.SignedLimitOrder calldata signedOrder1, Types.SignedLimitOrder calldata signedOrder2)
         internal
         pure
         returns (bool)
@@ -210,11 +212,10 @@ contract Trader is ITrader, ReentrancyGuard {
         return (signedOrder1.order.market == signedOrder2.order.market);
     }
 
-    function areValidAddresses(Types.SignedLimitOrder memory signedOrder1, Types.SignedLimitOrder memory signedOrder2)
-        internal
-        pure
-        returns (bool)
-    {
+    function areValidAddresses(
+        Types.SignedLimitOrder calldata signedOrder1,
+        Types.SignedLimitOrder calldata signedOrder2
+    ) internal pure returns (bool) {
         bool order1Market = signedOrder1.order.market != address(0);
         bool order2Market = signedOrder2.order.market != address(0);
         bool order1Maker = signedOrder1.order.maker != address(0);
@@ -228,7 +229,7 @@ contract Trader is ITrader, ReentrancyGuard {
      * @param signedOrder The unsigned order to verify the signature of
      * @return true is signer has signed the order, else false
      */
-    function verifySignature(address signer, Types.SignedLimitOrder memory signedOrder)
+    function verifySignature(address signer, Types.SignedLimitOrder calldata signedOrder)
         public
         view
         override
