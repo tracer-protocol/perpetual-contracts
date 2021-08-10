@@ -9,6 +9,7 @@ const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
 const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
+const gasOracleAbi = require("../../abi/contracts/oracle/GasOracle.sol/GasOracle.json")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
@@ -34,14 +35,22 @@ const setup = deployments.createFixture(async () => {
     const QuoteToken = await tracer.tracerQuoteToken()
     let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
 
+    const GasOracle = await tracer.gasPriceOracle()
+    let gasOracle = await ethers.getContractAt(gasOracleAbi, GasOracle)
+
     insurance = await smockit(insurance)
     pricing = await smockit(pricing)
     liquidation = await smockit(liquidation)
+    gasOracle = await smockit(gasOracle)
+
+    // mock gas price
+    gasOracle.smocked.latestAnswer.will.return.with("60000000000000")
 
     // mock function calls for insurance, pricing & liquidation
     await tracer.setPricingContract(pricing.address)
     await tracer.setInsuranceContract(insurance.address)
     await tracer.setLiquidationContract(liquidation.address)
+    await tracer.setGasOracle(gasOracle.address)
 
     pricing.smocked.lastUpdatedFundingIndex.will.return(0)
     // pricing.smocked.getFundingRate.will.return
@@ -60,6 +69,7 @@ const setup = deployments.createFixture(async () => {
         quoteToken,
         deployer,
         traderInstance,
+        gasOracle,
     }
 })
 
@@ -72,6 +82,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let deployer
     let accounts
     let traderInstance
+    let gasOracle
 
     beforeEach(async function () {
         let _setup = await setup()
@@ -82,6 +93,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         quoteToken = _setup.quoteToken
         deployer = _setup.deployer
         traderInstance = _setup.traderInstance
+        gasOracle = _setup.gasOracle
         accounts = await ethers.getSigners()
     })
 
@@ -468,17 +480,15 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         context("if the account isn't up to date", async () => {
             beforeEach(async () => {
                 // mock funding index and rates
-                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(0)
                 pricing.smocked.getFundingRate.will.return.with((index) => {
-                    if (ethers.BigNumber.from("1").eq(index)) {
-                        // User rate
+                    if (ethers.BigNumber.from("0").eq(index)) {
                         return [
                             0, // timestamp
                             ethers.utils.parseEther("1"), // fundingRate
-                            ethers.utils.parseEther("1.45"), // cumulativeFundingRate
+                            ethers.utils.parseEther("1"), // cumulativeFundingRate
                         ]
-                    } else if (ethers.BigNumber.from("0").eq(index)) {
-                        // Global rate
+                    } else if (ethers.BigNumber.from("2").eq(index)) {
                         return [
                             0,
                             ethers.utils.parseEther("1"),
@@ -543,18 +553,65 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             })
 
             it("pays the funding rate", async () => {
-                let timestamp, fundingRate, fundingRateValue
-                ;[timestamp, fundingRate, fundingRateValue] =
-                    await pricing.getFundingRate(0)
+                let balancePrior = await tracer.balances(accounts[1].address)
 
-                await tracer.settle(accounts[0].address)
+                // fast forward the funding rate index to 2, where cumulative rate has increased from 1.45 to 1.5
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
+
+                fundingPrior = await pricing.getFundingRate(0)
+                fundingAfter = await pricing.getFundingRate(2)
+                let fundingRatePayment = fundingAfter.cumulativeFundingRate.sub(
+                    fundingPrior.cumulativeFundingRate
+                )
+
+                await tracer.settle(accounts[1].address)
+
+                let balanceAfter = await tracer.balances(accounts[1].address)
+
+                // quote of user's position should decrease by the funding rate payment, base should not change
+                expect(balanceAfter.position.quote).to.equal(
+                    balancePrior.position.quote.sub(fundingRatePayment)
+                )
+                expect(balanceAfter.position.base).to.equal(
+                    balancePrior.position.base
+                )
             })
 
             it("pays the insurance funding rate", async () => {})
 
-            it("update their latest gas price", async () => {})
+            it("update their latest gas price", async () => {
+                let balancePrior = await tracer.balances(accounts[1].address)
+                expect(balancePrior.lastUpdatedGasPrice).to.equal(
+                    "60000000000000"
+                )
 
-            it("updates their last updated index", async () => {})
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
+                const lastUpdatedGasAfter = "60000000000001"
+                gasOracle.smocked.latestAnswer.will.return.with(
+                    lastUpdatedGasAfter
+                )
+
+                await tracer.settle(accounts[1].address)
+
+                let balanceAfter = await tracer.balances(accounts[1].address)
+                expect(balanceAfter.lastUpdatedGasPrice).to.equal(
+                    lastUpdatedGasAfter
+                )
+            })
+
+            it("updates their last updated index", async () => {
+                let balancePrior = await tracer.balances(accounts[1].address)
+
+                // fast forward the funding rate index to 2
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
+
+                await tracer.settle(accounts[1].address)
+
+                let balanceAfter = await tracer.balances(accounts[1].address)
+
+                expect(balancePrior.lastUpdatedIndex).to.be.equal(0)
+                expect(balanceAfter.lastUpdatedIndex).to.be.equal(2)
+            })
         })
 
         context("if the account is under margin", async () => {
