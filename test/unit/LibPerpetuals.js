@@ -375,7 +375,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
 
     describe("canMatch", async () => {
         context("when called with different order prices", async () => {
-            it("returns true if prices do cross", async () => {
+            it("returns VALID if prices do cross", async () => {
                 let priceA = ethers.utils.parseEther("1") // short order
                 let priceB = ethers.utils.parseEther("2") // long order
                 let amount = ethers.utils.parseEther("1")
@@ -383,7 +383,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let sideB = 0
                 let expires = 3021382897 // large unix timestamp
                 let created = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     priceA,
@@ -392,7 +392,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     priceB,
@@ -401,11 +401,17 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
-                expect(result).to.equal(true)
+                let result = await libPerpetuals.canMatch(
+                    orderLong,
+                    0,
+                    orderShort,
+                    0
+                )
+                // OrderMatchingResult.VALID => 0
+                expect(result).to.equal(0)
             })
 
-            it("returns false if prices don't cross", async () => {
+            it("returns PRICE_MISMATCH if prices don't cross", async () => {
                 let priceA = ethers.utils.parseEther("2") // short order
                 let priceB = ethers.utils.parseEther("1") // long order
                 let amount = ethers.utils.parseEther("1")
@@ -413,7 +419,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let sideB = 0
                 let expires = 3021382897 // large unix timestamp
                 let created = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     priceA,
@@ -422,7 +428,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     priceB,
@@ -431,20 +437,26 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
-                expect(result).to.equal(false)
+                let result = await libPerpetuals.canMatch(
+                    orderLong,
+                    0,
+                    orderShort,
+                    0
+                )
+                // OrderMatchingResult.PRICE_MISMATCH => 3
+                expect(result).to.equal(3)
             })
         })
 
         context("when called with the same side", async () => {
-            it("returns false", async () => {
+            it("returns SIDE_MISMATCH", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 0
                 let sideB = 0
                 let expires = 3021382897 // large unix timestamp
                 let created = 0
-                let orderA = [
+                let orderLong1 = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -453,7 +465,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong2 = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -462,13 +474,19 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
-                expect(result).to.equal(false)
+                let result = await libPerpetuals.canMatch(
+                    orderLong1,
+                    0,
+                    orderLong2,
+                    0
+                )
+                // OrderMatchingResult.SIDE_MISMATCH => 2
+                expect(result).to.equal(2)
             })
         })
 
         context("when called with an expired order", async () => {
-            it("returns false if order a is expired", async () => {
+            it("returns EXPIRED if order a is expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -476,7 +494,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expiresA = 500
                 let expiresB = 3021382897 // large unix timestamp
                 let created = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -485,7 +503,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expiresA,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -494,11 +512,17 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expiresB,
                     created,
                 ]
-                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
-                expect(result).to.equal(false)
+                let result = await libPerpetuals.canMatch(
+                    orderLong,
+                    0,
+                    orderShort,
+                    0
+                )
+                // OrderMatchingResult.EXPIRED => 5
+                expect(result).to.equal(5)
             })
 
-            it("returns false if order b is expired", async () => {
+            it("returns EXPIRED if order b is expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -506,7 +530,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expiresB = 250
                 let expiresA = 3021382897 // large unix timestamp
                 let created = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -515,7 +539,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expiresA,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -524,11 +548,17 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expiresB,
                     created,
                 ]
-                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
-                expect(result).to.equal(false)
+                let result = await libPerpetuals.canMatch(
+                    orderLong,
+                    0,
+                    orderShort,
+                    0
+                )
+                // OrderMatchingResult.EXPIRED => 5
+                expect(result).to.equal(5)
             })
 
-            it("returns false if both orders are expired", async () => {
+            it("returns EXPIRED if both orders are expired", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -536,7 +566,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let expiresA = 350
                 let expiresB = 750
                 let created = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -545,7 +575,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expiresA,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -554,13 +584,19 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expiresB,
                     created,
                 ]
-                let result = await libPerpetuals.canMatch(orderA, 0, orderB, 0)
-                expect(result).to.equal(false)
+                let result = await libPerpetuals.canMatch(
+                    orderLong,
+                    0,
+                    orderShort,
+                    0
+                )
+                // OrderMatchingResult.EXPIRED => 5
+                expect(result).to.equal(5)
             })
         })
 
         context("when called with already filled orders", async () => {
-            it("returns false if order a is filled", async () => {
+            it("returns FILLED if order a is filled", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -569,7 +605,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let filledA = amount
                 let filledB = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -578,7 +614,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -588,15 +624,16 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let result = await libPerpetuals.canMatch(
-                    orderA,
+                    orderLong,
                     filledA,
-                    orderB,
+                    orderShort,
                     filledB
                 )
-                expect(result).to.equal(false)
+                // OrderMatchingResult.FILLED => 6
+                expect(result).to.equal(6)
             })
 
-            it("returns false if order b is filled", async () => {
+            it("returns FILLED if order b is filled", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -605,7 +642,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let filledA = 0
                 let filledB = amount
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -614,7 +651,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -624,15 +661,16 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let result = await libPerpetuals.canMatch(
-                    orderA,
+                    orderLong,
                     filledA,
-                    orderB,
+                    orderShort,
                     filledB
                 )
-                expect(result).to.equal(false)
+                // OrderMatchingResult.FILLED => 6
+                expect(result).to.equal(6)
             })
 
-            it("returns false if both orders are filled", async () => {
+            it("returns FILLED if both orders are filled", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -641,7 +679,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let filledA = amount
                 let filledB = amount
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -650,7 +688,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -660,19 +698,20 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let result = await libPerpetuals.canMatch(
-                    orderA,
+                    orderLong,
                     filledA,
-                    orderB,
+                    orderShort,
                     filledB
                 )
-                expect(result).to.equal(false)
+                // OrderMatchingResult.FILLED => 6
+                expect(result).to.equal(6)
             })
         })
 
         context(
             "when called with orders that were created in the future",
             async () => {
-                it("returns false if order a was created in the future", async () => {
+                it("returns INVALID_TIME if order a was created in the future", async () => {
                     let price = ethers.utils.parseEther("1")
                     let amount = ethers.utils.parseEther("1")
                     let sideA = 1
@@ -682,7 +721,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let createdB = 0
                     let filledA = 0
                     let filledB = 0
-                    let orderA = [
+                    let orderShort = [
                         accounts[1].address,
                         zeroAddress,
                         price,
@@ -691,7 +730,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         expires,
                         createdA,
                     ]
-                    let orderB = [
+                    let orderLong = [
                         accounts[2].address,
                         zeroAddress,
                         price,
@@ -701,15 +740,16 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         createdB,
                     ]
                     let result = await libPerpetuals.canMatch(
-                        orderA,
+                        orderLong,
                         filledA,
-                        orderB,
+                        orderShort,
                         filledB
                     )
-                    expect(result).to.equal(false)
+                    // OrderMatchingResult.INVALID_TIME => 7
+                    expect(result).to.equal(7)
                 })
 
-                it("returns false if order b was created in the future", async () => {
+                it("returns INVALID_TIME if order b was created in the future", async () => {
                     let price = ethers.utils.parseEther("1")
                     let amount = ethers.utils.parseEther("1")
                     let sideA = 1
@@ -719,7 +759,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let createdA = 0
                     let filledA = 0
                     let filledB = 0
-                    let orderA = [
+                    let orderShort = [
                         accounts[1].address,
                         zeroAddress,
                         price,
@@ -728,7 +768,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         expires,
                         createdA,
                     ]
-                    let orderB = [
+                    let orderLong = [
                         accounts[2].address,
                         zeroAddress,
                         price,
@@ -738,15 +778,16 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         createdB,
                     ]
                     let result = await libPerpetuals.canMatch(
-                        orderA,
+                        orderLong,
                         filledA,
-                        orderB,
+                        orderShort,
                         filledB
                     )
-                    expect(result).to.equal(false)
+                    // OrderMatchingResult.INVALID_TIME => 7
+                    expect(result).to.equal(7)
                 })
 
-                it("returns false if both orders were created in the future", async () => {
+                it("returns INVALID_TIME if both orders were created in the future", async () => {
                     let price = ethers.utils.parseEther("1")
                     let amount = ethers.utils.parseEther("1")
                     let sideA = 1
@@ -756,7 +797,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     let createdB = 3021382897
                     let filledA = 0
                     let filledB = 0
-                    let orderA = [
+                    let orderShort = [
                         accounts[1].address,
                         zeroAddress,
                         price,
@@ -765,7 +806,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         expires,
                         createdA,
                     ]
-                    let orderB = [
+                    let orderLong = [
                         accounts[2].address,
                         zeroAddress,
                         price,
@@ -775,18 +816,19 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                         createdB,
                     ]
                     let result = await libPerpetuals.canMatch(
-                        orderA,
+                        orderLong,
                         filledA,
-                        orderB,
+                        orderShort,
                         filledB
                     )
-                    expect(result).to.equal(false)
+                    // OrderMatchingResult.INVALID_TIME => 7
+                    expect(result).to.equal(7)
                 })
             }
         )
 
         context("when called with different markets", async () => {
-            it("returns false", async () => {
+            it("returns MARKET_MISMATCH", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -795,7 +837,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let filledA = 0
                 let filledB = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     accounts[3].address,
                     price,
@@ -804,7 +846,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     accounts[4].address,
                     price,
@@ -814,17 +856,18 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let result = await libPerpetuals.canMatch(
-                    orderA,
+                    orderLong,
                     filledA,
-                    orderB,
+                    orderShort,
                     filledB
                 )
-                expect(result).to.equal(false)
+                // OrderMatchingResult.MARKET_MISMATCH => 1
+                expect(result).to.equal(1)
             })
         })
 
         context("when called with the same makers", async () => {
-            it("returns false", async () => {
+            it("returns INVALID_TIME", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -833,7 +876,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let filledA = 0
                 let filledB = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -842,7 +885,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -852,17 +895,18 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let result = await libPerpetuals.canMatch(
-                    orderA,
+                    orderLong,
                     filledA,
-                    orderB,
+                    orderShort,
                     filledB
                 )
-                expect(result).to.equal(false)
+                // OrderMatchingResult.INVALID_TIME => 4
+                expect(result).to.equal(4)
             })
         })
 
         context("when called with valid orders", async () => {
-            it("returns true", async () => {
+            it("returns VALID", async () => {
                 let price = ethers.utils.parseEther("1")
                 let amount = ethers.utils.parseEther("1")
                 let sideA = 1
@@ -871,7 +915,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 let created = 0
                 let filledA = 0
                 let filledB = 0
-                let orderA = [
+                let orderShort = [
                     accounts[1].address,
                     zeroAddress,
                     price,
@@ -880,7 +924,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     expires,
                     created,
                 ]
-                let orderB = [
+                let orderLong = [
                     accounts[2].address,
                     zeroAddress,
                     price,
@@ -890,12 +934,13 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                     created,
                 ]
                 let result = await libPerpetuals.canMatch(
-                    orderA,
+                    orderLong,
                     filledA,
-                    orderB,
+                    orderShort,
                     filledB
                 )
-                expect(result).to.equal(true)
+                // OrderMatchingResult.VALID => 0
+                expect(result).to.equal(0)
             })
         })
     })
