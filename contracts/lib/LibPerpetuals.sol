@@ -154,6 +154,7 @@ library Perpetuals {
      * @param longFilled Amount of the first order that has already been filled
      * @param short The short side order
      * @param shortFilled Amount of the second order that has already been filled
+     * @return OrderMatchingResult indicating if the two orders can be matched, or the reason if they can't
      */
     function canMatch(
         Perpetuals.Order calldata long,

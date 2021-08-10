@@ -349,6 +349,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         return (newPos1, newPos2);
     }
 
+    /**
+     * @notice given the positions of two traders, determine if they have sufficient margin.
+     * @return return Perpetuals.OrderMatchingResult.VALID if both positions are valid.
+     *         return Perpetuals.OrderMatchingResult.SHORT_MARGIN or LONG_MARGIN if one of the trader positions is invalid.
+     */
     function _validateMargins(
         Balances.Position memory newPositionLong,
         address longMaker,
