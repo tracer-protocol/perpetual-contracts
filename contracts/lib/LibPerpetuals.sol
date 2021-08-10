@@ -142,9 +142,9 @@ library Perpetuals {
      * @return OrderMatchingResult indicating if the two orders can be matched, or the reason if they can't
      */
     function canMatch(
-        Perpetuals.Order calldata long,
+        Order calldata long,
         uint256 longFilled,
-        Perpetuals.Order calldata short,
+        Order calldata short,
         uint256 shortFilled
     ) internal view returns (OrderMatchingResult) {
         uint256 currentTime = block.timestamp;
