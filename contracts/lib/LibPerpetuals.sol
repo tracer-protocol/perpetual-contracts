@@ -11,6 +11,19 @@ library Perpetuals {
         Short
     }
 
+    enum OrderMatchingResult {
+        VALID,
+        MARKET_MISMATCH,
+        SIDE_MISMATCH,
+        PRICE_MISMATCH,
+        SAME_MAKER,
+        EXPIRED,
+        FILLED,
+        INVALID_TIME,
+        LONG_MARGIN,
+        SHORT_MARGIN
+    }
+
     // Information about a given order
     struct Order {
         address maker;
@@ -130,6 +143,44 @@ library Perpetuals {
             return a.price;
         } else {
             return b.price;
+        }
+    }
+
+    /**
+     * @notice Checks if two orders can be matched given their price, side of trade
+     *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
+     *  markets being the same, makers being different, and time validation.
+     * @param long The long side order
+     * @param longFilled Amount of the first order that has already been filled
+     * @param short The short side order
+     * @param shortFilled Amount of the second order that has already been filled
+     */
+    function canMatch(
+        Perpetuals.Order calldata long,
+        uint256 longFilled,
+        Perpetuals.Order calldata short,
+        uint256 shortFilled
+    ) internal view returns (OrderMatchingResult) {
+        uint256 currentTime = block.timestamp;
+
+        if (long.market != short.market) {
+            return OrderMatchingResult.MARKET_MISMATCH;
+        } else if (long.side == short.side) {
+            return OrderMatchingResult.SIDE_MISMATCH;
+        }
+        // long order must have a price >= short order
+        else if (long.price < short.price) {
+            return OrderMatchingResult.PRICE_MISMATCH;
+        } else if (long.maker == short.maker) {
+            return OrderMatchingResult.SAME_MAKER;
+        } else if (currentTime > long.expires || currentTime > short.expires) {
+            return OrderMatchingResult.EXPIRED;
+        } else if (longFilled >= long.amount || shortFilled >= short.amount) {
+            return OrderMatchingResult.FILLED;
+        } else if (currentTime < long.created || currentTime < short.created) {
+            return OrderMatchingResult.INVALID_TIME;
+        } else {
+            return OrderMatchingResult.VALID;
         }
     }
 }
