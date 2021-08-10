@@ -132,21 +132,6 @@ library Perpetuals {
     }
 
     /**
-     * @notice Gets the execution price of two orders, given their creation times
-     * @param a The first order
-     * @param b The second order
-     * @return Price that the orders will be executed at
-     */
-    function getExecutionPrice(Order memory a, Order memory b) internal pure returns (uint256) {
-        bool aIsFirst = a.created <= b.created;
-        if (aIsFirst) {
-            return a.price;
-        } else {
-            return b.price;
-        }
-    }
-
-    /**
      * @notice Checks if two orders can be matched given their price, side of trade
      *  (two longs can't can't trade with one another, etc.), expiry times, fill amounts,
      *  markets being the same, makers being different, and time validation.
@@ -182,6 +167,21 @@ library Perpetuals {
             return OrderMatchingResult.INVALID_TIME;
         } else {
             return OrderMatchingResult.VALID;
+        }
+    }
+
+    /**
+     * @notice Gets the execution price of two orders, given their creation times
+     * @param a The first order
+     * @param b The second order
+     * @return Price that the orders will be executed at
+     */
+    function getExecutionPrice(Order memory a, Order memory b) internal pure returns (uint256) {
+        bool aIsFirst = a.created <= b.created;
+        if (aIsFirst) {
+            return a.price;
+        } else {
+            return b.price;
         }
     }
 }
