@@ -488,8 +488,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     /**
      * @notice settles an account. Compares current global rate with the users last updated rate
      *         Updates the accounts margin balance accordingly.
-     * @dev Ensures the account remains in a valid margin position. Will throw if account is under margin
-     *      and the account must then be liquidated.
+     * @dev Does not ensure that the account remains above margin.
      * @param account the address to settle.
      * @dev This function aggregates data to feed into account.sols settle function which sets
      */
