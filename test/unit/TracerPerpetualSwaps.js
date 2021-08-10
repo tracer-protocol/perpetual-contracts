@@ -462,6 +462,89 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     })
 
     describe("settle", async () => {
+        beforeEach(async () => {
+            // mock funding index and rates
+            pricing.smocked.lastUpdatedFundingIndex.will.return.with(0)
+            pricing.smocked.getFundingRate.will.return.with((index) => {
+                if (ethers.BigNumber.from("0").eq(index)) {
+                    // initial state
+                    return [
+                        0, // timestamp
+                        ethers.utils.parseEther("1"), // fundingRate
+                        ethers.utils.parseEther("1"), // cumulativeFundingRate
+                    ]
+                } else if (ethers.BigNumber.from("2").eq(index)) {
+                    // updated state
+                    return [
+                        0,
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1.5"),
+                    ]
+                } else if (ethers.BigNumber.from("4").eq(index)) {
+                    // extreme state to put user below Margin
+                    return [
+                        0,
+                        ethers.utils.parseEther("5"),
+                        ethers.utils.parseEther("1000"),
+                    ]
+                }
+            })
+
+            for (var i = 0; i < 2; i++) {
+                await quoteToken
+                    .connect(accounts[i + 1])
+                    .approve(tracer.address, ethers.utils.parseEther("500"))
+                await tracer
+                    .connect(accounts[i + 1])
+                    .deposit(ethers.utils.parseEther("500"))
+            }
+
+            now = Math.floor(new Date().getTime() / 1000)
+
+            // make some basic trades
+            let order1 = {
+                maker: accounts[1].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("1"),
+                side: 0, // long,
+                expires: now + 604800, // now + 7 days
+                created: now - 1,
+            }
+            const mockSignedOrder1 = [
+                order1,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            let order2 = {
+                maker: accounts[2].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("1"),
+                side: 1, // short,
+                expires: now + 604800, // now + 7 days
+                created: now,
+            }
+            const mockSignedOrder2 = [
+                order2,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            // check pricing is in hour 0
+            let currentHour = await pricing.currentHour()
+            expect(currentHour).to.equal(0)
+
+            // place trades
+            await traderInstance.executeTrade(
+                [mockSignedOrder1],
+                [mockSignedOrder2]
+            )
+        })
+
         context("if the account is on the latest global index", async () => {
             it("does nothing", async () => {
                 // ensure on current global index
@@ -478,83 +561,8 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("if the account isn't up to date", async () => {
-            beforeEach(async () => {
-                // mock funding index and rates
-                pricing.smocked.lastUpdatedFundingIndex.will.return.with(0)
-                pricing.smocked.getFundingRate.will.return.with((index) => {
-                    if (ethers.BigNumber.from("0").eq(index)) {
-                        return [
-                            0, // timestamp
-                            ethers.utils.parseEther("1"), // fundingRate
-                            ethers.utils.parseEther("1"), // cumulativeFundingRate
-                        ]
-                    } else if (ethers.BigNumber.from("2").eq(index)) {
-                        return [
-                            0,
-                            ethers.utils.parseEther("1"),
-                            ethers.utils.parseEther("1.5"),
-                        ]
-                    }
-                })
-
-                for (var i = 0; i < 2; i++) {
-                    await quoteToken
-                        .connect(accounts[i + 1])
-                        .approve(tracer.address, ethers.utils.parseEther("500"))
-                    await tracer
-                        .connect(accounts[i + 1])
-                        .deposit(ethers.utils.parseEther("500"))
-                }
-
-                now = Math.floor(new Date().getTime() / 1000)
-
-                // make some basic trades
-                let order1 = {
-                    maker: accounts[1].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1"),
-                    amount: ethers.utils.parseEther("1"),
-                    side: 0, // long,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 1,
-                }
-                const mockSignedOrder1 = [
-                    order1,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order2 = {
-                    maker: accounts[2].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1"),
-                    amount: ethers.utils.parseEther("1"),
-                    side: 1, // short,
-                    expires: now + 604800, // now + 7 days
-                    created: now,
-                }
-                const mockSignedOrder2 = [
-                    order2,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                // check pricing is in hour 0
-                let currentHour = await pricing.currentHour()
-                expect(currentHour).to.equal(0)
-
-                // place trades
-                await traderInstance.executeTrade(
-                    [mockSignedOrder1],
-                    [mockSignedOrder2]
-                )
-            })
-
             it("pays the funding rate", async () => {
                 let balancePrior = await tracer.balances(accounts[1].address)
-
                 // fast forward the funding rate index to 2, where cumulative rate has increased from 1.45 to 1.5
                 pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
 
@@ -567,7 +575,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await tracer.settle(accounts[1].address)
 
                 let balanceAfter = await tracer.balances(accounts[1].address)
-
                 // quote of user's position should decrease by the funding rate payment, base should not change
                 expect(balanceAfter.position.quote).to.equal(
                     balancePrior.position.quote.sub(fundingRatePayment)
@@ -609,13 +616,31 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
 
                 let balanceAfter = await tracer.balances(accounts[1].address)
 
-                expect(balancePrior.lastUpdatedIndex).to.be.equal(0)
-                expect(balanceAfter.lastUpdatedIndex).to.be.equal(2)
+                expect(balancePrior.lastUpdatedIndex).to.equal(0)
+                expect(balanceAfter.lastUpdatedIndex).to.equal(2)
             })
         })
 
         context("if the account is under margin", async () => {
-            it("reverts", async () => {})
+            it("pays the funding rate", async () => {
+                // current state user has 499 quote tokens
+                let balancePrior = await tracer.balances(accounts[1].address)
+                expect(balancePrior.position.quote).to.equal(
+                    ethers.utils.parseEther("499")
+                )
+
+                // fast forward the extreme state at 4
+                // funding payment will be 999 (1000 - 1)
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(4)
+
+                await tracer.settle(accounts[1].address)
+                let balanceAfter = await tracer.balances(accounts[1].address)
+
+                // expected quote position after is -500 (499 - 999)
+                expect(balanceAfter.position.quote).to.equal(
+                    ethers.utils.parseEther("-500")
+                )
+            })
         })
     })
 
