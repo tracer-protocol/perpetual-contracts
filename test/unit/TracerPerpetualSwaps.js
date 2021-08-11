@@ -561,28 +561,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("if the account isn't up to date", async () => {
-            it("pays the funding rate", async () => {
-                let balancePrior = await tracer.balances(accounts[1].address)
-                // fast forward the funding rate index to 2, where cumulative rate has increased from 1.45 to 1.5
-                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
-
-                fundingPrior = await pricing.getFundingRate(0)
-                fundingAfter = await pricing.getFundingRate(2)
-                let fundingRatePayment = fundingAfter.cumulativeFundingRate.sub(
-                    fundingPrior.cumulativeFundingRate
-                )
-
-                await tracer.settle(accounts[1].address)
-
-                let balanceAfter = await tracer.balances(accounts[1].address)
-                // quote of user's position should decrease by the funding rate payment, base should not change
-                expect(balanceAfter.position.quote).to.equal(
-                    balancePrior.position.quote.sub(fundingRatePayment)
-                )
-                expect(balanceAfter.position.base).to.equal(
-                    balancePrior.position.base
-                )
-            })
+            it("pays the funding rate", async () => {})
 
             it("pays the insurance funding rate", async () => {})
 
@@ -622,25 +601,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("if the account is under margin", async () => {
-            it("pays the funding rate", async () => {
-                // current state user has 499 quote tokens
-                let balancePrior = await tracer.balances(accounts[1].address)
-                expect(balancePrior.position.quote).to.equal(
-                    ethers.utils.parseEther("499")
-                )
-
-                // fast forward the extreme state at 4
-                // funding payment will be 999 (1000 - 1)
-                pricing.smocked.lastUpdatedFundingIndex.will.return.with(4)
-
-                await tracer.settle(accounts[1].address)
-                let balanceAfter = await tracer.balances(accounts[1].address)
-
-                // expected quote position after is -500 (499 - 999)
-                expect(balanceAfter.position.quote).to.equal(
-                    ethers.utils.parseEther("-500")
-                )
-            })
+            it("pays the funding rate", async () => {})
         })
     })
 
