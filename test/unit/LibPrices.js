@@ -401,7 +401,6 @@ describe("Unit tests: LibPrices.sol", function () {
                         tracerPrices,
                         hour
                     )
-                    console.log(hour, expectedTWAP[0].toString())
                     let result = await libPrices.calculateTWAP(
                         hour,
                         tracerPrices,

@@ -259,9 +259,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
                 // STATE 2:
                 // hour = 1
-                // funding index = 0
-                // note that funding index was not updated by last trade since
-                // it was made less than an hour since the pricing contract was created
+                // funding index = 1
 
                 // make trade in new hour to tick over funding index
                 await traderInstance.executeTrade(
@@ -276,7 +274,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(currentHour).to.equal(1)
 
                 // check funding index is 1
-                let fundingIndex = await pricing.currentFundingIndex()
+                let fundingIndex = await pricing.lastUpdatedFundingIndex()
                 expect(fundingIndex).to.equal(1)
 
                 // check pricing state
@@ -292,7 +290,6 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(twap[1].toString()).to.equal(
                     expectedDerivative.toString()
                 )
-
                 // time travel forward 2 hours without any trades happening
                 await forwardTime(120 * 60 + 100)
 
@@ -312,7 +309,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(currentHour).to.equal(3)
 
                 // check funding index is 2
-                fundingIndex = await pricing.currentFundingIndex()
+                fundingIndex = await pricing.lastUpdatedFundingIndex()
                 expect(fundingIndex).to.equal(2)
 
                 // check pricing state
@@ -338,8 +335,8 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 let expectedFundingRate = ethers.utils.parseEther(
                     "0.016666666666666666"
                 )
-                fundingIndex = await pricing.currentFundingIndex()
-                let fundingRate = await pricing.fundingRates(fundingIndex - 1)
+                fundingIndex = await pricing.lastUpdatedFundingIndex()
+                let fundingRate = await pricing.fundingRates(fundingIndex)
 
                 // previous funding rate was 0, so instant and cumulative should be same
                 expect(fundingRate.cumulativeFundingRate).to.equal(
@@ -428,8 +425,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 currentHour = await pricing.currentHour()
                 expect(currentHour).to.equal(2)
 
-                // funding rate index should still be 0 since no past trades have occurred
-                let fundingIndex = await pricing.currentFundingIndex()
+                let fundingIndex = await pricing.lastUpdatedFundingIndex()
                 expect(fundingIndex).to.equal(0)
 
                 // time travel forward 26 hours to check pricing state after no trades occurred
@@ -465,7 +461,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                     "1250000000000000000"
                 )
 
-                fundingIndex = await pricing.currentFundingIndex()
+                fundingIndex = await pricing.lastUpdatedFundingIndex()
                 expect(fundingIndex).to.equal(1)
             })
         })

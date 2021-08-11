@@ -9,6 +9,7 @@ const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
 const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
+const gasOracleAbi = require("../../abi/contracts/oracle/GasOracle.sol/GasOracle.json")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
@@ -34,16 +35,24 @@ const setup = deployments.createFixture(async () => {
     const QuoteToken = await tracer.tracerQuoteToken()
     let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
 
+    const GasOracle = await tracer.gasPriceOracle()
+    let gasOracle = await ethers.getContractAt(gasOracleAbi, GasOracle)
+
     insurance = await smockit(insurance)
     pricing = await smockit(pricing)
     liquidation = await smockit(liquidation)
+    gasOracle = await smockit(gasOracle)
+
+    // mock gas price
+    gasOracle.smocked.latestAnswer.will.return.with("60000000000000")
 
     // mock function calls for insurance, pricing & liquidation
     await tracer.setPricingContract(pricing.address)
     await tracer.setInsuranceContract(insurance.address)
     await tracer.setLiquidationContract(liquidation.address)
+    await tracer.setGasOracle(gasOracle.address)
 
-    pricing.smocked.currentFundingIndex.will.return(0)
+    pricing.smocked.lastUpdatedFundingIndex.will.return(0)
     // pricing.smocked.getFundingRate.will.return
     // pricing.smocked.getInsuranceFundingRate.will.return
     const traderDeployment = await deployments.get("Trader")
@@ -60,6 +69,7 @@ const setup = deployments.createFixture(async () => {
         quoteToken,
         deployer,
         traderInstance,
+        gasOracle,
     }
 })
 
@@ -72,6 +82,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let deployer
     let accounts
     let traderInstance
+    let gasOracle
 
     beforeEach(async function () {
         let _setup = await setup()
@@ -82,6 +93,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         quoteToken = _setup.quoteToken
         deployer = _setup.deployer
         traderInstance = _setup.traderInstance
+        gasOracle = _setup.gasOracle
         accounts = await ethers.getSigners()
     })
 
@@ -450,6 +462,89 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     })
 
     describe("settle", async () => {
+        beforeEach(async () => {
+            // mock funding index and rates
+            pricing.smocked.lastUpdatedFundingIndex.will.return.with(0)
+            pricing.smocked.getFundingRate.will.return.with((index) => {
+                if (ethers.BigNumber.from("0").eq(index)) {
+                    // initial state
+                    return [
+                        0, // timestamp
+                        ethers.utils.parseEther("1"), // fundingRate
+                        ethers.utils.parseEther("1"), // cumulativeFundingRate
+                    ]
+                } else if (ethers.BigNumber.from("2").eq(index)) {
+                    // updated state
+                    return [
+                        0,
+                        ethers.utils.parseEther("1"),
+                        ethers.utils.parseEther("1.5"),
+                    ]
+                } else if (ethers.BigNumber.from("4").eq(index)) {
+                    // extreme state to put user below Margin
+                    return [
+                        0,
+                        ethers.utils.parseEther("5"),
+                        ethers.utils.parseEther("1000"),
+                    ]
+                }
+            })
+
+            for (var i = 0; i < 2; i++) {
+                await quoteToken
+                    .connect(accounts[i + 1])
+                    .approve(tracer.address, ethers.utils.parseEther("500"))
+                await tracer
+                    .connect(accounts[i + 1])
+                    .deposit(ethers.utils.parseEther("500"))
+            }
+
+            now = Math.floor(new Date().getTime() / 1000)
+
+            // make some basic trades
+            let order1 = {
+                maker: accounts[1].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("1"),
+                side: 0, // long,
+                expires: now + 604800, // now + 7 days
+                created: now - 1,
+            }
+            const mockSignedOrder1 = [
+                order1,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            let order2 = {
+                maker: accounts[2].address,
+                market: tracer.address,
+                price: ethers.utils.parseEther("1"),
+                amount: ethers.utils.parseEther("1"),
+                side: 1, // short,
+                expires: now + 604800, // now + 7 days
+                created: now,
+            }
+            const mockSignedOrder2 = [
+                order2,
+                ethers.utils.formatBytes32String("DummyString"),
+                ethers.utils.formatBytes32String("DummyString"),
+                0,
+            ]
+
+            // check pricing is in hour 0
+            let currentHour = await pricing.currentHour()
+            expect(currentHour).to.equal(0)
+
+            // place trades
+            await traderInstance.executeTrade(
+                [mockSignedOrder1],
+                [mockSignedOrder2]
+            )
+        })
+
         context("if the account is on the latest global index", async () => {
             it("does nothing", async () => {
                 // ensure on current global index
@@ -466,99 +561,47 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("if the account isn't up to date", async () => {
-            beforeEach(async () => {
-                // mock funding index and rates
-                pricing.smocked.currentFundingIndex.will.return.with(2)
-                pricing.smocked.getFundingRate.will.return.with((index) => {
-                    if (ethers.BigNumber.from("1").eq(index)) {
-                        // User rate
-                        return [
-                            0, // timestamp
-                            ethers.utils.parseEther("1"), // fundingRate
-                            ethers.utils.parseEther("1.45"), // cumulativeFundingRate
-                        ]
-                    } else if (ethers.BigNumber.from("0").eq(index)) {
-                        // Global rate
-                        return [
-                            0,
-                            ethers.utils.parseEther("1"),
-                            ethers.utils.parseEther("1.5"),
-                        ]
-                    }
-                })
-
-                for (var i = 0; i < 2; i++) {
-                    await quoteToken
-                        .connect(accounts[i + 1])
-                        .approve(tracer.address, ethers.utils.parseEther("500"))
-                    await tracer
-                        .connect(accounts[i + 1])
-                        .deposit(ethers.utils.parseEther("500"))
-                }
-
-                now = Math.floor(new Date().getTime() / 1000)
-
-                // make some basic trades
-                let order1 = {
-                    maker: accounts[1].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1"),
-                    amount: ethers.utils.parseEther("1"),
-                    side: 0, // long,
-                    expires: now + 604800, // now + 7 days
-                    created: now - 1,
-                }
-                const mockSignedOrder1 = [
-                    order1,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order2 = {
-                    maker: accounts[2].address,
-                    market: tracer.address,
-                    price: ethers.utils.parseEther("1"),
-                    amount: ethers.utils.parseEther("1"),
-                    side: 1, // short,
-                    expires: now + 604800, // now + 7 days
-                    created: now,
-                }
-                const mockSignedOrder2 = [
-                    order2,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                // check pricing is in hour 0
-                let currentHour = await pricing.currentHour()
-                expect(currentHour).to.equal(0)
-
-                // place trades
-                await traderInstance.executeTrade(
-                    [mockSignedOrder1],
-                    [mockSignedOrder2]
-                )
-            })
-
-            it("pays the funding rate", async () => {
-                let timestamp, fundingRate, fundingRateValue
-                ;[timestamp, fundingRate, fundingRateValue] =
-                    await pricing.getFundingRate(0)
-
-                await tracer.settle(accounts[0].address)
-            })
+            it("pays the funding rate", async () => {})
 
             it("pays the insurance funding rate", async () => {})
 
-            it("update their latest gas price", async () => {})
+            it("update their latest gas price", async () => {
+                let balancePrior = await tracer.balances(accounts[1].address)
+                expect(balancePrior.lastUpdatedGasPrice).to.equal(
+                    "60000000000000"
+                )
 
-            it("updates their last updated index", async () => {})
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
+                const lastUpdatedGasAfter = "60000000000001"
+                gasOracle.smocked.latestAnswer.will.return.with(
+                    lastUpdatedGasAfter
+                )
+
+                await tracer.settle(accounts[1].address)
+
+                let balanceAfter = await tracer.balances(accounts[1].address)
+                expect(balanceAfter.lastUpdatedGasPrice).to.equal(
+                    lastUpdatedGasAfter
+                )
+            })
+
+            it("updates their last updated index", async () => {
+                let balancePrior = await tracer.balances(accounts[1].address)
+
+                // fast forward the funding rate index to 2
+                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
+
+                await tracer.settle(accounts[1].address)
+
+                let balanceAfter = await tracer.balances(accounts[1].address)
+
+                expect(balancePrior.lastUpdatedIndex).to.equal(0)
+                expect(balanceAfter.lastUpdatedIndex).to.equal(2)
+            })
         })
 
         context("if the account is under margin", async () => {
-            it("reverts", async () => {})
+            it("pays the funding rate", async () => {})
         })
     })
 
