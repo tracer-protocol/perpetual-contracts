@@ -28,8 +28,10 @@ contract Pricing is IPricing {
     // funding index => insurance funding rate
     mapping(uint256 => Prices.FundingRateInstant) public insuranceFundingRates;
 
-    // market's time value
-    int256 public override timeValue;
+    // variables used to track time value
+    int256 internal cumulativeTimeValue;
+    int256 internal cumulativeTimeValue90DaysAgo;
+    uint256 internal immutable ninetyDaysFromStart;
 
     // the last established funding index
     uint256 public override lastUpdatedFundingIndex;
@@ -66,6 +68,7 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
+        ninetyDaysFromStart = block.timestamp + 90 days;
     }
 
     /**
@@ -193,7 +196,7 @@ contract Pricing is IPricing {
         uint256 derivativeTWAP = twapPrices.derivative;
 
         int256 fundingRate = PRBMathSD59x18.mul(
-            derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue,
+            derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue(),
             _tracer.fundingRateSensitivity().toInt256()
         ) / FUNDING_RATE_OFFSET;
 
@@ -220,7 +223,14 @@ contract Pricing is IPricing {
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
     function fairPrice() external view override returns (uint256) {
-        return Prices.fairPrice(oracle.latestAnswer(), timeValue);
+        return Prices.fairPrice(oracle.latestAnswer(), timeValue());
+    }
+
+    /**
+     * @notice The average daily difference between the derivative and underlying price from the last 90 days
+     */
+    function timeValue() public view override returns (int256) {
+        return cumulativeTimeValue - cumulativeTimeValue90DaysAgo;
     }
 
     ////////////////////////////
@@ -228,14 +238,18 @@ contract Pricing is IPricing {
     //////////////////////////
 
     /**
-     * @notice Calculates and then updates the time Value for a tracer market
+     * @notice Calculates and then updates the time value for a tracer market
      */
     function updateTimeValue() internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         // get 24 hours returns max integer if no trades occurred
         // don't update in this case
         if (avgPrice != type(uint256).max) {
-            timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+            cumulativeTimeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+            // create a 90 day window between cumulativeTimeValue and cumulativeTimeValue90Days ago
+            if (block.timestamp > ninetyDaysFromStart) {
+                cumulativeTimeValue90DaysAgo += Prices.timeValue(avgPrice, oracleAvgPrice);
+            }
         }
     }
 
