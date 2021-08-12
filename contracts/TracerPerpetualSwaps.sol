@@ -548,6 +548,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *      Fees is also subtracted from the total value locked in the market because
      *      fees are taken out of trades that result in users' quotes being modified, and
      *      don't otherwise get subtracted from the tvl of the market
+     * @dev Emits the amount of quote tokens successfully transferred to the owner
      */
     function withdrawFees() external override {
         require(fees != 0, "TCR: no fees");
