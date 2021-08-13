@@ -21,7 +21,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     using PRBMathUD60x18 for uint256;
 
     address public immutable override tracerQuoteToken;
-    uint256 public override quoteTokenDecimals;
+    uint256 public immutable override quoteTokenDecimals;
     bytes32 public immutable override marketId;
     IPricing public pricingContract;
     IInsurance public insuranceContract;
@@ -129,9 +129,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         require(_tracerQuoteToken != address(0), "TCR: _tracerQuoteToken = address(0)");
         require(_gasPriceOracle != address(0), "TCR: _gasPriceOracle = address(0)");
         require(_feeReceiver != address(0), "TCR: _feeReceiver = address(0)");
+        require(IERC20Details(_tracerQuoteToken).decimals() <= 18, "TCR: Decimals > 18");
         tracerQuoteToken = _tracerQuoteToken;
         quoteTokenDecimals = IERC20Details(_tracerQuoteToken).decimals();
-        require(quoteTokenDecimals <= 18, "TCR: Decimals > 18");
         gasPriceOracle = _gasPriceOracle;
         marketId = _marketId;
         feeRate = _feeRate;
