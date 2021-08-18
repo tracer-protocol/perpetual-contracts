@@ -91,7 +91,7 @@ describe("Functional tests: Pricing", function () {
             price: price,
             amount: amount,
             side: 0, // long,
-            expires: now + 604800, // now + 7 days
+            expires: 3621988237, // large timestamp, non expiring
             created: now - 100,
         }
         // set up basic trades
@@ -108,7 +108,7 @@ describe("Functional tests: Pricing", function () {
             price: price,
             amount: amount,
             side: 1, // short,
-            expires: now + 604800, // now + 7 days
+            expires: 3621988237, // large timestamp, non expiring
             created: now - 100,
         }
         const mockSignedShort = [
@@ -140,7 +140,6 @@ describe("Functional tests: Pricing", function () {
             accounts[4].address,
             ethers.utils.parseEther("1000")
         )
-        now = Math.floor(new Date().getTime() / 1000)
 
         // set up accounts
         for (var i = 0; i < 4; i++) {
@@ -151,10 +150,12 @@ describe("Functional tests: Pricing", function () {
                 .connect(accounts[i + 1])
                 .deposit(ethers.utils.parseEther("1000"))
         }
+
+        now = Math.floor(new Date().getTime() / 1000)
     })
 
     describe("Funding Rate", async () => {
-        it("Funding rate is zero when oracle and tracer price are equal", async () => {
+        it("is zero when oracle and tracer price are equal", async () => {
             // set underlying price to 10 (oracle takes in 8 decimal answer)
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 10
@@ -192,7 +193,7 @@ describe("Functional tests: Pricing", function () {
             expect(fundingRateCumulative).to.equal(0)
         })
 
-        it("Funding rate is positive when tracer price is greater than oracle price", async () => {
+        it("is positive when tracer price is greater than oracle price", async () => {
             // set underlying price to 10 (oracle takes in 8 decimal answer)
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 12
@@ -231,7 +232,7 @@ describe("Functional tests: Pricing", function () {
             expect(fundingRateCumulative).to.equal(expectedFundingRate)
         })
 
-        it("Funding rate negative when tracer price is greater than oracle price", async () => {
+        it("is negative when tracer price is greater than oracle price", async () => {
             // set underlying price to 12 (oracle takes in 8 decimal answer)
             await oracle.setPrice(12 * 10 ** 8)
             // execute trade to set tracer price to 10
@@ -271,7 +272,37 @@ describe("Functional tests: Pricing", function () {
         })
     })
 
-    describe("Cumulative Funding Rate", async () => {})
+    describe("Time Value", async () => {
+        it("returns the daily average price difference for last 90 days", async () => {
+            // set average tracer price to 10 for day
+            // set average oracle price to 12 for day
+            // daily average price difference is 2
+            await oracle.setPrice(12 * 10 ** 8)
+            await executeTrade(
+                ethers.utils.parseEther("10"),
+                ethers.utils.parseEther("2")
+            )
 
-    describe("Fair Price", async () => {})
+            // forward time to next day
+            await forwardTime(24 * 3600)
+
+            // create a new trade in the next hour to update the current hour
+            // new trade has price difference of 2
+            await executeTrade(
+                ethers.utils.parseEther("10"),
+                ethers.utils.parseEther("2")
+            )
+
+            // time value is udpated at end of each day, only first day will be recorded
+            // expected time value = (tracer - oracle)/90 = (10 - 12)/90 = -0.022222222222222222
+            let expectedTimeValue = ethers.utils.parseEther(
+                "-0.022222222222222222"
+            )
+            let tx = await pricing.timeValue()
+            expect(tx).to.equal(expectedTimeValue)
+
+            // todo test case for when time passes 90 days
+            await forwardTime(90 * 24 * 3600)
+        })
+    })
 })
