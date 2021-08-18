@@ -75,7 +75,13 @@ const compareAccountState = (state, expectedState) => {
 
 describe("Functional tests: Pricing", function () {
     let accounts, deployer
-    let insurance, pricing, liquidation, tracer, quoteToken, traderInstance, oracle
+    let insurance,
+        pricing,
+        liquidation,
+        tracer,
+        quoteToken,
+        traderInstance,
+        oracle
     let now
     let order1, order2, order3, order4, order5
     let mockSignedOrder1,
@@ -85,47 +91,44 @@ describe("Functional tests: Pricing", function () {
         mockSignedOrder5
 
     const executeTrade = async (price, amount) => {
-    const long = {
-        maker: accounts[1].address,
-        market: tracer.address,
-        price: price,
-        amount: amount,
-        side: 0, // long,
-        expires: now + 604800, // now + 7 days
-        created: now - 100,
-    }
-    // set up basic trades
-    const mockSignedLong = [
-        long,
-        ethers.utils.formatBytes32String("DummyString"),
-        ethers.utils.formatBytes32String("DummyString"),
-        0,
-    ]
+        const long = {
+            maker: accounts[1].address,
+            market: tracer.address,
+            price: price,
+            amount: amount,
+            side: 0, // long,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        // set up basic trades
+        const mockSignedLong = [
+            long,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
 
-    const short = {
-        maker: accounts[2].address,
-        market: tracer.address,
-        price: price,
-        amount: amount,
-        side: 1, // short,
-        expires: now + 604800, // now + 7 days
-        created: now - 100,
-    }
-    const mockSignedShort = [
-        short,
-        ethers.utils.formatBytes32String("DummyString"),
-        ethers.utils.formatBytes32String("DummyString"),
-        0,
-    ]
+        const short = {
+            maker: accounts[2].address,
+            market: tracer.address,
+            price: price,
+            amount: amount,
+            side: 1, // short,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        const mockSignedShort = [
+            short,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
 
-    // place trades
-    await traderInstance.executeTrade(
-        [mockSignedLong],
-        [mockSignedShort]
-    )
-    await traderInstance.clearFilled(mockSignedLong)
-    await traderInstance.clearFilled(mockSignedShort)
-}
+        // place trades
+        await traderInstance.executeTrade([mockSignedLong], [mockSignedShort])
+        await traderInstance.clearFilled(mockSignedLong)
+        await traderInstance.clearFilled(mockSignedShort)
+    }
 
     beforeEach(async () => {
         const _setup = await setup()
@@ -154,68 +157,205 @@ describe("Functional tests: Pricing", function () {
                 .connect(accounts[i + 1])
                 .deposit(ethers.utils.parseEther("1000"))
         }
+
+        order1 = {
+            maker: accounts[1].address,
+            market: tracer.address,
+            price: ethers.utils.parseEther("1"),
+            amount: ethers.utils.parseEther("50"),
+            side: 0, // long,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        mockSignedOrder1 = [
+            order1,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
+
+        order2 = {
+            maker: accounts[2].address,
+            market: tracer.address,
+            price: ethers.utils.parseEther("0.9"),
+            amount: ethers.utils.parseEther("40"),
+            side: 1, // short,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        mockSignedOrder2 = [
+            order2,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
+
+        order3 = {
+            maker: accounts[3].address,
+            market: tracer.address,
+            price: ethers.utils.parseEther("0.9"),
+            amount: ethers.utils.parseEther("10"),
+            side: 1, // short,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        mockSignedOrder3 = [
+            order3,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
+
+        order4 = {
+            maker: accounts[1].address,
+            market: tracer.address,
+            price: ethers.utils.parseEther("1.25"),
+            amount: ethers.utils.parseEther("50"),
+            side: 0, // long,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        mockSignedOrder4 = [
+            order4,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
+
+        order5 = {
+            maker: accounts[2].address,
+            market: tracer.address,
+            price: ethers.utils.parseEther("1.10"),
+            amount: ethers.utils.parseEther("10"),
+            side: 1, // short,
+            expires: now + 604800, // now + 7 days
+            created: now - 100,
+        }
+        mockSignedOrder5 = [
+            order5,
+            ethers.utils.formatBytes32String("DummyString"),
+            ethers.utils.formatBytes32String("DummyString"),
+            0,
+        ]
     })
 
-    describe("When regular trades occur", async () => {
-        it("updates the funding rate correctly", async () => {
-            // set underlying price to 10
-            await oracle.setPrice(ethers.utils.parseEther("10"))
-            // set tracer price to 10
-            await executeTrade(ethers.utils.parseEther("10"), ethers.utils.parseEther("2"))
-            await executeTrade(ethers.utils.parseEther("12"), ethers.utils.parseEther("2"))
-            await executeTrade(ethers.utils.parseEther("8"), ethers.utils.parseEther("2"))
+    it("Funding rate is zero when oracle and tracer price are equal", async () => {
+        // set underlying price to 10 (oracle takes in 8 decimal answer)
+        await oracle.setPrice(10 * 10 ** 8)
+        // execute trade to set tracer price to 10
+        await executeTrade(
+            ethers.utils.parseEther("10"),
+            ethers.utils.parseEther("2")
+        )
 
-            // create a new trade in the next hour to update the funding rate in the last hour
-            await forwardTime(1 * 3600 + 100)
-            await executeTrade(ethers.utils.parseEther("10"), ethers.utils.parseEther("2"))
-            let currentHour = await pricing.currentHour()
-            console.log(currentHour)
+        // create a new trade in the next hour to update the funding rate in the last hour
+        await forwardTime(2 * 3600 + 100)
+        await executeTrade(
+            ethers.utils.parseEther("10"),
+            ethers.utils.parseEther("2")
+        )
 
-            // there are no previous trades, therefore TWAPs should both be 10
-            let expectedTWAP = ethers.utils.parseEther("10")
-            let TWAP = await pricing.getTWAPs(currentHour)
-            let underlyingTWAP = TWAP[0]
-            let derivativeTWAP = TWAP[1]
-            console.log(underlyingTWAP.toString())
-            console.log(derivativeTWAP.toString())
-            //await expect(underlyingTWAP).to.equal(expectedTWAP)
-            //await expect(derivativeTWAP).to.equal(expectedTWAP)
+        // check pricing is in hour 1
+        let currentHour = await pricing.currentHour()
+        expect(currentHour).to.equal(2)
 
-            let lastIndex = await pricing.lastUpdatedFundingIndex()
-            let fundingRate = await pricing.getFundingRate(lastIndex)
-            let fundingRateInstance = fundingRate[1]
-            let fundingRateCumulative = fundingRate[2]
-            
-            console.log(fundingRateInstance.toString())
-            console.log(fundingRateCumulative.toString())
-        })
+        // there are no previous trades, therefore TWAPs should both be 10
+        let expectedTWAP = ethers.utils.parseEther("10")
+        let TWAP = await pricing.getTWAPs(0)
+        let underlyingTWAP = TWAP[0]
+        let derivativeTWAP = TWAP[1]
+        await expect(underlyingTWAP).to.equal(expectedTWAP)
+        await expect(derivativeTWAP).to.equal(expectedTWAP)
 
-        it("updates the fair value correctly", async () => {
-            // update the funding rate
+        let lastIndex = await pricing.lastUpdatedFundingIndex()
+        let fundingRate = await pricing.getFundingRate(lastIndex)
+        let fundingRateInstance = fundingRate[1]
+        let fundingRateCumulative = fundingRate[2]
 
-            // update the insurance rate
-
-            // update TWAP
-            
-            // confirm in the above:
-            // timeValue
-            // 24 hour average price
-            
-            // hourly average price
-        })
-
-        it("when there are extended periods with no trades", async () => {
-            // update the funding rate
-
-            // update the insurance rate
-
-            // update TWAP
-            
-            // confirm in the above:
-            // timeValue
-            // 24 hour average price
-            
-            // hourly average price
-        })
+        // funding rate should be 0 since underlying and oracle price were the same
+        expect(fundingRateInstance).to.equal(0)
+        expect(fundingRateCumulative).to.equal(0)
     })
+
+    it("Funding rate is positive when tracer price is greater than oracle price", async () => {
+        // set underlying price to 10 (oracle takes in 8 decimal answer)
+        await oracle.setPrice(10 * 10 ** 8)
+        // execute trade to set tracer price to 12
+        await executeTrade(
+            ethers.utils.parseEther("12"),
+            ethers.utils.parseEther("2")
+        )
+
+        // create a new trade in the next hour to update the funding rate in the last hour
+        await forwardTime(2 * 3600 + 100)
+        await executeTrade(
+            ethers.utils.parseEther("10"),
+            ethers.utils.parseEther("2")
+        )
+
+        // check pricing is in hour 1
+        let currentHour = await pricing.currentHour()
+        expect(currentHour).to.equal(2)
+
+        // there are no previous trades, therefore TWAPs should both be 10
+        let expectedUnderTWAP = ethers.utils.parseEther("10")
+        let expectedDerivTWAP = ethers.utils.parseEther("12")
+        let TWAP = await pricing.getTWAPs(0)
+        let underlyingTWAP = TWAP[0]
+        let derivativeTWAP = TWAP[1]
+        await expect(underlyingTWAP).to.equal(expectedUnderTWAP)
+        await expect(derivativeTWAP).to.equal(expectedDerivTWAP)
+
+        // funding rate should be (12-10)/8 = 0.25
+        let lastIndex = await pricing.lastUpdatedFundingIndex()
+        let fundingRate = await pricing.getFundingRate(lastIndex)
+        let fundingRateInstance = fundingRate[1]
+        let fundingRateCumulative = fundingRate[2]
+        let expectedFundingRate = ethers.utils.parseEther("0.25")
+        expect(fundingRateInstance).to.equal(expectedFundingRate)
+        expect(fundingRateCumulative).to.equal(expectedFundingRate)
+    })
+
+    it("Funding rate negative when tracer price is greater than oracle price", async () => {
+        // set underlying price to 12 (oracle takes in 8 decimal answer)
+        await oracle.setPrice(12 * 10 ** 8)
+        // execute trade to set tracer price to 10
+        await executeTrade(
+            ethers.utils.parseEther("10"),
+            ethers.utils.parseEther("2")
+        )
+
+        // create a new trade in the next hour to update the funding rate in the last hour
+        await forwardTime(2 * 3600 + 100)
+        await executeTrade(
+            ethers.utils.parseEther("10"),
+            ethers.utils.parseEther("2")
+        )
+
+        // check pricing is in hour 1
+        let currentHour = await pricing.currentHour()
+        expect(currentHour).to.equal(2)
+
+        // there are no previous trades, therefore TWAPs should both be 10
+        let expectedUnderTWAP = ethers.utils.parseEther("12")
+        let expectedDerivTWAP = ethers.utils.parseEther("10")
+        let TWAP = await pricing.getTWAPs(0)
+        let underlyingTWAP = TWAP[0]
+        let derivativeTWAP = TWAP[1]
+        await expect(underlyingTWAP).to.equal(expectedUnderTWAP)
+        await expect(derivativeTWAP).to.equal(expectedDerivTWAP)
+
+        // funding rate should be (10-12)/8 = -0.25
+        let lastIndex = await pricing.lastUpdatedFundingIndex()
+        let fundingRate = await pricing.getFundingRate(lastIndex)
+        let fundingRateInstance = fundingRate[1]
+        let fundingRateCumulative = fundingRate[2]
+        let expectedFundingRate = ethers.utils.parseEther("-0.25")
+        expect(fundingRateInstance).to.equal(expectedFundingRate)
+        expect(fundingRateCumulative).to.equal(expectedFundingRate)
+    })
+
+    it("Cumulative Funding Rate", async () => {})
+
+    it("Fair Price", async () => {})
 })
