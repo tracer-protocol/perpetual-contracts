@@ -1,14 +1,13 @@
-const { expect, assert } = require("chai")
+const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments, network } = require("hardhat")
-const { deploy } = deployments
-const { time } = require("@openzeppelin/test-helpers")
 const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
 const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
 const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
-const { BN } = require("@openzeppelin/test-helpers/src/setup")
+const { BigNumber } = require("ethers")
+const { ConstructorFragment } = require("ethers/lib/utils")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
@@ -303,6 +302,149 @@ describe("Functional tests: Pricing", function () {
 
             // todo test case for when time passes 90 days
             await forwardTime(90 * 24 * 3600)
+        })
+    })
+
+    describe("Record Trade", async () => {
+        context(
+            "when the last recording was made in the same hour",
+            async () => {
+                beforeEach(async () => {
+                    // make three trades at hour 0
+                    // record trade of price 10 with amount 2
+                    await oracle.setPrice(10 * 10 ** 8)
+                    await executeTrade(
+                        ethers.utils.parseEther("10"),
+                        ethers.utils.parseEther("2")
+                    )
+                    // fast forward 10 minutes
+                    await forwardTime(10 * 60)
+
+                    // record trade of price 13 with amount 4
+                    await oracle.setPrice(13 * 10 ** 8)
+                    await executeTrade(
+                        ethers.utils.parseEther("13"),
+                        ethers.utils.parseEther("4")
+                    )
+                })
+                it("updates the average price", async () => {
+                    const expectedPrice = (10 * 2 + 13 * 4) / 6
+                    const expectedPriceWAD = ethers.utils.parseEther(
+                        expectedPrice.toString()
+                    )
+                    const avgPrice = await pricing.getHourlyAvgTracerPrice(0)
+                    expect(avgPrice).to.equal(expectedPriceWAD)
+                })
+
+                it("does not update the funding rate", async () => {
+                    const lastIndex = await pricing.lastUpdatedFundingIndex()
+                    expect(lastIndex).to.equal(0)
+                })
+
+                it("does not update the current hour", async () => {
+                    const currentHour = await pricing.currentHour()
+                    expect(currentHour).to.equal(0)
+                })
+            }
+        )
+
+        context("when an hour has passed since last recording", async () => {
+            beforeEach(async () => {
+                // make three trades at hour 0
+                // record trade of price 10 with amount 2
+                await oracle.setPrice(12 * 10 ** 8)
+                await executeTrade(
+                    ethers.utils.parseEther("10"),
+                    ethers.utils.parseEther("2")
+                )
+                // fast forward to next hour
+                await forwardTime(1 * 3600)
+
+                // record trade of price 13 with amount 4
+                await oracle.setPrice(13 * 10 ** 8)
+                await executeTrade(
+                    ethers.utils.parseEther("13"),
+                    ethers.utils.parseEther("4")
+                )
+            })
+            it("creates a new price recording", async () => {
+                const expectedHourZero = ethers.utils.parseEther("10")
+                const expectedHourOne = ethers.utils.parseEther("13")
+                let avgPriceZero = await pricing.getHourlyAvgTracerPrice(0)
+                let avgPriceOne = await pricing.getHourlyAvgTracerPrice(1)
+                expect(avgPriceZero).to.equal(expectedHourZero)
+                expect(avgPriceOne).to.equal(expectedHourOne)
+            })
+
+            it("updates the funding rate", async () => {
+                // funding rate should update according to the first trade
+                // first trade funding rate should be (12-10)/8 = 0.25
+                const expectedFundingIndex = 1
+                const expectedFundingRate = ethers.utils.parseEther("-0.25")
+                const lastIndex = await pricing.lastUpdatedFundingIndex()
+                const fundingRateInstance = await pricing.getFundingRate(
+                    lastIndex
+                )
+                const fundingRate = fundingRateInstance[1]
+
+                expect(lastIndex).to.equal(expectedFundingIndex)
+                expect(fundingRate).to.equal(expectedFundingRate)
+            })
+
+            it("updates the current hour", async () => {
+                let currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(1)
+            })
+        })
+
+        context("when extended periods of no trades occur", async () => {
+            beforeEach(async () => {
+                // set up hourly average prices as:
+                // hour 0: 10, hour 1: 13
+                // set hour 0
+                await oracle.setPrice(12 * 10 ** 8)
+                await executeTrade(
+                    ethers.utils.parseEther("10"),
+                    ethers.utils.parseEther("2")
+                )
+                // set hour 1
+                await forwardTime(1 * 3600)
+                await oracle.setPrice(13 * 10 ** 8)
+                await executeTrade(
+                    ethers.utils.parseEther("13"),
+                    ethers.utils.parseEther("2")
+                )
+
+                // fast forward 24 hours and set price as 15
+                await forwardTime(24 * 3600)
+                await oracle.setPrice(15 * 10 ** 8)
+                await executeTrade(
+                    ethers.utils.parseEther("15"),
+                    ethers.utils.parseEther("2")
+                )
+            })
+
+            it("overwrites stale prices", async () => {
+                // hourly prices should be:
+                // hour 0: Max_Int(no volume), hour 1: 15
+                const expectedHourZero = ethers.constants.MaxUint256
+                const expectedHourOne = ethers.utils.parseEther("15")
+                const expected24Hour = ethers.utils.parseEther("15")
+
+                const avgPriceZero = await pricing.getHourlyAvgTracerPrice(0)
+                const avgPriceOne = await pricing.getHourlyAvgTracerPrice(1)
+                const avgPrice24Hour = await pricing.get24HourPrices()
+                const avgPrice24HourTracer = avgPrice24Hour[0]
+
+                expect(avgPriceZero).to.equal(expectedHourZero)
+                expect(avgPriceOne).to.equal(expectedHourOne)
+                expect(avgPrice24HourTracer).to.equal(expected24Hour)
+            })
+
+            it("updates the current hour", async () => {
+                let currentHour = await pricing.currentHour()
+                expect(currentHour).to.equal(1)
+            })
         })
     })
 })
