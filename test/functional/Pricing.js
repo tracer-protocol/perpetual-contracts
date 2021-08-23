@@ -6,8 +6,6 @@ const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
 const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
 const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
-const { BigNumber } = require("ethers")
-const { ConstructorFragment } = require("ethers/lib/utils")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
@@ -58,18 +56,6 @@ const setup = deployments.createFixture(async () => {
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
     await network.provider.send("evm_mine", [])
-}
-
-const compareAccountState = (state, expectedState) => {
-    expect(state.position.quote).to.equal(expectedState.position.quote)
-    expect(state.position.base).to.equal(expectedState.position.base)
-    expect(state.totalLeveragedValue).to.equal(
-        expectedState.totalLeveragedValue
-    )
-    expect(state.lastUpdatedIndex).to.equal(expectedState.lastUpdatedIndex)
-    expect(state.lastUpdatedGasPrice).to.equal(
-        expectedState.lastUpdatedGasPrice
-    )
 }
 
 describe("Functional tests: Pricing", function () {
@@ -153,7 +139,7 @@ describe("Functional tests: Pricing", function () {
         now = Math.floor(new Date().getTime() / 1000)
     })
 
-    describe("Funding Rate", async () => {
+    describe("fundingRate", async () => {
         it("is zero when oracle and tracer price are equal", async () => {
             // set underlying price to 10 (oracle takes in 8 decimal answer)
             await oracle.setPrice(10 * 10 ** 8)
@@ -271,7 +257,7 @@ describe("Functional tests: Pricing", function () {
         })
     })
 
-    describe("Time Value", async () => {
+    describe("timeValue", async () => {
         it("returns the daily average price difference for last 90 days", async () => {
             // set average tracer price to 10 for day
             // set average oracle price to 12 for day
@@ -305,7 +291,7 @@ describe("Functional tests: Pricing", function () {
         })
     })
 
-    describe("Record Trade", async () => {
+    describe("recordTrade", async () => {
         context(
             "when the last recording was made in the same hour",
             async () => {
