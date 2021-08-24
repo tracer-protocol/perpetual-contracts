@@ -31,7 +31,7 @@ contract Pricing is IPricing {
     // variables used to track time value
     int256 public override timeValue;
     mapping(uint256 => int256) public dailyDifferences;
-    uint256 internal currentDay;
+    uint256 internal lastUpdatedDay;
 
     // the last established funding index
     uint256 public override lastUpdatedFundingIndex;
@@ -68,7 +68,7 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
-        currentDay = 90;
+        lastUpdatedDay = 90;
     }
 
     /**
@@ -87,7 +87,7 @@ contract Pricing is IPricing {
                 uint256 elapsedDays = (block.timestamp - startLast24Hours) / (24 hours);
                 updateTimeValue(elapsedDays);
                 startLast24Hours += elapsedDays;
-                currentDay += elapsedDays;
+                lastUpdatedDay += elapsedDays;
             }
 
             // Get the last recorded hourly price, returns max integer if no trades occurred
@@ -239,13 +239,13 @@ contract Pricing is IPricing {
         int256 lastDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
         if (avgPrice != type(uint256).max) {
             timeValue += lastDailyDifference;
-            uint256 latestDay = currentDay + elapsedDays;
-            for (uint256 i = currentDay + 1; i <= latestDay; i++) {
+            uint256 latestDay = lastUpdatedDay + elapsedDays;
+            for (uint256 currentDay = lastUpdatedDay + 1; currentDay <= latestDay; currentDay++) {
                 // add a new difference entry
-                int256 dailyDifference = (i == latestDay) ? lastDailyDifference : int256(0);
-                dailyDifferences[i] = dailyDifference;
+                int256 dailyDifference = (currentDay == latestDay) ? lastDailyDifference : int256(0);
+                dailyDifferences[currentDay] = dailyDifference;
                 // remove the difference entry 90 days ago
-                uint256 ninetyDaysAgo = i - 90;
+                uint256 ninetyDaysAgo = currentDay - 90;
                 timeValue -= dailyDifferences[ninetyDaysAgo];
             }
         }
