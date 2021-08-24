@@ -273,7 +273,7 @@ contract Liquidation is ILiquidation, Ownable {
      * @param receiptId the id of the liquidation receipt the orders are being claimed against
      */
     function calcUnitsSold(
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract,
         uint256 receiptId
     ) public override returns (uint256, uint256) {
@@ -329,7 +329,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function calcAmountToReturn(
         uint256 escrowId,
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract
     ) public override returns (uint256) {
         LibLiquidation.LiquidationReceipt memory receipt = liquidationReceipts[escrowId];
@@ -395,7 +395,7 @@ contract Liquidation is ILiquidation, Ownable {
      */
     function claimReceipt(
         uint256 receiptId,
-        Perpetuals.Order[] memory orders,
+        Perpetuals.Order[] calldata orders,
         address traderContract
     ) external override {
         // Claim the receipts from the escrow system, get back amount to return
@@ -475,7 +475,8 @@ contract Liquidation is ILiquidation, Ownable {
      * @notice Modifies the max slippage
      * @param _maxSlippage new max slippage
      */
-    function setMaxSlippage(uint256 _maxSlippage) public override onlyOwner {
+
+    function setMaxSlippage(uint256 _maxSlippage) external override onlyOwner {
         require(_maxSlippage <= MAX_PERCENT, "LIQ: Invalid max slippage");
         maxSlippage = _maxSlippage;
         emit MaxSlippageUpdated(maxSlippage);

@@ -42,7 +42,7 @@ contract PerpetualsMock {
         uint256 aFilled,
         Perpetuals.Order calldata b,
         uint256 bFilled
-    ) external view returns (bool) {
+    ) external view returns (Perpetuals.OrderMatchingResult) {
         return Perpetuals.canMatch(a, aFilled, b, bFilled);
     }
 }
