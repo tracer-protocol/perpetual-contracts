@@ -233,10 +233,6 @@ contract Pricing is IPricing {
         return cumulativeTimeValue - cumulativeTimeValue90DaysAgo;
     }
 
-    ////////////////////////////
-    ///  SETTER FUNCTIONS   ///
-    //////////////////////////
-
     /**
      * @notice Calculates and then updates the time value for a tracer market
      */
@@ -252,6 +248,10 @@ contract Pricing is IPricing {
             }
         }
     }
+
+    ////////////////////////////
+    ///  SETTER FUNCTIONS   ///
+    //////////////////////////
 
     /**
      * @notice Sets the values of the fundingRate struct
