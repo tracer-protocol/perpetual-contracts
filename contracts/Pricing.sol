@@ -236,8 +236,8 @@ contract Pricing is IPricing {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         // get 24 hours returns max integer if no trades occurred
         // don't update in this case
-        int256 lastDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
         if (avgPrice != type(uint256).max) {
+            int256 lastDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
             timeValue += lastDailyDifference;
             uint256 latestDay = lastUpdatedDay + elapsedDays;
             for (uint256 currentDay = lastUpdatedDay + 1; currentDay <= latestDay; currentDay++) {
