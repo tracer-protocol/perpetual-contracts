@@ -165,7 +165,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
     /**
      * @notice Allows a user to deposit into their margin account
-     * @dev this contract must be an approved spender of the markets quote token on behalf of the depositer.
+     * @dev This contract must be an approved spender of the markets quote token on behalf of the depositer.
+     * @dev Emits the amount successfully deposited into the account in WAD format with dust removed
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
      * should be given in WAD format.
      */
@@ -193,12 +194,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
         // update market TVL
         tvl = tvl + uint256(convertedWadAmount);
-        emit Deposit(msg.sender, amount);
+        emit Deposit(msg.sender, uint256(convertedWadAmount));
     }
 
     /**
      * @notice Allows a user to withdraw from their margin account
      * @dev Ensures that the users margin percent is valid after withdraw
+     * @dev Emits the amount successfully withdrawn in WAD format without dust
      * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
      * should be given in WAD format
      */
@@ -230,7 +232,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         _updateAccountLeverage(msg.sender);
 
         // Safemath will throw if tvl < amount
-        tvl = tvl - amount;
+        tvl = tvl - uint256(convertedWadAmount);
 
         // perform transfer
         require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "TCR: Transfer failed");
@@ -568,6 +570,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *      Fees is also subtracted from the total value locked in the market because
      *      fees are taken out of trades that result in users' quotes being modified, and
      *      don't otherwise get subtracted from the tvl of the market
+     * @dev Emits the amount of quote tokens successfully transferred to the owner
      */
     function withdrawFees() external override {
         require(fees != 0, "TCR: no fees");
@@ -575,9 +578,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         fees = 0;
         tvl = tvl - tempFees;
 
+        // Convert fees from WAD format to token representation
+        uint256 rawTokenFees = Balances.wadToToken(quoteTokenDecimals, tempFees);
+
         // Withdraw from the account
-        require(IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees), "TCR: Transfer failed");
-        emit FeeWithdrawn(feeReceiver, tempFees);
+        require(IERC20(tracerQuoteToken).transfer(feeReceiver, rawTokenFees), "TCR: Transfer failed");
+        emit FeeWithdrawn(feeReceiver, rawTokenFees);
     }
 
     function getBalance(address account) external view override returns (Balances.Account memory) {
