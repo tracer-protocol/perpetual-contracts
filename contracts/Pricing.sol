@@ -223,10 +223,6 @@ contract Pricing is IPricing {
         return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 
-    ////////////////////////////
-    ///  SETTER FUNCTIONS   ///
-    //////////////////////////
-
     /**
      * @notice Calculates and then updates the time Value for a tracer market
      */
@@ -238,6 +234,10 @@ contract Pricing is IPricing {
             timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
         }
     }
+
+    ////////////////////////////
+    ///  SETTER FUNCTIONS   ///
+    //////////////////////////
 
     /**
      * @notice Sets the values of the fundingRate struct
