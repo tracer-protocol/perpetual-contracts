@@ -29,9 +29,9 @@ contract Pricing is IPricing {
     mapping(uint256 => Prices.FundingRateInstant) public insuranceFundingRates;
 
     // variables used to track time value
-    int256 internal cumulativeTimeValue;
-    int256 internal cumulativeTimeValue90DaysAgo;
-    uint256 internal immutable ninetyDaysFromStart;
+    int256 public override timeValue;
+    mapping(uint256 => int256) public dailyDifferences;
+    uint256 internal currentDay;
 
     // the last established funding index
     uint256 public override lastUpdatedFundingIndex;
@@ -68,7 +68,7 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
-        ninetyDaysFromStart = block.timestamp + 90 days;
+        currentDay = 90;
     }
 
     /**
@@ -81,6 +81,15 @@ contract Pricing is IPricing {
         uint256 currentOraclePrice = oracle.latestAnswer();
         // Update pricing information if a trade has not been recorded in the last hour
         if (startLastHour <= block.timestamp - 1 hours) {
+            // If 24 hours has passed, update the time value before entering new pricing info
+            if (startLast24Hours <= block.timestamp - 24 hours) {
+                // Update the interest rate every 24 hours
+                uint256 elapsedDays = (block.timestamp - startLast24Hours) / (24 hours);
+                updateTimeValue(elapsedDays);
+                startLast24Hours += elapsedDays;
+                currentDay += elapsedDays;
+            }
+
             // Get the last recorded hourly price, returns max integer if no trades occurred
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
 
@@ -120,13 +129,6 @@ contract Pricing is IPricing {
 
             // Update time of last hourly recording
             startLastHour += (elapsedHours * 3600);
-
-            // Update the time value
-            if (startLast24Hours <= block.timestamp - 24 hours) {
-                // Update the interest rate every 24 hours
-                updateTimeValue();
-                startLast24Hours = block.timestamp;
-            }
         } else {
             updateCurrentPriceEntry(tradePrice, currentOraclePrice, fillAmount);
         }
@@ -196,7 +198,7 @@ contract Pricing is IPricing {
         uint256 derivativeTWAP = twapPrices.derivative;
 
         int256 fundingRate = PRBMathSD59x18.mul(
-            derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue(),
+            derivativeTWAP.toInt256() - underlyingTWAP.toInt256() - timeValue,
             _tracer.fundingRateSensitivity().toInt256()
         ) / FUNDING_RATE_OFFSET;
 
@@ -223,28 +225,28 @@ contract Pricing is IPricing {
      * @notice Given the address of a tracer market this function will get the current fair price for that market
      */
     function fairPrice() external view override returns (uint256) {
-        return Prices.fairPrice(oracle.latestAnswer(), timeValue());
-    }
-
-    /**
-     * @notice The average daily difference between the derivative and underlying price from the last 90 days
-     */
-    function timeValue() public view override returns (int256) {
-        return cumulativeTimeValue - cumulativeTimeValue90DaysAgo;
+        return Prices.fairPrice(oracle.latestAnswer(), timeValue);
     }
 
     /**
      * @notice Calculates and then updates the time value for a tracer market
+     * @param elapsedDays number of days elapsed since last udpate to time value
      */
-    function updateTimeValue() internal {
+    function updateTimeValue(uint256 elapsedDays) internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         // get 24 hours returns max integer if no trades occurred
         // don't update in this case
+        int256 lastDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
         if (avgPrice != type(uint256).max) {
-            cumulativeTimeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
-            // create a 90 day window between cumulativeTimeValue and cumulativeTimeValue90Days ago
-            if (block.timestamp > ninetyDaysFromStart) {
-                cumulativeTimeValue90DaysAgo += Prices.timeValue(avgPrice, oracleAvgPrice);
+            timeValue += lastDailyDifference;
+            uint256 latestDay = currentDay + elapsedDays;
+            for (uint256 i = currentDay + 1; i <= latestDay; i++) {
+                // add new prices
+                int256 dailyDifference = (i == latestDay) ? lastDailyDifference : int256(0);
+                dailyDifferences[i] = dailyDifference;
+                // remove expired prices
+                uint256 ninetyDaysAgo = i - 90;
+                timeValue -= dailyDifferences[ninetyDaysAgo];
             }
         }
     }
