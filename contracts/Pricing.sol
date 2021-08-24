@@ -241,10 +241,10 @@ contract Pricing is IPricing {
             timeValue += lastDailyDifference;
             uint256 latestDay = currentDay + elapsedDays;
             for (uint256 i = currentDay + 1; i <= latestDay; i++) {
-                // add new prices
+                // add a new difference entry
                 int256 dailyDifference = (i == latestDay) ? lastDailyDifference : int256(0);
                 dailyDifferences[i] = dailyDifference;
-                // remove expired prices
+                // remove the difference entry 90 days ago
                 uint256 ninetyDaysAgo = i - 90;
                 timeValue -= dailyDifferences[ninetyDaysAgo];
             }
