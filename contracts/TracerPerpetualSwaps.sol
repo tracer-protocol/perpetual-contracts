@@ -389,8 +389,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     /**
-     * @notice internal function for updating leverage. Called within the Account contract. Also
-     *         updates the total leveraged notional value for the tracer market itself.
+     * @notice Internal function for updating leverage based on a user's position.
+     *         Also updates the total leveraged notional value for the tracer market itself.
+     * @dev Must be called every time a users balance is udpated.
      */
     function _updateAccountLeverage(address account) internal {
         Balances.Account memory userBalance = balances[account];
