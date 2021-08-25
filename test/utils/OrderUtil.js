@@ -11,7 +11,8 @@ const executeTrade = async (
 ) => {
     const long = customOrder(contracts, price, amount, 0, longMaker)
     const short = customOrder(contracts, price, amount, 1, shortMaker)
-    await matchOrders(contracts, long, short)
+    let tx = await matchOrders(contracts, long, short)
+    return tx
 }
 
 // Returns an order object with specified attributes. Unspecified attributes are set to valid default values.
@@ -62,6 +63,7 @@ const matchOrders = async (contracts, order1, order2) => {
     await contracts.trader.clearFilled(mockSignedOrder1)
     await contracts.trader.clearFilled(mockSignedOrder2)
     expect(trade).to.emit(contracts.tracer, "MatchedOrders")
+    return trade
 }
 
 module.exports = {

@@ -12,7 +12,6 @@ describe("Functional tests: Pricing", function () {
     let accounts
     let contracts
     let insurance, pricing, tracer, quoteToken, trader, oracle
-    let now
 
     beforeEach(async () => {
         contracts = await deployTracer()
@@ -39,8 +38,6 @@ describe("Functional tests: Pricing", function () {
                 .connect(accounts[i + 1])
                 .deposit(ethers.utils.parseEther("1000"))
         }
-
-        now = Math.floor(new Date().getTime() / 1000)
     })
 
     describe("fundingRate", async () => {
