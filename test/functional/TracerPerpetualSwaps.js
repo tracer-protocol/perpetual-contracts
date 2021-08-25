@@ -1,55 +1,6 @@
-const { expect, assert } = require("chai")
-const { ethers, getNamedAccounts, deployments, network } = require("hardhat")
-const { deploy } = deployments
-const { time } = require("@openzeppelin/test-helpers")
-const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
-const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const { BN } = require("@openzeppelin/test-helpers/src/setup")
-
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-
-    // deploy contracts
-    await deployments.fixture(["FullDeployTest"])
-    let Factory = await deployments.get("TracerPerpetualsFactory")
-    let factory = await ethers.getContractAt(Factory.abi, Factory.address)
-    let tracerAddress = await factory.tracersByIndex(0)
-    let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
-
-    // setup mocks for the contracts and relink
-    const Insurance = await tracer.insuranceContract()
-    let insurance = await ethers.getContractAt(insuranceAbi, Insurance)
-
-    const Pricing = await tracer.pricingContract()
-    let pricing = await ethers.getContractAt(pricingAbi, Pricing)
-
-    const Liquidation = await tracer.liquidationContract()
-    let liquidation = await ethers.getContractAt(liquidationAbi, Liquidation)
-
-    const QuoteToken = await tracer.tracerQuoteToken()
-    let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
-
-    const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
-
-    return {
-        tracer,
-        insurance,
-        pricing,
-        liquidation,
-        quoteToken,
-        deployer,
-        factory,
-        traderInstance,
-    }
-})
+const { expect } = require("chai")
+const { ethers, network } = require("hardhat")
+const { deployTracer } = require("../utils/DeploymentUtil.js")
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
@@ -70,7 +21,7 @@ const compareAccountState = (state, expectedState) => {
 
 describe("Functional tests: TracerPerpetualSwaps.sol", function () {
     let accounts, deployer
-    let insurance, pricing, liquidation, tracer, quoteToken, traderInstance
+    let insurance, pricing, liquidation, tracer, quoteToken, trader
     let now
     let order1, order2, order3, order4, order5
     let mockSignedOrder1,
@@ -81,14 +32,14 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
 
     context("Regular Trading", async () => {
         beforeEach(async () => {
-            const _setup = await setup()
+            const _setup = await deployTracer()
             quoteToken = _setup.quoteToken
             tracer = _setup.tracer
             insurance = _setup.insurance
             pricing = _setup.pricing
             liquidation = _setup.liquidation
             deployer = _setup.deployer
-            traderInstance = _setup.traderInstance
+            trader = _setup.trader
             accounts = await ethers.getSigners()
             // transfer tokesn to account 4
             await quoteToken.transfer(
@@ -200,18 +151,18 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 expect(currentHour).to.equal(0)
 
                 // place trades
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder1],
                     [mockSignedOrder2]
                 )
-                await traderInstance.clearFilled(mockSignedOrder1)
-                await traderInstance.clearFilled(mockSignedOrder2)
-                await traderInstance.executeTrade(
+                await trader.clearFilled(mockSignedOrder1)
+                await trader.clearFilled(mockSignedOrder2)
+                await trader.executeTrade(
                     [mockSignedOrder1],
                     [mockSignedOrder3]
                 )
-                await traderInstance.clearFilled(mockSignedOrder1)
-                await traderInstance.clearFilled(mockSignedOrder3)
+                await trader.clearFilled(mockSignedOrder1)
+                await trader.clearFilled(mockSignedOrder3)
 
                 // check account state
                 let account1 = await tracer.balances(accounts[1].address)
@@ -262,12 +213,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // funding index = 1
 
                 // make trade in new hour to tick over funding index
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder4],
                     [mockSignedOrder5]
                 )
-                await traderInstance.clearFilled(mockSignedOrder4)
-                await traderInstance.clearFilled(mockSignedOrder5)
+                await trader.clearFilled(mockSignedOrder4)
+                await trader.clearFilled(mockSignedOrder5)
 
                 // check pricing is in hour 1
                 currentHour = await pricing.currentHour()
@@ -297,12 +248,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // hour = 4
                 // funding index = 2
 
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder1],
                     [mockSignedOrder2]
                 )
-                await traderInstance.clearFilled(mockSignedOrder1)
-                await traderInstance.clearFilled(mockSignedOrder2)
+                await trader.clearFilled(mockSignedOrder1)
+                await trader.clearFilled(mockSignedOrder2)
 
                 // check pricing is in hour 3 (2 hours passed)
                 currentHour = await pricing.currentHour()
@@ -387,12 +338,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 // funding index = 0
 
                 // place a trade
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder1],
                     [mockSignedOrder2]
                 )
-                await traderInstance.clearFilled(mockSignedOrder1)
-                await traderInstance.clearFilled(mockSignedOrder2)
+                await trader.clearFilled(mockSignedOrder1)
+                await trader.clearFilled(mockSignedOrder2)
 
                 // check account state
                 let account1 = await tracer.balances(accounts[1].address)
@@ -443,12 +394,12 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 )
 
                 // execute new trade with price of 1.25
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder4],
                     [mockSignedOrder5]
                 )
-                await traderInstance.clearFilled(mockSignedOrder4)
-                await traderInstance.clearFilled(mockSignedOrder5)
+                await trader.clearFilled(mockSignedOrder4)
+                await trader.clearFilled(mockSignedOrder5)
 
                 let expectedHour = (2 + passedHours) % 24
                 currentHour = await pricing.currentHour()

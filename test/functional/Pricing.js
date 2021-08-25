@@ -1,57 +1,6 @@
 const { expect } = require("chai")
-const { ethers, getNamedAccounts, deployments, network } = require("hardhat")
-const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
-const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
-
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-
-    // deploy contracts
-    await deployments.fixture(["FullDeployTest"])
-    let Factory = await deployments.get("TracerPerpetualsFactory")
-    let factory = await ethers.getContractAt(Factory.abi, Factory.address)
-    let tracerAddress = await factory.tracersByIndex(0)
-    let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
-
-    // setup mocks for the contracts and relink
-    const Insurance = await tracer.insuranceContract()
-    let insurance = await ethers.getContractAt(insuranceAbi, Insurance)
-
-    const Pricing = await tracer.pricingContract()
-    let pricing = await ethers.getContractAt(pricingAbi, Pricing)
-
-    const Liquidation = await tracer.liquidationContract()
-    let liquidation = await ethers.getContractAt(liquidationAbi, Liquidation)
-
-    const QuoteToken = await tracer.tracerQuoteToken()
-    let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
-
-    const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
-
-    const Oracle = await deployments.get("PriceOracle")
-    let oracle = await ethers.getContractAt(oracleAbi, Oracle.address)
-
-    return {
-        tracer,
-        insurance,
-        pricing,
-        liquidation,
-        quoteToken,
-        deployer,
-        factory,
-        traderInstance,
-        oracle,
-    }
-})
+const { ethers, network } = require("hardhat")
+const { deployTracer } = require("../utils/DeploymentUtil.js")
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
@@ -60,13 +9,7 @@ const forwardTime = async (seconds) => {
 
 describe("Functional tests: Pricing", function () {
     let accounts
-    let insurance,
-        pricing,
-        liquidation,
-        tracer,
-        quoteToken,
-        traderInstance,
-        oracle
+    let insurance, pricing, tracer, quoteToken, trader, oracle
     let now
 
     const executeTrade = async (price, amount) => {
@@ -104,21 +47,20 @@ describe("Functional tests: Pricing", function () {
         ]
 
         // place trades
-        await traderInstance.executeTrade([mockSignedLong], [mockSignedShort])
-        await traderInstance.clearFilled(mockSignedLong)
-        await traderInstance.clearFilled(mockSignedShort)
+        await trader.executeTrade([mockSignedLong], [mockSignedShort])
+        await trader.clearFilled(mockSignedLong)
+        await trader.clearFilled(mockSignedShort)
     }
 
     beforeEach(async () => {
-        const _setup = await setup()
-        quoteToken = _setup.quoteToken
-        tracer = _setup.tracer
-        insurance = _setup.insurance
-        pricing = _setup.pricing
-        liquidation = _setup.liquidation
-        deployer = _setup.deployer
-        traderInstance = _setup.traderInstance
-        oracle = _setup.oracle
+        const _tracerDeployment = await deployTracer()
+        deployer = _tracerDeployment.deployer
+        quoteToken = _tracerDeployment.quoteToken
+        tracer = _tracerDeployment.tracer
+        insurance = _tracerDeployment.insurance
+        pricing = _tracerDeployment.pricing
+        trader = _tracerDeployment.trader
+        oracle = _tracerDeployment.oracle
         accounts = await ethers.getSigners()
         // transfer tokesn to account 4
         await quoteToken.transfer(
