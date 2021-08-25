@@ -489,7 +489,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     /**
-     * @notice settles an account. Compares current global rate with the users last updated rate
+     * @notice Settles an account. Compares current global rate with the users last updated rate
      *         Updates the accounts margin balance accordingly.
      * @dev Does not ensure that the account remains above margin.
      * @param account the address to settle.
@@ -501,34 +501,27 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         uint256 globalLastUpdatedIndex = pricingContract.lastUpdatedFundingIndex();
         Balances.Account storage accountBalance = balances[account];
 
-        // if this user has no positions, bring them in sync
         if (accountBalance.position.base == 0) {
-            // set to the last fully established index
+            // If user has no open positions, do not pay funding rates and mark as udpated
             accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
         } else if (accountLastUpdatedIndex < globalLastUpdatedIndex) {
-            // Only settle account if its last updated index was before the last established
-            // global index this is since we reference the last global index
-            // Get current and global funding statuses
+            // If the user has not been updated with the last global funding index, apply funding rates
             Prices.FundingRateInstant memory currGlobalRate = pricingContract.getFundingRate(globalLastUpdatedIndex);
             Prices.FundingRateInstant memory currUserRate = pricingContract.getFundingRate(accountLastUpdatedIndex);
-
             Prices.FundingRateInstant memory currInsuranceGlobalRate = pricingContract.getInsuranceFundingRate(
                 globalLastUpdatedIndex
             );
-
             Prices.FundingRateInstant memory currInsuranceUserRate = pricingContract.getInsuranceFundingRate(
                 accountLastUpdatedIndex
             );
 
-            // settle the account
-            Balances.Account storage insuranceBalance = balances[address(insuranceContract)];
-
+            // Apply the funding rate
             accountBalance.position = Prices.applyFunding(accountBalance.position, currGlobalRate, currUserRate);
+            _updateAccountLeverage(account);
 
-            // Update account gas price
-            accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
-
+            // Apply the insurance funding rate if the user has leverage
+            Balances.Account storage insuranceBalance = balances[address(insuranceContract)];
             if (accountBalance.totalLeveragedValue > 0) {
                 (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) = Prices.applyInsurance(
                     accountBalance.position,
@@ -540,8 +533,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
                 balances[account].position = newUserPos;
                 insuranceBalance.position = newInsurancePos;
+                _updateAccountLeverage(account);
             }
 
+            // Update account gas price
+            accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
+            
             // Update account index
             accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             emit Settled(account, accountBalance.position.quote);
