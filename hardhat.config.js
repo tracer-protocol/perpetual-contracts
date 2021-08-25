@@ -5,7 +5,7 @@ require("hardhat-deploy")
 require("hardhat-abi-exporter")
 require("hardhat-typechain")
 require("@nomiclabs/hardhat-etherscan")
-require("solidity-coverage")
+require("@float-capital/solidity-coverage")
 require("hardhat-gas-reporter")
 
 const mnemonic = ""
