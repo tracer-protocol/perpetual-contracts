@@ -2,7 +2,11 @@ const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
 const { BigNumber } = require("ethers")
 const { deployTracer } = require("../utils/DeploymentUtil.js")
-const { executeTrade } = require("../utils/OrderUtil.js")
+const {
+    customOrder,
+    matchOrders,
+    executeTrade,
+} = require("../utils/OrderUtil.js")
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
@@ -51,35 +55,35 @@ const setFundingRate = async (
 describe("Functional tests: TracerPerpetualSwaps.sol", function () {
     let contracts, accounts, deployer
     let initialQuoteBalance, orderPrice, orderAmount
+    let tx
 
     describe("matchOrders", async () => {
-        context("when two traders trade for the first time", async () => {
+        context("when two new users match orders", async () => {
             beforeEach(async () => {
-                initialQuoteBalance = ethers.utils.parseEther("10")
-                orderPrice = ethers.utils.parseEther("2")
-                orderAmount = ethers.utils.parseEther("10")
-
                 contracts = await deployTracer()
                 accounts = await ethers.getSigners()
+
+                // set fee rate to 2%
+                await contracts.tracer.setFeeRate(
+                    ethers.utils.parseEther("0.02")
+                )
+                // set mark price to 2 (oracle takes in 8 decimal answer)
+                await contracts.oracle.setPrice(2 * 10 ** 8)
+
+                initialQuoteBalance = ethers.utils.parseEther("10")
                 await depositQuoteTokens(
                     contracts,
                     accounts,
                     initialQuoteBalance
                 )
 
-                // set fee rate to 2%
-                await contracts.tracer.setFeeRate(
-                    ethers.utils.parseEther("0.02")
-                )
-
-                // set mark price to 2 (oracle takes in 8 decimal answer)
-                await contracts.oracle.setPrice(2 * 10 ** 8)
-
                 // match order from acc 1 (long) and acc 2 (short)
+                orderPrice = ethers.utils.parseEther("2")
+                orderAmount = ethers.utils.parseEther("10")
                 await executeTrade(contracts, accounts, orderPrice, orderAmount)
             })
 
-            it("executes the trades", async () => {
+            it("executes the trade", async () => {
                 // expected quote change = 10 * 2
                 // expected fee = 20 (quote change) * 2% = 0.4
                 // expected total quote change = 20.4
@@ -89,17 +93,17 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
                 const expectedShortQuote = ethers.utils.parseEther("29.6")
                 const expectedShortBase = ethers.utils.parseEther("-10")
 
-                const long = await contracts.tracer.balances(
+                const longUser = await contracts.tracer.balances(
                     accounts[1].address
                 )
-                const short = await contracts.tracer.balances(
+                const shortUser = await contracts.tracer.balances(
                     accounts[2].address
                 )
 
-                expect(long.position.quote).to.equal(expectedLongQuote)
-                expect(long.position.base).to.equal(expectedLongBase)
-                expect(short.position.quote).to.equal(expectedShortQuote)
-                expect(short.position.base).to.equal(expectedShortBase)
+                expect(longUser.position.quote).to.equal(expectedLongQuote)
+                expect(longUser.position.base).to.equal(expectedLongBase)
+                expect(shortUser.position.quote).to.equal(expectedShortQuote)
+                expect(shortUser.position.base).to.equal(expectedShortBase)
             })
 
             it("updates protocol fees", async () => {
@@ -149,7 +153,7 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
             })
         })
 
-        context("when trader needs to be settled", async () => {
+        context("when a trader needs to be settled", async () => {
             beforeEach(async () => {})
 
             it("settles the trader if the order matches", async () => {})
@@ -157,14 +161,144 @@ describe("Functional tests: TracerPerpetualSwaps.sol", function () {
             it("settles the trader if the order fails", async () => {})
         })
 
-        context("when the orders can't match", async () => {
-            it("emits a FailedOrders event", async () => {})
+        context("when the orders are invalid", async () => {
+            beforeEach(async () => {
+                contracts = await deployTracer()
+                accounts = await ethers.getSigners()
+                // set mark price to 2 (oracle takes in 8 decimal answer)
+                await contracts.oracle.setPrice(2 * 10 ** 8)
 
-            it("does not change user positions", async () => {})
+                initialQuoteBalance = ethers.utils.parseEther("10")
+                await depositQuoteTokens(
+                    contracts,
+                    accounts,
+                    initialQuoteBalance
+                )
+
+                // create order where prices don't cross i.e long price < short price
+                const longPrice = ethers.utils.parseEther("1")
+                const shortPrice = ethers.utils.parseEther("2")
+                orderAmount = ethers.utils.parseEther("1")
+                const long = customOrder(
+                    contracts,
+                    longPrice,
+                    orderAmount,
+                    0,
+                    accounts[1].address
+                )
+                const short = customOrder(
+                    contracts,
+                    shortPrice,
+                    orderAmount,
+                    1,
+                    accounts[2].address
+                )
+
+                tx = await matchOrders(contracts, long, short)
+            })
+
+            it("does not change user positions", async () => {
+                const expectedLongQuote = initialQuoteBalance
+                const expectedLongBase = 0
+                const expectedShortQuote = initialQuoteBalance
+                const expectedShortBase = 0
+
+                const longUser = await contracts.tracer.balances(
+                    accounts[1].address
+                )
+                const shortUser = await contracts.tracer.balances(
+                    accounts[2].address
+                )
+
+                expect(longUser.position.quote).to.equal(expectedLongQuote)
+                expect(longUser.position.base).to.equal(expectedLongBase)
+                expect(shortUser.position.quote).to.equal(expectedShortQuote)
+                expect(shortUser.position.base).to.equal(expectedShortBase)
+            })
+
+            it("emits a FailedOrders event", async () => {
+                const orderIdLong =
+                    "0x0ceea7a7a57d6ec6e7172d38c112952808933fc4114ed704180a5a8f5bb63ce6"
+                const orderIdShort =
+                    "0x16473f8ae1506e38d884da56db53e2c9c895ef57382d16f18086a06fdb6d1220"
+                const errorCode = 3 // price mismatch error code
+                expect(tx)
+                    .to.emit(contracts.tracer, "FailedOrders")
+                    .withArgs(
+                        errorCode,
+                        accounts[1].address,
+                        accounts[2].address,
+                        orderAmount,
+                        orderIdLong,
+                        orderIdShort
+                    )
+            })
         })
 
-        context("when users don't have margin", async () => {
-            it("emits a FailedOrders event", async () => {})
+        context("when users don't have sufficient margin", async () => {
+            beforeEach(async () => {
+                contracts = await deployTracer()
+                accounts = await ethers.getSigners()
+
+                // set fee rate to 2%
+                await contracts.tracer.setFeeRate(
+                    ethers.utils.parseEther("0.02")
+                )
+                // set mark price to 2 (oracle takes in 8 decimal answer)
+                await contracts.oracle.setPrice(2 * 10 ** 8)
+
+                initialQuoteBalance = ethers.utils.parseEther("10")
+                await depositQuoteTokens(
+                    contracts,
+                    accounts,
+                    initialQuoteBalance
+                )
+
+                // match order with amount 100
+                // min margin = quote change / max leverage + liq. gas cost (negligble)
+                // min margin = 20 / 12.5 = 16
+                // actual margin = -194 + (100 * 2) = 6
+                orderPrice = ethers.utils.parseEther("2")
+                orderAmount = ethers.utils.parseEther("100")
+                await executeTrade(contracts, accounts, orderPrice, orderAmount)
+            })
+
+            it("does not change user positions", async () => {
+                const expectedLongQuote = initialQuoteBalance
+                const expectedLongBase = 0
+                const expectedShortQuote = initialQuoteBalance
+                const expectedShortBase = 0
+
+                const longUser = await contracts.tracer.balances(
+                    accounts[1].address
+                )
+                const shortUser = await contracts.tracer.balances(
+                    accounts[2].address
+                )
+
+                expect(longUser.position.quote).to.equal(expectedLongQuote)
+                expect(longUser.position.base).to.equal(expectedLongBase)
+                expect(shortUser.position.quote).to.equal(expectedShortQuote)
+                expect(shortUser.position.base).to.equal(expectedShortBase)
+            })
+
+            it("emits a FailedOrders event", async () => {
+                const orderIdLong =
+                    "0x0ceea7a7a57d6ec6e7172d38c112952808933fc4114ed704180a5a8f5bb63ce6"
+                const orderIdShort =
+                    "0x16473f8ae1506e38d884da56db53e2c9c895ef57382d16f18086a06fdb6d1220"
+                const errorCode = 8 // long margin fail code
+                expect(tx)
+                    .to.emit(contracts.tracer, "FailedOrders")
+                    .withArgs(
+                        errorCode,
+                        accounts[1].address,
+                        accounts[2].address,
+                        orderAmount,
+                        orderIdLong,
+                        orderIdShort
+                    )
+            })
         })
     })
 })

@@ -40,7 +40,6 @@ const customOrder = (
 
 // matches two orders
 const matchOrders = async (contracts, order1, order2) => {
-    // set up basic trades
     const mockSignedOrder1 = [
         order1,
         ethers.utils.formatBytes32String("DummyString"),
@@ -56,14 +55,13 @@ const matchOrders = async (contracts, order1, order2) => {
     ]
 
     // place trades
-    let trade = await contracts.trader.executeTrade(
+    let tx = await contracts.trader.executeTrade(
         [mockSignedOrder1],
         [mockSignedOrder2]
     )
     await contracts.trader.clearFilled(mockSignedOrder1)
     await contracts.trader.clearFilled(mockSignedOrder2)
-    expect(trade).to.emit(contracts.tracer, "MatchedOrders")
-    return trade
+    return tx
 }
 
 module.exports = {
