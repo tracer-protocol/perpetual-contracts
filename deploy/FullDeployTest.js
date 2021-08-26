@@ -39,8 +39,9 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
-    // asset price oracle => ASSET / USD
-    const priceOracle = await deploy("PriceOracle", {
+    // Chainlink ETH/USD feed
+    // Used to report mark price in ETH/USD market
+    const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
         contract: "ChainlinkOracle",
@@ -53,12 +54,7 @@ module.exports = async function (hre) {
         contract: "ChainlinkOracle",
     })
 
-    const ethOracle = await deploy("EthOracle", {
-        from: deployer,
-        log: true,
-        contract: "ChainlinkOracle",
-    })
-
+    // Default answer of $USD3000/ETH
     await execute(
         "EthOracle",
         { from: deployer, log: true },
@@ -70,9 +66,10 @@ module.exports = async function (hre) {
         "EthOracle",
         { from: deployer, log: true },
         "setPrice",
-        "300000000000" // 3000 USD / ETH
+        "300000000000"
     )
 
+    // Default answer of 20 Gwei/Fast Gas
     await execute(
         "GasOracle",
         { from: deployer, log: true },
@@ -84,17 +81,18 @@ module.exports = async function (hre) {
         "GasOracle",
         { from: deployer, log: true },
         "setPrice",
-        "20000000000" // 20 Gwei
+        "20000000000"
     )
 
-    // adapter converting asset oracle to WAD
+    // Wrap ETH/USD feed in ChainlinkOracleAdapter to ensure output is in WAD format
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
-        args: [priceOracle.address],
+        args: [ethOracle.address],
         contract: "OracleAdapter",
     })
 
+    // USD/Gas price oracle.
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
