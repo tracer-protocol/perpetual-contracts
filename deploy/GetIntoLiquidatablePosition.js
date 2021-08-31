@@ -2,7 +2,7 @@ const perpsAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpet
 
 module.exports = async function (hre) {
     const { deployments, getNamedAccounts, ethers, BigNumber } = hre
-    const { read, execute } = deployments
+    const { deploy, read, execute } = deployments
     const { deployer, acc1 } = await getNamedAccounts()
     const signers = await ethers.getSigners()
 
@@ -12,7 +12,40 @@ module.exports = async function (hre) {
         perpsAbi
     ).connect(signers[0])
     // let tracerInstance = new ethers.Contract(perpsAddress, perpsAbi)
-    const priceOracle = await deployments.get("PriceOracle")
+    const priceOracle = await deployments.get("EthOracle")
+    // Set initial ETH price to $1
+    await execute(
+        "EthOracle",
+        { from: deployer, log: true },
+        "setPrice",
+        "100000000"
+    )
+
+    // Set up new oracle to ensure gas price always returns USD$0.00006/Gas
+    const mockEthOracle = await deploy("mockEthOracle", {
+        from: deployer,
+        log: true,
+        contract: "ChainlinkOracle",
+    })
+    await execute(
+        "mockEthOracle",
+        { from: deployer, log: true },
+        "setDecimals",
+        "8"
+    )
+    await execute(
+        "mockEthOracle",
+        { from: deployer, log: true },
+        "setPrice",
+        "300000000000"
+    )
+    await execute(
+        "GasPriceOracle",
+        { from: deployer, log: true },
+        "setPriceOracle",
+        mockEthOracle.address
+    )
+
     const traderDeployment = await deployments.get("Trader")
     let traderInstance = await ethers.getContractAt(
         traderDeployment.abi,
@@ -78,7 +111,7 @@ module.exports = async function (hre) {
 
     // Reduce price by 5%
     await execute(
-        "PriceOracle",
+        "EthOracle",
         { from: deployer, log: true },
         "setPrice",
         "95000000" // $0.95
