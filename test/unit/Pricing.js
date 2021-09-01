@@ -8,7 +8,7 @@ const forwardTime = async (seconds) => {
     await network.provider.send("evm_mine", [])
 }
 
-describe("Functional tests: Pricing", function () {
+describe("Unit tests: Pricing", function () {
     let accounts
     let contracts
     let insurance, pricing, tracer, quoteToken, trader, oracle
