@@ -1,7 +1,7 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
-const { executeTrade } = require("../utils/OrderUtil.js")
-const { deployTracerMockPricing } = require("../utils/DeploymentUtil.js")
+const { executeTrade } = require("../util/OrderUtil.js")
+const { deployTracerMockPricing } = require("../util/DeploymentUtil.js")
 
 const depositQuoteTokens = async (contracts, accounts, amount) => {
     // transfer tokens to accounts 1 to 4

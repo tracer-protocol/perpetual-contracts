@@ -4,12 +4,12 @@ const { BigNumber } = require("ethers")
 const {
     deployTracer,
     deployTracerMockPricing,
-} = require("../utils/DeploymentUtil.js")
+} = require("../util/DeploymentUtil.js")
 const {
     customOrder,
     matchOrders,
     executeTrade,
-} = require("../utils/OrderUtil.js")
+} = require("../util/OrderUtil.js")
 
 const depositQuoteTokens = async (contracts, accounts, amount) => {
     // transfer tokens to accounts 1 to 4

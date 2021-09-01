@@ -1,7 +1,7 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
-const { deployTracer } = require("../utils/DeploymentUtil.js")
-const { executeTrade } = require("../utils/OrderUtil.js")
+const { deployTracer } = require("../util/DeploymentUtil.js")
+const { executeTrade } = require("../util/OrderUtil.js")
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
