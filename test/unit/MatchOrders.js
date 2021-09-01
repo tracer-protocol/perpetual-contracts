@@ -1,7 +1,10 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
 const { BigNumber } = require("ethers")
-const { deployTracer } = require("../utils/DeploymentUtil.js")
+const {
+    deployTracer,
+    deployTracerMockPricing,
+} = require("../utils/DeploymentUtil.js")
 const {
     customOrder,
     matchOrders,
@@ -18,6 +21,18 @@ const depositQuoteTokens = async (contracts, accounts, amount) => {
             .approve(contracts.tracer.address, amount)
         await contracts.tracer.connect(accounts[i + 1]).deposit(amount)
     }
+}
+
+// sets the fast gas / USD price oracles
+// takes in the desired fgas / USD price in decimal format
+const setGasPrice = async (contracts, gasPrice) => {
+    // fgas / USD = fgas / ETH * ETH/USD
+    // mock fgas / ETH node always returns 20 GWEI
+    // ETH/USD = fgas/USD / 20 GWEI
+    const ethOraclePrice = gasPrice / 0.00000002
+
+    // set price of ETH/USD oracle
+    await contracts.gasEthOracle.setPrice(ethOraclePrice * 10 ** 8)
 }
 
 describe("Unit tests: matchOrders", function () {
@@ -110,11 +125,93 @@ describe("Unit tests: matchOrders", function () {
     })
 
     context("when a trader needs to be settled", async () => {
-        beforeEach(async () => {})
+        it("settles the trader if the order matches", async () => {
+            contracts = await deployTracerMockPricing()
+            accounts = await ethers.getSigners()
 
-        it("settles the trader if the order matches", async () => {})
+            initialQuoteBalance = ethers.utils.parseEther("11")
+            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
 
-        it("settles the trader if the order fails", async () => {})
+            // give account 1 a base of 1, quote is now 10
+            await setGasPrice(contracts, 0.00000002)
+            let markPrice = 1
+            await contracts.pricing.setFairPrice(
+                ethers.utils.parseEther(markPrice.toString())
+            )
+            let tradePrice = ethers.utils.parseEther(markPrice.toString())
+            let tradeAmount = ethers.utils.parseEther("1")
+            await executeTrade(contracts, accounts, tradePrice, tradeAmount)
+
+            // set new funding rate to 0.2 quote tokens per 1 base held at index 1, no insurance rate
+            const fundingRate = ethers.utils.parseEther("0.2")
+            await contracts.pricing.setFundingRate(1, fundingRate, fundingRate)
+            await contracts.pricing.setLastUpdatedFundingIndex(1)
+
+            tradePrice = ethers.utils.parseEther(markPrice.toString())
+            tradeAmount = ethers.utils.parseEther("5")
+            let tx = await executeTrade(
+                contracts,
+                accounts,
+                tradePrice,
+                tradeAmount
+            )
+
+            const postBalance = await contracts.tracer.balances(
+                accounts[1].address
+            )
+
+            // expected quote = initial quote - initial trade - funding payment - new trade
+            // = 11 - 1 - 0.2 - 5 = 4.8
+            expect(postBalance.position.quote).to.equal(
+                ethers.utils.parseEther("4.8")
+            )
+            expect(tx).to.emit(contracts.tracer, "MatchedOrders")
+            expect(tx).to.emit(contracts.tracer, "Settled")
+        })
+
+        it("settles the trader if the order fails", async () => {
+            contracts = await deployTracerMockPricing()
+            accounts = await ethers.getSigners()
+
+            initialQuoteBalance = ethers.utils.parseEther("11")
+            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+
+            // give account 1 a base of 1, quote is now 10
+            await setGasPrice(contracts, 0.00000002)
+            let markPrice = 1
+            await contracts.pricing.setFairPrice(
+                ethers.utils.parseEther(markPrice.toString())
+            )
+            let tradePrice = ethers.utils.parseEther(markPrice.toString())
+            let tradeAmount = ethers.utils.parseEther("1")
+            await executeTrade(contracts, accounts, tradePrice, tradeAmount)
+
+            // set new funding rate to 0.2 quote tokens per 1 base held at index 1, no insurance rate
+            const fundingRate = ethers.utils.parseEther("0.2")
+            await contracts.pricing.setFundingRate(1, fundingRate, fundingRate)
+            await contracts.pricing.setLastUpdatedFundingIndex(1)
+
+            tradePrice = ethers.utils.parseEther(markPrice.toString())
+            tradeAmount = ethers.utils.parseEther("1000") // user will have insufficient margin for this trade
+            let tx = await executeTrade(
+                contracts,
+                accounts,
+                tradePrice,
+                tradeAmount
+            )
+
+            const postBalance = await contracts.tracer.balances(
+                accounts[1].address
+            )
+
+            // expected quote = initial quote - initial trade - funding payment
+            // = 11 - 1 - 0.2 = 9.8
+            expect(postBalance.position.quote).to.equal(
+                ethers.utils.parseEther("9.8")
+            )
+            expect(tx).to.emit(contracts.tracer, "FailedOrders")
+            expect(tx).to.emit(contracts.tracer, "Settled")
+        })
     })
 
     context("when the orders are invalid", async () => {

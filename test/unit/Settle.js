@@ -1,71 +1,7 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
 const { executeTrade } = require("../utils/OrderUtil.js")
-const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
-const pricingAbi = require("../../abi/contracts/test/PricingMock.sol/PricingMock.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
-
-const forwardTime = async (seconds) => {
-    await network.provider.send("evm_increaseTime", [seconds])
-    await network.provider.send("evm_mine", [])
-}
-
-const setup = deployments.createFixture(async () => {
-    const { _deployer } = await getNamedAccounts()
-
-    // deploy contracts
-    await deployments.fixture(["MockPricingDeploy"])
-    let factoryInstance = await deployments.get("TracerPerpetualsFactory")
-    let _factory = await ethers.getContractAt(
-        factoryInstance.abi,
-        factoryInstance.address
-    )
-    let tracerAddress = await _factory.tracersByIndex(0)
-    let _tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
-
-    const Insurance = await _tracer.insuranceContract()
-    let _insurance = await ethers.getContractAt(insuranceAbi, Insurance)
-
-    const Pricing = await _tracer.pricingContract()
-    let _pricing = await ethers.getContractAt(pricingAbi, Pricing)
-
-    const Liquidation = await _tracer.liquidationContract()
-    let _liquidation = await ethers.getContractAt(liquidationAbi, Liquidation)
-
-    const QuoteToken = await _tracer.tracerQuoteToken()
-    let _quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
-
-    const traderDeployment = await deployments.get("Trader")
-    let _trader = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
-
-    const Oracle = await deployments.get("PriceOracle")
-    let _oracle = await ethers.getContractAt(oracleAbi, Oracle.address)
-
-    const gasEthOracle = await deployments.get("EthOracle")
-    let _gasEthOracle = await ethers.getContractAt(
-        oracleAbi,
-        gasEthOracle.address
-    )
-
-    return {
-        deployer: _deployer,
-        tracer: _tracer,
-        insurance: _insurance,
-        pricing: _pricing,
-        liquidation: _liquidation,
-        quoteToken: _quoteToken,
-        factory: _factory,
-        trader: _trader,
-        oracle: _oracle,
-        gasEthOracle: _gasEthOracle,
-    }
-})
+const { deployTracerMockPricing } = require("../utils/DeploymentUtil.js")
 
 const depositQuoteTokens = async (contracts, accounts, amount) => {
     // transfer tokens to accounts 1 to 4
@@ -94,7 +30,7 @@ const setGasPrice = async (contracts, gasPrice) => {
 describe("Unit tests: settle", function () {
     context("when the account has no open positions", async () => {
         it("updates the last updated index and gas price but does not change the account balance", async () => {
-            contracts = await setup()
+            contracts = await deployTracerMockPricing()
 
             accounts = await ethers.getSigners()
 
@@ -158,7 +94,7 @@ describe("Unit tests: settle", function () {
         "when the account has a position and is on the latest global index",
         async () => {
             it("does nothing", async () => {
-                contracts = await setup()
+                contracts = await deployTracerMockPricing()
 
                 accounts = await ethers.getSigners()
 
@@ -214,7 +150,7 @@ describe("Unit tests: settle", function () {
 
     context("when the account has an unleveraged position", async () => {
         it("it only pays the funding rate", async () => {
-            contracts = await setup()
+            contracts = await deployTracerMockPricing()
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
@@ -288,7 +224,7 @@ describe("Unit tests: settle", function () {
 
     context("when the account has a leveraged position", async () => {
         it("pays both the funding rate and insurance funding rate", async () => {
-            contracts = await setup()
+            contracts = await deployTracerMockPricing()
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("10")
@@ -354,7 +290,7 @@ describe("Unit tests: settle", function () {
         "when the account has insufficient margin to pay the funding rate and insurance rate",
         async () => {
             it("updates the account balance", async () => {
-                contracts = await setup()
+                contracts = await deployTracerMockPricing()
                 accounts = await ethers.getSigners()
 
                 initialQuoteBalance = ethers.utils.parseEther("10")
