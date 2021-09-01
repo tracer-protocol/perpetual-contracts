@@ -105,7 +105,6 @@ contract PricingMock is IPricing {
     // The below functions have only been included to conform to the IPricing interface and should not be used.
 
     function recordTrade(uint256, uint256) external pure override {
-        // Mock function
         return;
     }
 
