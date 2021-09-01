@@ -538,7 +538,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
             // Update account gas price
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
-            
+
             // Update account index
             accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             emit Settled(account, accountBalance.position.quote);
