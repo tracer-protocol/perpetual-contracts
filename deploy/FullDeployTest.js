@@ -132,9 +132,6 @@ module.exports = async function (hre) {
         acc3,
         tokenAmount
     )
-    console.log(`Quote Tokens transfered from ${deployer} to ${acc1}`)
-    console.log(`Quote Tokens transfered from ${deployer} to ${acc2}`)
-    console.log(`Quote Tokens transfered from ${deployer} to ${acc3}`)
 
     // deploy deployers
     const liquidationDeployer = await deploy("LiquidationDeployerV1", {
@@ -250,14 +247,6 @@ module.exports = async function (hre) {
         await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
         tracerAbi
     ).connect(signers[0])
-
-    console.log(`Deployed Tracer Instance: ${tracerInstance.address}`)
-    console.log(`Deployed Factory: ${factory.address}`)
-    console.log(`Deployed Trader: ${trader.address}`)
-
-    let insurance = await tracerInstance.insuranceContract()
-    let pricing = await tracerInstance.pricingContract()
-    let liquidation = await tracerInstance.liquidationContract()
 
     // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
     await tracerInstance.setWhitelist(trader.address, true)
