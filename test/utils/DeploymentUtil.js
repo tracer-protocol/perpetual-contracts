@@ -6,7 +6,6 @@ const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
 const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
 
-// Deploys an ETH/USD Tracer Market
 const deployTracer = deployments.createFixture(async () => {
     const { _deployer } = await getNamedAccounts()
 
@@ -39,7 +38,7 @@ const deployTracer = deployments.createFixture(async () => {
         traderDeployment.address
     )
 
-    const Oracle = await deployments.get("EthOracle")
+    const Oracle = await deployments.get("PriceOracle")
     let _oracle = await ethers.getContractAt(oracleAbi, Oracle.address)
 
     return {
