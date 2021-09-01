@@ -90,7 +90,7 @@ const setGasPrice = async (contracts, gasPrice) => {
     await contracts.oracle.setPrice(ethOraclePrice * 10 ** 8)
 }
 
-describe("functional tests: settle", function () {
+describe("Unit tests: settle", function () {
     context("when the account has no open positions", async () => {
         it("updates the last updated index and gas price but does not change the account balance", async () => {
             contracts = await setup()

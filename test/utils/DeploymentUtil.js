@@ -41,6 +41,13 @@ const deployTracer = deployments.createFixture(async () => {
     const Oracle = await deployments.get("PriceOracle")
     let _oracle = await ethers.getContractAt(oracleAbi, Oracle.address)
 
+    // mock ETH / USD oracle used to set gas price
+    const gasEthOracle = await deployments.get("EthOracle")
+    let _gasEthOracle = await ethers.getContractAt(
+        oracleAbi,
+        gasEthOracle.address
+    )
+
     return {
         deployer: _deployer,
         tracer: _tracer,
@@ -51,6 +58,7 @@ const deployTracer = deployments.createFixture(async () => {
         factory: _factory,
         trader: _trader,
         oracle: _oracle,
+        gasEthOracle: _gasEthOracle,
     }
 })
 
