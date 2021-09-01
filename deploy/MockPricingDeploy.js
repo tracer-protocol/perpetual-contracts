@@ -41,6 +41,13 @@ module.exports = async function (hre) {
     // deploy oracles
     // Chainlink ETH/USD feed
     // Used to report mark price in ETH/USD market
+    const priceOracle = await deploy("PriceOracle", {
+        from: deployer,
+        log: true,
+        contract: "ChainlinkOracle",
+    })
+
+    // mock ETH/USD Chainlink Feed to allow for setting of Gas Oracle
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
@@ -88,7 +95,7 @@ module.exports = async function (hre) {
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
-        args: [ethOracle.address],
+        args: [priceOracle.address],
         contract: "OracleAdapter",
     })
 

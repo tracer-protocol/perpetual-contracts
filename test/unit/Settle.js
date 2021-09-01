@@ -1,12 +1,6 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
-const { BigNumber } = require("ethers")
-const { deployTracer } = require("../utils/DeploymentUtil.js")
-const {
-    customOrder,
-    matchOrders,
-    executeTrade,
-} = require("../utils/OrderUtil.js")
+const { executeTrade } = require("../utils/OrderUtil.js")
 const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/test/PricingMock.sol/PricingMock.json")
@@ -50,8 +44,14 @@ const setup = deployments.createFixture(async () => {
         traderDeployment.address
     )
 
-    const Oracle = await deployments.get("EthOracle")
+    const Oracle = await deployments.get("PriceOracle")
     let _oracle = await ethers.getContractAt(oracleAbi, Oracle.address)
+
+    const gasEthOracle = await deployments.get("EthOracle")
+    let _gasEthOracle = await ethers.getContractAt(
+        oracleAbi,
+        gasEthOracle.address
+    )
 
     return {
         deployer: _deployer,
@@ -63,6 +63,7 @@ const setup = deployments.createFixture(async () => {
         factory: _factory,
         trader: _trader,
         oracle: _oracle,
+        gasEthOracle: _gasEthOracle,
     }
 })
 
@@ -87,7 +88,7 @@ const setGasPrice = async (contracts, gasPrice) => {
     const ethOraclePrice = gasPrice / 0.00000002
 
     // set price of ETH/USD oracle
-    await contracts.oracle.setPrice(ethOraclePrice * 10 ** 8)
+    await contracts.gasEthOracle.setPrice(ethOraclePrice * 10 ** 8)
 }
 
 describe("Unit tests: settle", function () {
@@ -163,6 +164,7 @@ describe("Unit tests: settle", function () {
 
                 // set gas price when user first deposits to 20 gwei
                 await setGasPrice(contracts, 0.00000002)
+                await contracts.oracle.setPrice(1 * 10 ** 8)
 
                 initialQuoteBalance = ethers.utils.parseEther("10")
                 await depositQuoteTokens(
@@ -172,7 +174,7 @@ describe("Unit tests: settle", function () {
                 )
 
                 // give account 1 a base of 1, this trade also settles the account
-                const heldPrice = ethers.utils.parseEther("2")
+                const heldPrice = ethers.utils.parseEther("1")
                 const heldAmount = ethers.utils.parseEther("1")
                 await executeTrade(contracts, accounts, heldPrice, heldAmount)
 
@@ -211,7 +213,7 @@ describe("Unit tests: settle", function () {
     )
 
     context("when the account has an unleveraged position", async () => {
-        it("it only pays the funding rate and updates other account variables correctly", async () => {
+        it("it only pays the funding rate", async () => {
             contracts = await setup()
             accounts = await ethers.getSigners()
 
@@ -220,14 +222,22 @@ describe("Unit tests: settle", function () {
 
             // set gas price when user first deposits to 20 gwei
             await setGasPrice(contracts, 0.00000002)
+            let markPrice = 1
+            await contracts.pricing.setFairPrice(
+                ethers.utils.parseEther(markPrice.toString())
+            )
 
             // give account 1 a base of 1 at same price as oracle to avoid impacting funding rate
-            const heldPrice = ethers.utils.parseEther("1")
+            const heldPrice = ethers.utils.parseEther(markPrice.toString())
             const heldAmount = ethers.utils.parseEther("1")
             await executeTrade(contracts, accounts, heldPrice, heldAmount)
 
             // set new gas rate to 40 gwei
             await setGasPrice(contracts, 0.00000004)
+            markPrice = 2
+            await contracts.pricing.setFairPrice(
+                ethers.utils.parseEther(markPrice.toString())
+            )
 
             // set funding rate and insurance rate to 0.2 quote tokens per 1 base held at index 1
             const fundingRate = ethers.utils.parseEther("0.2")
@@ -276,15 +286,142 @@ describe("Unit tests: settle", function () {
         })
     })
 
-    context("when the account has a leveraged position", async () => {})
+    context("when the account has a leveraged position", async () => {
+        it("pays both the funding rate and insurance funding rate", async () => {
+            contracts = await setup()
+            accounts = await ethers.getSigners()
+
+            initialQuoteBalance = ethers.utils.parseEther("10")
+            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+
+            // set gas price when user first deposits to 20 gwei
+            await setGasPrice(contracts, 0.00000002)
+            let markPrice = 1
+            await contracts.pricing.setFairPrice(
+                ethers.utils.parseEther(markPrice.toString())
+            )
+
+            // give account 1 a base of 1 at same price as oracle to avoid impacting funding rate
+            const heldPrice = ethers.utils.parseEther(markPrice.toString())
+            const heldAmount = ethers.utils.parseEther("20")
+            await executeTrade(contracts, accounts, heldPrice, heldAmount)
+
+            // set funding rate and insurance rate to 0.2 quote tokens per 1 base held at index 1
+            const fundingRate = ethers.utils.parseEther("0.2")
+            await contracts.pricing.setFundingRate(1, fundingRate, fundingRate)
+            await contracts.pricing.setInsuranceFundingRate(
+                1,
+                fundingRate,
+                fundingRate
+            )
+            await contracts.pricing.setLastUpdatedFundingIndex(1)
+
+            const priorBalance = await contracts.tracer.balances(
+                accounts[1].address
+            )
+
+            // trader should now have -10 quote after buying 20 base at price of 1
+            expect(priorBalance.position.quote).to.equal(
+                ethers.utils.parseEther("-10")
+            )
+            await contracts.tracer.settle(accounts[1].address)
+            const postBalance = await contracts.tracer.balances(
+                accounts[1].address
+            )
+
+            // funding rate is paid first. Payment = 0.2 * 20 = 4, Balance after = -10 - 4 = -14
+            // insurance rate is then paid. Payment = 0.2 * lev value (14) = 2.8
+            // quote balance after = -14 - 2.8 = -16.8
+            const expectedQuote = ethers.utils.parseEther("-16.8")
+            expect(postBalance.position.quote).to.equal(expectedQuote)
+
+            // check last index
+            const lastIndex = await contracts.pricing.lastUpdatedFundingIndex()
+            expect(priorBalance.lastUpdatedIndex).to.equal(0)
+            expect(postBalance.lastUpdatedIndex).to.equal(lastIndex)
+
+            // check leverage
+            expect(priorBalance.totalLeveragedValue).to.equal(
+                ethers.utils.parseEther("10")
+            )
+            expect(postBalance.totalLeveragedValue).to.equal(
+                ethers.utils.parseEther("16.8")
+            )
+        })
+    })
 
     context(
-        "when the account has insufficient margin to pay the funding rate",
-        async () => {}
-    )
+        "when the account has insufficient margin to pay the funding rate and insurance rate",
+        async () => {
+            it("updates the account balance", async () => {
+                contracts = await setup()
+                accounts = await ethers.getSigners()
 
-    context(
-        "when the account has insufficient margin to pay the insurance rate",
-        async () => {}
+                initialQuoteBalance = ethers.utils.parseEther("10")
+                await depositQuoteTokens(
+                    contracts,
+                    accounts,
+                    initialQuoteBalance
+                )
+
+                // set gas price when user first deposits to 20 gwei
+                await setGasPrice(contracts, 0.00000002)
+                let markPrice = 1
+                await contracts.pricing.setFairPrice(
+                    ethers.utils.parseEther(markPrice.toString())
+                )
+
+                // give account 1 a base of 1 at same price as oracle to avoid impacting funding rate
+                const heldPrice = ethers.utils.parseEther(markPrice.toString())
+                const heldAmount = ethers.utils.parseEther("50")
+                await executeTrade(contracts, accounts, heldPrice, heldAmount)
+
+                // set funding rate and insurance rate to 0.2 quote tokens per 1 base held at index 1
+                const fundingRate = ethers.utils.parseEther("0.2")
+                await contracts.pricing.setFundingRate(
+                    1,
+                    fundingRate,
+                    fundingRate
+                )
+                await contracts.pricing.setInsuranceFundingRate(
+                    1,
+                    fundingRate,
+                    fundingRate
+                )
+                await contracts.pricing.setLastUpdatedFundingIndex(1)
+
+                const priorBalance = await contracts.tracer.balances(
+                    accounts[1].address
+                )
+                // trader starts with -40 quote (initial balance of 10 - 1 * 50)
+                expect(priorBalance.position.quote).to.equal(
+                    ethers.utils.parseEther("-40")
+                )
+                await contracts.tracer.settle(accounts[1].address)
+                const postBalance = await contracts.tracer.balances(
+                    accounts[1].address
+                )
+
+                // funding rate is paid first. Payment = 0.2 * 50 = 10, Balance after = -50 (now under min margin)
+                // insurance rate is then paid. Payment = 0.2 * lev value (50) = 10
+                // quote balance after = -50 - 10 = -60
+                const expectedQuote = ethers.utils.parseEther("-60")
+                expect(postBalance.position.quote).to.equal(expectedQuote)
+
+                // check last index
+                const lastIndex =
+                    await contracts.pricing.lastUpdatedFundingIndex()
+                expect(priorBalance.lastUpdatedIndex).to.equal(0)
+                expect(postBalance.lastUpdatedIndex).to.equal(lastIndex)
+
+                // check leverage
+                expect(priorBalance.totalLeveragedValue).to.equal(
+                    ethers.utils.parseEther("40")
+                )
+                expect(postBalance.totalLeveragedValue).to.equal(
+                    ethers.utils.parseEther("60")
+                )
+            })
+        }
     )
 })
