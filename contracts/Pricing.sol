@@ -30,7 +30,7 @@ contract Pricing is IPricing {
 
     // variables used to track time value
     int256 public override timeValue;
-    mapping(uint256 => int256) public dailyDifferences;
+    int256[90] internal dailyDifferences;
     uint256 internal lastUpdatedDay;
 
     // the last established funding index
@@ -68,7 +68,6 @@ contract Pricing is IPricing {
         oracle = IOracle(_oracle);
         startLastHour = block.timestamp;
         startLast24Hours = block.timestamp;
-        lastUpdatedDay = 90;
     }
 
     /**
@@ -236,18 +235,26 @@ contract Pricing is IPricing {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         // get 24 hours returns max integer if no trades occurred
         // don't update in this case
-        if (avgPrice != type(uint256).max) {
-            int256 lastDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
-            timeValue += lastDailyDifference;
-            uint256 latestDay = lastUpdatedDay + elapsedDays;
-            for (uint256 currentDay = lastUpdatedDay + 1; currentDay <= latestDay; currentDay++) {
-                // add a new difference entry
-                int256 dailyDifference = (currentDay == latestDay) ? lastDailyDifference : int256(0);
-                dailyDifferences[currentDay] = dailyDifference;
-                // remove the difference entry 90 days ago
-                uint256 ninetyDaysAgo = currentDay - 90;
-                timeValue -= dailyDifferences[ninetyDaysAgo];
-            }
+        if (avgPrice == type(uint256).max) {
+            return;
+        }
+
+        int256 newDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
+
+        // time value will increase by the new daily difference
+        timeValue += newDailyDifference;
+
+        uint256 newLastUpdatedDay = lastUpdatedDay + elapsedDays;
+
+        // remove stale difference entries
+        uint256 currentDay = lastUpdatedDay;
+        for (uint256 i = 0; i < elapsedDays; i++) {
+            // the current day index represents the difference 90 days ago as the array is circular
+            // this value needs to be removed from the time value, then updated with the new difference
+            currentDay = (currentDay + 1) % 90;
+            timeValue -= dailyDifferences[currentDay];
+            int256 currentDifference = (currentDay == newLastUpdatedDay) ? newDailyDifference : int256(0);
+            dailyDifferences[currentDay] = currentDifference;
         }
     }
 
