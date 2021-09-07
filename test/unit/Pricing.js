@@ -1,129 +1,27 @@
 const { expect } = require("chai")
-const { ethers, getNamedAccounts, deployments, network } = require("hardhat")
-const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
-const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
-
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-
-    // deploy contracts
-    await deployments.fixture(["FullDeployTest"])
-    let Factory = await deployments.get("TracerPerpetualsFactory")
-    let factory = await ethers.getContractAt(Factory.abi, Factory.address)
-    let tracerAddress = await factory.tracersByIndex(0)
-    let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
-
-    // setup mocks for the contracts and relink
-    const Insurance = await tracer.insuranceContract()
-    let insurance = await ethers.getContractAt(insuranceAbi, Insurance)
-
-    const Pricing = await tracer.pricingContract()
-    let pricing = await ethers.getContractAt(pricingAbi, Pricing)
-
-    const Liquidation = await tracer.liquidationContract()
-    let liquidation = await ethers.getContractAt(liquidationAbi, Liquidation)
-
-    const QuoteToken = await tracer.tracerQuoteToken()
-    let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
-
-    const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
-
-    const Oracle = await deployments.get("PriceOracle")
-    let oracle = await ethers.getContractAt(oracleAbi, Oracle.address)
-
-    return {
-        tracer,
-        insurance,
-        pricing,
-        liquidation,
-        quoteToken,
-        deployer,
-        factory,
-        traderInstance,
-        oracle,
-    }
-})
+const { ethers, network } = require("hardhat")
+const { deployTracer } = require("../util/DeploymentUtil.js")
+const { executeTrade } = require("../util/OrderUtil.js")
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
     await network.provider.send("evm_mine", [])
 }
 
-describe("Functional tests: Pricing", function () {
+describe("Unit tests: Pricing", function () {
     let accounts
-    let insurance,
-        pricing,
-        liquidation,
-        tracer,
-        quoteToken,
-        traderInstance,
-        oracle
-    let now
-
-    const executeTrade = async (price, amount) => {
-        const long = {
-            maker: accounts[1].address,
-            market: tracer.address,
-            price: price,
-            amount: amount,
-            side: 0, // long,
-            expires: 3621988237, // large timestamp, non expiring
-            created: now - 100,
-        }
-        // set up basic trades
-        const mockSignedLong = [
-            long,
-            ethers.utils.formatBytes32String("DummyString"),
-            ethers.utils.formatBytes32String("DummyString"),
-            0,
-        ]
-
-        const short = {
-            maker: accounts[2].address,
-            market: tracer.address,
-            price: price,
-            amount: amount,
-            side: 1, // short,
-            expires: 3621988237, // large timestamp, non expiring
-            created: now - 100,
-        }
-        const mockSignedShort = [
-            short,
-            ethers.utils.formatBytes32String("DummyString"),
-            ethers.utils.formatBytes32String("DummyString"),
-            0,
-        ]
-
-        // place trades
-        let tx = await traderInstance.executeTrade(
-            [mockSignedLong],
-            [mockSignedShort]
-        )
-        // verify that trade was successful
-        expect(tx).to.emit(tracer, "MatchedOrders")
-        await traderInstance.clearFilled(mockSignedLong)
-        await traderInstance.clearFilled(mockSignedShort)
-    }
+    let contracts
+    let insurance, pricing, tracer, quoteToken, trader, oracle
 
     beforeEach(async () => {
-        const _setup = await setup()
-        quoteToken = _setup.quoteToken
-        tracer = _setup.tracer
-        insurance = _setup.insurance
-        pricing = _setup.pricing
-        liquidation = _setup.liquidation
-        deployer = _setup.deployer
-        traderInstance = _setup.traderInstance
-        oracle = _setup.oracle
+        contracts = await deployTracer()
+        deployer = contracts.deployer
+        quoteToken = contracts.quoteToken
+        tracer = contracts.tracer
+        insurance = contracts.insurance
+        pricing = contracts.pricing
+        trader = contracts.trader
+        oracle = contracts.oracle
         accounts = await ethers.getSigners()
         // transfer tokesn to account 4
         await quoteToken.transfer(
@@ -140,8 +38,6 @@ describe("Functional tests: Pricing", function () {
                 .connect(accounts[i + 1])
                 .deposit(ethers.utils.parseEther("1000"))
         }
-
-        now = Math.floor(new Date().getTime() / 1000)
     })
 
     describe("fundingRate", async () => {
@@ -150,6 +46,8 @@ describe("Functional tests: Pricing", function () {
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 10
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -157,6 +55,8 @@ describe("Functional tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -188,6 +88,8 @@ describe("Functional tests: Pricing", function () {
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 12
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("12"),
                 ethers.utils.parseEther("2")
             )
@@ -195,6 +97,8 @@ describe("Functional tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -227,6 +131,8 @@ describe("Functional tests: Pricing", function () {
             await oracle.setPrice(12 * 10 ** 8)
             // execute trade to set tracer price to 10
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -234,6 +140,8 @@ describe("Functional tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -270,6 +178,8 @@ describe("Functional tests: Pricing", function () {
             // timeValue: 0
             await oracle.setPrice(12 * 10 ** 8)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -283,6 +193,8 @@ describe("Functional tests: Pricing", function () {
             // timeValue: 2/90 = -0.02 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("11"),
                 ethers.utils.parseEther("2")
             )
@@ -296,6 +208,8 @@ describe("Functional tests: Pricing", function () {
             // timeValue: -2/90 + -1/90 = -0.03 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("9"),
                 ethers.utils.parseEther("2")
             )
@@ -312,6 +226,8 @@ describe("Functional tests: Pricing", function () {
             // timeValue: 0
             await oracle.setPrice(12 * 10 ** 8)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
             )
@@ -325,6 +241,8 @@ describe("Functional tests: Pricing", function () {
             // timeValue: 2/90 = -0.02 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("11"),
                 ethers.utils.parseEther("2")
             )
@@ -334,10 +252,12 @@ describe("Functional tests: Pricing", function () {
 
             // state 3
             // day: 93
-            // daily average price difference: -3 (11-12)
+            // daily average price difference: -3 (9-12)
             // timeValue: -1/90 (90 day avg from day 2-92)
             await forwardTime(91 * 24 * 3600)
             await executeTrade(
+                contracts,
+                accounts,
                 ethers.utils.parseEther("9"),
                 ethers.utils.parseEther("2")
             )
@@ -357,6 +277,8 @@ describe("Functional tests: Pricing", function () {
                     // record trade of price 10 with amount 2
                     await oracle.setPrice(10 * 10 ** 8)
                     await executeTrade(
+                        contracts,
+                        accounts,
                         ethers.utils.parseEther("10"),
                         ethers.utils.parseEther("2")
                     )
@@ -366,6 +288,8 @@ describe("Functional tests: Pricing", function () {
                     // record trade of price 13 with amount 4
                     await oracle.setPrice(13 * 10 ** 8)
                     await executeTrade(
+                        contracts,
+                        accounts,
                         ethers.utils.parseEther("13"),
                         ethers.utils.parseEther("4")
                     )
@@ -397,6 +321,8 @@ describe("Functional tests: Pricing", function () {
                 // record trade of price 10 with amount 2
                 await oracle.setPrice(12 * 10 ** 8)
                 await executeTrade(
+                    contracts,
+                    accounts,
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("2")
                 )
@@ -406,6 +332,8 @@ describe("Functional tests: Pricing", function () {
                 // record trade of price 13 with amount 4
                 await oracle.setPrice(13 * 10 ** 8)
                 await executeTrade(
+                    contracts,
+                    accounts,
                     ethers.utils.parseEther("13"),
                     ethers.utils.parseEther("4")
                 )
@@ -447,6 +375,8 @@ describe("Functional tests: Pricing", function () {
                 // set hour 0
                 await oracle.setPrice(12 * 10 ** 8)
                 await executeTrade(
+                    contracts,
+                    accounts,
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("2")
                 )
@@ -454,6 +384,8 @@ describe("Functional tests: Pricing", function () {
                 await forwardTime(1 * 3600)
                 await oracle.setPrice(13 * 10 ** 8)
                 await executeTrade(
+                    contracts,
+                    accounts,
                     ethers.utils.parseEther("13"),
                     ethers.utils.parseEther("2")
                 )
@@ -462,6 +394,8 @@ describe("Functional tests: Pricing", function () {
                 await forwardTime(24 * 3600)
                 await oracle.setPrice(15 * 10 ** 8)
                 await executeTrade(
+                    contracts,
+                    accounts,
                     ethers.utils.parseEther("15"),
                     ethers.utils.parseEther("2")
                 )

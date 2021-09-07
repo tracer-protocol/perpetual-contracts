@@ -9,8 +9,8 @@ import "./Interfaces/IInsurance.sol";
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IPricing.sol";
 import "./Interfaces/ITrader.sol";
+import "./Interfaces/IERC20Details.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
@@ -97,7 +97,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *         will be able to purchase and trade tracers after this deployment.
      * @param _marketId the id of the market, given as BASE/QUOTE
      * @param _tracerQuoteToken the address of the token used for margin accounts (i.e. The margin token)
-     * @param _tokenDecimals the number of decimal places the quote token supports
      * @param _gasPriceOracle the address of the contract implementing gas price oracle
      * @param _maxLeverage the max leverage of the market represented as a WAD value.
      * @param _fundingRateSensitivity the affect funding rate changes have on funding paid; u60.18-decimal fixed-point number (WAD value)
@@ -113,7 +112,6 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     constructor(
         bytes32 _marketId,
         address _tracerQuoteToken,
-        uint256 _tokenDecimals,
         address _gasPriceOracle,
         uint256 _maxLeverage,
         uint256 _fundingRateSensitivity,
@@ -128,12 +126,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         require(_deleveragingCliff <= MAX_PERCENT, "TCR: Delev cliff > 100%");
         require(_lowestMaxLeverage <= _maxLeverage, "TCR: Invalid leverage");
         require(_insurancePoolSwitchStage < _deleveragingCliff, "TCR: Invalid switch stage");
-        // don't convert to interface as we don't need to interact with the contract
         require(_tracerQuoteToken != address(0), "TCR: _tracerQuoteToken = address(0)");
         require(_gasPriceOracle != address(0), "TCR: _gasPriceOracle = address(0)");
         require(_feeReceiver != address(0), "TCR: _feeReceiver = address(0)");
+        require(IERC20Details(_tracerQuoteToken).decimals() <= 18, "TCR: Decimals > 18");
         tracerQuoteToken = _tracerQuoteToken;
-        quoteTokenDecimals = _tokenDecimals;
+        quoteTokenDecimals = IERC20Details(_tracerQuoteToken).decimals();
         gasPriceOracle = _gasPriceOracle;
         marketId = _marketId;
         feeRate = _feeRate;
@@ -165,7 +163,8 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
     /**
      * @notice Allows a user to deposit into their margin account
-     * @dev this contract must be an approved spender of the markets quote token on behalf of the depositer.
+     * @dev This contract must be an approved spender of the markets quote token on behalf of the depositer.
+     * @dev Emits the amount successfully deposited into the account in WAD format with dust removed
      * @param amount The amount of quote tokens to be deposited into the Tracer Market account. This amount
      * should be given in WAD format.
      */
@@ -193,12 +192,13 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
         // update market TVL
         tvl = tvl + uint256(convertedWadAmount);
-        emit Deposit(msg.sender, amount);
+        emit Deposit(msg.sender, uint256(convertedWadAmount));
     }
 
     /**
      * @notice Allows a user to withdraw from their margin account
      * @dev Ensures that the users margin percent is valid after withdraw
+     * @dev Emits the amount successfully withdrawn in WAD format without dust
      * @param amount The amount of margin tokens to be withdrawn from the tracer market account. This amount
      * should be given in WAD format
      */
@@ -230,7 +230,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         _updateAccountLeverage(msg.sender);
 
         // Safemath will throw if tvl < amount
-        tvl = tvl - amount;
+        tvl = tvl - uint256(convertedWadAmount);
 
         // perform transfer
         require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "TCR: Transfer failed");
@@ -387,8 +387,9 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     /**
-     * @notice internal function for updating leverage. Called within the Account contract. Also
-     *         updates the total leveraged notional value for the tracer market itself.
+     * @notice Internal function for updating leverage based on a user's position.
+     *         Also updates the total leveraged notional value for the tracer market itself.
+     * @dev Must be called every time a users balance is udpated.
      */
     function _updateAccountLeverage(address account) internal {
         Balances.Account memory userBalance = balances[account];
@@ -486,7 +487,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
     }
 
     /**
-     * @notice settles an account. Compares current global rate with the users last updated rate
+     * @notice Settles an account. Compares current global rate with the users last updated rate
      *         Updates the accounts margin balance accordingly.
      * @dev Does not ensure that the account remains above margin.
      * @param account the address to settle.
@@ -498,34 +499,27 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         uint256 globalLastUpdatedIndex = pricingContract.lastUpdatedFundingIndex();
         Balances.Account storage accountBalance = balances[account];
 
-        // if this user has no positions, bring them in sync
         if (accountBalance.position.base == 0) {
-            // set to the last fully established index
+            // If user has no open positions, do not pay funding rates and mark as udpated
             accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
             accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
         } else if (accountLastUpdatedIndex < globalLastUpdatedIndex) {
-            // Only settle account if its last updated index was before the last established
-            // global index this is since we reference the last global index
-            // Get current and global funding statuses
+            // If the user has not been updated with the last global funding index, apply funding rates
             Prices.FundingRateInstant memory currGlobalRate = pricingContract.getFundingRate(globalLastUpdatedIndex);
             Prices.FundingRateInstant memory currUserRate = pricingContract.getFundingRate(accountLastUpdatedIndex);
-
             Prices.FundingRateInstant memory currInsuranceGlobalRate = pricingContract.getInsuranceFundingRate(
                 globalLastUpdatedIndex
             );
-
             Prices.FundingRateInstant memory currInsuranceUserRate = pricingContract.getInsuranceFundingRate(
                 accountLastUpdatedIndex
             );
 
-            // settle the account
-            Balances.Account storage insuranceBalance = balances[address(insuranceContract)];
-
+            // Apply the funding rate
             accountBalance.position = Prices.applyFunding(accountBalance.position, currGlobalRate, currUserRate);
+            _updateAccountLeverage(account);
 
-            // Update account gas price
-            accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
-
+            // Apply the insurance funding rate if the user has leverage
+            Balances.Account storage insuranceBalance = balances[address(insuranceContract)];
             if (accountBalance.totalLeveragedValue > 0) {
                 (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) = Prices.applyInsurance(
                     accountBalance.position,
@@ -537,7 +531,11 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
 
                 balances[account].position = newUserPos;
                 insuranceBalance.position = newInsurancePos;
+                _updateAccountLeverage(account);
             }
+
+            // Update account gas price
+            accountBalance.lastUpdatedGasPrice = IOracle(gasPriceOracle).latestAnswer();
 
             // Update account index
             accountBalance.lastUpdatedIndex = globalLastUpdatedIndex;
@@ -568,6 +566,7 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
      *      Fees is also subtracted from the total value locked in the market because
      *      fees are taken out of trades that result in users' quotes being modified, and
      *      don't otherwise get subtracted from the tvl of the market
+     * @dev Emits the amount of quote tokens successfully transferred to the owner
      */
     function withdrawFees() external override {
         require(fees != 0, "TCR: no fees");
@@ -575,9 +574,12 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         fees = 0;
         tvl = tvl - tempFees;
 
+        // Convert fees from WAD format to token representation
+        uint256 rawTokenFees = Balances.wadToToken(quoteTokenDecimals, tempFees);
+
         // Withdraw from the account
-        require(IERC20(tracerQuoteToken).transfer(feeReceiver, tempFees), "TCR: Transfer failed");
-        emit FeeWithdrawn(feeReceiver, tempFees);
+        require(IERC20(tracerQuoteToken).transfer(feeReceiver, rawTokenFees), "TCR: Transfer failed");
+        emit FeeWithdrawn(feeReceiver, rawTokenFees);
     }
 
     function getBalance(address account) external view override returns (Balances.Account memory) {

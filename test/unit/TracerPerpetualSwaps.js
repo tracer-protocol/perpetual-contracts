@@ -117,6 +117,17 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let tvl = await tracer.tvl()
                 expect(tvl).to.equal(ethers.utils.parseEther("5"))
             })
+
+            it("emits an event", async () => {
+                await quoteToken.approve(
+                    tracer.address,
+                    ethers.utils.parseEther("5")
+                )
+
+                await expect(tracer.deposit(ethers.utils.parseEther("5")))
+                    .to.emit(tracer, "Deposit")
+                    .withArgs(accounts[0].address, "5000000000000000000")
+            })
         })
 
         context("when the user has not set allowance", async () => {
@@ -128,28 +139,31 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
         })
 
         context("when the token amount is a WAD value", async () => {
-            it("update their quote as a WAD value", async () => {
+            it("updates their quote without dust", async () => {
                 let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
 
-                // deposit 1 token with dust
+                // token has 8 decimals, deposit 1 token with 1 dust
                 await quoteToken.approve(
                     tracer.address,
                     ethers.utils.parseEther("1.000000001")
                 )
                 await tracer.deposit(ethers.utils.parseEther("1.000000001"))
 
-                // ensure that token amount has decreased by correct units
+                // ensure that token amount has decreased correctly
                 let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
                 let difference = tokenBalanceBefore.sub(tokenBalanceAfter)
-                let expected = ethers.utils.parseEther("1.000000001")
-                // default token only uses 8 decimals, so the last bit should be ignored
-                expect(difference.toString()).to.equal(expected)
 
-                // ensure balance in contract has updated by a WAD amount
+                // difference should be 1 token (with 8 decimals)
+                expect(difference.toString()).to.equal("100000000")
+
+                // default token only uses 8 decimals, so the last bit should be ignored in contract balance
+                let expected = ethers.utils.parseEther("1.000000000")
                 let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("1.000000001")
-                )
+                await expect(balance.position.quote).to.equal(expected)
+
+                // check TVL has been updated without dust
+                let tvl = await tracer.tvl()
+                await expect(tvl).to.be.equal(expected)
             })
         })
     })
@@ -187,6 +201,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let tvl = await tracer.tvl()
                 expect(tvl).to.equal(ethers.utils.parseEther("4"))
             })
+
+            it("emits an event", async () => {
+                await expect(tracer.withdraw(ethers.utils.parseEther("1")))
+                    .to.emit(tracer, "Withdraw")
+                    .withArgs(accounts[0].address, "1000000000000000000")
+            })
         })
 
         context("when the token amount is a WAD value", async () => {
@@ -199,139 +219,18 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 // ensure that token amount has decreased by correct units
                 let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
                 let difference = tokenBalanceAfter.sub(tokenBalanceBefore)
-                let expected = ethers.utils.parseEther("1.000000001")
-                // default token only uses 8 decimals, so the last bit should be ignored
-                expect(difference).to.equal(expected)
 
-                // ensure balance in contract has updated by a WAD amount
+                // user token balance should decrease by 1 (with 8 decimals)
+                expect(difference).to.equal("100000000")
+
+                // default token only uses 8 decimals, so the last bit should be ignored in contract balance
+                let expected = ethers.utils.parseEther("4.000000000")
                 let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("3.999999999")
-                )
-            })
-        })
-    })
+                await expect(balance.position.quote).to.equal(expected)
 
-    describe("matchOrders", async () => {
-        beforeEach(async () => {
-            // whitelist so we can submit trades
-        })
-
-        context("when the orders can't match", async () => {
-            it("emit a FailedOrders event", async () => {
-                let order1 = [
-                    deployer,
-                    tracer.address,
-                    ethers.utils.parseEther("1"),
-                    ethers.utils.parseEther("1"),
-                    0,
-                    3621988237, //unrealistic unix timestamp
-                    1621988237,
-                ]
-                const mockSignedOrder1 = [
-                    order1,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order2 = [
-                    deployer,
-                    tracer.address,
-                    ethers.utils.parseEther("1"),
-                    ethers.utils.parseEther("1"),
-                    0,
-                    3621988237, //unrealistic unix timestamp
-                    1621988237,
-                ]
-                const mockSignedOrder2 = [
-                    order2,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                // will return false and not update state
-                let balanceBefore = await tracer.balances(deployer)
-                const tx = traderInstance.executeTrade(
-                    [mockSignedOrder1],
-                    [mockSignedOrder2]
-                )
-                await expect(tx).to.emit(tracer, "FailedOrders")
-                await traderInstance.clearFilled(mockSignedOrder1)
-                await traderInstance.clearFilled(mockSignedOrder2)
-                let balanceAfter = await tracer.balances(deployer)
-                // every field should match EXCEPT for last updated gas price
-                for (var i = 0; i < 3; i++) {
-                    expect(balanceBefore[i].toString()).to.equal(
-                        balanceAfter[i].toString()
-                    )
-                }
-            })
-        })
-
-        // todo should these just be functional tests
-        context("when the orders can match", async () => {
-            beforeEach(async () => {})
-            it("settles the accounts", async () => {})
-
-            it("executes the trades", async () => {})
-
-            it("updates the account leverage", async () => {})
-
-            it("records the trade with pricing", async () => {})
-        })
-
-        context("when the users don't have enough margin", async () => {
-            it("emits a FailedOrders event", async () => {
-                let order1 = [
-                    deployer,
-                    tracer.address,
-                    ethers.utils.parseEther("3"),
-                    ethers.utils.parseEther("1"),
-                    0,
-                    3621988237, //unrealistic unix timestamp
-                    1621988237,
-                ]
-                const mockSignedOrder1 = [
-                    order1,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let order2 = [
-                    accounts[1].address,
-                    tracer.address,
-                    ethers.utils.parseEther("3"),
-                    ethers.utils.parseEther("1"),
-                    1,
-                    3621988237, //unrealistic unix timestamp
-                    1621988237,
-                ]
-                const mockSignedOrder2 = [
-                    order2,
-                    ethers.utils.formatBytes32String("DummyString"),
-                    ethers.utils.formatBytes32String("DummyString"),
-                    0,
-                ]
-
-                let balanceBefore = await tracer.balances(deployer)
-                const tx = traderInstance.executeTrade(
-                    [mockSignedOrder1],
-                    [mockSignedOrder2]
-                )
-                await expect(tx).to.emit(tracer, "FailedOrders")
-                await traderInstance.clearFilled(mockSignedOrder1)
-                await traderInstance.clearFilled(mockSignedOrder2)
-                let balanceAfter = await tracer.balances(deployer)
-
-                // every field should match EXCEPT for last updated gas price
-                for (var i = 0; i < 3; i++) {
-                    expect(balanceBefore[i].toString()).to.equal(
-                        balanceAfter[i].toString()
-                    )
-                }
+                // check TVL has been updated without dust
+                let tvl = await tracer.tvl()
+                await expect(tvl).to.be.equal(expected)
             })
         })
     })
@@ -458,150 +357,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
             it("gives to the claimaint", async () => {})
 
             it("gives to the liquidatee", async () => {})
-        })
-    })
-
-    describe("settle", async () => {
-        beforeEach(async () => {
-            // mock funding index and rates
-            pricing.smocked.lastUpdatedFundingIndex.will.return.with(0)
-            pricing.smocked.getFundingRate.will.return.with((index) => {
-                if (ethers.BigNumber.from("0").eq(index)) {
-                    // initial state
-                    return [
-                        0, // timestamp
-                        ethers.utils.parseEther("1"), // fundingRate
-                        ethers.utils.parseEther("1"), // cumulativeFundingRate
-                    ]
-                } else if (ethers.BigNumber.from("2").eq(index)) {
-                    // updated state
-                    return [
-                        0,
-                        ethers.utils.parseEther("1"),
-                        ethers.utils.parseEther("1.5"),
-                    ]
-                } else if (ethers.BigNumber.from("4").eq(index)) {
-                    // extreme state to put user below Margin
-                    return [
-                        0,
-                        ethers.utils.parseEther("5"),
-                        ethers.utils.parseEther("1000"),
-                    ]
-                }
-            })
-
-            for (var i = 0; i < 2; i++) {
-                await quoteToken
-                    .connect(accounts[i + 1])
-                    .approve(tracer.address, ethers.utils.parseEther("500"))
-                await tracer
-                    .connect(accounts[i + 1])
-                    .deposit(ethers.utils.parseEther("500"))
-            }
-
-            now = Math.floor(new Date().getTime() / 1000)
-
-            // make some basic trades
-            let order1 = {
-                maker: accounts[1].address,
-                market: tracer.address,
-                price: ethers.utils.parseEther("1"),
-                amount: ethers.utils.parseEther("1"),
-                side: 0, // long,
-                expires: now + 604800, // now + 7 days
-                created: now - 1,
-            }
-            const mockSignedOrder1 = [
-                order1,
-                ethers.utils.formatBytes32String("DummyString"),
-                ethers.utils.formatBytes32String("DummyString"),
-                0,
-            ]
-
-            let order2 = {
-                maker: accounts[2].address,
-                market: tracer.address,
-                price: ethers.utils.parseEther("1"),
-                amount: ethers.utils.parseEther("1"),
-                side: 1, // short,
-                expires: now + 604800, // now + 7 days
-                created: now,
-            }
-            const mockSignedOrder2 = [
-                order2,
-                ethers.utils.formatBytes32String("DummyString"),
-                ethers.utils.formatBytes32String("DummyString"),
-                0,
-            ]
-
-            // check pricing is in hour 0
-            let currentHour = await pricing.currentHour()
-            expect(currentHour).to.equal(0)
-
-            // place trades
-            await traderInstance.executeTrade(
-                [mockSignedOrder1],
-                [mockSignedOrder2]
-            )
-        })
-
-        context("if the account is on the latest global index", async () => {
-            it("does nothing", async () => {
-                // ensure on current global index
-                await tracer.settle(deployer)
-
-                // settle again
-                let balanceBefore = await tracer.balances(deployer)
-                await tracer.settle(deployer)
-                let balanceAfter = await tracer.balances(deployer)
-                expect(balanceAfter.toString()).to.equal(
-                    balanceBefore.toString()
-                )
-            })
-        })
-
-        context("if the account isn't up to date", async () => {
-            it("pays the funding rate", async () => {})
-
-            it("pays the insurance funding rate", async () => {})
-
-            it("update their latest gas price", async () => {
-                let balancePrior = await tracer.balances(accounts[1].address)
-                expect(balancePrior.lastUpdatedGasPrice).to.equal(
-                    "60000000000000"
-                )
-
-                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
-                const lastUpdatedGasAfter = "60000000000001"
-                gasOracle.smocked.latestAnswer.will.return.with(
-                    lastUpdatedGasAfter
-                )
-
-                await tracer.settle(accounts[1].address)
-
-                let balanceAfter = await tracer.balances(accounts[1].address)
-                expect(balanceAfter.lastUpdatedGasPrice).to.equal(
-                    lastUpdatedGasAfter
-                )
-            })
-
-            it("updates their last updated index", async () => {
-                let balancePrior = await tracer.balances(accounts[1].address)
-
-                // fast forward the funding rate index to 2
-                pricing.smocked.lastUpdatedFundingIndex.will.return.with(2)
-
-                await tracer.settle(accounts[1].address)
-
-                let balanceAfter = await tracer.balances(accounts[1].address)
-
-                expect(balancePrior.lastUpdatedIndex).to.equal(0)
-                expect(balanceAfter.lastUpdatedIndex).to.equal(2)
-            })
-        })
-
-        context("if the account is under margin", async () => {
-            it("pays the funding rate", async () => {})
         })
     })
 
@@ -796,10 +551,8 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let balanceBefore = await quoteToken.balanceOf(feeReceiver)
                 await tracer.connect(accounts[0]).withdrawFees()
                 let balanceAfter = await quoteToken.balanceOf(feeReceiver)
-                // 2 quote tokens received as fees (1% of 100 * 2)
-                expect(balanceAfter.sub(balanceBefore)).to.equal(
-                    ethers.utils.parseEther("2")
-                )
+                // 2 quote tokens (8 decimals) received as fees (1% of 100 * 2)
+                expect(balanceAfter.sub(balanceBefore)).to.equal("200000000")
             })
 
             it("resets fees to 0", async () => {
@@ -807,6 +560,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 await tracer.connect(accounts[0]).withdrawFees()
                 let feesAfter = await tracer.fees()
                 expect(feesAfter).to.equal(0)
+                // fees are represented in WAD format by the contract
                 expect(feesBefore.sub(feesAfter)).to.equal(
                     ethers.utils.parseEther("2")
                 )
@@ -816,7 +570,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 let feeReceiver = await tracer.feeReceiver()
                 await expect(tracer.withdrawFees())
                     .to.emit(tracer, "FeeWithdrawn")
-                    .withArgs(feeReceiver, ethers.utils.parseEther("2"))
+                    .withArgs(feeReceiver, "200000000")
             })
 
             it("subtracts fees from the tvl of the market", async () => {
