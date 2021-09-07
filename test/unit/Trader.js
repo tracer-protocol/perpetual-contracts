@@ -8,8 +8,9 @@ describe("Unit tests: Trader.sol", function () {
     let accounts
     let perpMockAddress
 
-    before(async function () {
+    beforeEach(async function () {
         const { deployer } = await getNamedAccounts()
+        accounts = ethers.getSigners()
 
         libPerpetuals = await deploy("Perpetuals", {
             from: deployer,
@@ -94,6 +95,34 @@ describe("Unit tests: Trader.sol", function () {
 
         context("When called with the zero address", async () => {
             it("returns false", async () => {})
+        })
+    })
+
+    describe("transferOwnership", async () => {
+        context("when called by the owner", async () => {
+            it("sets a new owner", async () => {
+                await trader.transferOwnership(accounts[1].address)
+
+                expect(await trader.owner()).to.equal(accounts[1].address)
+            })
+        })
+
+        context("when called by someone who isn't the owner", async () => {
+            it("reverts", async () => {
+                await expect(
+                    trader
+                        .connect(accounts[2])
+                        .transferOwnership(accounts[3].address)
+                ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+
+        context("when provided a 0 address", async () => {
+            it("reverts", async () => {
+                await expect(
+                    trader.transferOwnership(ethers.constants.AddressZero)
+                ).to.be.revertedWith("TDR: address(0) given")
+            })
         })
     })
 })

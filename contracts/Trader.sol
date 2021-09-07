@@ -6,11 +6,12 @@ import "./Interfaces/Types.sol";
 import "./Interfaces/ITrader.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * The Trader contract is used to validate and execute off chain signed and matched orders
  */
-contract Trader is ITrader, ReentrancyGuard {
+contract Trader is ITrader, ReentrancyGuard, Ownable {
     // EIP712 Constants
     // https://eips.ethereum.org/EIPS/eip-712
     string private constant EIP712_DOMAIN_NAME = "Tracer Protocol";
@@ -246,5 +247,14 @@ contract Trader is ITrader, ReentrancyGuard {
     function getOrder(Perpetuals.Order calldata order) external view override returns (Perpetuals.Order memory) {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
+    }
+
+    function transferOwnership(address newOwner) public override(Ownable, ITrader) nonZeroAddress(newOwner) onlyOwner {
+        super.transferOwnership(newOwner);
+    }
+
+    modifier nonZeroAddress(address providedAddress) {
+        require(providedAddress != address(0), "TDR: address(0) given");
+        _;
     }
 }

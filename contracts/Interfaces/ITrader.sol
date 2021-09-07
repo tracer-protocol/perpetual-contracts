@@ -24,4 +24,6 @@ interface ITrader {
     function filledAmount(Perpetuals.Order memory order) external view returns (uint256);
 
     function getAverageExecutionPrice(Perpetuals.Order memory order) external view returns (uint256);
+
+    function transferOwnership(address newOwner) external;
 }
