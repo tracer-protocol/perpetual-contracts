@@ -28,8 +28,10 @@ contract Pricing is IPricing {
     // funding index => insurance funding rate
     mapping(uint256 => Prices.FundingRateInstant) public insuranceFundingRates;
 
-    // market's time value
+    // variables used to track time value
     int256 public override timeValue;
+    int256[90] internal dailyDifferences;
+    uint256 internal lastUpdatedDay;
 
     // the last established funding index
     uint256 public override lastUpdatedFundingIndex;
@@ -78,6 +80,15 @@ contract Pricing is IPricing {
         uint256 currentOraclePrice = oracle.latestAnswer();
         // Update pricing information if a trade has not been recorded in the last hour
         if (startLastHour <= block.timestamp - 1 hours) {
+            // If 24 hours has passed, update the time value before entering new pricing info
+            if (startLast24Hours <= block.timestamp - 24 hours) {
+                // Update the interest rate every 24 hours
+                uint256 elapsedDays = (block.timestamp - startLast24Hours) / (24 hours);
+                updateTimeValue(elapsedDays);
+                startLast24Hours += elapsedDays;
+                lastUpdatedDay += elapsedDays;
+            }
+
             // Get the last recorded hourly price, returns max integer if no trades occurred
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
 
@@ -117,13 +128,6 @@ contract Pricing is IPricing {
 
             // Update time of last hourly recording
             startLastHour += (elapsedHours * 3600);
-
-            // Update the time value
-            if (startLast24Hours <= block.timestamp - 24 hours) {
-                // Update the interest rate every 24 hours
-                updateTimeValue();
-                startLast24Hours = block.timestamp;
-            }
         } else {
             updateCurrentPriceEntry(tradePrice, currentOraclePrice, fillAmount);
         }
@@ -224,14 +228,33 @@ contract Pricing is IPricing {
     }
 
     /**
-     * @notice Calculates and then updates the time Value for a tracer market
+     * @notice Calculates and then updates the time value for a tracer market
+     * @param elapsedDays number of days elapsed since last udpate to time value
      */
-    function updateTimeValue() internal {
+    function updateTimeValue(uint256 elapsedDays) internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
         // get 24 hours returns max integer if no trades occurred
         // don't update in this case
-        if (avgPrice != type(uint256).max) {
-            timeValue += Prices.timeValue(avgPrice, oracleAvgPrice);
+        if (avgPrice == type(uint256).max) {
+            return;
+        }
+
+        int256 newDailyDifference = Prices.timeValue(avgPrice, oracleAvgPrice);
+
+        // time value will increase by the new daily difference
+        timeValue += newDailyDifference;
+
+        uint256 newLastUpdatedDay = lastUpdatedDay + elapsedDays;
+
+        // remove stale difference entries
+        uint256 currentDay = lastUpdatedDay;
+        for (uint256 i = 0; i < elapsedDays; i++) {
+            // the current day index represents the difference 90 days ago as the array is circular
+            // this value needs to be removed from the time value, then updated with the new difference
+            currentDay = (currentDay + 1) % 90;
+            timeValue -= dailyDifferences[currentDay];
+            int256 currentDifference = (currentDay == newLastUpdatedDay) ? newDailyDifference : int256(0);
+            dailyDifferences[currentDay] = currentDifference;
         }
     }
 
