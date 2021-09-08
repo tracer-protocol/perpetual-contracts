@@ -98,12 +98,50 @@ describe("Unit tests: Trader.sol", function () {
         })
     })
 
-    describe("transferOwnership", async () => {
+    describe("setWhitelist", async () => {
         context("when called by the owner", async () => {
-            it("sets a new owner", async () => {
-                await trader.transferOwnership(accounts[1].address)
+            it("sets an address to whitelisted", async () => {
+                const tx = await trader.setWhitelist(accounts[1].address, true)
+                const whitelistStatus = await trader.marketWhitelist(
+                    accounts[1].address
+                )
 
-                expect(await trader.owner()).to.equal(accounts[1].address)
+                expect(tx)
+                    .to.emit(trader, "WhitelistUpdated")
+                    .withArgs(accounts[1].address, true)
+                expect(whitelistStatus).to.equal(true)
+            })
+
+            it("sets an address to unwhitelisted", async () => {
+                const tx = await trader.setWhitelist(accounts[1].address, false)
+                const whitelistStatus = await trader.marketWhitelist(
+                    accounts[1].address
+                )
+
+                expect(tx)
+                    .to.emit(trader, "WhitelistUpdated")
+                    .withArgs(accounts[1].address, false)
+                expect(whitelistStatus).to.equal(false)
+            })
+        })
+
+        context("when called by someone who isn't the owner", async () => {
+            it("reverts", async () => {
+                await expect(
+                    trader
+                        .connect(accounts[1])
+                        .setWhitelist(accounts[2].address, true)
+                ).to.be.revertedWith("Ownable: caller is not the owner")
+            })
+        })
+    })
+
+    describe("transferOwnership", async () => {
+        context("when provided a 0 address", async () => {
+            it("reverts", async () => {
+                await expect(
+                    trader.transferOwnership(ethers.constants.AddressZero)
+                ).to.be.revertedWith("TDR: address(0) given")
             })
         })
 
@@ -117,11 +155,11 @@ describe("Unit tests: Trader.sol", function () {
             })
         })
 
-        context("when provided a 0 address", async () => {
-            it("reverts", async () => {
-                await expect(
-                    trader.transferOwnership(ethers.constants.AddressZero)
-                ).to.be.revertedWith("TDR: address(0) given")
+        context("when called by the owner", async () => {
+            it("sets a new owner", async () => {
+                await trader.transferOwnership(accounts[1].address)
+
+                expect(await trader.owner()).to.equal(accounts[1].address)
             })
         })
     })

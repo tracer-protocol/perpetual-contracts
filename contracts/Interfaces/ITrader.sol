@@ -15,6 +15,8 @@ interface ITrader {
 
     function averageExecutionPrice(bytes32) external view returns (uint256);
 
+    function marketWhitelist(address) external view returns (bool);
+
     function getDomain() external view returns (bytes32);
 
     function verifySignature(address signer, Types.SignedLimitOrder memory order) external view returns (bool);

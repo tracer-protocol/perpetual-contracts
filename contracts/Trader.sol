@@ -36,6 +36,10 @@ contract Trader is ITrader, ReentrancyGuard, Ownable {
     mapping(bytes32 => uint256) public override filled;
     // order hash to average execution price thus far
     mapping(bytes32 => uint256) public override averageExecutionPrice;
+    // whitelist of valid Tracer Markets this contract is authorised to forward trades to
+    mapping(address => bool) public override marketWhitelist;
+
+    event WhitelistUpdated(address indexed updatedMarket, bool whitelisted);
 
     constructor() {
         // Construct the EIP712 Domain
@@ -249,12 +253,13 @@ contract Trader is ITrader, ReentrancyGuard, Ownable {
         return orders[orderId];
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, ITrader) nonZeroAddress(newOwner) onlyOwner {
-        super.transferOwnership(newOwner);
+    function setWhitelist(address market, bool whitelisted) external onlyOwner {
+        marketWhitelist[market] = whitelisted;
+        emit WhitelistUpdated(market, whitelisted);
     }
 
-    modifier nonZeroAddress(address providedAddress) {
-        require(providedAddress != address(0), "TDR: address(0) given");
-        _;
+    function transferOwnership(address newOwner) public override(Ownable, ITrader) onlyOwner {
+        require(newOwner != address(0), "TDR: address(0) given");
+        super.transferOwnership(newOwner);
     }
 }

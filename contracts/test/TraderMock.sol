@@ -37,6 +37,8 @@ contract TraderMock is ITrader, ReentrancyGuard, Ownable {
     mapping(bytes32 => uint256) public override filled;
     // order hash to average execution price thus far
     mapping(bytes32 => uint256) public override averageExecutionPrice;
+    // only included to satisfy interface
+    mapping(address => bool) public override marketWhitelist;
 
     constructor() {
         // Construct the EIP712 Domain
@@ -182,12 +184,8 @@ contract TraderMock is ITrader, ReentrancyGuard, Ownable {
         return orders[orderId];
     }
 
-    function transferOwnership(address newOwner) public override(Ownable, ITrader) nonZeroAddress(newOwner) onlyOwner {
+    function transferOwnership(address newOwner) public override(Ownable, ITrader) onlyOwner {
+        require(newOwner != address(0), "TDR: address(0) given");
         super.transferOwnership(newOwner);
-    }
-
-    modifier nonZeroAddress(address providedAddress) {
-        require(providedAddress != address(0), "TDR: address(0) given");
-        _;
     }
 }
