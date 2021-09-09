@@ -85,7 +85,7 @@ contract Trader is ITrader, ReentrancyGuard, Ownable {
             if (
                 !verifySignature(makers[i].order.maker, makers[i]) ||
                 !verifySignature(takers[i].order.maker, takers[i]) ||
-                !isValidPair(takers[i], makers[i]) ||
+                !isValidMarket(takers[i], makers[i]) ||
                 !areValidAddresses(makers[i], takers[i])
             ) {
                 // skip if either order is invalid
@@ -209,23 +209,24 @@ contract Trader is ITrader, ReentrancyGuard, Ownable {
      * @return if signedOrder1 is compatible with signedOrder2
      * @dev does not throw if pairs are invalid
      */
-    function isValidPair(Types.SignedLimitOrder calldata signedOrder1, Types.SignedLimitOrder calldata signedOrder2)
+    function isValidMarket(Types.SignedLimitOrder calldata signedOrder1, Types.SignedLimitOrder calldata signedOrder2)
         internal
-        pure
+        view
         returns (bool)
     {
-        return (signedOrder1.order.market == signedOrder2.order.market);
+        bool matched = signedOrder1.order.market == signedOrder2.order.market;
+        bool nonZero = signedOrder1.order.market != address(0);
+        bool whitelisted = marketWhitelist[signedOrder1.order.market];
+        return matched && nonZero && whitelisted;
     }
 
     function areValidAddresses(
         Types.SignedLimitOrder calldata signedOrder1,
         Types.SignedLimitOrder calldata signedOrder2
     ) internal pure returns (bool) {
-        bool order1Market = signedOrder1.order.market != address(0);
-        bool order2Market = signedOrder2.order.market != address(0);
         bool order1Maker = signedOrder1.order.maker != address(0);
         bool order2Maker = signedOrder2.order.maker != address(0);
-        return order1Market && order2Market && order1Maker && order2Maker;
+        return order1Maker && order2Maker;
     }
 
     /**
@@ -251,6 +252,13 @@ contract Trader is ITrader, ReentrancyGuard, Ownable {
     function getOrder(Perpetuals.Order calldata order) external view override returns (Perpetuals.Order memory) {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
+    }
+
+    /**
+     * @return the order hash of an order object
+     */
+    function getOrderId(Perpetuals.Order calldata order) external pure returns (bytes32) {
+        return Perpetuals.orderId(order);
     }
 
     function setWhitelist(address market, bool whitelisted) external onlyOwner {
