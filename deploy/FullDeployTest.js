@@ -39,20 +39,22 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
-    // asset price oracle => ASSET / USD
+    // asset price oracle => ETH / USD feed
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
         contract: "ChainlinkOracle",
     })
 
-    // Gas price oracle => fast gas / gwei
+    // gas price oracle => Fast gas / Gwei feed
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
         contract: "ChainlinkOracle",
     })
 
+    // mock eth oracle => ETH / USD feed
+    // used only in local testing to set the gas price separately to eth price
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
@@ -87,7 +89,7 @@ module.exports = async function (hre) {
         "20000000000" // 20 Gwei
     )
 
-    // adapter converting asset oracle to WAD
+    // price oracle adapter => ETH / USD WAD feed
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -95,6 +97,7 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
+    // gas USD price feed => Fast Gas / USD WAD feed
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
@@ -110,6 +113,7 @@ module.exports = async function (hre) {
         contract: "TestToken",
     })
 
+    // distribute tokens to accounts
     const tokenAmount = ethers.utils.parseEther("10000")
     await execute(
         "QuoteToken",
