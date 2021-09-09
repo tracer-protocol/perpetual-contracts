@@ -1,4 +1,10 @@
-const { expect } = require("chai")
+const {
+    domain,
+    orderType,
+    generateDomainData,
+} = require("@tracer-protocol/tracer-utils")
+const sigUtil = require("eth-sig-util")
+
 // Executes a successful trade at a specified price and amount.
 // Uses account 1 as the long maker and account 2 as the short maker by default.
 const executeTrade = async (
@@ -64,8 +70,50 @@ const matchOrders = async (contracts, order1, order2) => {
     return tx
 }
 
+// given an order, generates the signed data without needing to call to an external RPC node
+const attachSignatureToOrders = (traderAddress, signer, orders) => {
+    const type = {
+        EIP712Domain: domain,
+        Order: orderType,
+    }
+
+    const domainData = generateDomainData(traderAddress, 31337)
+
+    // private key buffer must be pure hex without the 0x prefix
+    const signerKeyNoPrefix = signer.privateKey.slice(2)
+    const privateKeyBuffer = Buffer.from(signerKeyNoPrefix, "hex")
+
+    return orders.map((unsignedOrder) => {
+        const data = {
+            domain: domainData,
+            primaryType: "Order",
+            message: unsignedOrder,
+            types: type,
+        }
+
+        const signature = sigUtil.signTypedData_v4(privateKeyBuffer, {
+            data,
+        })
+
+        unsignedOrder.signed_data = signature
+
+        const parsedSig = signature.substring(2)
+        const r = "0x" + parsedSig.substring(0, 64)
+        const s = "0x" + parsedSig.substring(64, 128)
+        const v = parseInt(parsedSig.substring(128, 130), 16) // 130 hex = 65bytes
+
+        return {
+            order: unsignedOrder,
+            sigR: r,
+            sigS: s,
+            sigV: v,
+        }
+    })
+}
+
 module.exports = {
     executeTrade,
     customOrder,
     matchOrders,
+    attachSignatureToOrders,
 }
