@@ -122,7 +122,13 @@ describe("Unit tests: settle", function () {
                 // give account 1 a base of 1, this trade also settles the account
                 const heldPrice = ethers.utils.parseEther("1")
                 const heldAmount = ethers.utils.parseEther("1")
-                await executeTrade(contracts, accounts, heldPrice, heldAmount)
+                await executeTrade(
+                    contracts.tracer,
+                    contracts.trader,
+                    accounts,
+                    heldPrice,
+                    heldAmount
+                )
 
                 const priorBalance = await contracts.tracer.balances(
                     accounts[1].address
@@ -180,7 +186,13 @@ describe("Unit tests: settle", function () {
             // give account 1 a base of 1 at same price as oracle to avoid impacting funding rate
             const heldPrice = ethers.utils.parseEther(markPrice.toString())
             const heldAmount = ethers.utils.parseEther("1")
-            await executeTrade(contracts, accounts, heldPrice, heldAmount)
+            await executeTrade(
+                contracts.tracer,
+                contracts.trader,
+                accounts,
+                heldPrice,
+                heldAmount
+            )
 
             // set new gas rate to 40 gwei
             await setGasPrice(contracts, 0.00000004)
@@ -258,7 +270,13 @@ describe("Unit tests: settle", function () {
             // give account 1 a base of 1 at same price as oracle to avoid impacting funding rate
             const heldPrice = ethers.utils.parseEther(markPrice.toString())
             const heldAmount = ethers.utils.parseEther("20")
-            await executeTrade(contracts, accounts, heldPrice, heldAmount)
+            await executeTrade(
+                contracts.tracer,
+                contracts.trader,
+                accounts,
+                heldPrice,
+                heldAmount
+            )
 
             // set funding rate and insurance rate to 0.2 quote tokens per 1 base held at index 1
             const fundingRate = ethers.utils.parseEther("0.2")
@@ -328,7 +346,13 @@ describe("Unit tests: settle", function () {
                 // give account 1 a base of 1 at same price as oracle to avoid impacting funding rate
                 const heldPrice = ethers.utils.parseEther(markPrice.toString())
                 const heldAmount = ethers.utils.parseEther("50")
-                await executeTrade(contracts, accounts, heldPrice, heldAmount)
+                await executeTrade(
+                    contracts.tracer,
+                    contracts.trader,
+                    accounts,
+                    heldPrice,
+                    heldAmount
+                )
 
                 // set funding rate and insurance rate to 0.2 quote tokens per 1 base held at index 1
                 const fundingRate = ethers.utils.parseEther("0.2")

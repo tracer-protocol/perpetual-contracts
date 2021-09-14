@@ -13,7 +13,7 @@ const {
     getTrader,
 } = require("../util/DeploymentUtil.js")
 const {
-    customOrder,
+    createOrder,
     matchOrders,
     executeTrade,
     depositQuoteTokens,
@@ -91,7 +91,13 @@ describe("Unit tests: matchOrders", function () {
             // match order from acc 1 (long) and acc 2 (short)
             orderPrice = ethers.utils.parseEther("2")
             orderAmount = ethers.utils.parseEther("10")
-            await executeTrade(contracts, accounts, orderPrice, orderAmount)
+            await executeTrade(
+                contracts.tracer,
+                contracts.trader,
+                accounts,
+                orderPrice,
+                orderAmount
+            )
         })
 
         it("executes the trade", async () => {
@@ -178,7 +184,13 @@ describe("Unit tests: matchOrders", function () {
             )
             let tradePrice = ethers.utils.parseEther(markPrice.toString())
             let tradeAmount = ethers.utils.parseEther("1")
-            await executeTrade(contracts, accounts, tradePrice, tradeAmount)
+            await executeTrade(
+                contracts.tracer,
+                contracts.trader,
+                accounts,
+                tradePrice,
+                tradeAmount
+            )
 
             // set new funding rate to 0.2 quote tokens per 1 base held at index 1, no insurance rate
             const fundingRate = ethers.utils.parseEther("0.2")
@@ -188,7 +200,8 @@ describe("Unit tests: matchOrders", function () {
             tradePrice = ethers.utils.parseEther(markPrice.toString())
             tradeAmount = ethers.utils.parseEther("5")
             let tx = await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 tradePrice,
                 tradeAmount
@@ -226,7 +239,13 @@ describe("Unit tests: matchOrders", function () {
             )
             let tradePrice = ethers.utils.parseEther(markPrice.toString())
             let tradeAmount = ethers.utils.parseEther("1")
-            await executeTrade(contracts, accounts, tradePrice, tradeAmount)
+            await executeTrade(
+                contracts.tracer,
+                contracts.trader,
+                accounts,
+                tradePrice,
+                tradeAmount
+            )
 
             // set new funding rate to 0.2 quote tokens per 1 base held at index 1, no insurance rate
             const fundingRate = ethers.utils.parseEther("0.2")
@@ -236,7 +255,8 @@ describe("Unit tests: matchOrders", function () {
             tradePrice = ethers.utils.parseEther(markPrice.toString())
             tradeAmount = ethers.utils.parseEther("1000") // user will have insufficient margin for this trade
             let tx = await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 tradePrice,
                 tradeAmount
@@ -275,22 +295,22 @@ describe("Unit tests: matchOrders", function () {
             const longPrice = ethers.utils.parseEther("1")
             const shortPrice = ethers.utils.parseEther("2")
             orderAmount = ethers.utils.parseEther("1")
-            const long = customOrder(
-                contracts,
+            const long = createOrder(
+                contracts.tracer,
                 longPrice,
                 orderAmount,
-                0,
+                true,
                 accounts[1].address
             )
-            const short = customOrder(
-                contracts,
+            const short = createOrder(
+                contracts.tracer,
                 shortPrice,
                 orderAmount,
-                1,
+                false,
                 accounts[2].address
             )
 
-            tx = await matchOrders(contracts, long, short)
+            tx = await matchOrders(contracts.trader, long, short)
         })
 
         it("does not change user positions", async () => {
@@ -341,7 +361,13 @@ describe("Unit tests: matchOrders", function () {
             // actual margin = -194 + (100 * 2) = 6
             orderPrice = ethers.utils.parseEther("2")
             orderAmount = ethers.utils.parseEther("100")
-            await executeTrade(contracts, accounts, orderPrice, orderAmount)
+            tx = await executeTrade(
+                contracts.tracer,
+                contracts.trader,
+                accounts,
+                orderPrice,
+                orderAmount
+            )
         })
 
         it("does not change user positions", async () => {

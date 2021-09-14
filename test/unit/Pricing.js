@@ -70,7 +70,8 @@ describe("Unit tests: Pricing", function () {
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 10
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -79,7 +80,8 @@ describe("Unit tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -112,7 +114,8 @@ describe("Unit tests: Pricing", function () {
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 12
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("12"),
                 ethers.utils.parseEther("2")
@@ -121,7 +124,8 @@ describe("Unit tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -155,7 +159,8 @@ describe("Unit tests: Pricing", function () {
             await oracle.setPrice(12 * 10 ** 8)
             // execute trade to set tracer price to 10
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -164,7 +169,8 @@ describe("Unit tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -202,7 +208,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: 0
             await oracle.setPrice(12 * 10 ** 8)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -217,7 +224,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: 2/90 = -0.02 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("11"),
                 ethers.utils.parseEther("2")
@@ -232,7 +240,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: -2/90 + -1/90 = -0.03 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("9"),
                 ethers.utils.parseEther("2")
@@ -250,7 +259,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: 0
             await oracle.setPrice(12 * 10 ** 8)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -265,7 +275,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: 2/90 = -0.02 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("11"),
                 ethers.utils.parseEther("2")
@@ -280,7 +291,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: -1/90 (90 day avg from day 2-92)
             await forwardTime(91 * 24 * 3600)
             await executeTrade(
-                contracts,
+                contracts.tracer,
+                contracts.trader,
                 accounts,
                 ethers.utils.parseEther("9"),
                 ethers.utils.parseEther("2")
@@ -301,7 +313,8 @@ describe("Unit tests: Pricing", function () {
                     // record trade of price 10 with amount 2
                     await oracle.setPrice(10 * 10 ** 8)
                     await executeTrade(
-                        contracts,
+                        contracts.tracer,
+                        contracts.trader,
                         accounts,
                         ethers.utils.parseEther("10"),
                         ethers.utils.parseEther("2")
@@ -312,7 +325,8 @@ describe("Unit tests: Pricing", function () {
                     // record trade of price 13 with amount 4
                     await oracle.setPrice(13 * 10 ** 8)
                     await executeTrade(
-                        contracts,
+                        contracts.tracer,
+                        contracts.trader,
                         accounts,
                         ethers.utils.parseEther("13"),
                         ethers.utils.parseEther("4")
@@ -345,7 +359,8 @@ describe("Unit tests: Pricing", function () {
                 // record trade of price 10 with amount 2
                 await oracle.setPrice(12 * 10 ** 8)
                 await executeTrade(
-                    contracts,
+                    contracts.tracer,
+                    contracts.trader,
                     accounts,
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("2")
@@ -356,7 +371,8 @@ describe("Unit tests: Pricing", function () {
                 // record trade of price 13 with amount 4
                 await oracle.setPrice(13 * 10 ** 8)
                 await executeTrade(
-                    contracts,
+                    contracts.tracer,
+                    contracts.trader,
                     accounts,
                     ethers.utils.parseEther("13"),
                     ethers.utils.parseEther("4")
@@ -399,7 +415,8 @@ describe("Unit tests: Pricing", function () {
                 // set hour 0
                 await oracle.setPrice(12 * 10 ** 8)
                 await executeTrade(
-                    contracts,
+                    contracts.tracer,
+                    contracts.trader,
                     accounts,
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("2")
@@ -408,7 +425,8 @@ describe("Unit tests: Pricing", function () {
                 await forwardTime(1 * 3600)
                 await oracle.setPrice(13 * 10 ** 8)
                 await executeTrade(
-                    contracts,
+                    contracts.tracer,
+                    contracts.trader,
                     accounts,
                     ethers.utils.parseEther("13"),
                     ethers.utils.parseEther("2")
@@ -418,7 +436,8 @@ describe("Unit tests: Pricing", function () {
                 await forwardTime(24 * 3600)
                 await oracle.setPrice(15 * 10 ** 8)
                 await executeTrade(
-                    contracts,
+                    contracts.tracer,
+                    contracts.trader,
                     accounts,
                     ethers.utils.parseEther("15"),
                     ethers.utils.parseEther("2")
