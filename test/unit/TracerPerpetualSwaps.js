@@ -2,74 +2,30 @@ const { expect, assert } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const { smockit, smoddit } = require("@eth-optimism/smock")
-const { BigNumber } = require("ethers")
-const zeroAddress = "0x0000000000000000000000000000000000000000"
-const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
-const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const gasOracleAbi = require("../../abi/contracts/oracle/GasOracle.sol/GasOracle.json")
+const {
+    getFactory,
+    getTracer,
+    getPricing,
+    getGasOracle,
+    getQuoteToken,
+    getTrader,
+    getInsurance,
+    getLiquidation,
+} = require("../util/DeploymentUtil.js")
 
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-
-    // deploy contracts
+const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
-    let Factory = await deployments.get("TracerPerpetualsFactory")
-    let factory = await ethers.getContractAt(Factory.abi, Factory.address)
-    let tracerAddress = await factory.tracersByIndex(0)
-    let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
-
-    // setup mocks for the contracts and relink
-    const Insurance = await tracer.insuranceContract()
-    let insurance = await ethers.getContractAt(insuranceAbi, Insurance)
-
-    const Pricing = await tracer.pricingContract()
-    let pricing = await ethers.getContractAt(pricingAbi, Pricing)
-
-    const Liquidation = await tracer.liquidationContract()
-    let liquidation = await ethers.getContractAt(liquidationAbi, Liquidation)
-
-    const QuoteToken = await tracer.tracerQuoteToken()
-    let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
-
-    const GasOracle = await tracer.gasPriceOracle()
-    let gasOracle = await ethers.getContractAt(gasOracleAbi, GasOracle)
-
-    insurance = await smockit(insurance)
-    pricing = await smockit(pricing)
-    liquidation = await smockit(liquidation)
-    gasOracle = await smockit(gasOracle)
-
-    // mock gas price
-    gasOracle.smocked.latestAnswer.will.return.with("60000000000000")
-
-    // mock function calls for insurance, pricing & liquidation
-    await tracer.setPricingContract(pricing.address)
-    await tracer.setInsuranceContract(insurance.address)
-    await tracer.setLiquidationContract(liquidation.address)
-    await tracer.setGasOracle(gasOracle.address)
-
-    pricing.smocked.lastUpdatedFundingIndex.will.return(0)
-    // pricing.smocked.getFundingRate.will.return
-    // pricing.smocked.getInsuranceFundingRate.will.return
-    const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
+    _factory = await getFactory()
+    _tracer = await getTracer(_factory)
 
     return {
-        tracer,
-        insurance,
-        pricing,
-        liquidation,
-        quoteToken,
-        deployer,
-        traderInstance,
-        gasOracle,
+        trader: await getTrader(),
+        tracer: _tracer,
+        pricing: await getPricing(_tracer),
+        insurance: await getInsurance(_tracer),
+        liquidation: await getLiquidation(_tracer),
+        quoteToken: await getQuoteToken(_tracer),
+        gasOracle: await getGasOracle(_tracer),
     }
 })
 
@@ -85,16 +41,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
     let gasOracle
 
     beforeEach(async function () {
-        let _setup = await setup()
+        let _setup = await setupTests()
         tracer = _setup.tracer
         insurance = _setup.insurance
         pricing = _setup.pricing
         liquidation = _setup.liquidation
         quoteToken = _setup.quoteToken
-        deployer = _setup.deployer
-        traderInstance = _setup.traderInstance
+        traderInstance = _setup.trader
         gasOracle = _setup.gasOracle
         accounts = await ethers.getSigners()
+        deployer = (await getNamedAccounts()).deployer
     })
 
     describe("deposit", async () => {

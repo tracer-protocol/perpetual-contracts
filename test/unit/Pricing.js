@@ -1,6 +1,15 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
-const { deployTracer } = require("../util/DeploymentUtil.js")
+const {
+    getFactory,
+    getTracer,
+    getPricing,
+    getInsurance,
+    getLiquidation,
+    getPriceOracle,
+    getQuoteToken,
+    getTrader,
+} = require("../util/DeploymentUtil.js")
 const { executeTrade } = require("../util/OrderUtil.js")
 
 const forwardTime = async (seconds) => {
@@ -8,20 +17,35 @@ const forwardTime = async (seconds) => {
     await network.provider.send("evm_mine", [])
 }
 
+const setupTests = deployments.createFixture(async () => {
+    await deployments.fixture(["FullDeployTest"])
+    _factory = await getFactory()
+    _tracer = await getTracer(_factory)
+
+    return {
+        trader: await getTrader(),
+        tracer: _tracer,
+        pricing: await getPricing(_tracer),
+        insurance: await getInsurance(_tracer),
+        liquidation: await getLiquidation(_tracer),
+        quoteToken: await getQuoteToken(_tracer),
+        priceOracle: await getPriceOracle(_tracer),
+    }
+})
+
 describe("Unit tests: Pricing", function () {
     let accounts
     let contracts
     let insurance, pricing, tracer, quoteToken, trader, oracle
 
     beforeEach(async () => {
-        contracts = await deployTracer()
-        deployer = contracts.deployer
+        contracts = await setupTests()
         quoteToken = contracts.quoteToken
         tracer = contracts.tracer
         insurance = contracts.insurance
         pricing = contracts.pricing
         trader = contracts.trader
-        oracle = contracts.oracle
+        oracle = contracts.priceOracle
         accounts = await ethers.getSigners()
         // transfer tokesn to account 4
         await quoteToken.transfer(

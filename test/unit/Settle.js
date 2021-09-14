@@ -1,7 +1,15 @@
 const { expect } = require("chai")
-const { ethers, network } = require("hardhat")
+const { ethers, network, deployments } = require("hardhat")
 const { executeTrade } = require("../util/OrderUtil.js")
-const { deployTracerMockPricing } = require("../util/DeploymentUtil.js")
+const {
+    getFactory,
+    getTracer,
+    getMockPricing,
+    getPriceOracle,
+    getGasEthOracle,
+    getQuoteToken,
+    getTrader,
+} = require("../util/DeploymentUtil.js")
 
 const depositQuoteTokens = async (contracts, accounts, amount) => {
     // transfer tokens to accounts 1 to 4
@@ -27,11 +35,25 @@ const setGasPrice = async (contracts, gasPrice) => {
     await contracts.gasEthOracle.setPrice(ethOraclePrice * 10 ** 8)
 }
 
+const setupTests = deployments.createFixture(async () => {
+    await deployments.fixture(["MockPricingDeploy"])
+    _factory = await getFactory()
+    _tracer = await getTracer(_factory)
+
+    return {
+        trader: await getTrader(),
+        tracer: _tracer,
+        pricing: await getMockPricing(_tracer),
+        quoteToken: await getQuoteToken(_tracer),
+        oracle: await getPriceOracle(),
+        gasEthOracle: await getGasEthOracle(),
+    }
+})
+
 describe("Unit tests: settle", function () {
     context("when the account has no open positions", async () => {
         it("updates the last updated index and gas price but does not change the account balance", async () => {
-            contracts = await deployTracerMockPricing()
-
+            contracts = await setupTests()
             accounts = await ethers.getSigners()
 
             // set gas price when user first deposits to 20 gwei
@@ -94,7 +116,7 @@ describe("Unit tests: settle", function () {
         "when the account has a position and is on the latest global index",
         async () => {
             it("does nothing", async () => {
-                contracts = await deployTracerMockPricing()
+                contracts = await setupTests()
 
                 accounts = await ethers.getSigners()
 
@@ -150,7 +172,7 @@ describe("Unit tests: settle", function () {
 
     context("when the account has an unleveraged position", async () => {
         it("it only pays the funding rate", async () => {
-            contracts = await deployTracerMockPricing()
+            contracts = await setupTests()
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
@@ -224,7 +246,7 @@ describe("Unit tests: settle", function () {
 
     context("when the account has a leveraged position", async () => {
         it("pays both the funding rate and insurance funding rate", async () => {
-            contracts = await deployTracerMockPricing()
+            contracts = await setupTests()
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("10")
@@ -290,7 +312,7 @@ describe("Unit tests: settle", function () {
         "when the account has insufficient margin to pay the funding rate and insurance rate",
         async () => {
             it("updates the account balance", async () => {
-                contracts = await deployTracerMockPricing()
+                contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 initialQuoteBalance = ethers.utils.parseEther("10")

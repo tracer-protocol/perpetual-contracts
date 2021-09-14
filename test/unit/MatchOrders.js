@@ -1,15 +1,56 @@
 const { expect } = require("chai")
-const { ethers, network } = require("hardhat")
-const { BigNumber } = require("ethers")
+const { ethers } = require("hardhat")
 const {
-    deployTracer,
-    deployTracerMockPricing,
+    getGasEthOracle,
+    getFactory,
+    getTracer,
+    getPricing,
+    getMockPricing,
+    getInsurance,
+    getLiquidation,
+    getPriceOracle,
+    getQuoteToken,
+    getTrader,
 } = require("../util/DeploymentUtil.js")
 const {
     customOrder,
     matchOrders,
     executeTrade,
 } = require("../util/OrderUtil.js")
+
+const setupTests = deployments.createFixture(async () => {
+    await deployments.fixture(["FullDeployTest"])
+    _factory = await getFactory()
+    _tracer = await getTracer(_factory)
+
+    return {
+        trader: await getTrader(),
+        tracer: _tracer,
+        pricing: await getPricing(_tracer),
+        insurance: await getInsurance(_tracer),
+        liquidation: await getLiquidation(_tracer),
+        quoteToken: await getQuoteToken(_tracer),
+        oracle: await getPriceOracle(_tracer),
+        gasEthOracle: await getGasEthOracle(),
+    }
+})
+
+const setupTestsWithMockPricing = deployments.createFixture(async () => {
+    await deployments.fixture(["MockPricingDeploy"])
+    _factory = await getFactory()
+    _tracer = await getTracer(_factory)
+
+    return {
+        trader: await getTrader(),
+        tracer: _tracer,
+        pricing: await getMockPricing(_tracer),
+        insurance: await getInsurance(_tracer),
+        liquidation: await getLiquidation(_tracer),
+        quoteToken: await getQuoteToken(_tracer),
+        oracle: await getPriceOracle(_tracer),
+        gasEthOracle: await getGasEthOracle(),
+    }
+})
 
 const depositQuoteTokens = async (contracts, accounts, amount) => {
     // transfer tokens to accounts 1 to 4
@@ -42,7 +83,7 @@ describe("Unit tests: matchOrders", function () {
 
     context("when two new users match orders", async () => {
         beforeEach(async () => {
-            contracts = await deployTracer()
+            contracts = await setupTests()
             accounts = await ethers.getSigners()
 
             // set fee rate to 2%
@@ -126,7 +167,7 @@ describe("Unit tests: matchOrders", function () {
 
     context("when a trader needs to be settled", async () => {
         it("settles the trader if the order matches", async () => {
-            contracts = await deployTracerMockPricing()
+            contracts = await setupTestsWithMockPricing()
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
@@ -170,7 +211,7 @@ describe("Unit tests: matchOrders", function () {
         })
 
         it("settles the trader if the order fails", async () => {
-            contracts = await deployTracerMockPricing()
+            contracts = await setupTestsWithMockPricing()
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
@@ -216,7 +257,7 @@ describe("Unit tests: matchOrders", function () {
 
     context("when the orders are invalid", async () => {
         beforeEach(async () => {
-            contracts = await deployTracer()
+            contracts = await setupTests()
             accounts = await ethers.getSigners()
             // set mark price to 2 (oracle takes in 8 decimal answer)
             await contracts.oracle.setPrice(2 * 10 ** 8)
@@ -273,7 +314,7 @@ describe("Unit tests: matchOrders", function () {
 
     context("when users don't have sufficient margin", async () => {
         beforeEach(async () => {
-            contracts = await deployTracer()
+            contracts = await setupTests()
             accounts = await ethers.getSigners()
 
             // set fee rate to 2%
