@@ -45,7 +45,8 @@ describe("Unit tests: settle", function () {
             await setGasPrice(contracts, 0.00000002)
             initialQuoteBalance = ethers.utils.parseEther("10")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -114,7 +115,8 @@ describe("Unit tests: settle", function () {
 
                 initialQuoteBalance = ethers.utils.parseEther("10")
                 await depositQuoteTokens(
-                    contracts,
+                    contracts.tracer,
+                    contracts.quoteToken,
                     [accounts[1], accounts[2]],
                     initialQuoteBalance
                 )
@@ -171,7 +173,8 @@ describe("Unit tests: settle", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("11")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -255,7 +258,8 @@ describe("Unit tests: settle", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("10")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -331,7 +335,8 @@ describe("Unit tests: settle", function () {
 
                 initialQuoteBalance = ethers.utils.parseEther("10")
                 await depositQuoteTokens(
-                    contracts,
+                    contracts.tracer,
+                    contracts.quoteToken,
                     [accounts[1], accounts[2]],
                     initialQuoteBalance
                 )

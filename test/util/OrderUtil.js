@@ -60,14 +60,12 @@ const matchOrders = async (trader, order1, order2) => {
     return tx
 }
 
-const depositQuoteTokens = async (contracts, accounts, amount) => {
+const depositQuoteTokens = async (tracer, quoteToken, accounts, amount) => {
     for (var i = 0; i < accounts.length; i++) {
-        await contracts.quoteToken.transfer(accounts[i].address, amount)
+        await quoteToken.transfer(accounts[i].address, amount)
 
-        await contracts.quoteToken
-            .connect(accounts[i])
-            .approve(contracts.tracer.address, amount)
-        await contracts.tracer.connect(accounts[i]).deposit(amount)
+        await quoteToken.connect(accounts[i]).approve(tracer.address, amount)
+        await tracer.connect(accounts[i]).deposit(amount)
     }
 }
 

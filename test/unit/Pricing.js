@@ -10,7 +10,7 @@ const {
     getQuoteToken,
     getTrader,
 } = require("../util/DeploymentUtil.js")
-const { executeTrade } = require("../util/OrderUtil.js")
+const { executeTrade, depositQuoteTokens } = require("../util/OrderUtil.js")
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
@@ -47,21 +47,12 @@ describe("Unit tests: Pricing", function () {
         trader = contracts.trader
         oracle = contracts.priceOracle
         accounts = await ethers.getSigners()
-        // transfer tokesn to account 4
-        await quoteToken.transfer(
-            accounts[4].address,
+        await depositQuoteTokens(
+            tracer,
+            quoteToken,
+            [accounts[1], accounts[2]],
             ethers.utils.parseEther("1000")
         )
-
-        // set up accounts
-        for (var i = 0; i < 4; i++) {
-            await quoteToken
-                .connect(accounts[i + 1])
-                .approve(tracer.address, ethers.utils.parseEther("1000"))
-            await tracer
-                .connect(accounts[i + 1])
-                .deposit(ethers.utils.parseEther("1000"))
-        }
     })
 
     describe("fundingRate", async () => {

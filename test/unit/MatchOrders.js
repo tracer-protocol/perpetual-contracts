@@ -83,7 +83,8 @@ describe("Unit tests: matchOrders", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("10")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -171,7 +172,8 @@ describe("Unit tests: matchOrders", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("11")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -226,7 +228,8 @@ describe("Unit tests: matchOrders", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("11")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -286,7 +289,8 @@ describe("Unit tests: matchOrders", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("10")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )
@@ -350,7 +354,8 @@ describe("Unit tests: matchOrders", function () {
 
             initialQuoteBalance = ethers.utils.parseEther("10")
             await depositQuoteTokens(
-                contracts,
+                contracts.tracer,
+                contracts.quoteToken,
                 [accounts[1], accounts[2]],
                 initialQuoteBalance
             )

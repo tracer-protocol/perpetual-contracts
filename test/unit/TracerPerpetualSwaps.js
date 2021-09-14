@@ -12,6 +12,7 @@ const {
     getInsurance,
     getLiquidation,
 } = require("../util/DeploymentUtil.js")
+const { depositQuoteTokens } = require("../util/OrderUtil.js")
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
@@ -452,14 +453,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 //1% fee
                 await tracer.setFeeRate(ethers.utils.parseEther("0.01"))
 
-                for (var i = 0; i < 2; i++) {
-                    await quoteToken
-                        .connect(accounts[i + 1])
-                        .approve(tracer.address, ethers.utils.parseEther("500"))
-                    await tracer
-                        .connect(accounts[i + 1])
-                        .deposit(ethers.utils.parseEther("500"))
-                }
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[1], accounts[2]],
+                    ethers.utils.parseEther("500")
+                )
 
                 now = Math.floor(new Date().getTime() / 1000)
 
