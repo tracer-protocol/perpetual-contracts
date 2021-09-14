@@ -1,5 +1,5 @@
 const { expect } = require("chai")
-const { ethers, network, deployments } = require("hardhat")
+const { ethers, deployments } = require("hardhat")
 const { executeTrade, depositQuoteTokens } = require("../util/OrderUtil.js")
 const {
     getFactory,
@@ -11,15 +11,12 @@ const {
     getTrader,
 } = require("../util/DeploymentUtil.js")
 
-// sets the fast gas / USD price oracles
-// takes in the desired fgas / USD price in decimal format
+// sets the latest answer of the gas oracle (fGas / USD)
 const setGasPrice = async (contracts, gasPrice) => {
-    // fgas / USD = fgas / ETH * ETH/USD
-    // mock fgas / ETH node always returns 20 GWEI
-    // ETH/USD = fgas/USD / 20 GWEI
+    // fgas/USD = fgas/ETH * ETH/USD
+    // ETH/USD = fgas/USD / fgas/ETH
+    // mock fgas/ETH node always returns 20 GWEI
     const ethOraclePrice = gasPrice / 0.00000002
-
-    // set price of ETH/USD oracle
     await contracts.gasEthOracle.setPrice(ethOraclePrice * 10 ** 8)
 }
 
