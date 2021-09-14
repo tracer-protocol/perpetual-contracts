@@ -4,8 +4,6 @@ const {
     getFactory,
     getTracer,
     getPricing,
-    getInsurance,
-    getLiquidation,
     getPriceOracle,
     getQuoteToken,
     getTrader,
@@ -26,43 +24,31 @@ const setupTests = deployments.createFixture(async () => {
         trader: await getTrader(),
         tracer: _tracer,
         pricing: await getPricing(_tracer),
-        insurance: await getInsurance(_tracer),
-        liquidation: await getLiquidation(_tracer),
         quoteToken: await getQuoteToken(_tracer),
-        priceOracle: await getPriceOracle(_tracer),
+        oracle: await getPriceOracle(_tracer),
     }
 })
 
 describe("Unit tests: Pricing", function () {
     let accounts
-    let contracts
-    let insurance, pricing, tracer, quoteToken, trader, oracle
-
-    beforeEach(async () => {
-        contracts = await setupTests()
-        quoteToken = contracts.quoteToken
-        tracer = contracts.tracer
-        insurance = contracts.insurance
-        pricing = contracts.pricing
-        trader = contracts.trader
-        oracle = contracts.priceOracle
-        accounts = await ethers.getSigners()
-        await depositQuoteTokens(
-            tracer,
-            quoteToken,
-            [accounts[1], accounts[2]],
-            ethers.utils.parseEther("1000")
-        )
-    })
-
     describe("fundingRate", async () => {
         it("is zero when oracle and tracer price are equal", async () => {
+            const { tracer, trader, pricing, oracle, quoteToken } =
+                await setupTests()
+            accounts = await ethers.getSigners()
+            await depositQuoteTokens(
+                tracer,
+                quoteToken,
+                [accounts[1], accounts[2]],
+                ethers.utils.parseEther("100")
+            )
+
             // set underlying price to 10 (oracle takes in 8 decimal answer)
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 10
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -71,8 +57,8 @@ describe("Unit tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -101,12 +87,22 @@ describe("Unit tests: Pricing", function () {
         })
 
         it("is positive when tracer price is greater than oracle price", async () => {
+            const { tracer, trader, pricing, oracle, quoteToken } =
+                await setupTests()
+            accounts = await ethers.getSigners()
+            await depositQuoteTokens(
+                tracer,
+                quoteToken,
+                [accounts[1], accounts[2]],
+                ethers.utils.parseEther("100")
+            )
+
             // set underlying price to 10 (oracle takes in 8 decimal answer)
             await oracle.setPrice(10 * 10 ** 8)
             // execute trade to set tracer price to 12
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("12"),
                 ethers.utils.parseEther("2")
@@ -115,8 +111,8 @@ describe("Unit tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -146,12 +142,23 @@ describe("Unit tests: Pricing", function () {
         })
 
         it("is negative when tracer price is greater than oracle price", async () => {
+            const { tracer, trader, pricing, oracle, quoteToken } =
+                await setupTests()
+            accounts = await ethers.getSigners()
+            await depositQuoteTokens(
+                tracer,
+                quoteToken,
+                [accounts[1], accounts[2]],
+                ethers.utils.parseEther("100")
+            )
+
             // set underlying price to 12 (oracle takes in 8 decimal answer)
             await oracle.setPrice(12 * 10 ** 8)
+
             // execute trade to set tracer price to 10
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -160,8 +167,8 @@ describe("Unit tests: Pricing", function () {
             // create a new trade in the next hour to update the funding rate in the last hour
             await forwardTime(2 * 3600 + 100)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -193,14 +200,24 @@ describe("Unit tests: Pricing", function () {
 
     describe("timeValue", async () => {
         it("correctly updates every 24 hours", async () => {
+            const { tracer, trader, pricing, oracle, quoteToken } =
+                await setupTests()
+            accounts = await ethers.getSigners()
+            await depositQuoteTokens(
+                tracer,
+                quoteToken,
+                [accounts[1], accounts[2]],
+                ethers.utils.parseEther("100")
+            )
+
             // state 1
             // day: 1
             // daily average price difference: -2 (10-12)
             // timeValue: 0
             await oracle.setPrice(12 * 10 ** 8)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -215,8 +232,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: 2/90 = -0.02 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("11"),
                 ethers.utils.parseEther("2")
@@ -231,8 +248,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: -2/90 + -1/90 = -0.03 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("9"),
                 ethers.utils.parseEther("2")
@@ -244,14 +261,24 @@ describe("Unit tests: Pricing", function () {
         })
 
         it("returns only the last 90 days of averages", async () => {
+            const { tracer, trader, pricing, oracle, quoteToken } =
+                await setupTests()
+            accounts = await ethers.getSigners()
+            await depositQuoteTokens(
+                tracer,
+                quoteToken,
+                [accounts[1], accounts[2]],
+                ethers.utils.parseEther("100")
+            )
+
             // state 1
             // day: 1
             // daily average price difference: -2 (10-12)
             // timeValue: 0
             await oracle.setPrice(12 * 10 ** 8)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("10"),
                 ethers.utils.parseEther("2")
@@ -266,8 +293,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: 2/90 = -0.02 recurring
             await forwardTime(24 * 3600)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("11"),
                 ethers.utils.parseEther("2")
@@ -282,8 +309,8 @@ describe("Unit tests: Pricing", function () {
             // timeValue: -1/90 (90 day avg from day 2-92)
             await forwardTime(91 * 24 * 3600)
             await executeTrade(
-                contracts.tracer,
-                contracts.trader,
+                tracer,
+                trader,
                 accounts,
                 ethers.utils.parseEther("9"),
                 ethers.utils.parseEther("2")
@@ -296,16 +323,27 @@ describe("Unit tests: Pricing", function () {
     })
 
     describe("recordTrade", async () => {
+        let pricing, tracer, trader, oracle, quoteToken
         context(
             "when the last recording was made in the same hour",
             async () => {
                 beforeEach(async () => {
+                    ;({ tracer, trader, pricing, oracle, quoteToken } =
+                        await setupTests())
+                    accounts = await ethers.getSigners()
+                    await depositQuoteTokens(
+                        tracer,
+                        quoteToken,
+                        [accounts[1], accounts[2]],
+                        ethers.utils.parseEther("100")
+                    )
+
                     // make three trades at hour 0
                     // record trade of price 10 with amount 2
                     await oracle.setPrice(10 * 10 ** 8)
                     await executeTrade(
-                        contracts.tracer,
-                        contracts.trader,
+                        tracer,
+                        trader,
                         accounts,
                         ethers.utils.parseEther("10"),
                         ethers.utils.parseEther("2")
@@ -316,8 +354,8 @@ describe("Unit tests: Pricing", function () {
                     // record trade of price 13 with amount 4
                     await oracle.setPrice(13 * 10 ** 8)
                     await executeTrade(
-                        contracts.tracer,
-                        contracts.trader,
+                        tracer,
+                        trader,
                         accounts,
                         ethers.utils.parseEther("13"),
                         ethers.utils.parseEther("4")
@@ -346,12 +384,22 @@ describe("Unit tests: Pricing", function () {
 
         context("when an hour has passed since last recording", async () => {
             beforeEach(async () => {
+                ;({ tracer, trader, pricing, oracle, quoteToken } =
+                    await setupTests())
+                accounts = await ethers.getSigners()
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[1], accounts[2]],
+                    ethers.utils.parseEther("100")
+                )
+
                 // make three trades at hour 0
                 // record trade of price 10 with amount 2
                 await oracle.setPrice(12 * 10 ** 8)
                 await executeTrade(
-                    contracts.tracer,
-                    contracts.trader,
+                    tracer,
+                    trader,
                     accounts,
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("2")
@@ -362,8 +410,8 @@ describe("Unit tests: Pricing", function () {
                 // record trade of price 13 with amount 4
                 await oracle.setPrice(13 * 10 ** 8)
                 await executeTrade(
-                    contracts.tracer,
-                    contracts.trader,
+                    tracer,
+                    trader,
                     accounts,
                     ethers.utils.parseEther("13"),
                     ethers.utils.parseEther("4")
@@ -401,13 +449,23 @@ describe("Unit tests: Pricing", function () {
 
         context("when extended periods of no trades occur", async () => {
             beforeEach(async () => {
+                ;({ tracer, trader, pricing, oracle, quoteToken } =
+                    await setupTests())
+                accounts = await ethers.getSigners()
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[1], accounts[2]],
+                    ethers.utils.parseEther("100")
+                )
+
                 // set up hourly average prices as:
                 // hour 0: 10, hour 1: 13
                 // set hour 0
                 await oracle.setPrice(12 * 10 ** 8)
                 await executeTrade(
-                    contracts.tracer,
-                    contracts.trader,
+                    tracer,
+                    trader,
                     accounts,
                     ethers.utils.parseEther("10"),
                     ethers.utils.parseEther("2")
@@ -416,8 +474,8 @@ describe("Unit tests: Pricing", function () {
                 await forwardTime(1 * 3600)
                 await oracle.setPrice(13 * 10 ** 8)
                 await executeTrade(
-                    contracts.tracer,
-                    contracts.trader,
+                    tracer,
+                    trader,
                     accounts,
                     ethers.utils.parseEther("13"),
                     ethers.utils.parseEther("2")
@@ -427,8 +485,8 @@ describe("Unit tests: Pricing", function () {
                 await forwardTime(24 * 3600)
                 await oracle.setPrice(15 * 10 ** 8)
                 await executeTrade(
-                    contracts.tracer,
-                    contracts.trader,
+                    tracer,
+                    trader,
                     accounts,
                     ethers.utils.parseEther("15"),
                     ethers.utils.parseEther("2")
