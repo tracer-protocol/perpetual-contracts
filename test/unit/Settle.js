@@ -1,6 +1,10 @@
 const { expect } = require("chai")
 const { ethers, deployments } = require("hardhat")
-const { executeTrade, depositQuoteTokens } = require("../util/OrderUtil.js")
+const {
+    executeTrade,
+    depositQuoteTokens,
+    setGasPrice,
+} = require("../util/OrderUtil.js")
 const {
     getFactory,
     getTracer,
@@ -10,15 +14,6 @@ const {
     getQuoteToken,
     getTrader,
 } = require("../util/DeploymentUtil.js")
-
-// sets the latest answer of the gas oracle (fGas / USD)
-const setGasPrice = async (gasEthOracle, gasPrice) => {
-    // fgas/USD = fgas/ETH * ETH/USD
-    // ETH/USD = fgas/USD / fgas/ETH
-    // mock fgas/ETH node always returns 20 GWEI
-    const ethOraclePrice = gasPrice / 0.00000002
-    await gasEthOracle.setPrice(ethOraclePrice * 10 ** 8)
-}
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["MockPricingDeploy"])

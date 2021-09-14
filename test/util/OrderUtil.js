@@ -69,9 +69,19 @@ const depositQuoteTokens = async (tracer, quoteToken, accounts, amount) => {
     }
 }
 
+// sets the latest answer of the gas oracle (fGas / USD)
+const setGasPrice = async (gasEthOracle, gasPrice) => {
+    // fgas/USD = fgas/ETH * ETH/USD
+    // ETH/USD = fgas/USD / fgas/ETH
+    // mock fgas/ETH node always returns 20 GWEI
+    const ethOraclePrice = gasPrice / 0.00000002
+    await gasEthOracle.setPrice(ethOraclePrice * 10 ** 8)
+}
+
 module.exports = {
     depositQuoteTokens,
     executeTrade,
     createOrder,
     matchOrders,
+    setGasPrice,
 }
