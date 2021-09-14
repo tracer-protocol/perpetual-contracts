@@ -16,6 +16,7 @@ const {
     customOrder,
     matchOrders,
     executeTrade,
+    depositQuoteTokens,
 } = require("../util/OrderUtil.js")
 
 const setupTests = deployments.createFixture(async () => {
@@ -52,18 +53,6 @@ const setupTestsWithMockPricing = deployments.createFixture(async () => {
     }
 })
 
-const depositQuoteTokens = async (contracts, accounts, amount) => {
-    // transfer tokens to accounts 1 to 4
-    await contracts.quoteToken.transfer(accounts[4].address, amount)
-    // deposit tokens for accounts 1 to 4
-    for (var i = 0; i < 4; i++) {
-        await contracts.quoteToken
-            .connect(accounts[i + 1])
-            .approve(contracts.tracer.address, amount)
-        await contracts.tracer.connect(accounts[i + 1]).deposit(amount)
-    }
-}
-
 // sets the fast gas / USD price oracles
 // takes in the desired fgas / USD price in decimal format
 const setGasPrice = async (contracts, gasPrice) => {
@@ -93,7 +82,11 @@ describe("Unit tests: matchOrders", function () {
             await contracts.gasEthOracle.setPrice(2 * 10 ** 8)
 
             initialQuoteBalance = ethers.utils.parseEther("10")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // match order from acc 1 (long) and acc 2 (short)
             orderPrice = ethers.utils.parseEther("2")
@@ -171,7 +164,11 @@ describe("Unit tests: matchOrders", function () {
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // give account 1 a base of 1, quote is now 10
             await setGasPrice(contracts, 0.00000002)
@@ -215,7 +212,11 @@ describe("Unit tests: matchOrders", function () {
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // give account 1 a base of 1, quote is now 10
             await setGasPrice(contracts, 0.00000002)
@@ -264,7 +265,11 @@ describe("Unit tests: matchOrders", function () {
             await contracts.gasEthOracle.setPrice(2 * 10 ** 8)
 
             initialQuoteBalance = ethers.utils.parseEther("10")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // create order where prices don't cross i.e long price < short price
             const longPrice = ethers.utils.parseEther("1")
@@ -324,7 +329,11 @@ describe("Unit tests: matchOrders", function () {
             await contracts.gasEthOracle.setPrice(2 * 10 ** 8)
 
             initialQuoteBalance = ethers.utils.parseEther("10")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // match order with amount 100
             // min margin = quote change / max leverage + liq. gas cost (negligble)

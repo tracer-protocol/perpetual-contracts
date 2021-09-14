@@ -1,4 +1,3 @@
-const { expect } = require("chai")
 // Executes a successful trade at a specified price and amount.
 // Uses account 1 as the long maker and account 2 as the short maker by default.
 const executeTrade = async (
@@ -64,7 +63,19 @@ const matchOrders = async (contracts, order1, order2) => {
     return tx
 }
 
+const depositQuoteTokens = async (contracts, accounts, amount) => {
+    for (var i = 0; i < accounts.length; i++) {
+        await contracts.quoteToken.transfer(accounts[i].address, amount)
+
+        await contracts.quoteToken
+            .connect(accounts[i])
+            .approve(contracts.tracer.address, amount)
+        await contracts.tracer.connect(accounts[i]).deposit(amount)
+    }
+}
+
 module.exports = {
+    depositQuoteTokens,
     executeTrade,
     customOrder,
     matchOrders,

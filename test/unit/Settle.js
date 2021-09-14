@@ -1,6 +1,6 @@
 const { expect } = require("chai")
 const { ethers, network, deployments } = require("hardhat")
-const { executeTrade } = require("../util/OrderUtil.js")
+const { executeTrade, depositQuoteTokens } = require("../util/OrderUtil.js")
 const {
     getFactory,
     getTracer,
@@ -10,18 +10,6 @@ const {
     getQuoteToken,
     getTrader,
 } = require("../util/DeploymentUtil.js")
-
-const depositQuoteTokens = async (contracts, accounts, amount) => {
-    // transfer tokens to accounts 1 to 4
-    await contracts.quoteToken.transfer(accounts[4].address, amount)
-    // deposit tokens for accounts 1 to 4
-    for (var i = 0; i < 4; i++) {
-        await contracts.quoteToken
-            .connect(accounts[i + 1])
-            .approve(contracts.tracer.address, amount)
-        await contracts.tracer.connect(accounts[i + 1]).deposit(amount)
-    }
-}
 
 // sets the fast gas / USD price oracles
 // takes in the desired fgas / USD price in decimal format
@@ -58,9 +46,12 @@ describe("Unit tests: settle", function () {
 
             // set gas price when user first deposits to 20 gwei
             await setGasPrice(contracts, 0.00000002)
-
             initialQuoteBalance = ethers.utils.parseEther("10")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // create a new funding rate of 0.25 at index 1
             await contracts.pricing.setFundingRate(
@@ -127,7 +118,7 @@ describe("Unit tests: settle", function () {
                 initialQuoteBalance = ethers.utils.parseEther("10")
                 await depositQuoteTokens(
                     contracts,
-                    accounts,
+                    [accounts[1], accounts[2]],
                     initialQuoteBalance
                 )
 
@@ -176,7 +167,11 @@ describe("Unit tests: settle", function () {
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("11")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // set gas price when user first deposits to 20 gwei
             await setGasPrice(contracts, 0.00000002)
@@ -250,7 +245,11 @@ describe("Unit tests: settle", function () {
             accounts = await ethers.getSigners()
 
             initialQuoteBalance = ethers.utils.parseEther("10")
-            await depositQuoteTokens(contracts, accounts, initialQuoteBalance)
+            await depositQuoteTokens(
+                contracts,
+                [accounts[1], accounts[2]],
+                initialQuoteBalance
+            )
 
             // set gas price when user first deposits to 20 gwei
             await setGasPrice(contracts, 0.00000002)
@@ -318,7 +317,7 @@ describe("Unit tests: settle", function () {
                 initialQuoteBalance = ethers.utils.parseEther("10")
                 await depositQuoteTokens(
                     contracts,
-                    accounts,
+                    [accounts[1], accounts[2]],
                     initialQuoteBalance
                 )
 
