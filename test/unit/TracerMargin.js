@@ -6,6 +6,7 @@ const {
     getQuoteToken,
     getTrader,
 } = require("../util/DeploymentUtil.js")
+
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
     _factory = await getFactory()
@@ -24,8 +25,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
     let deployer
 
     beforeEach(async function () {
-        ;({ tracer, quoteToken } =
-            await setupTests())
+        ;({ tracer, quoteToken } = await setupTests())
         accounts = await ethers.getSigners()
         deployer = (await getNamedAccounts()).deployer
     })
