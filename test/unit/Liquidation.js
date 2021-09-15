@@ -1,9 +1,14 @@
-const perpsAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { BigNumber } = require("ethers")
+const {
+    getFactory,
+    getTracer,
+    getLiquidation,
+    getTrader,
+    getQuoteToken,
+    getInsurance,
+} = require("../util/DeploymentUtil")
 
 const provideOrders = async (contracts, liquidationAmount) => {
     const timestamp = contracts.timestamp
@@ -167,12 +172,12 @@ const halfLiquidate = deployments.createFixture(async () => {
 })
 
 const invalidLiquidate = async () => {
-    const contracts = await baseLiquidatablePosition()
+    const { tracerPerps, liquidation, trader } =
+        await baseLiquidatablePosition()
     const { deployer } = await getNamedAccounts()
     accounts = await ethers.getSigners()
-    const { tracerPerps, liquidation, trader, libPerpetuals } = contracts
 
-    // Get half the base. Liquidate this amount
+    // Attempt to liquidate twice the amount of position
     const doubleBase = (
         await tracerPerps.getBalance(deployer)
     ).position.base.mul(2)
@@ -180,69 +185,21 @@ const invalidLiquidate = async () => {
     const tx = liquidation.connect(accounts[1]).liquidate(doubleBase, deployer)
     await expect(tx).to.be.reverted
 
-    return { tracerPerps, liquidation, trader, libPerpetuals }
+    return { tracerPerps, liquidation, trader }
 }
 
 const baseLiquidatablePosition = deployments.createFixture(async () => {
     await deployments.fixture("GetIntoLiquidatablePosition")
-    const { deployer } = await getNamedAccounts()
-    accounts = await ethers.getSigners()
+    const _factory = await getFactory()
+    const _tracer = await getTracer(_factory)
 
-    let perpsAddress = await deployments.read(
-        "TracerPerpetualsFactory",
-        "tracersByIndex",
-        0
-    )
-    let tracerPerpsInstance = new ethers.Contract(
-        perpsAddress,
-        perpsAbi,
-        ethers.provider
-    )
-    tracerPerpsInstance = await tracerPerpsInstance.connect(deployer)
-
-    let liquidationInstance = new ethers.Contract(
-        await tracerPerpsInstance.liquidationContract(),
-        liquidationAbi,
-        ethers.provider
-    )
-    liquidationInstance = await liquidationInstance.connect(accounts[0])
-
-    let insuranceInstance = new ethers.Contract(
-        await tracerPerpsInstance.insuranceContract(),
-        insuranceAbi,
-        ethers.provider
-    )
-    insuranceInstance = await insuranceInstance.connect(accounts[0])
-
-    const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
-
-    const tokenDeployment = await deployments.get("QuoteToken")
-    let token = await ethers.getContractAt(
-        tokenDeployment.abi,
-        tokenDeployment.address
-    )
-
-    // liquidationInstance.connect(deployer)
-    await deployments.fixture("PerpetualsMock")
-    const libPerpetualsDeployment = await deployments.get("PerpetualsMock")
-    let libPerpetuals = await ethers.getContractAt(
-        libPerpetualsDeployment.abi,
-        libPerpetualsDeployment.address
-    )
-    const contracts = {
-        tracerPerps: tracerPerpsInstance,
-        liquidation: liquidationInstance,
-        trader: traderInstance,
-        libPerpetuals: libPerpetuals,
-        token: token,
-        insurance: insuranceInstance,
+    return {
+        tracerPerps: _tracer,
+        liquidation: await getLiquidation(_tracer),
+        trader: await getTrader(),
+        token: await getQuoteToken(_tracer),
+        insurance: await getInsurance(_tracer),
     }
-
-    return contracts
 })
 
 const addOrdersToTrader = async (contracts, orders) => {
@@ -304,7 +261,6 @@ describe("Unit tests: Liquidation.sol", async () => {
     let tracerPerps
     let liquidation
     let trader
-    let libPerpetuals
     const fifteenMinutes = 60 * 15
     before(async function () {
         accounts = await ethers.getSigners()
@@ -538,12 +494,12 @@ describe("Unit tests: Liquidation.sol", async () => {
                     await contracts.tracer.balances(accounts[0].address)
                 ).position.base
 
-                // Liquidate with high gas price
+                // Liquidate with gas price (100 gwei) higher than actual gas price (20 gwei)
                 const tx = contracts.liquidation.liquidate(
                     liquidationAmount,
                     accounts[0].address,
                     {
-                        gasPrice: "1000000000000000",
+                        gasPrice: "100000000000",
                     }
                 )
                 await expect(tx).to.be.revertedWith("LIQ: GasPrice > FGasPrice")
