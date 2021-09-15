@@ -1564,6 +1564,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when some invalid orders", async () => {
             it("Calculates correctly", async () => {
+                const contracts = await setupReceiptTest()
                 let result =
                     await contracts.liquidation.callStatic.calcUnitsSold(
                         [
@@ -1610,6 +1611,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when duplicate orders", async () => {
             it("Reverts", async () => {
+                const contracts = await setupReceiptTest()
                 let tx = contracts.liquidation.callStatic.calcUnitsSold(
                     [
                         contracts.sellHalfLiquidationAmount,
