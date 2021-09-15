@@ -1,16 +1,12 @@
 const { expect, assert } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { deploy } = deployments
-const { smockit, smoddit } = require("@eth-optimism/smock")
 const {
     getFactory,
     getTracer,
     getPricing,
-    getGasOracle,
     getQuoteToken,
     getTrader,
     getInsurance,
-    getLiquidation,
 } = require("../util/DeploymentUtil.js")
 const { depositQuoteTokens } = require("../util/OrderUtil.js")
 
@@ -24,32 +20,18 @@ const setupTests = deployments.createFixture(async () => {
         tracer: _tracer,
         pricing: await getPricing(_tracer),
         insurance: await getInsurance(_tracer),
-        liquidation: await getLiquidation(_tracer),
         quoteToken: await getQuoteToken(_tracer),
-        gasOracle: await getGasOracle(_tracer),
     }
 })
 
 describe("Unit tests: TracerPerpetualSwaps.sol", function () {
-    let tracer
-    let insurance
-    let pricing
-    let liquidation
-    let quoteToken
-    let deployer
+    let tracer, trader, insurance, pricing, quoteToken
     let accounts
-    let traderInstance
-    let gasOracle
+    let deployer
 
     beforeEach(async function () {
-        let _setup = await setupTests()
-        tracer = _setup.tracer
-        insurance = _setup.insurance
-        pricing = _setup.pricing
-        liquidation = _setup.liquidation
-        quoteToken = _setup.quoteToken
-        traderInstance = _setup.trader
-        gasOracle = _setup.gasOracle
+        ;({ tracer, trader, insurance, pricing, quoteToken } =
+            await setupTests())
         accounts = await ethers.getSigners()
         deployer = (await getNamedAccounts()).deployer
     })
@@ -495,7 +477,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     0,
                 ]
 
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder1],
                     [mockSignedOrder2]
                 )
