@@ -2,9 +2,7 @@ const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const { smockit } = require("@eth-optimism/smock")
-const { BigNumber } = require("ethers")
 const zeroAddress = "0x0000000000000000000000000000000000000000"
-const FUNDING_RATE_FACTOR = ethers.utils.parseEther("0.00000570775")
 
 const getCollaterals = async (insurance) => [
     (await insurance.bufferCollateralAmount()).toString(),
@@ -74,22 +72,6 @@ const setup = deployments.createFixture(async () => {
         18
     )
     await testToken.deployed()
-
-    // deploy mock tracer and libs
-    let libBalances = await deploy("Balances", {
-        from: deployer,
-        log: true,
-    })
-
-    let libPerpetuals = await deploy("Perpetuals", {
-        from: deployer,
-        log: true,
-    })
-
-    let libPrices = await deploy("Prices", {
-        from: deployer,
-        log: true,
-    })
 
     // this deploy method is needed for mocking
     const tracerContractFactory = await ethers.getContractFactory(

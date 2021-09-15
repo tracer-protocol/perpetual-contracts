@@ -1,10 +1,6 @@
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { deploy } = deployments
 const { smockit } = require("@eth-optimism/smock")
-const { BigNumber } = require("ethers")
-const zeroAddress = "0x0000000000000000000000000000000000000000"
-const FUNDING_RATE_FACTOR = ethers.utils.parseEther("0.00000570775")
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
