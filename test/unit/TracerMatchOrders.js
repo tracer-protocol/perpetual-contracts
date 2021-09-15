@@ -51,7 +51,7 @@ const setupTestsWithMockPricing = deployments.createFixture(async () => {
     }
 })
 
-describe("Unit tests: matchOrders", function () {
+describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
     let accounts, long, short
     let tracer, trader, pricing, quoteToken, oracle, gasEthOracle
     let initialQuoteBalance, orderPrice, orderAmount
