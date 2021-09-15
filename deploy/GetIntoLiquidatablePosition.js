@@ -6,7 +6,6 @@ module.exports = async function (hre) {
     const { deployer, acc1 } = await getNamedAccounts()
     const signers = await ethers.getSigners()
 
-    await deployments.fixture("FullDeployTest")
     let tracerInstance = new ethers.Contract(
         await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
         perpsAbi
@@ -86,3 +85,4 @@ module.exports = async function (hre) {
 }
 
 module.exports.tags = ["GetIntoLiquidatablePosition"]
+module.exports.dependencies = ["FullDeployTest"]
