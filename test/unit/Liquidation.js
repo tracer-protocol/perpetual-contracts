@@ -3,7 +3,6 @@ const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.
 const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
 
 const provideOrders = async (contracts, liquidationAmount) => {
@@ -246,49 +245,33 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
     return contracts
 })
 
-const addOrdersToModifiedTrader = async (
-    modifiableTrader,
-    contracts,
-    orders
-) => {
+const addOrdersToTrader = async (contracts, orders) => {
     for (const [key, order] of Object.entries(orders)) {
-        let hash = await contracts.libPerpetuals.callStatic.orderId(order)
-        await modifiableTrader.smodify.put({
-            orders: {
-                [hash]: order,
-            },
-        })
+        let orderId = await contracts.trader.getOrderId(order)
+        await contracts.trader.recordOrder(order)
 
-        await modifiableTrader.smodify.put({
-            filled: {
-                [hash]: order.amount,
-            },
-        })
+        await contracts.trader.setFill(orderId, order.amount)
 
         if (key === "sellWholeLiquidationAmountUseNoSlippage") {
-            await modifiableTrader.smodify.put({
-                averageExecutionPrice: {
-                    [hash]: ethers.utils.parseEther("0.95").toString(), // no slippage on actual executionPrice
-                },
-            })
+            await contracts.trader.setAverageExecutionPrice(
+                orderId,
+                ethers.utils.parseEther("0.95")
+            )
         } else {
-            await modifiableTrader.smodify.put({
-                averageExecutionPrice: {
-                    [hash]: order.price,
-                },
-            })
+            await contracts.trader.setAverageExecutionPrice(
+                orderId,
+                order.price
+            )
         }
     }
 }
 
 /**
- * 1) Deploy smodded Trader contract
- * 2) Get into liquidatable position
- * 3) liquidate half the position
- * 4) Put in fake orders into smodded Trader contract
+ * 1) Get into liquidatable position
+ * 2) liquidate half the position
+ * 3) Put in liquidation orders into trader contract
  */
 const setupReceiptTest = deployments.createFixture(async () => {
-    const { modifiableTrader } = await deployModifiableTrader()
     const contracts = await halfLiquidate()
 
     const liquidationAmount = (
@@ -300,8 +283,8 @@ const setupReceiptTest = deployments.createFixture(async () => {
         contracts.timestamp
     )
 
-    await addOrdersToModifiedTrader(modifiableTrader, contracts, orders)
-    return { ...contracts, modifiableTrader, ...orders }
+    await addOrdersToTrader(contracts, orders)
+    return { ...contracts, ...orders }
 })
 
 const setupLiquidationTest = deployments.createFixture(async () => {
@@ -314,16 +297,6 @@ const setupLiquidationTest = deployments.createFixture(async () => {
     await tracer.deposit(ethers.utils.parseEther("10000"))
 
     return { token: token, tracer: tracer, liquidation: liquidation }
-})
-
-const deployModifiableTrader = deployments.createFixture(async () => {
-    const ModifiableTraderContract = await smoddit("Trader", {
-        libraries: {
-            // Perpetuals: contracts.libPerpetuals.address
-        },
-    })
-    const modifiableTrader = await ModifiableTraderContract.deploy()
-    return { modifiableTrader }
 })
 
 describe("Unit tests: Liquidation.sol", async () => {
@@ -351,7 +324,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.sellHalfLiquidationAmountSecond,
                             contracts.sellHalfLiquidationAmountThird,
                         ],
-                        contracts.modifiableTrader.address
+                        contracts.trader.address
                     )
                     await expect(tx).to.be.revertedWith("LIQ: Unit mismatch")
                 })
@@ -365,7 +338,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const contracts = await setupReceiptTest()
                     tracerPerps = contracts.tracerPerps
                     liquidation = contracts.liquidation
-                    trader = contracts.modifiableTrader
+                    trader = contracts.trader
 
                     const tx = await liquidation.callStatic.calcAmountToReturn(
                         0,
@@ -388,7 +361,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.sellHalfLiquidationAmount,
                             contracts.sellHalfLiquidationAmountSecond,
                         ],
-                        contracts.modifiableTrader.address
+                        contracts.trader.address
                     )
 
                 // 5000 * 0.95 - 5000* 0.5 = 2250
@@ -405,7 +378,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     await contracts.liquidation.callStatic.calcAmountToReturn(
                         0,
                         [contracts.sellLiquidationAmountNoSlippage],
-                        contracts.modifiableTrader.address
+                        contracts.trader.address
                     )
                 expect(amountToReturn).to.equal(BigNumber.from("0"))
             })
@@ -417,9 +390,6 @@ describe("Unit tests: Liquidation.sol", async () => {
             it("Returns a valid receipt", async () => {
                 const contracts = await setupReceiptTest()
                 accounts = await ethers.getSigners()
-                const blockTimestamp = (
-                    await ethers.provider.getBlock("latest")
-                ).timestamp
                 const amountLiquidated = ethers.utils.parseEther("5000")
                 // minMargin = 6 * (0.00006*63515) + 9500/12.5
                 // escrowAmount = (margin - (minMargin - margin)) / 2 = (500 - (782.86 - 500))/2 = 108.56712
@@ -431,9 +401,9 @@ describe("Unit tests: Liquidation.sol", async () => {
                     accounts[1].address, // liquidator
                     accounts[0].address, // liquidatee
                     ethers.utils.parseEther("0.95"), // price
-                    BigNumber.from(blockTimestamp), // time
+                    BigNumber.from(contracts.timestamp), // time
                     escrowedAmount,
-                    BigNumber.from(blockTimestamp + fifteenMinutes),
+                    BigNumber.from(contracts.timestamp + fifteenMinutes),
                     amountLiquidated,
                     false, // escrow claimed
                     liquidationSide,
@@ -817,22 +787,14 @@ describe("Unit tests: Liquidation.sol", async () => {
                 // Whitelist the smoddit Trader
                 await contracts.tracerPerps
                     .connect(accounts[0])
-                    .setWhitelist(contracts.modifiableTrader.address, true)
+                    .setWhitelist(contracts.trader.address, true)
                 // Claim receipt then claim again
                 await contracts.liquidation
                     .connect(accounts[1])
-                    .claimReceipt(
-                        0,
-                        [order],
-                        contracts.modifiableTrader.address
-                    )
+                    .claimReceipt(0, [order], contracts.trader.address)
                 const tx = contracts.liquidation
                     .connect(accounts[1])
-                    .claimReceipt(
-                        0,
-                        [order],
-                        contracts.modifiableTrader.address
-                    )
+                    .claimReceipt(0, [order], contracts.trader.address)
 
                 await expect(tx).to.be.revertedWith("LIQ: Already claimed")
             })
@@ -873,15 +835,11 @@ describe("Unit tests: Liquidation.sol", async () => {
                 // Whitelist the smoddit Trader
                 await contracts.tracerPerps
                     .connect(accounts[0])
-                    .setWhitelist(contracts.modifiableTrader.address, true)
+                    .setWhitelist(contracts.trader.address, true)
                 // Claim receipt then claim again
                 await contracts.liquidation
                     .connect(accounts[1])
-                    .claimReceipt(
-                        0,
-                        [order],
-                        contracts.modifiableTrader.address
-                    )
+                    .claimReceipt(0, [order], contracts.trader.address)
 
                 const liquidatorAfter = await contracts.tracerPerps.balances(
                     accounts[1].address
@@ -936,16 +894,12 @@ describe("Unit tests: Liquidation.sol", async () => {
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
-                        .setWhitelist(contracts.modifiableTrader.address, true)
+                        .setWhitelist(contracts.trader.address, true)
 
                     // Claim receipt then claim again
                     await contracts.liquidation
                         .connect(accounts[1])
-                        .claimReceipt(
-                            0,
-                            [order],
-                            contracts.modifiableTrader.address
-                        )
+                        .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
                         await contracts.tracerPerps.balances(
@@ -1018,14 +972,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
-                        .setWhitelist(contracts.modifiableTrader.address, true)
+                        .setWhitelist(contracts.trader.address, true)
                     await contracts.liquidation
                         .connect(accounts[1])
-                        .claimReceipt(
-                            0,
-                            [order],
-                            contracts.modifiableTrader.address
-                        )
+                        .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
                         await contracts.tracerPerps.balances(
@@ -1103,14 +1053,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
-                        .setWhitelist(contracts.modifiableTrader.address, true)
+                        .setWhitelist(contracts.trader.address, true)
                     await contracts.liquidation
                         .connect(accounts[1])
-                        .claimReceipt(
-                            0,
-                            [order],
-                            contracts.modifiableTrader.address
-                        )
+                        .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
                         await contracts.tracerPerps.balances(
@@ -1188,14 +1134,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
-                        .setWhitelist(contracts.modifiableTrader.address, true)
+                        .setWhitelist(contracts.trader.address, true)
                     await contracts.liquidation
                         .connect(accounts[1])
-                        .claimReceipt(
-                            0,
-                            [order],
-                            contracts.modifiableTrader.address
-                        )
+                        .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
                         await contracts.tracerPerps.balances(
@@ -1247,14 +1189,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                 // Whitelist the smoddit Trader
                 await contracts.tracerPerps
                     .connect(accounts[0])
-                    .setWhitelist(contracts.modifiableTrader.address, true)
+                    .setWhitelist(contracts.trader.address, true)
                 await contracts.liquidation
                     .connect(accounts[1])
-                    .claimReceipt(
-                        0,
-                        [order],
-                        contracts.modifiableTrader.address
-                    )
+                    .claimReceipt(0, [order], contracts.trader.address)
 
                 const liquidatorQuoteAfter = (
                     await contracts.tracerPerps.balances(accounts[1].address)
@@ -1301,14 +1239,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                 // Whitelist the smoddit Trader
                 await contracts.tracerPerps
                     .connect(accounts[0])
-                    .setWhitelist(contracts.modifiableTrader.address, true)
+                    .setWhitelist(contracts.trader.address, true)
                 await contracts.liquidation
                     .connect(accounts[1])
-                    .claimReceipt(
-                        0,
-                        [order],
-                        contracts.modifiableTrader.address
-                    )
+                    .claimReceipt(0, [order], contracts.trader.address)
 
                 const liquidatorQuoteAfter = (
                     await contracts.tracerPerps.balances(accounts[1].address)
@@ -1395,15 +1329,11 @@ describe("Unit tests: Liquidation.sol", async () => {
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
-                        .setWhitelist(contracts.modifiableTrader.address, true)
+                        .setWhitelist(contracts.trader.address, true)
                     // Claim receipt then claim again
                     await contracts.liquidation
                         .connect(accounts[1])
-                        .claimReceipt(
-                            0,
-                            [order],
-                            contracts.modifiableTrader.address
-                        )
+                        .claimReceipt(0, [order], contracts.trader.address)
                     // Don't need to test balances because that is tested in context("claimReceipts")
 
                     await increaseFifteenMinutes()
@@ -1429,16 +1359,12 @@ describe("Unit tests: Liquidation.sol", async () => {
                     // Whitelist the smoddit Trader
                     await contracts.tracerPerps
                         .connect(accounts[0])
-                        .setWhitelist(contracts.modifiableTrader.address, true)
+                        .setWhitelist(contracts.trader.address, true)
 
                     // Claim receipt then claim again
                     await contracts.liquidation
                         .connect(accounts[1])
-                        .claimReceipt(
-                            0,
-                            [order],
-                            contracts.modifiableTrader.address
-                        )
+                        .claimReceipt(0, [order], contracts.trader.address)
                     await increaseFifteenMinutes()
                     const tx = contracts.liquidation
                         .connect(accounts[0])
@@ -1529,7 +1455,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                 const result =
                     await contracts.liquidation.callStatic.calcUnitsSold(
                         [],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 expect(result[0]).to.equal(0)
@@ -1544,7 +1470,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const contracts = await setupReceiptTest()
                     tracerPerps = contracts.tracerPerps
                     liquidation = contracts.liquidation
-                    trader = contracts.modifiableTrader
+                    trader = contracts.trader
                     const liquidationAmount = (
                         await liquidation.liquidationReceipts(0)
                     ).amountLiquidated
@@ -1573,7 +1499,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                 const contracts = await setupReceiptTest()
                 tracerPerps = contracts.tracerPerps
                 liquidation = contracts.liquidation
-                trader = contracts.modifiableTrader
+                trader = contracts.trader
 
                 const tx = await liquidation.callStatic.calcUnitsSold(
                     [
@@ -1604,7 +1530,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.earlyCreationOrder,
                             contracts.longOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 ).wait()
@@ -1628,7 +1554,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.earlyCreationOrder,
                             contracts.longOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 expect(result[0]).to.equal(0)
@@ -1645,7 +1571,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.longOrder,
                             contracts.earlyCreationOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 expect(result[0]).to.equal(ethers.utils.parseEther("2500")) // units sold
@@ -1663,7 +1589,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.longOrder,
                             contracts.earlyCreationOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 ).wait()
@@ -1690,7 +1616,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                         contracts.sellHalfLiquidationAmount,
                         contracts.sellHalfLiquidationAmount,
                     ],
-                    contracts.modifiableTrader.address,
+                    contracts.trader.address,
                     0
                 )
                 await expect(tx).to.be.revertedWith(
@@ -1710,7 +1636,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.earlyCreationOrder,
                             contracts.earlyCreationOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 ).wait()
@@ -1732,7 +1658,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                             contracts.earlyCreationOrder,
                             contracts.earlyCreationOrder,
                         ],
-                        contracts.modifiableTrader.address,
+                        contracts.trader.address,
                         0
                     )
                 expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
@@ -1749,7 +1675,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const receipt = await (
                         await contracts.liquidation.calcUnitsSold(
                             [contracts.longOrder, contracts.longOrder],
-                            contracts.modifiableTrader.address,
+                            contracts.trader.address,
                             0
                         )
                     ).wait()
@@ -1770,7 +1696,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const result =
                         await contracts.liquidation.callStatic.calcUnitsSold(
                             [contracts.longOrder, contracts.longOrder],
-                            contracts.modifiableTrader.address,
+                            contracts.trader.address,
                             0
                         )
                     expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
@@ -1792,7 +1718,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                                 contracts.wrongMakerOrder,
                                 contracts.wrongMakerOrder,
                             ],
-                            contracts.modifiableTrader.address,
+                            contracts.trader.address,
                             receiptId
                         )
                     ).wait()
@@ -1816,7 +1742,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                                 contracts.wrongMakerOrder,
                                 contracts.wrongMakerOrder,
                             ],
-                            contracts.modifiableTrader.address,
+                            contracts.trader.address,
                             0
                         )
                     expect(result[0]).to.equal(ethers.utils.parseEther("0")) // units sold
