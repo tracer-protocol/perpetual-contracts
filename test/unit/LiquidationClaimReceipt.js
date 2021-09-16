@@ -170,6 +170,26 @@ const addOrdersToTrader = async (trader, orders) => {
     }
 }
 
+/**
+ * accounts[0] is liquidatable
+ */
+const baseLiquidatablePosition = deployments.createFixture(async () => {
+    await deployments.fixture("GetIntoLiquidatablePosition")
+    const _factory = await getFactory()
+    const _tracer = await getTracer(_factory)
+
+    return {
+        tracer: _tracer,
+        liquidation: await getLiquidation(_tracer),
+        trader: await getTrader(),
+        token: await getQuoteToken(_tracer),
+        insurance: await getInsurance(_tracer),
+    }
+})
+
+/**
+ * accounts[1] liquidates half of accounts[0]'s position
+ */
 const halfLiquidate = deployments.createFixture(async () => {
     const contracts = await baseLiquidatablePosition()
     const { deployer } = await getNamedAccounts()
@@ -186,6 +206,9 @@ const halfLiquidate = deployments.createFixture(async () => {
     return { ...contracts, timestamp }
 })
 
+/**
+ * accounts[1] liquidates double of account[0]'s position
+ */
 const invalidLiquidate = async () => {
     const { tracer, liquidation, trader } = await baseLiquidatablePosition()
     const { deployer } = await getNamedAccounts()
@@ -200,24 +223,9 @@ const invalidLiquidate = async () => {
     return { tracer, liquidation, trader }
 }
 
-const baseLiquidatablePosition = deployments.createFixture(async () => {
-    await deployments.fixture("GetIntoLiquidatablePosition")
-    const _factory = await getFactory()
-    const _tracer = await getTracer(_factory)
-
-    return {
-        tracer: _tracer,
-        liquidation: await getLiquidation(_tracer),
-        trader: await getTrader(),
-        token: await getQuoteToken(_tracer),
-        insurance: await getInsurance(_tracer),
-    }
-})
-
 /**
- * 1) Get into liquidatable position
- * 2) liquidate half the position
- * 3) Put in liquidation orders into trader contract
+ * accounts[1] liquidates half of account[0]'s position
+ * accounts[1] orders to sell liquidated position are added to trader
  */
 const setupReceiptTest = deployments.createFixture(async () => {
     const contracts = await halfLiquidate()
@@ -225,37 +233,24 @@ const setupReceiptTest = deployments.createFixture(async () => {
     const liquidationAmount = (
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
+
+    // create orders to sell liquidated position
     const orders = await provideOrders(
         contracts.tracer,
         liquidationAmount,
         contracts.timestamp
     )
-
+    // add orders to trader to record them as executed
     await addOrdersToTrader(contracts.trader, orders)
     return { contracts: contracts, orders: orders }
 })
 
-const setupLiquidationTest = deployments.createFixture(async () => {
-    const contracts = await baseLiquidatablePosition()
-
-    const tracer = contracts.tracer.connect(accounts[2])
-    const liquidation = contracts.liquidation.connect(accounts[2])
-    const token = contracts.token.connect(accounts[2])
-    await token.approve(tracer.address, ethers.utils.parseEther("10000"))
-    await tracer.deposit(ethers.utils.parseEther("10000"))
-
-    return { token: token, tracer: tracer, liquidation: liquidation }
-})
-
-describe("Unit tests: Liquidation.sol claimReceipts", async () => {
+describe("Unit tests: Liquidation.sol claimReceipt", async () => {
     let accounts
     let tracer
     let liquidation
     let trader
     const fifteenMinutes = 60 * 15
-    before(async function () {
-        accounts = await ethers.getSigners()
-    })
 
     context("calcAmountToReturn", async () => {
         context(
@@ -263,6 +258,7 @@ describe("Unit tests: Liquidation.sol claimReceipts", async () => {
             async () => {
                 it("Reverts ", async () => {
                     const { contracts, orders } = await setupReceiptTest()
+                    accounts = await ethers.getSigners()
 
                     const tx = contracts.liquidation.calcAmountToReturn(
                         0,
@@ -403,7 +399,7 @@ describe("Unit tests: Liquidation.sol claimReceipts", async () => {
 
         context("when receipt doesn't exist", async () => {
             it("Reverts", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await halfLiquidate()
                 accounts = await ethers.getSigners()
                 const tx = contracts.liquidation.claimReceipt(
                     32,
