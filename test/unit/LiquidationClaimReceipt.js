@@ -176,7 +176,6 @@ const addOrdersToTrader = async (trader, orders) => {
 
 /**
  * liquidatee is liquidatable
- * otherAccount has quote tokens deposited
  */
 const baseLiquidatableCase = deployments.createFixture(async () => {
     await deployments.fixture("GetIntoLiquidatablePosition")
@@ -402,20 +401,6 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
     })
 
     context("claimReceipt", async () => {
-        const liquidateAndDepositAccount2 = deployments.createFixture(
-            async () => {
-                const { contracts, orders } = await liquidatedAndSoldCase()
-                await contracts.token
-                    .connect(otherAccount)
-                    .approve(
-                        contracts.insurance.address,
-                        ethers.utils.parseEther("10000")
-                    )
-
-                return { contracts: contracts, orders: orders }
-            }
-        )
-
         context("when receipt doesn't exist", async () => {
             it("Reverts", async () => {
                 const contracts = await halfLiquidatedCase()
@@ -611,9 +596,7 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
             "when slippage occurs - above escrow amount & indadequately-full insurance pool",
             async () => {
                 it("Accurately updates accounts", async () => {
-                    const { contracts, orders } =
-                        await liquidateAndDepositAccount2()
-                    accounts = await ethers.getSigners()
+                    const { contracts, orders } = await liquidatedAndSoldCase()
 
                     const liquidationAmount = (
                         await contracts.liquidation.liquidationReceipts(0)
@@ -635,9 +618,15 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
                     const slippageAmount = receiptValue.sub(sellValue)
 
                     // We want slippage > escrowedAmount + insurancePoolHoldings
+                    const insuranceHoldings = slippageAmount
+                        .sub(escrowedAmount)
+                        .div(2)
+                    await contracts.token
+                        .connect(otherAccount)
+                        .approve(contracts.insurance.address, insuranceHoldings)
                     await contracts.insurance
                         .connect(otherAccount)
-                        .deposit(slippageAmount.sub(escrowedAmount).div(2))
+                        .deposit(insuranceHoldings)
                     await contracts.insurance
                         .connect(otherAccount)
                         .updatePoolAmount()
@@ -686,9 +675,7 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
             "when slippage occurs - above escrow amount & full insurance pool",
             async () => {
                 it("Accurately updates accounts", async () => {
-                    const { contracts, orders } =
-                        await liquidateAndDepositAccount2()
-                    accounts = await ethers.getSigners()
+                    const { contracts, orders } = await liquidatedAndSoldCase()
 
                     const liquidationAmount = (
                         await contracts.liquidation.liquidationReceipts(0)
@@ -709,15 +696,20 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
                     const slippageAmount = receiptValue.sub(sellValue)
 
                     // We want slippage > escrowedAmount + insurancePoolHoldings
+                    const insuranceHoldings = ethers.utils.parseEther("10000")
+                    await contracts.token
+                        .connect(otherAccount)
+                        .approve(contracts.insurance.address, insuranceHoldings)
                     await contracts.insurance
                         .connect(otherAccount)
-                        .deposit(ethers.utils.parseEther("10000"))
+                        .deposit(insuranceHoldings)
                     await contracts.insurance
                         .connect(otherAccount)
                         .updatePoolAmount()
 
                     const poolHoldingsBefore =
                         await contracts.insurance.getPoolHoldings()
+                    console.log(poolHoldingsBefore)
                     const liquidatorQuoteBefore = (
                         await contracts.tracer.balances(liquidator.address)
                     ).position.quote
@@ -762,9 +754,7 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
             "when slippage occurs - above maxSlippage (caps at maxSlippage)",
             async () => {
                 it("Accurately updates accounts", async () => {
-                    const { contracts, orders } =
-                        await liquidateAndDepositAccount2()
-                    accounts = await ethers.getSigners()
+                    const { contracts, orders } = await liquidatedAndSoldCase()
 
                     // Set maxSlippage to 2%
                     await contracts.liquidation
@@ -831,9 +821,7 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
 
         context("when No slippage", async () => {
             it("Makes no changes (except liquidatee, who gets escrow) ", async () => {
-                const { contracts, orders } =
-                    await liquidateAndDepositAccount2()
-                accounts = await ethers.getSigners()
+                const { contracts, orders } = await liquidatedAndSoldCase()
 
                 const order = orders.sellLiquidationAmountNoSlippage
                 const escrowedAmount = (
@@ -882,9 +870,7 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
 
         context("when units sold is 0", async () => {
             it("Makes no changes (except to liquidatee, who gets escrow) ", async () => {
-                const { contracts, orders } =
-                    await liquidateAndDepositAccount2()
-                accounts = await ethers.getSigners()
+                const { contracts, orders } = await liquidatedAndSoldCase()
 
                 const order = orders.sellWholeLiquidationAmountZeroTokens
                 const escrowedAmount = (
