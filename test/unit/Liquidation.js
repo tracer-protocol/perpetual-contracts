@@ -11,21 +11,23 @@ const {
 const liquidatorMargin = ethers.utils.parseEther("10000")
 
 /**
- * Accounts[0] (liquidatee) is in a liquidatable position
- * Accounts[2] (liquidator) has sufficient margin and is connected to liquidation contract
+ * liquidatee is in a liquidatable position
+ * liquidator has sufficient margin and is connected to liquidation contract
  */
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture("GetIntoLiquidatablePosition")
     const accounts = await ethers.getSigners()
+    const liquidator = accounts[2]
+
     const factory = await getFactory()
     let tracer = await getTracer(factory)
     let liquidation = await getLiquidation(tracer)
     let token = await getQuoteToken(tracer)
 
     // connect accounts to liquidator
-    tracer = tracer.connect(accounts[2])
-    liquidation = liquidation.connect(accounts[2])
-    token = token.connect(accounts[2])
+    tracer = tracer.connect(liquidator)
+    liquidation = liquidation.connect(liquidator)
+    token = token.connect(liquidator)
 
     // deposit large amount of tokens to ensure liquidator has sufficient margin
     await token.approve(tracer.address, liquidatorMargin)
@@ -39,7 +41,13 @@ const setupTests = deployments.createFixture(async () => {
 })
 
 describe("Unit tests: Liquidation.sol", async () => {
-    let accounts
+    let liquidatee, liquidator
+
+    before(async function () {
+        accounts = await ethers.getSigners()
+        liquidatee = accounts[0]
+        liquidator = accounts[2]
+    })
 
     context("liquidate", async () => {
         context(
@@ -47,19 +55,18 @@ describe("Unit tests: Liquidation.sol", async () => {
             async () => {
                 it("Reverts", async () => {
                     const { tracer, liquidation } = await setupTests()
-                    accounts = await ethers.getSigners()
 
                     // withdraw all margin from liquidator
                     await tracer.withdraw(liquidatorMargin)
 
                     const liquidationAmount = (
-                        await tracer.balances(accounts[0].address)
+                        await tracer.balances(liquidatee.address)
                     ).position.base
 
                     // Liquidate, but only quote token won't be enough to afford liquidating
                     const tx = liquidation.liquidate(
                         liquidationAmount,
-                        accounts[0].address
+                        liquidatee.address
                     )
                     await expect(tx).to.be.revertedWith(
                         "TCR: Liquidator under min margin"
@@ -71,7 +78,6 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("when agent isn't below margin", async () => {
             it("Reverts", async () => {
                 const { liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
 
                 // Liquidate, but accounts[1] is above margin
                 const tx = liquidation.liquidate("1", accounts[1].address)
@@ -84,7 +90,7 @@ describe("Unit tests: Liquidation.sol", async () => {
             async () => {
                 it("Reverts when below, and allows liquidation when trueMaxLeverage drops", async () => {
                     const { tracer, liquidation, token } = await setupTests()
-                    accounts = await ethers.getSigners()
+
                     await token
                         .connect(accounts[1])
                         .approve(
@@ -106,7 +112,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
                     // Set lowestMaxLeverage to 1.5x
                     await tracer
-                        .connect(accounts[0])
+                        .connect(liquidatee)
                         .setLowestMaxLeverage(ethers.utils.parseEther("1.5"))
 
                     // Liquidate, and now accounts[1] is below minimum margin
@@ -119,16 +125,15 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("when gas price is above fast gas price", async () => {
             it("Reverts", async () => {
                 const { tracer, liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
 
                 const liquidationAmount = (
-                    await tracer.balances(accounts[0].address)
+                    await tracer.balances(liquidatee.address)
                 ).position.base
 
                 // Liquidate with gas price (100 gwei) higher than actual gas price (20 gwei)
                 const tx = liquidation.liquidate(
                     liquidationAmount,
-                    accounts[0].address,
+                    liquidatee.address,
                     {
                         gasPrice: "100000000000",
                     }
@@ -140,12 +145,11 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("when negative liquidation amount", async () => {
             it("Reverts", async () => {
                 const { liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
 
                 // Liquidate with negative amount
                 const tx = liquidation.liquidate(
                     ethers.utils.parseEther("-10000"),
-                    accounts[0].address
+                    liquidatee.address
                 )
                 await expect(tx).to.be.revertedWith(
                     "LIQ: Liquidation amount <= 0"
@@ -156,16 +160,15 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("when amount > agent base amount", async () => {
             it("Reverts", async () => {
                 const { tracer, liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
 
                 const liquidationAmount = (
-                    await tracer.balances(accounts[0].address)
+                    await tracer.balances(liquidatee.address)
                 ).position.base
 
                 // Liquidate with 1 more than agent's position
                 const tx = liquidation.liquidate(
                     liquidationAmount.add(BigNumber.from("1")),
-                    accounts[0].address
+                    liquidatee.address
                 )
                 await expect(tx).to.be.revertedWith(
                     "LIQ: Liquidate Amount > Position"
@@ -176,12 +179,11 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("when liquidation amount == 0", async () => {
             it("Reverts", async () => {
                 const { liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
 
                 // Liquidate with 0
                 const tx = liquidation.liquidate(
                     ethers.utils.parseEther("0"),
-                    accounts[0].address
+                    liquidatee.address
                 )
                 await expect(tx).to.be.revertedWith(
                     "LIQ: Liquidation amount <= 0"
@@ -192,20 +194,19 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("on full liquidation", async () => {
             it("Updates accounts and escrow correctly", async () => {
                 const { tracer, liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
 
                 const liquidateeBalance = await tracer.balances(
-                    accounts[0].address
+                    liquidatee.address
                 )
                 const liquidationAmount = liquidateeBalance.position.base
 
-                const baseBefore = (await tracer.balances(accounts[2].address))
+                const baseBefore = (await tracer.balances(liquidator.address))
                     .position.base
 
                 // Normal liquidation
                 await liquidation.liquidate(
                     liquidationAmount,
-                    accounts[0].address
+                    liquidatee.address
                 )
 
                 // escrowedAmount = [margin - (minMargin - margin)] = [500 - (782.86576 - 500)] = 217.13424
@@ -218,12 +219,12 @@ describe("Unit tests: Liquidation.sol", async () => {
                 expect(escrowedAmount).to.equal(expectedEscrowedAmount)
 
                 const liquidateeBalanceAfter = await tracer.balances(
-                    accounts[0].address
+                    liquidatee.address
                 )
                 const leveragedValueAfter =
                     liquidateeBalanceAfter.totalLeveragedValue
 
-                const balanceAfter = await tracer.balances(accounts[2].address)
+                const balanceAfter = await tracer.balances(liquidator.address)
                 const baseAfter = balanceAfter.position.base
 
                 expect(liquidateeBalanceAfter.position.quote).to.equal("0")
@@ -236,21 +237,21 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("on partial liquidation", async () => {
             it("Updates accounts and escrow correctly", async () => {
                 const { tracer, liquidation } = await setupTests()
-                accounts = await ethers.getSigners()
+
                 const liquidateeBalance = await tracer.balances(
-                    accounts[0].address
+                    liquidatee.address
                 )
                 const liquidationAmount = liquidateeBalance.position.base.div(2)
                 const leveragedValueBefore =
                     liquidateeBalance.totalLeveragedValue
 
-                const baseBefore = (await tracer.balances(accounts[2].address))
+                const baseBefore = (await tracer.balances(liquidator.address))
                     .position.base
 
                 // Normal liquidation
                 await liquidation.liquidate(
                     liquidationAmount,
-                    accounts[0].address
+                    liquidatee.address
                 )
 
                 // minMargin = 6 * (0.00006*63515) + 9500/12.5
@@ -264,12 +265,12 @@ describe("Unit tests: Liquidation.sol", async () => {
                 expect(escrowedAmount).to.equal(expectedEscrowedAmount)
 
                 const liquidateeBalanceAfter = await tracer.balances(
-                    accounts[0].address
+                    liquidatee.address
                 )
                 const leveragedValueAfter =
                     liquidateeBalanceAfter.totalLeveragedValue
 
-                const baseAfter = (await tracer.balances(accounts[2].address))
+                const baseAfter = (await tracer.balances(liquidator.address))
                     .position.base
 
                 // Leveraged value should half

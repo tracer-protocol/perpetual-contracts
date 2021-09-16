@@ -261,9 +261,6 @@ const liquidatedAndSoldCase = deployments.createFixture(async () => {
 
 describe("Unit tests: Liquidation.sol claimReceipt", async () => {
     let liquidatee, liquidator, otherAccount
-    let tracer
-    let liquidation
-    let trader
     const fifteenMinutes = 60 * 15
 
     before(async function () {
