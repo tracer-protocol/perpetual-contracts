@@ -10,11 +10,10 @@ const {
     getInsurance,
 } = require("../util/DeploymentUtil")
 
-const provideOrders = async (contracts, liquidationAmount) => {
-    const timestamp = contracts.timestamp
+const provideOrders = async (tracer, liquidationAmount, timestamp) => {
     const sellWholeLiquidationAmount = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
@@ -24,7 +23,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellWholeLiquidationAmountTinySlippage = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.94").toString(),
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
@@ -34,7 +33,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellWholeLiquidationAmountZeroTokens = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: "0",
         side: "1", // Short, because original position liquidated was long
@@ -44,7 +43,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellWholeLiquidationAmountUseNoSlippage = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.01").toString(),
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
@@ -54,7 +53,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellHalfLiquidationAmount = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
@@ -64,7 +63,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellHalfLiquidationAmountSecond = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
@@ -74,7 +73,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellHalfLiquidationAmountThird = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
@@ -84,7 +83,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const sellLiquidationAmountNoSlippage = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.95").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).toString(),
         side: "1", // Short, because original position liquidated was long
@@ -94,7 +93,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const longOrder = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: liquidationAmount,
         side: "0", // Long, which is invalid
@@ -104,7 +103,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const zeroDollarOrder = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: "0", // $0
         amount: liquidationAmount,
         side: "1", // Short, because original position liquidated was long
@@ -114,7 +113,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const earlyCreationOrder = {
         maker: accounts[1].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
@@ -124,7 +123,7 @@ const provideOrders = async (contracts, liquidationAmount) => {
 
     const wrongMakerOrder = {
         maker: accounts[2].address,
-        market: contracts.tracerPerps.address,
+        market: tracer.address,
         price: ethers.utils.parseEther("0.5").toString(),
         amount: ethers.BigNumber.from(liquidationAmount).div(2).toString(),
         side: "1", // Short, because original position liquidated was long
@@ -202,23 +201,20 @@ const baseLiquidatablePosition = deployments.createFixture(async () => {
     }
 })
 
-const addOrdersToTrader = async (contracts, orders) => {
+const addOrdersToTrader = async (trader, orders) => {
     for (const [key, order] of Object.entries(orders)) {
-        let orderId = await contracts.trader.getOrderId(order)
-        await contracts.trader.recordOrder(order)
+        let orderId = await trader.getOrderId(order)
+        await trader.recordOrder(order)
 
-        await contracts.trader.setFill(orderId, order.amount)
+        await trader.setFill(orderId, order.amount)
 
         if (key === "sellWholeLiquidationAmountUseNoSlippage") {
-            await contracts.trader.setAverageExecutionPrice(
+            await trader.setAverageExecutionPrice(
                 orderId,
                 ethers.utils.parseEther("0.95")
             )
         } else {
-            await contracts.trader.setAverageExecutionPrice(
-                orderId,
-                order.price
-            )
+            await trader.setAverageExecutionPrice(orderId, order.price)
         }
     }
 }
@@ -235,12 +231,12 @@ const setupReceiptTest = deployments.createFixture(async () => {
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
     const orders = await provideOrders(
-        contracts,
+        contracts.tracerPerps,
         liquidationAmount,
         contracts.timestamp
     )
 
-    await addOrdersToTrader(contracts, orders)
+    await addOrdersToTrader(contracts.trader, orders)
     return { contracts: contracts, orders: orders }
 })
 
@@ -1435,8 +1431,9 @@ describe("Unit tests: Liquidation.sol", async () => {
                         await liquidation.liquidationReceipts(0)
                     ).amountLiquidated
                     const orders = await provideOrders(
-                        contracts,
-                        liquidationAmount
+                        contracts.tracerPerps,
+                        liquidationAmount,
+                        contracts.timestamp
                     )
 
                     const tx = await liquidation.callStatic.calcUnitsSold(
