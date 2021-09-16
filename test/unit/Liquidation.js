@@ -5,36 +5,37 @@ const {
     getFactory,
     getTracer,
     getLiquidation,
-    getTrader,
     getQuoteToken,
-    getInsurance,
 } = require("../util/DeploymentUtil")
 
-const baseLiquidatablePosition = deployments.createFixture(async () => {
+const liquidatorMargin = ethers.utils.parseEther("10000")
+
+/**
+ * Accounts[0] (liquidatee) is in a liquidatable position
+ * Accounts[2] (liquidator) has sufficient margin and is connected to liquidation contract
+ */
+const setupTests = deployments.createFixture(async () => {
     await deployments.fixture("GetIntoLiquidatablePosition")
-    const _factory = await getFactory()
-    const _tracer = await getTracer(_factory)
+    const accounts = await ethers.getSigners()
+    const factory = await getFactory()
+    let tracer = await getTracer(factory)
+    let liquidation = await getLiquidation(tracer)
+    let token = await getQuoteToken(tracer)
+
+    // connect accounts to liquidator
+    tracer = tracer.connect(accounts[2])
+    liquidation = liquidation.connect(accounts[2])
+    token = token.connect(accounts[2])
+
+    // deposit large amount of tokens to ensure liquidator has sufficient margin
+    await token.approve(tracer.address, liquidatorMargin)
+    await tracer.deposit(liquidatorMargin)
 
     return {
-        tracer: _tracer,
-        liquidation: await getLiquidation(_tracer),
-        trader: await getTrader(),
-        token: await getQuoteToken(_tracer),
-        insurance: await getInsurance(_tracer),
+        tracer: tracer,
+        liquidation: liquidation,
+        token: token,
     }
-})
-
-const setupLiquidationTest = deployments.createFixture(async () => {
-    const contracts = await baseLiquidatablePosition()
-    const accounts = await ethers.getSigners()
-
-    const tracer = contracts.tracer.connect(accounts[2])
-    const liquidation = contracts.liquidation.connect(accounts[2])
-    const token = contracts.token.connect(accounts[2])
-    await token.approve(tracer.address, ethers.utils.parseEther("10000"))
-    await tracer.deposit(ethers.utils.parseEther("10000"))
-
-    return { token: token, tracer: tracer, liquidation: liquidation }
 })
 
 describe("Unit tests: Liquidation.sol", async () => {
@@ -45,29 +46,18 @@ describe("Unit tests: Liquidation.sol", async () => {
             "when liquidation would put liquidator below minimum margin",
             async () => {
                 it("Reverts", async () => {
-                    const contracts = await baseLiquidatablePosition()
+                    const contracts = await setupTests()
                     accounts = await ethers.getSigners()
 
-                    const tracer = contracts.tracer.connect(accounts[2])
-                    const liquidation = contracts.liquidation.connect(
-                        accounts[2]
-                    )
-                    const token = contracts.token.connect(accounts[2])
+                    // withdraw all margin from liquidator
+                    await contracts.tracer.withdraw(liquidatorMargin)
+
                     const liquidationAmount = (
-                        await tracer.balances(accounts[0].address)
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.base
-                    const quote = (await tracer.balances(accounts[0].address))
-                        .position.quote
 
-                    // Deposit just a single token
-                    await token.approve(
-                        tracer.address,
-                        ethers.utils.parseEther("1")
-                    )
-                    await tracer.deposit(ethers.utils.parseEther("1"))
-
-                    // Liquidate, but only 1 quote token won't be enough to afford liquidating
-                    const tx = liquidation.liquidate(
+                    // Liquidate, but only quote token won't be enough to afford liquidating
+                    const tx = contracts.liquidation.liquidate(
                         liquidationAmount,
                         accounts[0].address
                     )
@@ -80,7 +70,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when agent isn't below margin", async () => {
             it("Reverts", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 // Liquidate, but accounts[1] is above margin
@@ -96,7 +86,7 @@ describe("Unit tests: Liquidation.sol", async () => {
             "when agent isn't below margin, then insurance pool drops and is below",
             async () => {
                 it("Reverts when below, and allows liquidation when trueMaxLeverage drops", async () => {
-                    const contracts = await setupLiquidationTest()
+                    const contracts = await setupTests()
                     accounts = await ethers.getSigners()
                     await contracts.token
                         .connect(accounts[1])
@@ -134,7 +124,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when gas price is above fast gas price", async () => {
             it("Reverts", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 const liquidationAmount = (
@@ -155,7 +145,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when negative liquidation amount", async () => {
             it("Reverts", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 // Liquidate with negative amount
@@ -171,7 +161,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when amount > agent base amount", async () => {
             it("Reverts", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 const liquidationAmount = (
@@ -191,7 +181,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("when liquidation amount == 0", async () => {
             it("Reverts", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 // Liquidate with 0
@@ -207,7 +197,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("on full liquidation", async () => {
             it("Updates accounts and escrow correctly", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
 
                 const liquidateeBalance = await contracts.tracer.balances(
@@ -254,7 +244,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
         context("on partial liquidation", async () => {
             it("Updates accounts and escrow correctly", async () => {
-                const contracts = await setupLiquidationTest()
+                const contracts = await setupTests()
                 accounts = await ethers.getSigners()
                 const liquidateeBalance = await contracts.tracer.balances(
                     accounts[0].address
