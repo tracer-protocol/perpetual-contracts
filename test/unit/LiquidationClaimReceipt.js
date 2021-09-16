@@ -247,7 +247,7 @@ const setupLiquidationTest = deployments.createFixture(async () => {
     return { token: token, tracer: tracer, liquidation: liquidation }
 })
 
-describe("Unit tests: Liquidation.sol", async () => {
+describe("Unit tests: Liquidation.sol claimReceipts", async () => {
     let accounts
     let tracer
     let liquidation
