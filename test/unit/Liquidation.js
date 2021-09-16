@@ -12,7 +12,7 @@ const liquidatorMargin = ethers.utils.parseEther("10000")
 
 /**
  * liquidatee is in a liquidatable position
- * liquidator has sufficient margin and is connected to liquidation contract
+ * liquidator has sufficient margin and is connected to contracts
  */
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture("GetIntoLiquidatablePosition")
@@ -24,7 +24,7 @@ const setupTests = deployments.createFixture(async () => {
     let liquidation = await getLiquidation(tracer)
     let token = await getQuoteToken(tracer)
 
-    // connect accounts to liquidator
+    // connect contracts to liquidator
     tracer = tracer.connect(liquidator)
     liquidation = liquidation.connect(liquidator)
     token = token.connect(liquidator)
