@@ -152,55 +152,6 @@ const provideOrders = async (tracer, liquidationAmount, timestamp) => {
     return orders
 }
 
-const halfLiquidate = deployments.createFixture(async () => {
-    const contracts = await baseLiquidatablePosition()
-    const { deployer } = await getNamedAccounts()
-    accounts = await ethers.getSigners()
-    const { tracerPerps, liquidation } = contracts
-
-    // Get half the base. Liquidate this amount
-    const halfBase = (await tracerPerps.getBalance(deployer)).position.base.div(
-        2
-    )
-
-    await liquidation.connect(accounts[1]).liquidate(halfBase, deployer)
-
-    const timestamp = (await ethers.provider.getBlock("latest")).timestamp
-
-    return { ...contracts, timestamp }
-})
-
-const invalidLiquidate = async () => {
-    const { tracerPerps, liquidation, trader } =
-        await baseLiquidatablePosition()
-    const { deployer } = await getNamedAccounts()
-    accounts = await ethers.getSigners()
-
-    // Attempt to liquidate twice the amount of position
-    const doubleBase = (
-        await tracerPerps.getBalance(deployer)
-    ).position.base.mul(2)
-
-    const tx = liquidation.connect(accounts[1]).liquidate(doubleBase, deployer)
-    await expect(tx).to.be.reverted
-
-    return { tracerPerps, liquidation, trader }
-}
-
-const baseLiquidatablePosition = deployments.createFixture(async () => {
-    await deployments.fixture("GetIntoLiquidatablePosition")
-    const _factory = await getFactory()
-    const _tracer = await getTracer(_factory)
-
-    return {
-        tracerPerps: _tracer,
-        liquidation: await getLiquidation(_tracer),
-        trader: await getTrader(),
-        token: await getQuoteToken(_tracer),
-        insurance: await getInsurance(_tracer),
-    }
-})
-
 const addOrdersToTrader = async (trader, orders) => {
     for (const [key, order] of Object.entries(orders)) {
         let orderId = await trader.getOrderId(order)
@@ -219,6 +170,50 @@ const addOrdersToTrader = async (trader, orders) => {
     }
 }
 
+const halfLiquidate = deployments.createFixture(async () => {
+    const contracts = await baseLiquidatablePosition()
+    const { deployer } = await getNamedAccounts()
+    accounts = await ethers.getSigners()
+    const { tracer, liquidation } = contracts
+
+    // Get half the base. Liquidate this amount
+    const halfBase = (await tracer.getBalance(deployer)).position.base.div(2)
+
+    await liquidation.connect(accounts[1]).liquidate(halfBase, deployer)
+
+    const timestamp = (await ethers.provider.getBlock("latest")).timestamp
+
+    return { ...contracts, timestamp }
+})
+
+const invalidLiquidate = async () => {
+    const { tracer, liquidation, trader } = await baseLiquidatablePosition()
+    const { deployer } = await getNamedAccounts()
+    accounts = await ethers.getSigners()
+
+    // Attempt to liquidate twice the amount of position
+    const doubleBase = (await tracer.getBalance(deployer)).position.base.mul(2)
+
+    const tx = liquidation.connect(accounts[1]).liquidate(doubleBase, deployer)
+    await expect(tx).to.be.reverted
+
+    return { tracer, liquidation, trader }
+}
+
+const baseLiquidatablePosition = deployments.createFixture(async () => {
+    await deployments.fixture("GetIntoLiquidatablePosition")
+    const _factory = await getFactory()
+    const _tracer = await getTracer(_factory)
+
+    return {
+        tracer: _tracer,
+        liquidation: await getLiquidation(_tracer),
+        trader: await getTrader(),
+        token: await getQuoteToken(_tracer),
+        insurance: await getInsurance(_tracer),
+    }
+})
+
 /**
  * 1) Get into liquidatable position
  * 2) liquidate half the position
@@ -231,7 +226,7 @@ const setupReceiptTest = deployments.createFixture(async () => {
         await contracts.liquidation.liquidationReceipts(0)
     ).amountLiquidated.toString()
     const orders = await provideOrders(
-        contracts.tracerPerps,
+        contracts.tracer,
         liquidationAmount,
         contracts.timestamp
     )
@@ -243,7 +238,7 @@ const setupReceiptTest = deployments.createFixture(async () => {
 const setupLiquidationTest = deployments.createFixture(async () => {
     const contracts = await baseLiquidatablePosition()
 
-    const tracer = contracts.tracerPerps.connect(accounts[2])
+    const tracer = contracts.tracer.connect(accounts[2])
     const liquidation = contracts.liquidation.connect(accounts[2])
     const token = contracts.token.connect(accounts[2])
     await token.approve(tracer.address, ethers.utils.parseEther("10000"))
@@ -254,7 +249,7 @@ const setupLiquidationTest = deployments.createFixture(async () => {
 
 describe("Unit tests: Liquidation.sol", async () => {
     let accounts
-    let tracerPerps
+    let tracer
     let liquidation
     let trader
     const fifteenMinutes = 60 * 15
@@ -288,7 +283,7 @@ describe("Unit tests: Liquidation.sol", async () => {
             async () => {
                 it("calculates no slippage", async () => {
                     const { contracts, orders } = await setupReceiptTest()
-                    tracerPerps = contracts.tracerPerps
+                    tracer = contracts.tracer
                     liquidation = contracts.liquidation
                     trader = contracts.trader
 
@@ -349,7 +344,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                 const liquidationSide = 0 // long
 
                 const expectedReceipt = [
-                    contracts.tracerPerps.address, // market
+                    contracts.tracer.address, // market
                     accounts[1].address, // liquidator
                     accounts[0].address, // liquidatee
                     ethers.utils.parseEther("0.95"), // price
@@ -397,7 +392,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const contracts = await baseLiquidatablePosition()
                     accounts = await ethers.getSigners()
 
-                    const tracer = contracts.tracerPerps.connect(accounts[2])
+                    const tracer = contracts.tracer.connect(accounts[2])
                     const liquidation = contracts.liquidation.connect(
                         accounts[2]
                     )
@@ -737,7 +732,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                 const order = orders.sellLiquidationAmountNoSlippage
 
                 // Whitelist the smoddit Trader
-                await contracts.tracerPerps
+                await contracts.tracer
                     .connect(accounts[0])
                     .setWhitelist(contracts.trader.address, true)
                 // Claim receipt then claim again
@@ -775,17 +770,17 @@ describe("Unit tests: Liquidation.sol", async () => {
                     .div(BigNumber.from("100"))
                 const slippageAmount = receiptValue.sub(sellValue)
 
-                const liquidatorBefore = await contracts.tracerPerps.balances(
+                const liquidatorBefore = await contracts.tracer.balances(
                     accounts[1].address
                 )
                 const liquidatorQuoteBefore = liquidatorBefore.position.quote
 
                 const liquidateeQuoteBefore = (
-                    await contracts.tracerPerps.balances(accounts[0].address)
+                    await contracts.tracer.balances(accounts[0].address)
                 ).position.quote
 
                 // Whitelist the smoddit Trader
-                await contracts.tracerPerps
+                await contracts.tracer
                     .connect(accounts[0])
                     .setWhitelist(contracts.trader.address, true)
                 // Claim receipt then claim again
@@ -793,12 +788,12 @@ describe("Unit tests: Liquidation.sol", async () => {
                     .connect(accounts[1])
                     .claimReceipt(0, [order], contracts.trader.address)
 
-                const liquidatorAfter = await contracts.tracerPerps.balances(
+                const liquidatorAfter = await contracts.tracer.balances(
                     accounts[1].address
                 )
                 const liquidatorQuoteAfter = liquidatorAfter.position.quote
                 const liquidateeQuoteAfter = (
-                    await contracts.tracerPerps.balances(accounts[0].address)
+                    await contracts.tracer.balances(accounts[0].address)
                 ).position.quote
 
                 expect(liquidatorQuoteAfter).to.equal(
@@ -833,18 +828,14 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const order = orders.sellWholeLiquidationAmount
 
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Whitelist the smoddit Trader
-                    await contracts.tracerPerps
+                    await contracts.tracer
                         .connect(accounts[0])
                         .setWhitelist(contracts.trader.address, true)
 
@@ -854,14 +845,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                         .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Amount should only increase by escrowed amount, since ins pool is empty
@@ -912,18 +899,14 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const poolHoldingsBefore =
                         await contracts.insurance.getPoolHoldings()
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Whitelist the smoddit Trader
-                    await contracts.tracerPerps
+                    await contracts.tracer
                         .connect(accounts[0])
                         .setWhitelist(contracts.trader.address, true)
                     await contracts.liquidation
@@ -931,14 +914,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                         .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
                     const expectedDifference = escrowedAmount
                         .add(poolHoldingsBefore)
@@ -994,18 +973,14 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const poolHoldingsBefore =
                         await contracts.insurance.getPoolHoldings()
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Whitelist the smoddit Trader
-                    await contracts.tracerPerps
+                    await contracts.tracer
                         .connect(accounts[0])
                         .setWhitelist(contracts.trader.address, true)
                     await contracts.liquidation
@@ -1013,14 +988,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                         .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Should increase by amount escrowed + whatever was in the insurance pool
@@ -1076,18 +1047,14 @@ describe("Unit tests: Liquidation.sol", async () => {
                         .div(BigNumber.from("100"))
 
                     const liquidatorQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Whitelist the smoddit Trader
-                    await contracts.tracerPerps
+                    await contracts.tracer
                         .connect(accounts[0])
                         .setWhitelist(contracts.trader.address, true)
                     await contracts.liquidation
@@ -1095,14 +1062,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                         .claimReceipt(0, [order], contracts.trader.address)
 
                     const liquidatorQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[1].address
-                        )
+                        await contracts.tracer.balances(accounts[1].address)
                     ).position.quote
                     const liquidateeQuoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
 
                     // Should increase by amount escrowed + whatever was in the insurance pool
@@ -1132,10 +1095,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                 ).escrowedAmount
 
                 const liquidatorQuoteBefore = (
-                    await contracts.tracerPerps.balances(accounts[1].address)
+                    await contracts.tracer.balances(accounts[1].address)
                 ).position.quote
                 const liquidateeQuoteBefore = (
-                    await contracts.tracerPerps.balances(accounts[0].address)
+                    await contracts.tracer.balances(accounts[0].address)
                 ).position.quote
 
                 await contracts.insurance.updatePoolAmount()
@@ -1143,7 +1106,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     await contracts.insurance.getPoolHoldings()
 
                 // Whitelist the smoddit Trader
-                await contracts.tracerPerps
+                await contracts.tracer
                     .connect(accounts[0])
                     .setWhitelist(contracts.trader.address, true)
                 await contracts.liquidation
@@ -1151,10 +1114,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                     .claimReceipt(0, [order], contracts.trader.address)
 
                 const liquidatorQuoteAfter = (
-                    await contracts.tracerPerps.balances(accounts[1].address)
+                    await contracts.tracer.balances(accounts[1].address)
                 ).position.quote
                 const liquidateeQuoteAfter = (
-                    await contracts.tracerPerps.balances(accounts[0].address)
+                    await contracts.tracer.balances(accounts[0].address)
                 ).position.quote
                 await contracts.insurance.updatePoolAmount()
                 const insuranceHoldingsAfter =
@@ -1183,10 +1146,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                 ).escrowedAmount
 
                 const liquidatorQuoteBefore = (
-                    await contracts.tracerPerps.balances(accounts[1].address)
+                    await contracts.tracer.balances(accounts[1].address)
                 ).position.quote
                 const liquidateeQuoteBefore = (
-                    await contracts.tracerPerps.balances(accounts[0].address)
+                    await contracts.tracer.balances(accounts[0].address)
                 ).position.quote
 
                 await contracts.insurance.updatePoolAmount()
@@ -1194,7 +1157,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     await contracts.insurance.getPoolHoldings()
 
                 // Whitelist the smoddit Trader
-                await contracts.tracerPerps
+                await contracts.tracer
                     .connect(accounts[0])
                     .setWhitelist(contracts.trader.address, true)
                 await contracts.liquidation
@@ -1202,10 +1165,10 @@ describe("Unit tests: Liquidation.sol", async () => {
                     .claimReceipt(0, [order], contracts.trader.address)
 
                 const liquidatorQuoteAfter = (
-                    await contracts.tracerPerps.balances(accounts[1].address)
+                    await contracts.tracer.balances(accounts[1].address)
                 ).position.quote
                 const liquidateeQuoteAfter = (
-                    await contracts.tracerPerps.balances(accounts[0].address)
+                    await contracts.tracer.balances(accounts[0].address)
                 ).position.quote
 
                 await contracts.insurance.updatePoolAmount()
@@ -1283,7 +1246,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const order = orders.sellWholeLiquidationAmountTinySlippage
 
                     // Whitelist the smoddit Trader
-                    await contracts.tracerPerps
+                    await contracts.tracer
                         .connect(accounts[0])
                         .setWhitelist(contracts.trader.address, true)
                     // Claim receipt then claim again
@@ -1313,7 +1276,7 @@ describe("Unit tests: Liquidation.sol", async () => {
                     const order = orders.sellWholeLiquidationAmount
 
                     // Whitelist the smoddit Trader
-                    await contracts.tracerPerps
+                    await contracts.tracer
                         .connect(accounts[0])
                         .setWhitelist(contracts.trader.address, true)
 
@@ -1341,14 +1304,11 @@ describe("Unit tests: Liquidation.sol", async () => {
                         await contracts.liquidation.liquidationReceipts(0)
                     ).escrowedAmount
                     const quoteBefore = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
-                    const liquidatorBefore =
-                        await contracts.tracerPerps.balances(
-                            accounts[2].address
-                        )
+                    const liquidatorBefore = await contracts.tracer.balances(
+                        accounts[2].address
+                    )
 
                     await increaseFifteenMinutes()
                     await contracts.liquidation
@@ -1356,14 +1316,11 @@ describe("Unit tests: Liquidation.sol", async () => {
                         .claimEscrow(0)
 
                     const quoteAfter = (
-                        await contracts.tracerPerps.balances(
-                            accounts[0].address
-                        )
+                        await contracts.tracer.balances(accounts[0].address)
                     ).position.quote
-                    const liquidatorAfter =
-                        await contracts.tracerPerps.balances(
-                            accounts[2].address
-                        )
+                    const liquidatorAfter = await contracts.tracer.balances(
+                        accounts[2].address
+                    )
 
                     expect(liquidatorAfter.position.quote).to.equal(
                         liquidatorBefore.position.quote
@@ -1390,7 +1347,7 @@ describe("Unit tests: Liquidation.sol", async () => {
 
                 // Get half the base. Liquidate this amount
                 const restOfBase = (
-                    await contracts.tracerPerps.getBalance(accounts[0].address)
+                    await contracts.tracer.getBalance(accounts[0].address)
                 ).position.base.div(2)
 
                 await contracts.liquidation
@@ -1424,14 +1381,14 @@ describe("Unit tests: Liquidation.sol", async () => {
             async () => {
                 it("calculates no slippage", async () => {
                     const { contracts } = await setupReceiptTest()
-                    tracerPerps = contracts.tracerPerps
+                    tracer = contracts.tracer
                     liquidation = contracts.liquidation
                     trader = contracts.trader
                     const liquidationAmount = (
                         await liquidation.liquidationReceipts(0)
                     ).amountLiquidated
                     const orders = await provideOrders(
-                        contracts.tracerPerps,
+                        contracts.tracer,
                         liquidationAmount,
                         contracts.timestamp
                     )
@@ -1454,7 +1411,7 @@ describe("Unit tests: Liquidation.sol", async () => {
         context("in the normal case", async () => {
             it("Calculates correctly", async () => {
                 const { contracts, orders } = await setupReceiptTest()
-                tracerPerps = contracts.tracerPerps
+                tracer = contracts.tracer
                 liquidation = contracts.liquidation
                 trader = contracts.trader
 
