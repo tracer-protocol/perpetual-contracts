@@ -180,4 +180,22 @@ contract TraderMock is ITrader, ReentrancyGuard {
         bytes32 orderId = Perpetuals.orderId(order);
         return orders[orderId];
     }
+
+    function getOrderId(Perpetuals.Order calldata order) external pure returns (bytes32) {
+        bytes32 orderId = Perpetuals.orderId(order);
+        return orderId;
+    }
+
+    function recordOrder(Perpetuals.Order calldata order) external {
+        bytes32 orderId = Perpetuals.orderId(order);
+        orders[orderId] = order;
+    }
+
+    function setFill(bytes32 orderId, uint256 _filled) external {
+        filled[orderId] = _filled;
+    }
+
+    function setAverageExecutionPrice(bytes32 orderId, uint256 _price) external {
+        averageExecutionPrice[orderId] = _price;
+    }
 }
