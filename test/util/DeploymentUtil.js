@@ -1,5 +1,6 @@
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
+const mockTracerAbi = require("../../abi/contracts/test/TracerPerpetualSwapsMock.sol/TracerPerpetualSwapsMock.json")
 const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
 const mockPricingAbi = require("../../abi/contracts/test/PricingMock.sol/PricingMock.json")
@@ -16,6 +17,16 @@ const getTracer = async () => {
     )
     const tracerAddress = await factory.tracersByIndex(0)
     return await ethers.getContractAt(tracerAbi, tracerAddress)
+}
+
+const getMockTracer = async () => {
+    const factoryDeployment = await deployments.get("TracerPerpetualsFactory")
+    const factory = await ethers.getContractAt(
+        factoryDeployment.abi,
+        factoryDeployment.address
+    )
+    const tracerAddress = await factory.tracersByIndex(0)
+    return await ethers.getContractAt(mockTracerAbi, tracerAddress)
 }
 
 const getInsurance = async (tracer) => {
@@ -68,6 +79,7 @@ const getGasEthOracle = async () => {
 
 module.exports = {
     getTracer,
+    getMockTracer,
     getInsurance,
     getPricing,
     getMockPricing,

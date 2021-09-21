@@ -2,6 +2,11 @@ const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { deploy } = deployments
 const { smockit } = require("@eth-optimism/smock")
+const {
+    getQuoteToken,
+    getInsurance,
+    getMockTracer,
+} = require("../util/DeploymentUtil")
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 const getCollaterals = async (insurance) => [
@@ -61,93 +66,26 @@ const putAndTakeCollateral = async (
 
 // create hardhat optimised feature
 const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-    _deployer = deployer
-    // deploy a test token
-    const TestToken = await ethers.getContractFactory("TestToken")
-    let testToken = await TestToken.deploy(
-        ethers.utils.parseEther("100000000"),
-        "Test Token",
-        "TST",
-        18
-    )
-    await testToken.deployed()
+    await deployments.fixture(["MockTracerDeploy"])
+    tracer = await getMockTracer()
 
-    // this deploy method is needed for mocking
-    const tracerContractFactory = await ethers.getContractFactory(
-        "TracerPerpetualSwaps"
-    )
-
-    let maxLeverage = ethers.utils.parseEther("12.5")
-    let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
-    let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
-    let liquidationGasCost = 63516
-
-    const tracer = await tracerContractFactory.deploy(
-        ethers.utils.formatBytes32String("TEST/USD"),
-        testToken.address,
-        deployer, // Dummy address so it is not address(0)
-        maxLeverage,
-        1,
-        1,
-        deployer, // Dummy address so it is not address(0)
-        deleveragingCliff,
-        lowestMaxLeverage,
-        insurancePoolSwitchStage,
-        liquidationGasCost
-    )
-
-    let mockTracer = await smockit(tracer)
-
-    // mock tracer calls that are needed
-    // get balance for this account to return 0
-    // NOTE: If any test changes mocks, due to Hardhat fixture optimisations,
-    // the mock defaults set here WILL NOT be returned. You need to manually
-    // change the mock state back to its expected value at the end of the test.
-    mockTracer.smocked.getBalance.will.return.with({
-        position: { quote: 0, base: 0 }, //quote, base
-        totalLeveragedValue: 0, //total leverage
-        lastUpdatedIndex: 0, //last updated index
-        lastUpdatedGasPrice: 0, //last updated gas price
-    })
-
-    // token to return the testToken address
-    mockTracer.smocked.tracerQuoteToken.will.return.with(testToken.address)
-
-    // leveraged notional value to return 100
-    mockTracer.smocked.leveragedNotionalValue.will.return.with(
-        ethers.utils.parseEther("100")
-    )
-
-    // quote token decimals
-    mockTracer.smocked.quoteTokenDecimals.will.return.with(18)
-
-    // deposit and withdraw to return nothing
-    mockTracer.smocked.deposit.will.return()
-    mockTracer.smocked.withdraw.will.return()
-
-    // deploy insurance using mock tracer
-    const Insurance = await ethers.getContractFactory("Insurance")
-    let insurance = await Insurance.deploy(mockTracer.address)
-    await insurance.deployed()
     return {
-        testToken,
-        mockTracer,
-        insurance,
+        testToken: await getQuoteToken(tracer),
+        mockTracer: tracer,
+        insurance: await getInsurance(tracer),
     }
 })
 
 describe("Unit tests: Insurance.sol", function () {
     let accounts
     let testToken
-    let mockTracer
+    let tracer
     let insurance
 
     beforeEach(async function () {
         const _setup = await setup()
         testToken = _setup.testToken
-        mockTracer = _setup.mockTracer
+        tracer = _setup.mockTracer
         insurance = _setup.insurance
         accounts = await ethers.getSigners()
     })
