@@ -6,7 +6,6 @@ const {
     setGasPrice,
 } = require("../util/OrderUtil.js")
 const {
-    getFactory,
     getTracer,
     getMockPricing,
     getPriceOracle,
@@ -17,8 +16,7 @@ const {
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["MockPricingDeploy"])
-    _factory = await getFactory()
-    _tracer = await getTracer(_factory)
+    _tracer = await getTracer()
 
     return {
         trader: await getTrader(),

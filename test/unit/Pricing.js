@@ -1,7 +1,6 @@
 const { expect } = require("chai")
 const { ethers, network } = require("hardhat")
 const {
-    getFactory,
     getTracer,
     getPricing,
     getPriceOracle,
@@ -17,8 +16,7 @@ const forwardTime = async (seconds) => {
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
-    _factory = await getFactory()
-    _tracer = await getTracer(_factory)
+    _tracer = await getTracer()
 
     return {
         trader: await getTrader(),

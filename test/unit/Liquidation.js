@@ -2,7 +2,6 @@ const { expect } = require("chai")
 const { ethers, deployments } = require("hardhat")
 const { BigNumber } = require("ethers")
 const {
-    getFactory,
     getTracer,
     getLiquidation,
     getQuoteToken,
@@ -19,8 +18,7 @@ const setupTests = deployments.createFixture(async () => {
     const accounts = await ethers.getSigners()
     const liquidator = accounts[2]
 
-    const factory = await getFactory()
-    let tracer = await getTracer(factory)
+    let tracer = await getTracer()
     let liquidation = await getLiquidation(tracer)
     let token = await getQuoteToken(tracer)
 

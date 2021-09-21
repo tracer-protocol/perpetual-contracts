@@ -2,7 +2,6 @@ const { expect } = require("chai")
 const { ethers } = require("hardhat")
 const {
     getGasEthOracle,
-    getFactory,
     getTracer,
     getPricing,
     getMockPricing,
@@ -23,8 +22,7 @@ const defaultGasPrice = 0.00000002 // 20 Gwei
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
-    _factory = await getFactory()
-    _tracer = await getTracer(_factory)
+    _tracer = await getTracer()
 
     return {
         trader: await getTrader(),
@@ -38,8 +36,7 @@ const setupTests = deployments.createFixture(async () => {
 
 const setupTestsWithMockPricing = deployments.createFixture(async () => {
     await deployments.fixture(["MockPricingDeploy"])
-    _factory = await getFactory()
-    _tracer = await getTracer(_factory)
+    _tracer = await getTracer()
 
     return {
         trader: await getTrader(),

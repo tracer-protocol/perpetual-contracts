@@ -1,7 +1,6 @@
 const { expect, assert } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const {
-    getFactory,
     getTracer,
     getPricing,
     getQuoteToken,
@@ -12,8 +11,7 @@ const { depositQuoteTokens } = require("../util/OrderUtil.js")
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
-    _factory = await getFactory()
-    _tracer = await getTracer(_factory)
+    _tracer = await getTracer()
 
     return {
         trader: await getTrader(),

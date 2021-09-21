@@ -2,7 +2,6 @@ const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { BigNumber } = require("ethers")
 const {
-    getFactory,
     getTracer,
     getLiquidation,
     getTrader,
@@ -179,8 +178,7 @@ const addOrdersToTrader = async (trader, orders) => {
  */
 const baseLiquidatableCase = deployments.createFixture(async () => {
     await deployments.fixture("GetIntoLiquidatablePosition")
-    const _factory = await getFactory()
-    const _tracer = await getTracer(_factory)
+    const _tracer = await getTracer()
 
     return {
         tracer: _tracer,

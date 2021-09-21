@@ -1,15 +1,10 @@
 const { expect } = require("chai")
 const { ethers, deployments, getNamedAccounts } = require("hardhat")
-const {
-    getFactory,
-    getTracer,
-    getLiquidation,
-} = require("../util/DeploymentUtil")
+const { getTracer, getLiquidation } = require("../util/DeploymentUtil")
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
-    _factory = await getFactory()
-    _tracer = await getTracer(_factory)
+    _tracer = await getTracer()
 
     return {
         liquidation: await getLiquidation(_tracer),
