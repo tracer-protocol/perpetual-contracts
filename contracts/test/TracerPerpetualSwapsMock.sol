@@ -170,29 +170,7 @@ contract TracerPerpetualSwapsMock is ITracerPerpetualSwaps, Ownable {
      */
     function deposit(uint256 amount) external override {
         Balances.Account storage userBalance = balances[msg.sender];
-        // settle outstanding payments
-        settle(msg.sender);
-
-        // convert the WAD amount to the correct token amount to transfer
-        // cast is safe since amount is a uint, and wadToToken can only
-        // scale down the value
-        uint256 rawTokenAmount = uint256(Balances.wadToToken(quoteTokenDecimals, amount).toInt256());
-        require(
-            IERC20(tracerQuoteToken).transferFrom(msg.sender, address(this), rawTokenAmount),
-            "TCR: Transfer failed"
-        );
-
-        // this prevents dust from being added to the user account
-        // eg 10^18 -> 10^8 -> 10^18 will remove lower order bits
-        int256 convertedWadAmount = Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
-
-        // update user state
-        userBalance.position.quote = userBalance.position.quote + convertedWadAmount;
-        _updateAccountLeverage(msg.sender);
-
-        // update market TVL
-        tvl = tvl + uint256(convertedWadAmount);
-        emit Deposit(msg.sender, uint256(convertedWadAmount));
+        userBalance.position.quote += int256(amount);
     }
 
     /**
@@ -203,38 +181,9 @@ contract TracerPerpetualSwapsMock is ITracerPerpetualSwaps, Ownable {
      * should be given in WAD format
      */
     function withdraw(uint256 amount) external override {
-        // settle outstanding payments
-        settle(msg.sender);
-
-        uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
-        int256 convertedWadAmount = Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount);
-
+        // reduce balance to 0
         Balances.Account storage userBalance = balances[msg.sender];
-        int256 newQuote = userBalance.position.quote - convertedWadAmount;
-
-        // this may be able to be optimised
-        Balances.Position memory newPosition = Balances.Position(newQuote, userBalance.position.base);
-
-        require(
-            Balances.marginIsValid(
-                newPosition,
-                userBalance.lastUpdatedGasPrice * liquidationGasCost,
-                pricingContract.fairPrice(),
-                trueMaxLeverage()
-            ),
-            "TCR: Withdraw below valid Margin"
-        );
-
-        // update user state
-        userBalance.position.quote = newQuote;
-        _updateAccountLeverage(msg.sender);
-
-        // Safemath will throw if tvl < amount
-        tvl = tvl - uint256(convertedWadAmount);
-
-        // perform transfer
-        require(IERC20(tracerQuoteToken).transfer(msg.sender, rawTokenAmount), "TCR: Transfer failed");
-        emit Withdraw(msg.sender, uint256(convertedWadAmount));
+        userBalance.position.quote = 0;
     }
 
     /**
@@ -586,11 +535,6 @@ contract TracerPerpetualSwapsMock is ITracerPerpetualSwaps, Ownable {
         return balances[account];
     }
 
-    function setAccountQuote(address account, int256 quote) external {
-        Balances.Account storage userBalance = balances[account];
-        userBalance.position.quote = quote;
-    }
-
     function setLiquidationContract(address _liquidationContract)
         external
         override
@@ -697,5 +641,14 @@ contract TracerPerpetualSwapsMock is ITracerPerpetualSwaps, Ownable {
     modifier onlyWhitelisted() {
         require(tradingWhitelist[msg.sender], "TCR: Contract not whitelisted");
         _;
+    }
+
+    function setAccountQuote(address account, int256 quote) external {
+        Balances.Account storage userBalance = balances[account];
+        userBalance.position.quote = quote;
+    }
+
+    function setLeveragedNotionalValue(uint256 value) external {
+        leveragedNotionalValue = value;
     }
 }
