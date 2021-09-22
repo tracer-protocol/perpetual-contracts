@@ -702,7 +702,6 @@ describe("Unit tests: Liquidation.sol claimReceipt", async () => {
 
                     const poolHoldingsBefore =
                         await contracts.insurance.getPoolHoldings()
-                    console.log(poolHoldingsBefore)
                     const liquidatorQuoteBefore = (
                         await contracts.tracer.balances(liquidator.address)
                     ).position.quote
