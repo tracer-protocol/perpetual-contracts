@@ -5,24 +5,9 @@ const {
     getInsurance,
     getMockTracer,
 } = require("../util/DeploymentUtil")
+const { setCollaterals } = require("../util/InsuranceUtil")
 
 const FUNDING_RATE_FACTOR = ethers.utils.parseEther("0.00000570775")
-
-const putCollateral = async (
-    tracer,
-    quoteToken,
-    insurance,
-    bufferValue,
-    publicValue
-) => {
-    await tracer.setAccountQuote(insurance.address, bufferValue)
-
-    await insurance.updatePoolAmount()
-
-    await quoteToken.approve(insurance.address, publicValue)
-
-    await insurance.deposit(publicValue)
-}
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["MockTracerDeploy"])
@@ -75,7 +60,7 @@ describe("Unit tests: Insurance.sol", function () {
                 let bufferCollateralAmount = ethers.utils.parseEther("100")
                 let publicCollateralAmount = ethers.utils.parseEther("100")
 
-                await putCollateral(
+                await setCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -106,7 +91,7 @@ describe("Unit tests: Insurance.sol", function () {
                     let bufferCollateralAmount = ethers.utils.parseEther("0")
                     let publicCollateralAmount = ethers.utils.parseEther("0")
 
-                    await putCollateral(
+                    await setCollaterals(
                         tracer,
                         quoteToken,
                         insurance,
@@ -144,7 +129,7 @@ describe("Unit tests: Insurance.sol", function () {
                     let bufferCollateralAmount = ethers.utils.parseEther("1")
                     let publicCollateralAmount = ethers.utils.parseEther("1")
 
-                    await putCollateral(
+                    await setCollaterals(
                         tracer,
                         quoteToken,
                         insurance,

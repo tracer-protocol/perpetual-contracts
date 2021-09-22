@@ -5,44 +5,13 @@ const {
     getInsurance,
     getMockTracer,
 } = require("../util/DeploymentUtil")
+const {
+    expectCollaterals,
+    setCollaterals,
+    setAndDrainCollaterals,
+} = require("../util/InsuranceUtil")
 
 const zeroAddress = "0x0000000000000000000000000000000000000000"
-
-const expectCollaterals = async (insurance, expectedBuffer, expectedPublic) => {
-    const actualBuffer = await insurance.bufferCollateralAmount()
-    const actualPublic = await insurance.publicCollateralAmount()
-    expect(actualBuffer).to.equal(expectedBuffer)
-    expect(actualPublic).to.equal(expectedPublic)
-}
-
-const putCollateral = async (
-    tracer,
-    quoteToken,
-    insurance,
-    bufferValue,
-    publicValue
-) => {
-    await tracer.setAccountQuote(insurance.address, bufferValue)
-
-    await insurance.updatePoolAmount()
-
-    await quoteToken.approve(insurance.address, publicValue)
-
-    await insurance.deposit(publicValue)
-}
-
-const putAndTakeCollateral = async (
-    tracer,
-    quoteToken,
-    insurance,
-    bufferValue,
-    publicValue,
-    amountToDrain
-) => {
-    await putCollateral(tracer, quoteToken, insurance, bufferValue, publicValue)
-
-    await insurance.drainPool(amountToDrain)
-}
 
 const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["MockTracerDeploy"])
@@ -96,7 +65,7 @@ describe("Unit tests: Insurance.sol", function () {
                 let bufferValue = ethers.utils.parseEther("1")
                 let publicValue = ethers.utils.parseEther("0")
 
-                await putCollateral(
+                await setCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -127,7 +96,7 @@ describe("Unit tests: Insurance.sol", function () {
                 let bufferValue = ethers.utils.parseEther("1")
                 let publicValue = ethers.utils.parseEther("1")
 
-                await putCollateral(
+                await setCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -181,7 +150,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("1.05"),
                     amountToDrain = ethers.utils.parseEther("3")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -200,7 +169,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("0.95"),
                     amountToDrain = ethers.utils.parseEther("3")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -222,7 +191,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("0.95"),
                     amountToDrain = ethers.utils.parseEther("3")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -244,7 +213,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("0.7"),
                     amountToDrain = ethers.utils.parseEther("1.5")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -266,7 +235,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("1.2"),
                     amountToDrain = ethers.utils.parseEther("1.5")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -285,7 +254,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("1.2"),
                     amountToDrain = ethers.utils.parseEther("1.1")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
@@ -304,7 +273,7 @@ describe("Unit tests: Insurance.sol", function () {
                     publicCollateralAmountPre = ethers.utils.parseEther("0.5"),
                     amountToDrain = ethers.utils.parseEther("1")
 
-                await putAndTakeCollateral(
+                await setAndDrainCollaterals(
                     tracer,
                     quoteToken,
                     insurance,
