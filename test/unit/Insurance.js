@@ -5,6 +5,7 @@ const {
     getInsurance,
     getMockTracer,
 } = require("../util/DeploymentUtil")
+
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 const expectCollaterals = async (insurance, expectedBuffer, expectedPublic) => {

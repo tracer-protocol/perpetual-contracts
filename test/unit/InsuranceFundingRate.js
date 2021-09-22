@@ -1,139 +1,56 @@
 const { expect } = require("chai")
-const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { smockit } = require("@eth-optimism/smock")
+const { ethers, deployments } = require("hardhat")
+const {
+    getQuoteToken,
+    getInsurance,
+    getMockTracer,
+} = require("../util/DeploymentUtil")
 
 const FUNDING_RATE_FACTOR = ethers.utils.parseEther("0.00000570775")
 
-const getCollaterals = async (insurance) => [
-    (await insurance.bufferCollateralAmount()).toString(),
-    (await insurance.publicCollateralAmount()).toString(),
-]
-
 const putCollateral = async (
     tracer,
-    testToken,
+    quoteToken,
     insurance,
     bufferValue,
     publicValue
 ) => {
-    tracer.smocked.getBalance.will.return.with({
-        position: { quote: ethers.utils.parseEther(bufferValue), base: 0 }, // quote, base
-        totalLeveragedValue: 0, // total leverage
-        lastUpdatedIndex: 0, // last updated index
-        lastUpdatedGasPrice: 0, // last updated gas price
-    })
+    await tracer.setAccountQuote(insurance.address, bufferValue)
 
     await insurance.updatePoolAmount()
 
-    // Set getBalance to return 0 so that updatePoolAmount doesn't add more
-    // to buffer (what was in the balance already added)
-    tracer.smocked.getBalance.will.return.with({
-        position: { quote: 0, base: 0 }, // quote, base
-        totalLeveragedValue: 0, // total leverage
-        lastUpdatedIndex: 0, // last updated index
-        lastUpdatedGasPrice: 0, // last updated gas price
-    })
+    await quoteToken.approve(insurance.address, publicValue)
 
-    await testToken.approve(
-        insurance.address,
-        ethers.utils.parseEther(publicValue)
-    )
-
-    await insurance.deposit(ethers.utils.parseEther(publicValue))
-
-    return await getCollaterals(insurance)
+    await insurance.deposit(publicValue)
 }
 
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-    _deployer = deployer
-    // deploy a test token
-    const TestToken = await ethers.getContractFactory("TestToken")
-    let testToken = await TestToken.deploy(
-        ethers.utils.parseEther("100000000"),
-        "Test Token",
-        "TST",
-        18
-    )
-    await testToken.deployed()
+const setupTests = deployments.createFixture(async () => {
+    await deployments.fixture(["MockTracerDeploy"])
+    tracer = await getMockTracer()
 
-    // this deploy method is needed for mocking
-    const tracerContractFactory = await ethers.getContractFactory(
-        "TracerPerpetualSwaps"
-    )
+    // set liquidation contract to accounts[0]
+    accounts = await ethers.getSigners()
+    tracer.setLiquidationContract(accounts[0].address)
 
-    let maxLeverage = ethers.utils.parseEther("12.5")
-    let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
-    let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
-    let liquidationGasCost = 63516
+    // connect to insurance as liquidation contract
+    let insurance = await getInsurance(tracer)
+    insurance = await insurance.connect(accounts[0])
 
-    const tracer = await tracerContractFactory.deploy(
-        ethers.utils.formatBytes32String("TEST/USD"),
-        testToken.address,
-        deployer, // Dummy address so it is not address(0)
-        maxLeverage,
-        1,
-        1,
-        deployer, // Dummy address so it is not address(0)
-        deleveragingCliff,
-        lowestMaxLeverage,
-        insurancePoolSwitchStage,
-        liquidationGasCost
-    )
-
-    let mockTracer = await smockit(tracer)
-
-    // mock tracer calls that are needed
-    // get balance for this account to return 0
-    // NOTE: If any test changes mocks, due to Hardhat fixture optimisations,
-    // the mock defaults set here WILL NOT be returned. You need to manually
-    // change the mock state back to its expected value at the end of the test.
-    mockTracer.smocked.getBalance.will.return.with({
-        position: { quote: 0, base: 0 }, //quote, base
-        totalLeveragedValue: 0, //total leverage
-        lastUpdatedIndex: 0, //last updated index
-        lastUpdatedGasPrice: 0, //last updated gas price
-    })
-
-    // token to return the testToken address
-    mockTracer.smocked.tracerQuoteToken.will.return.with(testToken.address)
-
-    // leveraged notional value to return 100
-    mockTracer.smocked.leveragedNotionalValue.will.return.with(
-        ethers.utils.parseEther("100")
-    )
-
-    // quote token decimals
-    mockTracer.smocked.quoteTokenDecimals.will.return.with(18)
-
-    // deposit and withdraw to return nothing
-    mockTracer.smocked.deposit.will.return()
-    mockTracer.smocked.withdraw.will.return()
-
-    // deploy insurance using mock tracer
-    const Insurance = await ethers.getContractFactory("Insurance")
-    let insurance = await Insurance.deploy(mockTracer.address)
-    await insurance.deployed()
     return {
-        testToken,
-        mockTracer,
-        insurance,
+        quoteToken: await getQuoteToken(tracer),
+        tracer: tracer,
+        insurance: insurance,
     }
 })
 
 describe("Unit tests: Insurance.sol", function () {
     let accounts
-    let testToken
-    let mockTracer
+    let quoteToken
+    let tracer
     let insurance
 
     beforeEach(async function () {
-        const _setup = await setup()
-        testToken = _setup.testToken
-        mockTracer = _setup.mockTracer
-        insurance = _setup.insurance
+        ;({ quoteToken, tracer, insurance } = await setupTests())
         accounts = await ethers.getSigners()
     })
 
@@ -141,9 +58,7 @@ describe("Unit tests: Insurance.sol", function () {
         context("when the leveraged notional value is <= 0", async () => {
             it("returns 0", async () => {
                 // set leveraged notional value to 0
-                mockTracer.smocked.leveragedNotionalValue.will.return.with(
-                    ethers.utils.parseEther("0")
-                )
+                await tracer.setLeveragedNotionalValue(0)
 
                 let poolFundingRate = await insurance.getPoolFundingRate()
                 expect(poolFundingRate).to.equal(0)
@@ -153,16 +68,16 @@ describe("Unit tests: Insurance.sol", function () {
         context("when the pool is greater than the target", async () => {
             it("returns 0", async () => {
                 // set leveraged notional value to 100
-                mockTracer.smocked.leveragedNotionalValue.will.return.with(
+                await tracer.setLeveragedNotionalValue(
                     ethers.utils.parseEther("100")
                 )
 
-                let bufferCollateralAmount = "100"
-                let publicCollateralAmount = "100"
+                let bufferCollateralAmount = ethers.utils.parseEther("100")
+                let publicCollateralAmount = ethers.utils.parseEther("100")
 
                 await putCollateral(
-                    mockTracer,
-                    testToken,
+                    tracer,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmount,
                     publicCollateralAmount
@@ -184,16 +99,16 @@ describe("Unit tests: Insurance.sol", function () {
             async () => {
                 it("returns the appropriate one hour funding rate", async () => {
                     // set leveraged notional value to 400
-                    mockTracer.smocked.leveragedNotionalValue.will.return.with(
+                    await tracer.setLeveragedNotionalValue(
                         ethers.utils.parseEther("400")
                     )
 
-                    let bufferCollateralAmount = "0"
-                    let publicCollateralAmount = "0"
+                    let bufferCollateralAmount = ethers.utils.parseEther("0")
+                    let publicCollateralAmount = ethers.utils.parseEther("0")
 
                     await putCollateral(
-                        mockTracer,
-                        testToken,
+                        tracer,
+                        quoteToken,
                         insurance,
                         bufferCollateralAmount,
                         publicCollateralAmount
@@ -222,16 +137,16 @@ describe("Unit tests: Insurance.sol", function () {
             async () => {
                 it("returns the appropriate one hour funding rate", async () => {
                     // set leveraged notional value to 400
-                    mockTracer.smocked.leveragedNotionalValue.will.return.with(
+                    await tracer.setLeveragedNotionalValue(
                         ethers.utils.parseEther("400")
                     )
 
-                    let bufferCollateralAmount = "1"
-                    let publicCollateralAmount = "1"
+                    let bufferCollateralAmount = ethers.utils.parseEther("1")
+                    let publicCollateralAmount = ethers.utils.parseEther("1")
 
                     await putCollateral(
-                        mockTracer,
-                        testToken,
+                        tracer,
+                        quoteToken,
                         insurance,
                         bufferCollateralAmount,
                         publicCollateralAmount
