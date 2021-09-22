@@ -168,7 +168,7 @@ module.exports = async function (hre) {
     })
 
     // deploy Tracer perps deployer
-    const perpsDeployer = await deploy("PerpsDeployerV1", {
+    const perpsDeployer = await deploy("PerpsDeployerMock", {
         from: deployer,
         libraries: {
             Perpetuals: libPerpetuals.address,
@@ -180,7 +180,7 @@ module.exports = async function (hre) {
     })
 
     // deploy Tracer perps factory
-    let factory = await deploy("TracerPerpetualsFactory", {
+    await deploy("TracerPerpetualsFactory", {
         args: [
             perpsDeployer.address,
             liquidationDeployer.address,
@@ -253,4 +253,4 @@ module.exports = async function (hre) {
     await tracerInstance.setWhitelist(trader.address, true)
     await tracerInstance.setWhitelist(deployer, true)
 }
-module.exports.tags = ["FullDeployTest", "TracerPerpetualSwaps"]
+module.exports.tags = ["MockTracerDeploy"]

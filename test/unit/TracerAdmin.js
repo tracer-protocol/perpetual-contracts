@@ -1,238 +1,37 @@
 const { expect, assert } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { deploy } = deployments
-const { smockit, smoddit } = require("@eth-optimism/smock")
-const { BigNumber } = require("ethers")
-const zeroAddress = "0x0000000000000000000000000000000000000000"
-const tracerAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
-const pricingAbi = require("../../abi/contracts/Pricing.sol/Pricing.json")
-const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.json")
-const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
-const gasOracleAbi = require("../../abi/contracts/oracle/GasOracle.sol/GasOracle.json")
+const {
+    getTracer,
+    getPricing,
+    getQuoteToken,
+    getTrader,
+    getInsurance,
+} = require("../util/DeploymentUtil.js")
+const { depositQuoteTokens } = require("../util/OrderUtil.js")
 
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
-    const { deployer } = await getNamedAccounts()
-
-    // deploy contracts
+const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["FullDeployTest"])
-    let Factory = await deployments.get("TracerPerpetualsFactory")
-    let factory = await ethers.getContractAt(Factory.abi, Factory.address)
-    let tracerAddress = await factory.tracersByIndex(0)
-    let tracer = await ethers.getContractAt(tracerAbi, tracerAddress)
-
-    // setup mocks for the contracts and relink
-    const Insurance = await tracer.insuranceContract()
-    let insurance = await ethers.getContractAt(insuranceAbi, Insurance)
-
-    const Pricing = await tracer.pricingContract()
-    let pricing = await ethers.getContractAt(pricingAbi, Pricing)
-
-    const Liquidation = await tracer.liquidationContract()
-    let liquidation = await ethers.getContractAt(liquidationAbi, Liquidation)
-
-    const QuoteToken = await tracer.tracerQuoteToken()
-    let quoteToken = await ethers.getContractAt(tokenAbi, QuoteToken)
-
-    const GasOracle = await tracer.gasPriceOracle()
-    let gasOracle = await ethers.getContractAt(gasOracleAbi, GasOracle)
-
-    insurance = await smockit(insurance)
-    pricing = await smockit(pricing)
-    liquidation = await smockit(liquidation)
-    gasOracle = await smockit(gasOracle)
-
-    // mock gas price
-    gasOracle.smocked.latestAnswer.will.return.with("60000000000000")
-
-    // mock function calls for insurance, pricing & liquidation
-    await tracer.setPricingContract(pricing.address)
-    await tracer.setInsuranceContract(insurance.address)
-    await tracer.setLiquidationContract(liquidation.address)
-    await tracer.setGasOracle(gasOracle.address)
-
-    pricing.smocked.lastUpdatedFundingIndex.will.return(0)
-    // pricing.smocked.getFundingRate.will.return
-    // pricing.smocked.getInsuranceFundingRate.will.return
-    const traderDeployment = await deployments.get("Trader")
-    let traderInstance = await ethers.getContractAt(
-        traderDeployment.abi,
-        traderDeployment.address
-    )
+    _tracer = await getTracer()
 
     return {
-        tracer,
-        insurance,
-        pricing,
-        liquidation,
-        quoteToken,
-        deployer,
-        traderInstance,
-        gasOracle,
+        trader: await getTrader(),
+        tracer: _tracer,
+        pricing: await getPricing(_tracer),
+        insurance: await getInsurance(_tracer),
+        quoteToken: await getQuoteToken(_tracer),
     }
 })
 
-describe("Unit tests: TracerPerpetualSwaps.sol", function () {
-    let tracer
-    let insurance
-    let pricing
-    let liquidation
-    let quoteToken
-    let deployer
+describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
+    let tracer, trader, insurance, pricing, quoteToken
     let accounts
-    let traderInstance
-    let gasOracle
+    let deployer
 
     beforeEach(async function () {
-        let _setup = await setup()
-        tracer = _setup.tracer
-        insurance = _setup.insurance
-        pricing = _setup.pricing
-        liquidation = _setup.liquidation
-        quoteToken = _setup.quoteToken
-        deployer = _setup.deployer
-        traderInstance = _setup.traderInstance
-        gasOracle = _setup.gasOracle
+        ;({ tracer, trader, insurance, pricing, quoteToken } =
+            await setupTests())
         accounts = await ethers.getSigners()
-    })
-
-    describe("deposit", async () => {
-        context("when the user has set allowance", async () => {
-            beforeEach(async () => {
-                await quoteToken.approve(
-                    tracer.address,
-                    ethers.utils.parseEther("5")
-                )
-                await tracer.deposit(ethers.utils.parseEther("5"))
-            })
-            it("updates their quote", async () => {
-                let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("5")
-                )
-            })
-
-            it("updates the total TVL", async () => {
-                let tvl = await tracer.tvl()
-                expect(tvl).to.equal(ethers.utils.parseEther("5"))
-            })
-
-            it("emits an event", async () => {
-                await quoteToken.approve(
-                    tracer.address,
-                    ethers.utils.parseEther("5")
-                )
-
-                await expect(tracer.deposit(ethers.utils.parseEther("5")))
-                    .to.emit(tracer, "Deposit")
-                    .withArgs(accounts[0].address, "5000000000000000000")
-            })
-        })
-
-        context("when the user has not set allowance", async () => {
-            it("reverts", async () => {
-                await expect(
-                    tracer.deposit(ethers.utils.parseEther("5"))
-                ).to.be.revertedWith("ERC20: transfer amount exceeds allowance")
-            })
-        })
-
-        context("when the token amount is a WAD value", async () => {
-            it("updates their quote without dust", async () => {
-                let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
-
-                // token has 8 decimals, deposit 1 token with 1 dust
-                await quoteToken.approve(
-                    tracer.address,
-                    ethers.utils.parseEther("1.000000001")
-                )
-                await tracer.deposit(ethers.utils.parseEther("1.000000001"))
-
-                // ensure that token amount has decreased correctly
-                let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
-                let difference = tokenBalanceBefore.sub(tokenBalanceAfter)
-
-                // difference should be 1 token (with 8 decimals)
-                expect(difference.toString()).to.equal("100000000")
-
-                // default token only uses 8 decimals, so the last bit should be ignored in contract balance
-                let expected = ethers.utils.parseEther("1.000000000")
-                let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(expected)
-
-                // check TVL has been updated without dust
-                let tvl = await tracer.tvl()
-                await expect(tvl).to.be.equal(expected)
-            })
-        })
-    })
-
-    describe("withdraw", async () => {
-        beforeEach(async () => {
-            await quoteToken.approve(
-                tracer.address,
-                ethers.utils.parseEther("5")
-            )
-            await tracer.deposit(ethers.utils.parseEther("5"))
-        })
-        context("when the user is withdrawing to below margin", async () => {
-            it("reverts", async () => {
-                await expect(
-                    tracer.withdraw(ethers.utils.parseEther("6"))
-                ).to.be.revertedWith("TCR: Withdraw below valid Margin")
-            })
-        })
-
-        context("when the user is making a valid withdraw", async () => {
-            beforeEach(async () => {
-                await tracer.withdraw(ethers.utils.parseEther("1"))
-            })
-            it("updates their quote", async () => {
-                let balance = await tracer.balances(deployer)
-                expect(balance.position.quote).to.equal(
-                    ethers.utils.parseEther("4")
-                )
-            })
-
-            it("updates their leverage", async () => {})
-
-            it("updates the total TVL", async () => {
-                let tvl = await tracer.tvl()
-                expect(tvl).to.equal(ethers.utils.parseEther("4"))
-            })
-
-            it("emits an event", async () => {
-                await expect(tracer.withdraw(ethers.utils.parseEther("1")))
-                    .to.emit(tracer, "Withdraw")
-                    .withArgs(accounts[0].address, "1000000000000000000")
-            })
-        })
-
-        context("when the token amount is a WAD value", async () => {
-            it("returns the correct amount of tokens", async () => {
-                let tokenBalanceBefore = await quoteToken.balanceOf(deployer)
-
-                // withdraw 1 token with dust
-                await tracer.withdraw(ethers.utils.parseEther("1.000000001"))
-
-                // ensure that token amount has decreased by correct units
-                let tokenBalanceAfter = await quoteToken.balanceOf(deployer)
-                let difference = tokenBalanceAfter.sub(tokenBalanceBefore)
-
-                // user token balance should decrease by 1 (with 8 decimals)
-                expect(difference).to.equal("100000000")
-
-                // default token only uses 8 decimals, so the last bit should be ignored in contract balance
-                let expected = ethers.utils.parseEther("4.000000000")
-                let balance = await tracer.balances(deployer)
-                await expect(balance.position.quote).to.equal(expected)
-
-                // check TVL has been updated without dust
-                let tvl = await tracer.tvl()
-                await expect(tvl).to.be.equal(expected)
-            })
-        })
+        deployer = (await getNamedAccounts()).deployer
     })
 
     describe("updateAccountsOnLiquidation", async () => {
@@ -496,14 +295,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                 //1% fee
                 await tracer.setFeeRate(ethers.utils.parseEther("0.01"))
 
-                for (var i = 0; i < 2; i++) {
-                    await quoteToken
-                        .connect(accounts[i + 1])
-                        .approve(tracer.address, ethers.utils.parseEther("500"))
-                    await tracer
-                        .connect(accounts[i + 1])
-                        .deposit(ethers.utils.parseEther("500"))
-                }
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[1], accounts[2]],
+                    ethers.utils.parseEther("500")
+                )
 
                 now = Math.floor(new Date().getTime() / 1000)
 
@@ -540,7 +337,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol", function () {
                     0,
                 ]
 
-                await traderInstance.executeTrade(
+                await trader.executeTrade(
                     [mockSignedOrder1],
                     [mockSignedOrder2]
                 )
