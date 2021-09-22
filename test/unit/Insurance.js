@@ -324,7 +324,7 @@ describe("Unit tests: Insurance.sol", function () {
             })
         })
 
-        context("when called by someone other than insurance", async () => {
+        context("when called by someone other than liquidation", async () => {
             it("reverts", async () => {
                 await expect(
                     insurance
