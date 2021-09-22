@@ -1,7 +1,5 @@
 const { expect } = require("chai")
-const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { deploy } = deployments
-const { smockit } = require("@eth-optimism/smock")
+const { ethers, deployments } = require("hardhat")
 const {
     getQuoteToken,
     getInsurance,
@@ -18,7 +16,7 @@ const expectCollaterals = async (insurance, expectedBuffer, expectedPublic) => {
 
 const putCollateral = async (
     tracer,
-    testToken,
+    quoteToken,
     insurance,
     bufferValue,
     publicValue
@@ -27,26 +25,25 @@ const putCollateral = async (
 
     await insurance.updatePoolAmount()
 
-    await testToken.approve(insurance.address, publicValue)
+    await quoteToken.approve(insurance.address, publicValue)
 
     await insurance.deposit(publicValue)
 }
 
 const putAndTakeCollateral = async (
     tracer,
-    testToken,
+    quoteToken,
     insurance,
     bufferValue,
     publicValue,
     amountToDrain
 ) => {
-    await putCollateral(tracer, testToken, insurance, bufferValue, publicValue)
+    await putCollateral(tracer, quoteToken, insurance, bufferValue, publicValue)
 
     await insurance.drainPool(amountToDrain)
 }
 
-// create hardhat optimised feature
-const setup = deployments.createFixture(async () => {
+const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["MockTracerDeploy"])
     tracer = await getMockTracer()
 
@@ -59,23 +56,20 @@ const setup = deployments.createFixture(async () => {
     insurance = await insurance.connect(accounts[0])
 
     return {
-        testToken: await getQuoteToken(tracer),
-        mockTracer: tracer,
+        quoteToken: await getQuoteToken(tracer),
+        tracer: tracer,
         insurance: insurance,
     }
 })
 
 describe("Unit tests: Insurance.sol", function () {
     let accounts
-    let testToken
+    let quoteToken
     let tracer
     let insurance
 
     beforeEach(async function () {
-        const _setup = await setup()
-        testToken = _setup.testToken
-        tracer = _setup.mockTracer
-        insurance = _setup.insurance
+        ;({ quoteToken, tracer, insurance } = await setupTests())
         accounts = await ethers.getSigners()
     })
 
@@ -89,7 +83,7 @@ describe("Unit tests: Insurance.sol", function () {
             })
             it("uses the same collateral as the quote of the market", async () => {
                 let collateralToken = await insurance.collateralAsset()
-                expect(collateralToken.toString()).to.equal(testToken.address)
+                expect(collateralToken.toString()).to.equal(quoteToken.address)
             })
             it("emits a pool created event", async () => {})
         })
@@ -103,7 +97,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferValue,
                     publicValue
@@ -134,7 +128,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferValue,
                     publicValue
@@ -188,7 +182,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -207,7 +201,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -229,7 +223,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -251,7 +245,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -273,7 +267,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -292,7 +286,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -311,7 +305,7 @@ describe("Unit tests: Insurance.sol", function () {
 
                 await putAndTakeCollateral(
                     tracer,
-                    testToken,
+                    quoteToken,
                     insurance,
                     bufferCollateralAmountPre,
                     publicCollateralAmountPre,
@@ -328,7 +322,7 @@ describe("Unit tests: Insurance.sol", function () {
 
             it("deposits into the market", async () => {
                 // set collateral holdings to 5
-                await testToken.approve(
+                await quoteToken.approve(
                     insurance.address,
                     ethers.utils.parseEther("5")
                 )
@@ -343,7 +337,7 @@ describe("Unit tests: Insurance.sol", function () {
             })
 
             it("correctly updates the pool's collateral holding", async () => {
-                await testToken.approve(
+                await quoteToken.approve(
                     insurance.address,
                     ethers.utils.parseEther("5")
                 )
@@ -362,7 +356,6 @@ describe("Unit tests: Insurance.sol", function () {
 
         context("when called by someone other than insurance", async () => {
             it("reverts", async () => {
-                accounts = await ethers.getSigners()
                 await expect(
                     insurance
                         .connect(accounts[1])
