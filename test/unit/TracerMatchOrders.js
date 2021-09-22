@@ -49,18 +49,21 @@ const setupTestsWithMockPricing = deployments.createFixture(async () => {
 })
 
 describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
-    let accounts, long, short
+    let long, short
     let tracer, trader, pricing, quoteToken, oracle, gasEthOracle
     let initialQuoteBalance, orderPrice, orderAmount
     let tx
+
+    before(async () => {
+        const accounts = await ethers.getSigners()
+        long = accounts[1]
+        short = accounts[2]
+    })
 
     context("when two new users match orders", async () => {
         beforeEach(async () => {
             ;({ tracer, trader, pricing, quoteToken, oracle, gasEthOracle } =
                 await setupTests())
-            accounts = await ethers.getSigners()
-            long = accounts[1]
-            short = accounts[2]
 
             // initial balances
             // long: quote: 10, base: 0
@@ -84,9 +87,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
             await executeTrade(
                 tracer,
                 trader,
-                accounts,
                 orderPrice,
-                orderAmount
+                orderAmount,
+                long.address,
+                short.address
             )
         })
 
@@ -156,9 +160,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
         it("settles the trader if the order matches", async () => {
             ;({ tracer, trader, pricing, quoteToken, gasEthOracle } =
                 await setupTestsWithMockPricing())
-            accounts = await ethers.getSigners()
-            long = accounts[1]
-            short = accounts[2]
 
             // set initial balances
             // long: quote: 10, base: 1
@@ -181,9 +182,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
             await executeTrade(
                 tracer,
                 trader,
-                accounts,
                 tradePrice,
-                tradeAmount
+                tradeAmount,
+                long.address,
+                short.address
             )
 
             // set new funding rate to 0.2 quote tokens per 1 base held at index 1
@@ -199,9 +201,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
             let tx = await executeTrade(
                 tracer,
                 trader,
-                accounts,
                 tradePrice,
-                tradeAmount
+                tradeAmount,
+                long.address,
+                short.address
             )
 
             const postBalance = await tracer.balances(long.address)
@@ -218,9 +221,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
         it("settles the trader if the order fails", async () => {
             ;({ tracer, trader, pricing, quoteToken, gasEthOracle } =
                 await setupTestsWithMockPricing())
-            accounts = await ethers.getSigners()
-            long = accounts[1]
-            short = accounts[2]
 
             // set initial balances
             // long: quote: 10, base: 1
@@ -243,9 +243,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
             await executeTrade(
                 tracer,
                 trader,
-                accounts,
                 tradePrice,
-                tradeAmount
+                tradeAmount,
+                long.address,
+                short.address
             )
 
             // set new funding rate to 0.2 quote tokens per 1 base held at index 1
@@ -261,9 +262,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
             let tx = await executeTrade(
                 tracer,
                 trader,
-                accounts,
                 tradePrice,
-                tradeAmount
+                tradeAmount,
+                long.address,
+                short.address
             )
 
             const postBalance = await tracer.balances(long.address)
@@ -282,9 +284,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
         beforeEach(async () => {
             ;({ tracer, trader, quoteToken, oracle, gasEthOracle } =
                 await setupTests())
-            accounts = await ethers.getSigners()
-            long = accounts[1]
-            short = accounts[2]
 
             await oracle.setPrice(defaultMarkPrice)
             await gasEthOracle.setPrice(defaultMarkPrice)
@@ -349,9 +348,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
         beforeEach(async () => {
             ;({ tracer, trader, quoteToken, oracle, gasEthOracle } =
                 await setupTests())
-            accounts = await ethers.getSigners()
-            long = accounts[1]
-            short = accounts[2]
 
             await tracer.setFeeRate(ethers.utils.parseEther("0.02"))
             await oracle.setPrice(defaultMarkPrice)
@@ -378,9 +374,10 @@ describe("Unit tests: TracerPerpetualSwaps.sol matchOrders", function () {
             tx = await executeTrade(
                 tracer,
                 trader,
-                accounts,
                 orderPrice,
-                orderAmount
+                orderAmount,
+                long.address,
+                short.address
             )
         })
 

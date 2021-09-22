@@ -29,14 +29,12 @@ const setupTests = deployments.createFixture(async () => {
 })
 
 describe("Unit tests: Insurance.sol", function () {
-    let accounts
     let quoteToken
     let tracer
     let insurance
 
     beforeEach(async function () {
         ;({ quoteToken, tracer, insurance } = await setupTests())
-        accounts = await ethers.getSigners()
     })
 
     describe("getPoolFundingRate", async () => {

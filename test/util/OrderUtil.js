@@ -3,11 +3,10 @@
 const executeTrade = async (
     tracer,
     trader,
-    accounts,
     price,
     amount,
-    longMaker = accounts[1].address,
-    shortMaker = accounts[2].address
+    longMaker,
+    shortMaker
 ) => {
     const long = createOrder(tracer, price, amount, true, longMaker)
     const short = createOrder(tracer, price, amount, false, shortMaker)

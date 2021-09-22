@@ -33,14 +33,12 @@ const setupTests = deployments.createFixture(async () => {
 })
 
 describe("Unit tests: Insurance.sol", function () {
-    let accounts
     let quoteToken
     let tracer
     let insurance
 
     beforeEach(async function () {
         ;({ quoteToken, tracer, insurance } = await setupTests())
-        accounts = await ethers.getSigners()
     })
 
     describe("constructor", async () => {
@@ -326,6 +324,8 @@ describe("Unit tests: Insurance.sol", function () {
 
         context("when called by someone other than liquidation", async () => {
             it("reverts", async () => {
+                const accounts = await ethers.getSigners()
+
                 await expect(
                     insurance
                         .connect(accounts[1])
