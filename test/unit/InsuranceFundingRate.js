@@ -13,18 +13,10 @@ const setupTests = deployments.createFixture(async () => {
     await deployments.fixture(["MockTracerDeploy"])
     tracer = await getMockTracer()
 
-    // set liquidation contract to accounts[0]
-    accounts = await ethers.getSigners()
-    tracer.setLiquidationContract(accounts[0].address)
-
-    // connect to insurance as liquidation contract
-    let insurance = await getInsurance(tracer)
-    insurance = await insurance.connect(accounts[0])
-
     return {
         quoteToken: await getQuoteToken(tracer),
         tracer: tracer,
-        insurance: insurance,
+        insurance: await getInsurance(tracer),
     }
 })
 
