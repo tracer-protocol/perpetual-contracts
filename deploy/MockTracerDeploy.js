@@ -1,3 +1,5 @@
+const mockPerpsAbi = require("../abi/contracts/test/TracerPerpetualSwapsMock.sol/TracerPerpetualSwapsMock.json")
+
 /**
  * Create a deployment with a Mock Tracer contract for insurance tests.
  * The quote token is deployed with 18 decimals.
@@ -35,7 +37,7 @@ module.exports = async function (hre) {
     })
 
     // deploy trader
-    await deploy("Trader", {
+    const trader = await deploy("Trader", {
         from: deployer,
         log: true,
         contract: "TraderMock",
@@ -246,5 +248,13 @@ module.exports = async function (hre) {
         gasOracle.address,
         maxLiquidationSlippage
     )
+
+    // whitelist the trader
+    const tracerInstance = new ethers.Contract(
+        await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
+        mockPerpsAbi
+    ).connect(signers[0])
+
+    await tracerInstance.setWhitelist(trader.address, true)
 }
 module.exports.tags = ["MockTracerDeploy"]
