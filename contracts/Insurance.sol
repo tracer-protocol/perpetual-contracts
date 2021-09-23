@@ -243,8 +243,7 @@ contract Insurance is IInsurance {
         delete delayedWithdrawalAccess[id];
     }
 
-    function getDelayedWithdrawal(uint256 id) public override returns (LibInsurance.DelayedWithdrawal memory) {
-        LibInsurance.DelayedWithdrawal memory ret = delayedWithdrawalAccess[id];
+    function getDelayedWithdrawal(uint256 id) external view override returns (LibInsurance.DelayedWithdrawal memory) {
         return delayedWithdrawalAccess[id];
     }
 
