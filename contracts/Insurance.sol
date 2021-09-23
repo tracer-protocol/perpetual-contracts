@@ -155,7 +155,7 @@ contract Insurance is IInsurance {
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, withdrawal.amount);
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.transfer(msg.sender, rawTokenAmount);
+        require(collateralToken.transfer(msg.sender, rawTokenAmount), "INS: Transfer failed");
         deleteDelayedWithdrawal(id);
         emit InsuranceDelayedWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
@@ -168,7 +168,7 @@ contract Insurance is IInsurance {
      *      and thus collateral amount will be recalculated upon execution
      */
     function addDelayedWithdrawal(uint256 poolTokenAmount, uint256 collateralAmount) internal returns (uint256 id) {
-        list.pushBack(delayedWithdrawalCounter);
+        require(list.pushBack(delayedWithdrawalCounter), "INS: List op failed");
         delayedWithdrawalAccess[delayedWithdrawalCounter] = LibInsurance.DelayedWithdrawal(
             false,
             msg.sender,
@@ -205,7 +205,8 @@ contract Insurance is IInsurance {
         if (
             (delayedWithdrawalAccess[id].executed == true ||
                 block.timestamp >
-                delayedWithdrawalAccess[id].creationTime + DELAYED_WITHDRAWAL_WINDOW + DELAYED_WITHDRAWAL_LOCK) && exists
+                delayedWithdrawalAccess[id].creationTime + DELAYED_WITHDRAWAL_WINDOW + DELAYED_WITHDRAWAL_LOCK) &&
+            exists
         ) {
             // expired or executed
             deleteDelayedWithdrawal(id);
@@ -223,7 +224,7 @@ contract Insurance is IInsurance {
         if (id == 0) {
             return false;
         }
-        list.pushFront(id);
+        require(list.pushFront(id), "INS: List op failed");
         return removeIfExpired(id);
     }
 
@@ -258,7 +259,7 @@ contract Insurance is IInsurance {
         // convert token amount to WAD
         uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
         uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
-        collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount);
+        require(collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount), "INS: Transfer failed");
 
         // amount in wad format after being converted from token format
         uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
@@ -328,7 +329,7 @@ contract Insurance is IInsurance {
 
         // burn pool tokens, return collateral tokens
         poolToken.burnFrom(msg.sender, amount);
-        collateralToken.transfer(msg.sender, rawTokenAmount);
+        require(collateralToken.transfer(msg.sender, rawTokenAmount), "INS: Transfer failed");
 
         emit InsuranceWithdraw(address(tracer), msg.sender, wadTokensToSend);
     }
