@@ -49,7 +49,7 @@ describe("Unit tests: Insurance.sol", function () {
                     zeroAddress.toString()
                 )
             })
-            
+
             it("uses the same collateral as the quote of the market", async () => {
                 let collateralToken = await insurance.collateralAsset()
                 expect(collateralToken.toString()).to.equal(quoteToken.address)
