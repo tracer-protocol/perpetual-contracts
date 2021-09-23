@@ -10,8 +10,6 @@ library LibInsurance {
         uint256 creationTime;
         uint256 amount; // Pool tokens, In raw format (not WAD)
         uint256 collateralAmountAtTimeOfCommit; // So we know how much to take from pending
-        uint256 previous;
-        uint256 next;
     }
 
     /**

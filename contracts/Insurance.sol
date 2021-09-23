@@ -41,8 +41,8 @@ contract Insurance is IInsurance {
     mapping(address => uint256) public override accountsDelayedWithdrawal;
     uint256 public override totalPendingCollateralWithdrawals;
     // After 5 days, withdrawal can be executed for a 5 day window period
-    uint256 public constant delayedWithdrawalLock = 5 days;
-    uint256 public constant delayedWithdrawalWindow = 5 days;
+    uint256 public constant DELAYED_WITHDRAWAL_LOCK = 5 days;
+    uint256 public constant DELAYED_WITHDRAWAL_WINDOW = 5 days;
     StructuredLinkedList.List list;
 
     // Approximate average gas it costs for each iteration in `scanDelayedWithdrawals(...)`
@@ -56,7 +56,7 @@ contract Insurance is IInsurance {
     // cost to run the function on scanning through the delayed withdrawals and deleting any expired ones
     // SCAN_EXPIRED_WITHDRAWAL_COUNT = COMMIT_EXECUTE_GAS_SUM / 2 / AVERAGE_SCAN_GAS_PER_ACCOUNT;
     // This ends up being 6 iterations. i.e. At most do 6 iterations through the pending delayed withdrawals
-    uint256 SCAN_EXPIRED_WITHDRAWAL_COUNT = 6;
+    uint256 constant SCAN_EXPIRED_WITHDRAWAL_COUNT = 6;
 
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
 
@@ -138,7 +138,7 @@ contract Insurance is IInsurance {
         // It has not expired and has not yet been executed
         LibInsurance.DelayedWithdrawal memory withdrawal = delayedWithdrawalAccess[id];
         require(balance >= withdrawal.amount, "INS: balance < amount");
-        require(block.timestamp >= withdrawal.creationTime + delayedWithdrawalLock, "INS: Withdrawal still pending");
+        require(block.timestamp >= withdrawal.creationTime + DELAYED_WITHDRAWAL_LOCK, "INS: Withdrawal still pending");
 
         uint256 poolTokenWadAmount = withdrawal.amount;
         InsurancePoolToken poolToken = InsurancePoolToken(token);
@@ -175,9 +175,7 @@ contract Insurance is IInsurance {
             delayedWithdrawalCounter,
             block.timestamp,
             poolTokenAmount,
-            collateralAmount,
-            0,
-            0
+            collateralAmount
         );
         accountsDelayedWithdrawal[msg.sender] = delayedWithdrawalCounter;
         delayedWithdrawalCounter += 1;
@@ -207,7 +205,7 @@ contract Insurance is IInsurance {
         if (
             (delayedWithdrawalAccess[id].executed == true ||
                 block.timestamp >
-                delayedWithdrawalAccess[id].creationTime + delayedWithdrawalWindow + delayedWithdrawalLock) && exists
+                delayedWithdrawalAccess[id].creationTime + DELAYED_WITHDRAWAL_WINDOW + DELAYED_WITHDRAWAL_LOCK) && exists
         ) {
             // expired or executed
             deleteDelayedWithdrawal(id);
