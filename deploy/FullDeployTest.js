@@ -39,24 +39,26 @@ module.exports = async function (hre) {
     })
 
     // deploy oracles
-    // asset price oracle => ASSET / USD
+    // asset price oracle => ETH / USD feed
     const priceOracle = await deploy("PriceOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
-    // Gas price oracle => fast gas / gwei
+    // gas price oracle => Fast gas / Gwei feed
     const gasOracle = await deploy("GasOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
+    // mock eth oracle => ETH / USD feed
+    // used only in local testing to set the gas price separately to eth price
     const ethOracle = await deploy("EthOracle", {
         from: deployer,
         log: true,
-        contract: "Oracle",
+        contract: "ChainlinkOracle",
     })
 
     await execute(
@@ -87,7 +89,7 @@ module.exports = async function (hre) {
         "20000000000" // 20 Gwei
     )
 
-    // adapter converting asset oracle to WAD
+    // price oracle adapter => ETH / USD WAD feed
     const oracleAdapter = await deploy("PriceOracleAdapter", {
         from: deployer,
         log: true,
@@ -95,29 +97,23 @@ module.exports = async function (hre) {
         contract: "OracleAdapter",
     })
 
-    // adapter converting ETH / USD to WAD
-    const ethOracleAdapter = await deploy("EthOracleAdapter", {
-        from: deployer,
-        log: true,
-        args: [ethOracle.address],
-        contract: "OracleAdapter",
-    })
-
+    // gas USD price feed => Fast Gas / USD WAD feed
     const gasPriceOracle = await deploy("GasPriceOracle", {
         from: deployer,
         log: true,
-        args: [ethOracleAdapter.address, gasOracle.address],
+        args: [ethOracle.address, gasOracle.address],
         contract: "GasOracle",
     })
 
-    // deploy token with an initial supply of 100000
+    // deploy token with an initial supply of 100000 and 8 decimals
     const token = await deploy("QuoteToken", {
-        args: [ethers.utils.parseEther("10000000"), "Test Token", "TST", 18], //10 mil supply
+        args: [ethers.utils.parseEther("10000000"), "Test Token", "TST", 8], //10 mil supply
         from: deployer,
         log: true,
         contract: "TestToken",
     })
 
+    // distribute tokens to accounts
     const tokenAmount = ethers.utils.parseEther("10000")
     await execute(
         "QuoteToken",
@@ -140,9 +136,6 @@ module.exports = async function (hre) {
         acc3,
         tokenAmount
     )
-    console.log(`Quote Tokens transfered from ${deployer} to ${acc1}`)
-    console.log(`Quote Tokens transfered from ${deployer} to ${acc2}`)
-    console.log(`Quote Tokens transfered from ${deployer} to ${acc3}`)
 
     // deploy deployers
     const liquidationDeployer = await deploy("LiquidationDeployerV1", {
@@ -200,19 +193,18 @@ module.exports = async function (hre) {
     })
 
     let maxLeverage = ethers.utils.parseEther("12.5")
-    let tokenDecimals = new ethers.BigNumber.from("18").toString()
     let feeRate = 0 // 0 percent
     let fundingRateSensitivity = ethers.utils.parseEther("1")
     let maxLiquidationSlippage = ethers.utils.parseEther("0.5") // 50 percent
     let deleveragingCliff = ethers.utils.parseEther("20") // 20 percent
     let lowestMaxLeverage = ethers.utils.parseEther("12.5") // Default -> Doesn't go down
-    let _insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let insurancePoolSwitchStage = ethers.utils.parseEther("1") // Switches mode at 1%
+    let liquidationGasCost = 63516
 
     var deployTracerData = ethers.utils.defaultAbiCoder.encode(
         [
             "bytes32", //_marketId,
             "address", //_tracerQuoteToken,
-            "uint256", //_tokenDecimals,
             "address", //_gasPriceOracle,
             "uint256", //_maxLeverage,
             "uint256", //_fundingRateSensitivity,
@@ -221,11 +213,11 @@ module.exports = async function (hre) {
             "uint256", // _deleveragingCliff
             "uint256", // _lowestMaxLeverage
             "uint256", // _insurancePoolSwitchStage
+            "uint256", // _liquidationGasCost
         ],
         [
             ethers.utils.formatBytes32String("TEST1/USD"),
             token.address,
-            tokenDecimals,
             gasPriceOracle.address,
             maxLeverage,
             fundingRateSensitivity,
@@ -233,7 +225,8 @@ module.exports = async function (hre) {
             deployer,
             deleveragingCliff,
             lowestMaxLeverage,
-            _insurancePoolSwitchStage,
+            insurancePoolSwitchStage,
+            liquidationGasCost,
         ]
     )
 
@@ -255,14 +248,6 @@ module.exports = async function (hre) {
         await deployments.read("TracerPerpetualsFactory", "tracersByIndex", 0),
         tracerAbi
     ).connect(signers[0])
-
-    console.log(`Deployed Tracer Instance: ${tracerInstance.address}`)
-    console.log(`Deployed Factory: ${factory.address}`)
-    console.log(`Deployed Trader: ${trader.address}`)
-
-    let insurance = await tracerInstance.insuranceContract()
-    let pricing = await tracerInstance.pricingContract()
-    let liquidation = await tracerInstance.liquidationContract()
 
     // Set Trader.sol to be whitelisted, as well as deployer (for testing purposes)
     await tracerInstance.setWhitelist(trader.address, true)

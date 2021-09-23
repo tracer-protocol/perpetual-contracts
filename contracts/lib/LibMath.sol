@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 library LibMath {
-    uint256 private constant POSITIVE_INT256_MAX = 2**255 - 1;
+    uint256 private constant POSITIVE_INT256_MAX = uint256(type(int256).max);
 
     function toInt256(uint256 x) internal pure returns (int256) {
         require(x <= POSITIVE_INT256_MAX, "uint256 overflow");
@@ -36,6 +36,7 @@ library LibMath {
      * @return Sum of first n elements
      */
     function sumN(uint256[] memory arr, uint256 n) internal pure returns (uint256) {
+        require(n <= arr.length, "N too high");
         uint256 total = 0;
 
         for (uint256 i = 0; i < n; i++) {
@@ -65,6 +66,7 @@ library LibMath {
      * @return Average of first n elements
      */
     function meanN(uint256[] memory arr, uint256 len) internal pure returns (uint256) {
+        require(len != 0, "len is 0");
         return sumN(arr, len) / len;
     }
 

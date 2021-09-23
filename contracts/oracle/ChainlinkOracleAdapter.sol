@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "../Interfaces/IOracle.sol";
 import "../Interfaces/IChainlinkOracle.sol";
@@ -7,10 +7,12 @@ import "../lib/LibMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * The Chainlink oracle adapter allows you to wrap a Chainlink oracle feed
- * and ensure that the price is always returned in a wad format.
- * The upstream feed may be changed (Eg updated to a new Chainlink feed) while
- * keeping price consistency for the actual Tracer perp market.
+ * @dev The Chainlink oracle adapter allows you to wrap a Chainlink oracle feed
+ *      and ensure that the price is always returned in a WAD format.
+ *      The upstream feed may be changed (Eg updated to a new Chainlink feed) while
+ *      keeping price consistency for the actual Tracer perp market.
+ *      The Fast Gas / GWEI Chainlink feed is an exception to this
+ *      as it is already formatted correctly.
  */
 contract OracleAdapter is IOracle, Ownable {
     using LibMath for uint256;
@@ -23,11 +25,14 @@ contract OracleAdapter is IOracle, Ownable {
     }
 
     /**
-     * @notice Gets the latest anwser from the oracle
-     * @dev converts the price to a WAD price before returning
+     * @notice Gets the latest answer from the Chainlink feed.
+     * @dev converts the price to a WAD price before returning.
      */
     function latestAnswer() external view override returns (uint256) {
-        return toWad(uint256(oracle.latestAnswer()));
+        (uint80 roundID, int256 price, , uint256 timeStamp, uint80 answeredInRound) = oracle.latestRoundData();
+        require(answeredInRound >= roundID, "COA: Stale answer");
+        require(timeStamp != 0, "COA: Round incomplete");
+        return toWad(uint256(price));
     }
 
     function decimals() external pure override returns (uint8) {
@@ -35,7 +40,7 @@ contract OracleAdapter is IOracle, Ownable {
     }
 
     /**
-     * @notice converts a raw value to a WAD value.
+     * @notice converts a raw value to a WAD value based on the decimals in the feed.
      * @dev this allows consistency for oracles used throughout the protocol
      *      and allows oracles to have their decimals changed withou affecting
      *      the market itself
@@ -47,7 +52,7 @@ contract OracleAdapter is IOracle, Ownable {
     /**
      * @notice Change the upstream feed address.
      */
-    function changeOracle(address newOracle) public onlyOwner {
+    function changeOracle(address newOracle) external onlyOwner {
         setOracle(newOracle);
     }
 

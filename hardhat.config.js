@@ -5,14 +5,14 @@ require("hardhat-deploy")
 require("hardhat-abi-exporter")
 require("hardhat-typechain")
 require("@nomiclabs/hardhat-etherscan")
-require("solidity-coverage")
+require("@float-capital/solidity-coverage")
 require("hardhat-gas-reporter")
 
 const mnemonic = ""
 
 module.exports = {
     solidity: {
-        version: "0.8.0",
+        version: "0.8.4",
         settings: {
             optimizer: {
                 enabled: true,

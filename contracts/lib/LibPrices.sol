@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./LibMath.sol";
 import "./LibBalances.sol";
@@ -28,25 +28,36 @@ library Prices {
         uint256 derivative;
     }
 
+    /**
+     * @notice Calculate the fair price, defined as oraclePrice - timeValue
+     * @param oraclePrice Oracle price
+     * @param _timeValue Time value
+     * @return Fair price of the market
+     */
     function fairPrice(uint256 oraclePrice, int256 _timeValue) internal pure returns (uint256) {
         return uint256(LibMath.abs(oraclePrice.toInt256() - _timeValue));
     }
 
+    /**
+     * @notice Calculate the time value component for a given 24 hour period, which is the average premium over a 90 day period
+     * @dev After 24 hours pass in a tracer market, the result of this function is added to the global time value of the market
+     * @param averageTracerPrice Average tracer price over the last 24 hours
+     * @param averageOraclePrice Average oracle price over the last 24 hours
+     * @return Time value for the 24 hour period
+     */
     function timeValue(uint256 averageTracerPrice, uint256 averageOraclePrice) internal pure returns (int256) {
         return (averageTracerPrice.toInt256() - averageOraclePrice.toInt256()) / NINETY_DAYS;
     }
 
     /**
-     * @notice Calculate the average price of trades in a PriceInstant instance
+     * @notice Calculate the average price of trades in a PriceInstant instance.
+     * @notice Returns max integer (uint256) if there were no trades in the instance.
      * @param price Current cumulative price and number of trades in a time period
-     * @return Average price for given instance
+     * @return Average price for given instance.
      */
     function averagePrice(PriceInstant memory price) internal pure returns (uint256) {
-        // todo double check safety of this.
-        // average price == 0 is not neccesarily the
-        // same as no trades in average
         if (price.trades == 0) {
-            return 0;
+            return type(uint256).max;
         }
 
         return PRBMathUD60x18.div(price.cumulativePrice, price.trades);
@@ -54,6 +65,7 @@ library Prices {
 
     /**
      * @notice Calculates average price over a time period of 24 hours
+     * @notice If no trades occurred in last 24 hours, max integer (uint256) is returned
      * @dev Ignores hours where the number of trades is zero
      * @param prices Array of PriceInstant instances in the 24 hour period
      * @return Average price in the time period (non-weighted)
@@ -74,6 +86,11 @@ library Prices {
             }
         }
 
+        // return max integer if no trades occurred in the last 24 hours
+        if (j == 0) {
+            return type(uint256).max;
+        }
+
         return LibMath.meanN(averagePrices, j);
     }
 
@@ -82,8 +99,7 @@ library Prices {
      * @param _globalLeverage Current global leverage
      * @param oldLeverage Old leverage of account
      * @param newLeverage New leverage of account
-     * @return New global leverage, calculated from the change from
-     *        the old to the new leverage for the account
+     * @return New global leverage, calculated from the change from the old to the new leverage for the account
      */
     function globalLeverage(
         uint256 _globalLeverage,
@@ -92,7 +108,7 @@ library Prices {
     ) internal pure returns (uint256) {
         int256 newGlobalLeverage = _globalLeverage.toInt256() + newLeverage.toInt256() - oldLeverage.toInt256();
 
-        // note: this would require a bug in how account leverage was recorded
+        // Note: This would require a bug in how account leverage was recorded
         // as newLeverage - oldLeverage (leverage delta) would be greater than the
         // markets leverage. This SHOULD NOT be possible, however this is here for sanity.
         if (newGlobalLeverage < 0) {
@@ -103,14 +119,12 @@ library Prices {
     }
 
     /**
-     * @notice calculates an 8 hour TWAP starting at the hour index amd moving
+     * @notice Calculates an 8 hour TWAP starting at the hour index amd moving
      * backwards in time.
      * @dev Ignores hours where the number of trades is zero
-     * @param hour the 24 hour index to start at
-     * @param tracerPrices the average hourly prices of the derivative over the last
-     * 24 hours
-     * @param oraclePrices the average hourly prices of the oracle over the last
-     * 24 hours
+     * @param hour The 24 hour index to start at
+     * @param tracerPrices The average hourly prices of the derivative over the last 24 hours
+     * @param oraclePrices The average hourly prices of the oracle over the last 24 hours
      */
     function calculateTWAP(
         uint256 hour,
@@ -152,15 +166,10 @@ library Prices {
 
         // If totalUnderlyingTimeWeight or totalDerivativeTimeWeight is 0, there were no trades in
         // the last 8 hours and zero should be returned as the TWAP (also prevents division by zero)
-        if (totalUnderlyingTimeWeight == 0 && totalDerivativeTimeWeight == 0) {
-            return TWAP(0, 0);
-        } else if (totalUnderlyingTimeWeight == 0) {
-            return TWAP(0, cumulativeDerivative / totalDerivativeTimeWeight);
-        } else if (totalDerivativeTimeWeight == 0) {
-            return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, 0);
-        }
+        uint256 underlyingTWAP = totalUnderlyingTimeWeight == 0 ? 0 : cumulativeUnderlying / totalUnderlyingTimeWeight;
+        uint256 derivativeTWAP = totalDerivativeTimeWeight == 0 ? 0 : cumulativeDerivative / totalDerivativeTimeWeight;
 
-        return TWAP(cumulativeUnderlying / totalUnderlyingTimeWeight, cumulativeDerivative / totalDerivativeTimeWeight);
+        return TWAP(underlyingTWAP, derivativeTWAP);
     }
 
     /**
@@ -168,6 +177,7 @@ library Prices {
      * @param position Position of the user
      * @param globalRate Global funding rate in current instance
      * @param userRate Last updated user funding rate
+     * @return The new position of the user (after the funding rate is applied)
      */
     function applyFunding(
         Balances.Position memory position,
@@ -206,13 +216,12 @@ library Prices {
         uint256 totalLeveragedValue
     ) internal pure returns (Balances.Position memory newUserPos, Balances.Position memory newInsurancePos) {
         int256 insuranceDelta = PRBMathSD59x18.mul(
-            insuranceGlobalRate.fundingRate - insuranceUserRate.fundingRate,
+            insuranceGlobalRate.cumulativeFundingRate - insuranceUserRate.cumulativeFundingRate,
             totalLeveragedValue.toInt256()
         );
 
         if (insuranceDelta > 0) {
             newUserPos = Balances.Position(userPosition.quote - insuranceDelta, userPosition.base);
-
             newInsurancePos = Balances.Position(insurancePosition.quote + insuranceDelta, insurancePosition.base);
 
             return (newUserPos, newInsurancePos);

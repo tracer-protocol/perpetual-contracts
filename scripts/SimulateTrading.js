@@ -1,5 +1,27 @@
 const tracerAbi = require("../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
 const hre = require("hardhat")
+const fs = require("fs")
+
+/**
+ * Helper function to record deployed contract addresses in a json
+ * */
+const writeOutFiles = (factoryAddress, traderAddress) => {
+    console.log("Writing out contract addresses")
+    const data = {
+        factory: factoryAddress,
+        trader: traderAddress,
+    }
+    fs.writeFile(
+        "./contract-addresses.json",
+        JSON.stringify(data),
+        "utf8",
+        (err) => {
+            if (err) {
+                console.error("Error", err)
+            }
+        }
+    )
+}
 
 // small sample script for using deploys and then deploying a trace
 async function main() {
@@ -21,6 +43,9 @@ async function main() {
         traderDeployment.abi,
         traderDeployment.address
     )
+    const factoryDeployment = await deployments.get("TracerPerpetualsFactory")
+
+    writeOutFiles(factoryDeployment.address, traderDeployment.address)
 
     // approve for deployer
     console.log(`Approving tokens for the deployer: ${deployer.address}`)

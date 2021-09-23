@@ -1,12 +1,13 @@
 {
     "name": "@tracer-protocol/contracts",
-    "version": "0.2.7",
+    "version": "0.2.13",
     "description": "Tracer Protocol",
     "main": "truffle-config.js",
     "directories": {
         "test": "test"
     },
     "dependencies": {
+        "@float-capital/solidity-coverage": "^0.7.17",
         "@eth-optimism/smock": "0.0.0-20215180366",
         "@nomiclabs/hardhat-ethers": "^2.0.2",
         "@nomiclabs/hardhat-etherscan": "^2.1.2",
@@ -27,7 +28,6 @@
         "prettier": "^2.3.1",
         "prettier-plugin-solidity": "^1.0.0-beta.13",
         "solhint": "^3.3.2",
-        "solidity-coverage": "^0.7.16",
         "solidity-linked-list": "^5.0.0",
         "truffle-contract-size": "^2.0.0"
     },

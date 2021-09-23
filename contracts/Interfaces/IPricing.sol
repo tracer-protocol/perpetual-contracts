@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "../lib/LibPrices.sol";
 
@@ -10,7 +10,7 @@ interface IPricing {
 
     function getInsuranceFundingRate(uint256 index) external view returns (Prices.FundingRateInstant memory);
 
-    function currentFundingIndex() external view returns (uint256);
+    function lastUpdatedFundingIndex() external view returns (uint256);
 
     function fairPrice() external view returns (uint256);
 

@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "./Interfaces/ITracerPerpetualSwaps.sol";
 import "./Interfaces/IInsurance.sol";
-import "./Interfaces/ITracerPerpetualsFactory.sol";
 import "./InsurancePoolToken.sol";
 import "./lib/LibMath.sol";
 import {Balances} from "./lib/LibBalances.sol";
 import "./lib/LibInsurance.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "prb-math/contracts/PRBMathSD59x18.sol";
 import "prb-math/contracts/PRBMathUD60x18.sol";
 import "solidity-linked-list/contracts/StructuredLinkedList.sol";
 
@@ -18,7 +16,8 @@ contract Insurance is IInsurance {
     using LibMath for int256;
     using StructuredLinkedList for StructuredLinkedList.List;
 
-    address public immutable collateralAsset; // Address of collateral asset
+    address public immutable collateralAsset; // address of collateral asset
+    uint256 public immutable collateralAssetDecimals; // decimals used by collateral asset
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public immutable token; // token representation of a users holding in the pool
@@ -28,8 +27,8 @@ contract Insurance is IInsurance {
     // The insurance pool funding rate calculation can be refactored to have 0.00000570775
     // as the constant in front; see getPoolFundingRate for the formula
     // (182.648 / 8) * (5 ** 2) * (1 / (10_000 ** 2)) = 0.00000570775
-    // 0.00000570775 as a WAD = 570775 * (10 ** 7)
-    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 570775 * (10**7);
+    // 0.00000570775 as a WAD = 5.70775e12
+    uint256 private constant INSURANCE_FUNDING_RATE_FACTOR = 5.70775e12;
 
     // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
     uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
@@ -77,6 +76,7 @@ contract Insurance is IInsurance {
         InsurancePoolToken _token = new InsurancePoolToken("Tracer Pool Token", "TPT");
         token = address(_token);
         collateralAsset = tracer.tracerQuoteToken();
+        collateralAssetDecimals = tracer.quoteTokenDecimals();
         // Start with 1, so you can set 0 as null equivalent
         delayedWithdrawalCounter = 1;
     }
@@ -256,12 +256,11 @@ contract Insurance is IInsurance {
         IERC20 collateralToken = IERC20(collateralAsset);
 
         // convert token amount to WAD
-        uint256 quoteTokenDecimals = tracer.quoteTokenDecimals();
-        uint256 rawTokenAmount = Balances.wadToToken(quoteTokenDecimals, amount);
+        uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, amount);
         require(collateralToken.transferFrom(msg.sender, address(this), rawTokenAmount), "INS: Transfer failed");
 
         // amount in wad format after being converted from token format
-        uint256 wadAmount = uint256(Balances.tokenToWad(quoteTokenDecimals, rawTokenAmount));
+        uint256 wadAmount = uint256(Balances.tokenToWad(collateralAssetDecimals, rawTokenAmount));
 
         // Update pool balances and user
         updatePoolAmount();
@@ -320,7 +319,7 @@ contract Insurance is IInsurance {
         wadTokensToSend -= fee;
 
         // convert token amount to raw amount from WAD
-        uint256 rawTokenAmount = Balances.wadToToken(tracer.quoteTokenDecimals(), wadTokensToSend);
+        uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, wadTokensToSend);
 
         // pool amount is always in WAD format
         publicCollateralAmount = publicCollateralAmount - wadTokensToSend - fee;
@@ -360,13 +359,13 @@ contract Insurance is IInsurance {
     }
 
     /**
-     * @notice Deposits some of the insurance pool's amount into the tracer contract
+     * @notice Deposits some of the insurance pool's amount into the liquidation contract
      * @dev If amount is greater than the insurance pool's balance, deposit total balance.
      *      This was done because in such an emergency situation, we want to recover as much as possible
      * @param amount The desired amount to take from the insurance pool
      */
     function drainPool(uint256 amount) external override onlyLiquidation {
-        IERC20 tracerMarginToken = IERC20(tracer.tracerQuoteToken());
+        IERC20 tracerMarginToken = IERC20(collateralAsset);
 
         uint256 poolHoldings = getPoolHoldings();
 
@@ -403,7 +402,8 @@ contract Insurance is IInsurance {
             bufferCollateralAmount = bufferCollateralAmount - amount;
         }
 
-        tracerMarginToken.approve(address(tracer), amount);
+        uint256 rawTokenAmount = Balances.wadToToken(collateralAssetDecimals, amount);
+        tracerMarginToken.approve(address(tracer), rawTokenAmount);
         tracer.deposit(amount);
     }
 

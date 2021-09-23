@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 
 import "../lib/LibPerpetuals.sol";
 
@@ -42,7 +42,7 @@ contract PerpetualsMock {
         uint256 aFilled,
         Perpetuals.Order calldata b,
         uint256 bFilled
-    ) external view returns (bool) {
+    ) external view returns (Perpetuals.OrderMatchingResult) {
         return Perpetuals.canMatch(a, aFilled, b, bFilled);
     }
 }
