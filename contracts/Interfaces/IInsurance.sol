@@ -26,7 +26,7 @@ interface IInsurance {
 
     function scanDelayedWithdrawals(uint256 scanAmount) external;
 
-    function removeIfExpired(uint256 id) external returns (bool removed);
+    function removeIfExpiredOrExecuted(uint256 id) external returns (bool removed);
 
     function removeHeadIfExpiredOrExecuted() external returns (bool removed);
 

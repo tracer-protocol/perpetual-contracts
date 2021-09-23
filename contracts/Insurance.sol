@@ -133,7 +133,7 @@ contract Insurance is IInsurance {
         uint256 balance = getPoolUserBalance(msg.sender);
         uint256 id = accountsDelayedWithdrawal[msg.sender];
         require(id != 0, "INS: No withdrawal pending");
-        require(!removeIfExpired(id), "INS: Withdrawal expired");
+        require(!removeIfExpiredOrExecuted(id), "INS: Withdrawal expired/executed");
 
         // It has not expired and has not yet been executed
         LibInsurance.DelayedWithdrawal memory withdrawal = delayedWithdrawalAccess[id];
@@ -200,7 +200,7 @@ contract Insurance is IInsurance {
      * @notice If a given ID corresponds to a pending delayed withdrawal which has expired, delete it
      * @param id the ID to check and delete
      */
-    function removeIfExpired(uint256 id) public override returns (bool removed) {
+    function removeIfExpiredOrExecuted(uint256 id) public override returns (bool removed) {
         (bool exists, , ) = list.getNode(id);
         if (
             (delayedWithdrawalAccess[id].executed == true ||
@@ -225,7 +225,7 @@ contract Insurance is IInsurance {
             return false;
         }
         require(list.pushFront(id), "INS: List op failed");
-        return removeIfExpired(id);
+        return removeIfExpiredOrExecuted(id);
     }
 
     /**
