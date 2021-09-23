@@ -72,7 +72,9 @@ describe("Unit tests: Insurance.sol", function () {
                 )
 
                 const fundingPaymentsHeld = ethers.utils.parseEther("2")
-                await tracer.setAccountQuote(
+
+                await quoteToken.approve(tracer.address, fundingPaymentsHeld)
+                await tracer.depositToAccount(
                     insurance.address,
                     fundingPaymentsHeld
                 )
@@ -103,7 +105,8 @@ describe("Unit tests: Insurance.sol", function () {
                 )
 
                 const fundingPaymentsHeld = ethers.utils.parseEther("1")
-                await tracer.setAccountQuote(
+                await quoteToken.approve(tracer.address, fundingPaymentsHeld)
+                await tracer.depositToAccount(
                     insurance.address,
                     fundingPaymentsHeld
                 )
@@ -123,7 +126,8 @@ describe("Unit tests: Insurance.sol", function () {
         context("when there are no funds to pull", async () => {
             it("does nothing", async () => {
                 const fundingPaymentsHeld = ethers.utils.parseEther("0")
-                await tracer.setAccountQuote(
+                await quoteToken.approve(tracer.address, fundingPaymentsHeld)
+                await tracer.depositToAccount(
                     insurance.address,
                     fundingPaymentsHeld
                 )

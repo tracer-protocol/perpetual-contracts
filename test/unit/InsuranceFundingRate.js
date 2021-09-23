@@ -14,19 +14,19 @@ const setupTests = deployments.createFixture(async () => {
     tracer = await getMockTracer()
 
     return {
-        quoteToken: await getQuoteToken(tracer),
         tracer: tracer,
+        quoteToken: await getQuoteToken(tracer),
         insurance: await getInsurance(tracer),
     }
 })
 
 describe("Unit tests: Insurance.sol", function () {
-    let quoteToken
     let tracer
+    let quoteToken
     let insurance
 
     beforeEach(async function () {
-        ;({ quoteToken, tracer, insurance } = await setupTests())
+        ;({ tracer, quoteToken, insurance } = await setupTests())
     })
 
     describe("getPoolFundingRate", async () => {
