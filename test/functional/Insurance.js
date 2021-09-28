@@ -23,6 +23,10 @@ const setupTests = deployments.createFixture(async () => {
     insurance = await getInsurance(tracer)
     poolToken = await getPoolToken(insurance)
 
+    // set liquidation contract to accounts[4]
+    accounts = await ethers.getSigners()
+    tracer.setLiquidationContract(accounts[4].address)
+
     return {
         insurance: insurance,
         poolToken: poolToken,
@@ -31,16 +35,75 @@ const setupTests = deployments.createFixture(async () => {
 })
 
 describe("Insurance functional tests", async () => {
-    let accounts
+    let accounts, liquidation
 
     before(async function () {
         accounts = await ethers.getSigners()
+        liquidation = accounts[4]
     })
 
     context("getPoolHoldingsWithPending", async () => {
+        context("When pending < holding", async () => {
+            it("returns holdings less pending withdrawals", async () => {
+                let { quoteToken, insurance } = await setupTests()
+                insurance = insurance.connect(accounts[0])
+                await quoteToken
+                    .connect(accounts[0])
+                    .approve(
+                        insurance.address,
+                        ethers.utils.parseEther("99999999")
+                    )
+
+                await insurance.deposit(ethers.utils.parseEther("100"))
+
+                await insurance.commitToDelayedWithdrawal(
+                    ethers.utils.parseEther("55"),
+                    "0"
+                )
+
+                await insurance.scanDelayedWithdrawals(
+                    ethers.utils.parseEther("55")
+                )
+
+                const poolHoldings = await insurance.getPoolHoldings()
+                const poolWithdrawals =
+                    await insurance.totalPendingCollateralWithdrawals()
+
+                const expectedHoldings = poolHoldings.sub(poolWithdrawals)
+
+                expect(await insurance.getPoolHoldingsWithPending()).to.equal(
+                    expectedHoldings
+                )
+            })
+        })
+
         context("When pending > holding", async () => {
-            it("Reverts ", async () => {
-                const contracts = await setupTests()
+            it("returns 0 ", async () => {
+                let { quoteToken, insurance } = await setupTests()
+                insurance = insurance.connect(accounts[0])
+                await quoteToken
+                    .connect(accounts[0])
+                    .approve(
+                        insurance.address,
+                        ethers.utils.parseEther("99999999")
+                    )
+
+                await insurance.deposit(ethers.utils.parseEther("100"))
+
+                await insurance.commitToDelayedWithdrawal(
+                    ethers.utils.parseEther("100"),
+                    "0"
+                )
+
+                await insurance.scanDelayedWithdrawals(
+                    ethers.utils.parseEther("100")
+                )
+
+                await insurance
+                    .connect(liquidation)
+                    .drainPool(ethers.utils.parseEther("50"))
+
+                expect(await insurance.getPoolHoldingsWithPending()).to.equal(0)
             })
         })
     })
