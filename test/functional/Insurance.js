@@ -1,6 +1,5 @@
 const { expect } = require("chai")
-const { ethers, getNamedAccounts, deployments } = require("hardhat")
-const { smockit, smoddit } = require("@eth-optimism/smock")
+const { ethers, deployments } = require("hardhat")
 const { BigNumber } = require("ethers")
 const {
     getInsurance,
@@ -16,10 +15,10 @@ const setupTests = deployments.createFixture(async () => {
     poolToken = await getPoolToken(insurance)
 
     return {
-        token: await getQuoteToken(tracer),
         tracer: tracer,
         insurance: insurance,
         poolToken: poolToken,
+        quoteToken: await getQuoteToken(tracer),
     }
 })
 
@@ -30,10 +29,6 @@ const forwardTime = async (seconds) => {
 
 describe("Insurance functional tests", async () => {
     let accounts
-    let tracerPerps
-    let liquidation
-    let trader
-    let libPerpetuals
     const oneDay = 24 * 60 * 60
     const sixDays = 6 * oneDay
     const fifteenDays = 15 * 24 * 60 * 60
@@ -52,7 +47,7 @@ describe("Insurance functional tests", async () => {
         context("When balance < amount", async () => {
             it("Reverts ", async () => {
                 const contracts = await setupTests()
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         contracts.insurance.address,
@@ -74,7 +69,7 @@ describe("Insurance functional tests", async () => {
             it("Deletes old one ", async () => {
                 const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         contracts.insurance.address,
@@ -103,7 +98,7 @@ describe("Insurance functional tests", async () => {
             it("Pays fees, updates pending amount", async () => {
                 const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         insurance.address,
@@ -155,13 +150,13 @@ describe("Insurance functional tests", async () => {
             it("Calculates fee based on pending amount from first commit", async () => {
                 const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         insurance.address,
                         ethers.utils.parseEther("99999999")
                     )
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[1])
                     .approve(
                         insurance.address,
@@ -234,13 +229,13 @@ describe("Insurance functional tests", async () => {
             it("Deletes old one, pays fees, updates pending amount", async () => {
                 const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         insurance.address,
                         ethers.utils.parseEther("99999999")
                     )
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[1])
                     .approve(
                         insurance.address,
@@ -314,13 +309,13 @@ describe("Insurance functional tests", async () => {
             it("Deletes old one, pays fees, updates pending amount", async () => {
                 const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         insurance.address,
                         ethers.utils.parseEther("99999999")
                     )
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[1])
                     .approve(
                         insurance.address,
@@ -383,7 +378,7 @@ describe("Insurance functional tests", async () => {
         context("When delay has not passed", async () => {
             it("Reverts ", async () => {
                 const contracts = await setupTests()
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         contracts.insurance.address,
@@ -426,7 +421,7 @@ describe("Insurance functional tests", async () => {
         context("When Expired", async () => {
             it("Reverts", async () => {
                 const contracts = await setupTests()
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         contracts.insurance.address,
@@ -458,7 +453,7 @@ describe("Insurance functional tests", async () => {
         context("When executed", async () => {
             it("Reverts", async () => {
                 const contracts = await setupTests()
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(
                         contracts.insurance.address,
@@ -494,7 +489,7 @@ describe("Insurance functional tests", async () => {
             async () => {
                 it("delayed withdrawal should not exist", async () => {
                     const contracts = await setupTests()
-                    await contracts.token
+                    await contracts.quoteToken
                         .connect(accounts[0])
                         .approve(
                             contracts.insurance.address,
@@ -532,7 +527,7 @@ describe("Insurance functional tests", async () => {
                 it("Operates as normal", async () => {
                     const contracts = await setupTests()
                     const insurance = contracts.insurance.connect(accounts[0])
-                    await contracts.token
+                    await contracts.quoteToken
                         .connect(accounts[0])
                         .approve(
                             contracts.insurance.address,
@@ -552,7 +547,7 @@ describe("Insurance functional tests", async () => {
                     const expectedFee = ethers.utils.parseEther("20")
 
                     await forwardTime(sixDays)
-                    const balanceBefore = await contracts.token
+                    const balanceBefore = await contracts.quoteToken
                         .connect(accounts[0])
                         .balanceOf(accounts[0].address)
 
@@ -569,7 +564,7 @@ describe("Insurance functional tests", async () => {
                     )
                     const bufferCollatAfter =
                         await insurance.bufferCollateralAmount()
-                    const balanceAfter = await contracts.token
+                    const balanceAfter = await contracts.quoteToken
                         .connect(accounts[0])
                         .balanceOf(accounts[0].address)
 
@@ -600,7 +595,7 @@ describe("Insurance functional tests", async () => {
                 const insurance = contracts.insurance.connect(accounts[0])
                 const depositAmount = ethers.utils.parseEther("50")
                 const withdrawAmount = ethers.utils.parseEther("10")
-                await contracts.token
+                await contracts.quoteToken
                     .connect(accounts[0])
                     .approve(insurance.address, depositAmount)
                 await insurance.deposit(depositAmount)
@@ -608,7 +603,7 @@ describe("Insurance functional tests", async () => {
 
                 const bufferCollatBefore =
                     await insurance.bufferCollateralAmount()
-                const balanceBefore = await contracts.token
+                const balanceBefore = await contracts.quoteToken
                     .connect(accounts[0])
                     .balanceOf(accounts[0].address)
 
@@ -619,7 +614,7 @@ describe("Insurance functional tests", async () => {
                     accounts[0].address
                 )
 
-                // wadTokensToSend = (10 - initial delayed fee) / 10 * 10
+                // wadquoteTokensToSend = (10 - initial delayed fee) / 10 * 10
                 //                 = (10 - 0.24197530864) / 10 * 10 = 9.758024691358024690
                 // target is 180, pool holdings will drop to (50 - 9.758024691358024690) = 40.241975309, meaning pool will be 40.24/180 = ~22.2222%
                 // Fee = (1-(Fund % of target after withdrawal))^2 * collateralWithdrawalAmount
@@ -636,7 +631,7 @@ describe("Insurance functional tests", async () => {
                 )
                 const pending =
                     await insurance.totalPendingCollateralWithdrawals()
-                const balanceAfter = await contracts.token
+                const balanceAfter = await contracts.quoteToken
                     .connect(accounts[0])
                     .balanceOf(accounts[0].address)
 
@@ -664,25 +659,25 @@ describe("Insurance functional tests", async () => {
         it("Operates as normal", async () => {
             const contracts = await setupTests()
             const insurance = contracts.insurance.connect(accounts[0])
-            await contracts.token
+            await contracts.quoteToken
                 .connect(accounts[0])
                 .approve(
                     contracts.insurance.address,
                     ethers.utils.parseEther("99999999")
                 )
-            await contracts.token
+            await contracts.quoteToken
                 .connect(accounts[1])
                 .approve(
                     contracts.insurance.address,
                     ethers.utils.parseEther("99999999")
                 )
-            await contracts.token
+            await contracts.quoteToken
                 .connect(accounts[2])
                 .approve(
                     contracts.insurance.address,
                     ethers.utils.parseEther("99999999")
                 )
-            await contracts.token
+            await contracts.quoteToken
                 .connect(accounts[3])
                 .approve(
                     contracts.insurance.address,
@@ -733,18 +728,18 @@ describe("Insurance functional tests", async () => {
             await insurance
                 .connect(accounts[3])
                 .deposit(ethers.utils.parseEther("100"))
-            const account3PoolTokenBalanceAfterDeposit =
+            const account3poolTokenBalanceAfterDeposit =
                 await contracts.poolToken
                     .connect(accounts[3])
                     .balanceOf(accounts[3].address)
             await insurance
                 .connect(accounts[3])
                 .commitToDelayedWithdrawal(
-                    account3PoolTokenBalanceAfterDeposit,
+                    account3poolTokenBalanceAfterDeposit,
                     "0"
                 )
 
-            // token withdraw amount = 346.707... / 351.33.... * 101.33... = 99.99....
+            // quoteToken withdraw amount = 346.707... / 351.33.... * 101.33... = 99.99....
             // fee = 0.2 * (1 - (374.60 - 96.05 - 99.9999) / 180)^2 * 98.68 = ~0.001292
             const fourthFee = ethers.utils.parseEther("0.001292028855139660")
 
@@ -759,18 +754,18 @@ describe("Insurance functional tests", async () => {
                     .sub(fourthFee)
             )
 
-            const acc1BalBefore = await contracts.token
+            const acc1BalBefore = await contracts.quoteToken
                 .connect(accounts[1])
                 .balanceOf(accounts[1].address)
-            const acc3BalBefore = await contracts.token
+            const acc3BalBefore = await contracts.quoteToken
                 .connect(accounts[1])
                 .balanceOf(accounts[3].address)
             // At this stage, accounts[3] and accounts[1] have pending withdrawals
             // Execute both withdrawals
-            // collat amount = publicCollateralAmount / pool token supply * 100
+            // collat amount = publicCollateralAmount / pool quoteToken supply * 100
             let poolTokenTotalSupply = await insurance.getPoolTokenTotalSupply()
             let publicCollatAmount = await insurance.publicCollateralAmount()
-            // 351.33... is the pool token total supply
+            // 351.33... is the pool quoteToken total supply
             const expectedBalanceDifference1 = publicCollatAmount
                 .mul(ethers.utils.parseEther("100"))
                 .div(poolTokenTotalSupply)
@@ -780,9 +775,9 @@ describe("Insurance functional tests", async () => {
 
             poolTokenTotalSupply = await insurance.getPoolTokenTotalSupply()
             publicCollatAmount = await insurance.publicCollateralAmount()
-            // 351.33... is the pool token total supply
+            // 351.33... is the pool quoteToken total supply
             const expectedBalanceDifference2 = publicCollatAmount
-                .mul(account3PoolTokenBalanceAfterDeposit)
+                .mul(account3poolTokenBalanceAfterDeposit)
                 .div(poolTokenTotalSupply)
             await insurance.connect(accounts[3]).executeDelayedWithdrawal("0")
 
@@ -790,16 +785,16 @@ describe("Insurance functional tests", async () => {
             const pending = await insurance.totalPendingCollateralWithdrawals()
             // All delayed withdrawals are done, pending should be 0
             expect(pending).to.equal("0")
-            const acc1BalAfter = await contracts.token
+            const acc1BalAfter = await contracts.quoteToken
                 .connect(accounts[1])
                 .balanceOf(accounts[1].address)
-            const acc3BalAfter = await contracts.token
+            const acc3BalAfter = await contracts.quoteToken
                 .connect(accounts[1])
                 .balanceOf(accounts[3].address)
 
             await insurance.withdraw(ethers.utils.parseEther("100"))
             // public collat =
-            // pool token =
+            // pool quoteToken =
             await insurance
                 .connect(accounts[2])
                 .withdraw(ethers.utils.parseEther("50"))
