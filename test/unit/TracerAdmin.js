@@ -162,7 +162,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
     describe("setLiquidationContract", async () => {
         context("when called by the owner", async () => {
             it("sets a new liquidation contract address", async () => {
-                tracer.setLiquidationContract(deployer)
+                await tracer.setLiquidationContract(deployer)
 
                 expect(await tracer.liquidationContract()).to.equal(deployer)
             })
@@ -177,7 +177,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
                 // Call setLiquidationContract by someone who isn't an owner -- used insurance contract as an example
-                expect(
+                await expect(
                     tracer.connect(accounts[1]).setLiquidationContract(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
@@ -187,7 +187,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
     describe("setInsuranceContract", async () => {
         context("when called by the owner", async () => {
             it("sets a new insurance contract address", async () => {
-                tracer.setInsuranceContract(deployer)
+                await tracer.setInsuranceContract(deployer)
 
                 expect(await tracer.insuranceContract()).to.equal(deployer)
             })
@@ -201,7 +201,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
 
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
-                expect(
+                await expect(
                     tracer.connect(accounts[1]).setLiquidationContract(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
@@ -211,7 +211,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
     describe("setPricingContract", async () => {
         context("when called by the owner", async () => {
             it("sets a new pricing contract address", async () => {
-                tracer.setPricingContract(deployer)
+                await tracer.setPricingContract(deployer)
 
                 expect(await tracer.pricingContract()).to.equal(deployer)
             })
@@ -225,7 +225,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
 
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
-                expect(
+                await expect(
                     tracer.connect(accounts[1]).setPricingContract(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
@@ -235,7 +235,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
     describe("setGasOracle", async () => {
         context("when called by the owner", async () => {
             it("sets a new gas oracle contract address", async () => {
-                tracer.setGasOracle(deployer)
+                await tracer.setGasOracle(deployer)
 
                 expect(await tracer.gasPriceOracle()).to.equal(deployer)
             })
@@ -249,7 +249,7 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
 
         context("when called by someone who isn't the owner", async () => {
             it("reverts", async () => {
-                expect(
+                await expect(
                     tracer.connect(accounts[1]).setGasOracle(deployer)
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
@@ -259,21 +259,21 @@ describe("Unit tests: TracerPerpetualSwaps.sol Admin", function () {
     describe("setFeeReceiver", async () => {
         context("when called by the owner", async () => {
             it("sets a new fee receiver contract address", async () => {
-                tracer.setFeeReceiver(insurance.address)
+                await tracer.setFeeReceiver(insurance.address)
 
                 expect(await tracer.feeReceiver()).to.equal(insurance.address)
             })
 
             context("when called by someone who isn't the owner", async () => {
                 it("reverts", async () => {
-                    expect(
+                    await expect(
                         tracer.connect(accounts[1]).setFeeReceiver(deployer)
                     ).to.be.revertedWith("Ownable: caller is not the owner")
                 })
             })
 
             it("emits an event", async () => {
-                expect(tracer.setFeeReceiver(insurance.address))
+                await expect(tracer.setFeeReceiver(insurance.address))
                     .to.emit(tracer, "FeeReceiverUpdated")
                     .withArgs(insurance.address)
             })
