@@ -1,66 +1,32 @@
-const perpsAbi = require("../../abi/contracts/TracerPerpetualSwaps.sol/TracerPerpetualSwaps.json")
-const poolTokenAbi = require("../../abi/contracts/InsurancePoolToken.sol/InsurancePoolToken.json")
-const insuranceAbi = require("../../abi/contracts/Insurance.sol/Insurance.json")
 const { expect } = require("chai")
 const { ethers, getNamedAccounts, deployments } = require("hardhat")
 const { smockit, smoddit } = require("@eth-optimism/smock")
 const { BigNumber } = require("ethers")
+const {
+    getInsurance,
+    getMockTracer,
+    getQuoteToken,
+    getPoolToken,
+} = require("../util/DeploymentUtil")
 
-const setup = async () => {
-    await deployments.fixture("LeveragedPosition")
-    const { deployer } = await getNamedAccounts()
-    accounts = await ethers.getSigners()
+const setupTests = deployments.createFixture(async () => {
+    await deployments.fixture(["GetIntoLiquidatablePosition"])
+    tracer = await getMockTracer()
+    insurance = await getInsurance(tracer)
+    poolToken = await getPoolToken(insurance)
 
-    let perpsAddress = await deployments.read(
-        "TracerPerpetualsFactory",
-        "tracersByIndex",
-        0
-    )
-    let tracerPerpsInstance = new ethers.Contract(
-        perpsAddress,
-        perpsAbi,
-        ethers.provider
-    )
-    tracerPerpsInstance = await tracerPerpsInstance.connect(deployer)
-
-    let insuranceInstance = new ethers.Contract(
-        await tracerPerpsInstance.insuranceContract(),
-        insuranceAbi,
-        ethers.provider
-    )
-    insuranceInstance = await insuranceInstance.connect(accounts[0])
-
-    const tokenDeployment = await deployments.get("QuoteToken")
-    let token = await ethers.getContractAt(
-        tokenDeployment.abi,
-        tokenDeployment.address
-    )
-
-    const poolToken = await ethers.getContractAt(
-        poolTokenAbi,
-        await insuranceInstance.token()
-    )
-
-    // liquidationInstance.connect(deployer)
-    const contracts = {
-        tracerPerps: tracerPerpsInstance,
-        token: token,
-        insurance: insuranceInstance,
+    return {
+        token: await getQuoteToken(tracer),
+        tracer: tracer,
+        insurance: insurance,
         poolToken: poolToken,
     }
-
-    return contracts
-}
+})
 
 const forwardTime = async (seconds) => {
     await network.provider.send("evm_increaseTime", [seconds])
     await network.provider.send("evm_mine", [])
 }
-
-const setupInsuranceTest = deployments.createFixture(async () => {
-    const contracts = await setup()
-    return contracts
-})
 
 describe("Insurance functional tests", async () => {
     let accounts
@@ -77,7 +43,7 @@ describe("Insurance functional tests", async () => {
     context("getPoolHoldingsWithPending", async () => {
         context("When pending > holding", async () => {
             it("Reverts ", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
             })
         })
     })
@@ -85,7 +51,7 @@ describe("Insurance functional tests", async () => {
     context("commitToDelayedWithdrawal", async () => {
         context("When balance < amount", async () => {
             it("Reverts ", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 await contracts.token
                     .connect(accounts[0])
                     .approve(
@@ -106,7 +72,7 @@ describe("Insurance functional tests", async () => {
         })
         context("When a withdrawal is already pending", async () => {
             it("Deletes old one ", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
                 await contracts.token
                     .connect(accounts[0])
@@ -135,7 +101,7 @@ describe("Insurance functional tests", async () => {
 
         context("Committing to valid delayed withdrawal", async () => {
             it("Pays fees, updates pending amount", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
                 await contracts.token
                     .connect(accounts[0])
@@ -187,7 +153,7 @@ describe("Insurance functional tests", async () => {
 
         context("Committing after another commit has been made", async () => {
             it("Calculates fee based on pending amount from first commit", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
                 await contracts.token
                     .connect(accounts[0])
@@ -266,7 +232,7 @@ describe("Insurance functional tests", async () => {
 
         context("Committing after another has expired", async () => {
             it("Deletes old one, pays fees, updates pending amount", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
                 await contracts.token
                     .connect(accounts[0])
@@ -346,7 +312,7 @@ describe("Insurance functional tests", async () => {
 
         context("Committing after another has been executed", async () => {
             it("Deletes old one, pays fees, updates pending amount", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
                 await contracts.token
                     .connect(accounts[0])
@@ -416,7 +382,7 @@ describe("Insurance functional tests", async () => {
     context("executeDelayedWithdrawal", async () => {
         context("When delay has not passed", async () => {
             it("Reverts ", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 await contracts.token
                     .connect(accounts[0])
                     .approve(
@@ -445,7 +411,7 @@ describe("Insurance functional tests", async () => {
 
         context("When not comitted", async () => {
             it("Reverts ", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
 
                 const tx = contracts.insurance
                     .connect(accounts[0])
@@ -459,7 +425,7 @@ describe("Insurance functional tests", async () => {
 
         context("When Expired", async () => {
             it("Reverts", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 await contracts.token
                     .connect(accounts[0])
                     .approve(
@@ -491,7 +457,7 @@ describe("Insurance functional tests", async () => {
 
         context("When executed", async () => {
             it("Reverts", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 await contracts.token
                     .connect(accounts[0])
                     .approve(
@@ -527,7 +493,7 @@ describe("Insurance functional tests", async () => {
             "When you commit, instant withdraw, then try to execute delayed withdrawal",
             async () => {
                 it("delayed withdrawal should not exist", async () => {
-                    const contracts = await setupInsuranceTest()
+                    const contracts = await setupTests()
                     await contracts.token
                         .connect(accounts[0])
                         .approve(
@@ -564,7 +530,7 @@ describe("Insurance functional tests", async () => {
             "When you commit, wait, then execute delayed withdrawal",
             async () => {
                 it("Operates as normal", async () => {
-                    const contracts = await setupInsuranceTest()
+                    const contracts = await setupTests()
                     const insurance = contracts.insurance.connect(accounts[0])
                     await contracts.token
                         .connect(accounts[0])
@@ -630,7 +596,7 @@ describe("Insurance functional tests", async () => {
     context("withdraw", async () => {
         context("When delay is pending", async () => {
             it("Deletes delayed withdrawal", async () => {
-                const contracts = await setupInsuranceTest()
+                const contracts = await setupTests()
                 const insurance = contracts.insurance.connect(accounts[0])
                 const depositAmount = ethers.utils.parseEther("50")
                 const withdrawAmount = ethers.utils.parseEther("10")
@@ -696,7 +662,7 @@ describe("Insurance functional tests", async () => {
 
     context("e2e", async () => {
         it("Operates as normal", async () => {
-            const contracts = await setupInsuranceTest()
+            const contracts = await setupTests()
             const insurance = contracts.insurance.connect(accounts[0])
             await contracts.token
                 .connect(accounts[0])

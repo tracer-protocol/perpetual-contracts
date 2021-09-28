@@ -8,6 +8,7 @@ const liquidationAbi = require("../../abi/contracts/Liquidation.sol/Liquidation.
 const tokenAbi = require("../../abi/contracts/TestToken.sol/TestToken.json")
 const gasOracleAbi = require("../../abi/contracts/oracle/GasOracle.sol/GasOracle.json")
 const oracleAbi = require("../../abi/contracts/oracle/ChainlinkOracle.sol/ChainlinkOracle.json")
+const poolTokenAbi = require("../../abi/contracts/InsurancePoolToken.sol/InsurancePoolToken.json")
 
 const getTracer = async () => {
     const factoryDeployment = await deployments.get("TracerPerpetualsFactory")
@@ -77,6 +78,10 @@ const getGasEthOracle = async () => {
     return await ethers.getContractAt(oracleAbi, gasEthOracle.address)
 }
 
+const getPoolToken = async (insurance) => {
+    return await ethers.getContractAt(poolTokenAbi, await insurance.token())
+}
+
 module.exports = {
     getTracer,
     getMockTracer,
@@ -89,4 +94,5 @@ module.exports = {
     getGasOracle,
     getPriceOracle,
     getGasEthOracle,
+    getPoolToken,
 }
