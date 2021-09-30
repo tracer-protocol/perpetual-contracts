@@ -30,7 +30,7 @@ contract Pricing is IPricing {
 
     // variables used to track time value
     int256 public override timeValue;
-    int256[90] public dailyDifferences;
+    int256[90] internal dailyDifferences;
     uint256 internal lastUpdatedDay;
 
     // the last established funding index
