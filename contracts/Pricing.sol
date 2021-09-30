@@ -30,7 +30,7 @@ contract Pricing is IPricing {
 
     // variables used to track time value
     int256 public override timeValue;
-    int256[90] internal dailyDifferences;
+    int256[90] public dailyDifferences;
     uint256 internal lastUpdatedDay;
 
     // the last established funding index
@@ -92,7 +92,8 @@ contract Pricing is IPricing {
             // Get the last recorded hourly price, returns max integer if no trades occurred
             uint256 hourlyTracerPrice = getHourlyAvgTracerPrice(currentHour);
 
-            // Emit the hourly average and udpate funding rate if trades occurred
+            // First time record trade is called, don't update funding rate since no previous trades
+            // hourly tracer price is max integer in this case
             if (hourlyTracerPrice != type(uint256).max) {
                 // Emit the old hourly average
                 emit HourlyPriceUpdated(hourlyTracerPrice, currentHour);
@@ -233,8 +234,8 @@ contract Pricing is IPricing {
      */
     function updateTimeValue(uint256 elapsedDays) internal {
         (uint256 avgPrice, uint256 oracleAvgPrice) = get24HourPrices();
-        // get 24 hours returns max integer if no trades occurred
-        // don't update in this case
+        // first time updateTimeValue is called, don't update time value
+        // there are no previous trades so avg price is max int
         if (avgPrice == type(uint256).max) {
             return;
         }
