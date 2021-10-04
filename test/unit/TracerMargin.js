@@ -22,6 +22,46 @@ const setupTests = deployments.createFixture(async () => {
     }
 })
 
+const getIntoLeveragedPosition = async (
+    tracer,
+    trader,
+    quoteToken,
+    oracle,
+    gasEthOracle,
+    accounts
+) => {
+    // sets leveraged value of accounts[0] to 15
+    // initial balance: quote: 5, base: 0
+    await depositQuoteTokens(
+        tracer,
+        quoteToken,
+        [accounts[0], accounts[1]],
+        ethers.utils.parseEther("5")
+    )
+
+    const markPrice = 2 * 10 ** 8
+    await oracle.setPrice(markPrice)
+    await gasEthOracle.setPrice(markPrice)
+
+    orderPrice = ethers.utils.parseEther("2")
+    orderAmount = ethers.utils.parseEther("10")
+
+    await executeTrade(
+        tracer,
+        trader,
+        orderPrice,
+        orderAmount,
+        accounts[0].address,
+        accounts[1].address
+    )
+    // balance after trade: quote: -15, base: 10
+    // leveraged value of accounts[0]: 15
+    const priorBalance = await tracer.balances(accounts[0].address)
+    expect(priorBalance.totalLeveragedValue).to.equal(
+        ethers.utils.parseEther("15")
+    )
+}
+
 describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
     let tracer, trader, quoteToken, gasEthOracle, oracle
     let accounts
@@ -34,15 +74,6 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
 
     describe("deposit", async () => {
         context("when the user has set allowance", async () => {
-            beforeEach(async () => {
-                await depositQuoteTokens(
-                    tracer,
-                    quoteToken,
-                    [accounts[0]],
-                    ethers.utils.parseEther("5")
-                )
-            })
-
             it("updates their quote", async () => {
                 const balance = await tracer.balances(accounts[0].address)
                 await expect(balance.position.quote).to.equal(
@@ -51,36 +82,16 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
             })
 
             it("updates their leverage", async () => {
-                // open leveraged position
-                // initial balance: quote: 5, base: 0
-                const markPrice = 2 * 10 ** 8
-                await oracle.setPrice(markPrice)
-                await gasEthOracle.setPrice(markPrice)
-
-                orderPrice = ethers.utils.parseEther("2")
-                orderAmount = ethers.utils.parseEther("10")
-                await depositQuoteTokens(
-                    tracer,
-                    quoteToken,
-                    [accounts[1]],
-                    ethers.utils.parseEther("5")
-                )
-                await executeTrade(
+                await getIntoLeveragedPosition(
                     tracer,
                     trader,
-                    orderPrice,
-                    orderAmount,
-                    accounts[0].address,
-                    accounts[1].address
-                )
-                // balance after trade: quote: -15, base: 10
-                // leveraged value: 15
-                const priorBalance = await tracer.balances(accounts[0].address)
-                expect(priorBalance.totalLeveragedValue).to.equal(
-                    ethers.utils.parseEther("15")
+                    quoteToken,
+                    oracle,
+                    gasEthOracle,
+                    accounts
                 )
 
-                // deposit 5 more quote tokens
+                // deposit 5 quote tokens
                 await depositQuoteTokens(
                     tracer,
                     quoteToken,
@@ -180,33 +191,13 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
             })
 
             it("updates their leverage", async () => {
-                // open leveraged position
-                // initial balance: quote: 5, base: 0
-                const markPrice = 2 * 10 ** 8
-                await oracle.setPrice(markPrice)
-                await gasEthOracle.setPrice(markPrice)
-
-                orderPrice = ethers.utils.parseEther("2")
-                orderAmount = ethers.utils.parseEther("10")
-                await depositQuoteTokens(
-                    tracer,
-                    quoteToken,
-                    [accounts[1]],
-                    ethers.utils.parseEther("5")
-                )
-                await executeTrade(
+                await getIntoLeveragedPosition(
                     tracer,
                     trader,
-                    orderPrice,
-                    orderAmount,
-                    accounts[0].address,
-                    accounts[1].address
-                )
-                // balance after trade: quote: -15, base: 10
-                // leveraged value: 15
-                const priorBalance = await tracer.balances(accounts[0].address)
-                expect(priorBalance.totalLeveragedValue).to.equal(
-                    ethers.utils.parseEther("15")
+                    quoteToken,
+                    oracle,
+                    gasEthOracle,
+                    accounts
                 )
 
                 // withdraw 1 quote token
