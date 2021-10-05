@@ -478,12 +478,15 @@ contract TracerPerpetualSwaps is ITracerPerpetualSwaps, Ownable {
         int256 amountToTakeFromInsurance
     ) external override onlyLiquidation {
         address insuranceAddr = address(insuranceContract);
+        require(
+            balances[insuranceAddr].position.quote - amountToTakeFromInsurance >= 0,
+            "TCR: Insurance not funded enough"
+        );
         balances[insuranceAddr].position.quote = balances[insuranceAddr].position.quote - amountToTakeFromInsurance;
         balances[claimant].position.quote = balances[claimant].position.quote + amountToGiveToClaimant;
         balances[liquidatee].position.quote = balances[liquidatee].position.quote + amountToGiveToLiquidatee;
         _updateAccountLeverage(claimant);
         _updateAccountLeverage(liquidatee);
-        require(balances[insuranceAddr].position.quote >= 0, "TCR: Insurance not funded enough");
     }
 
     /**
