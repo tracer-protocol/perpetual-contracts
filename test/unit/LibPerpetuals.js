@@ -233,6 +233,7 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 expect(result).to.equal(defaultMaxLeverage)
             })
         })
+
         context(
             "With deleveragingCliff == insurancePoolSwitchStage && percentFull < deleveragingCliff",
             async () => {
@@ -296,6 +297,30 @@ describe("Unit tests: LibPerpetuals.sol", function () {
                 await expect(result).to.equal(lowestMaxLeverage)
             })
         })
+
+        context(
+            "When deleveragingCliff == insurancePoolSwitchStage",
+            async () => {
+                it("Equals lowestMaxLeverage", async () => {
+                    const collateralAmount = ethers.utils.parseEther("10")
+                    const poolTarget = ethers.utils.parseEther("20")
+                    const defaultMaxLeverage = ethers.utils.parseEther("12.5")
+                    const lowestMaxLeverage = ethers.utils.parseEther("2")
+                    const deleveragingCliff = ethers.utils.parseEther("10")
+                    const insurancePoolSwitchStage =
+                        ethers.utils.parseEther("10")
+                    let result = await libPerpetuals.calculateTrueMaxLeverage(
+                        collateralAmount,
+                        poolTarget,
+                        defaultMaxLeverage,
+                        lowestMaxLeverage,
+                        deleveragingCliff,
+                        insurancePoolSwitchStage
+                    )
+                    await expect(result).to.equal(lowestMaxLeverage)
+                })
+            }
+        )
 
         context(
             "When poolAmount below insurancePoolSwitchStage% of target",
