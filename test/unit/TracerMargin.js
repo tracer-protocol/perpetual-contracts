@@ -75,6 +75,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
     describe("deposit", async () => {
         context("when the user has set allowance", async () => {
             it("updates their quote", async () => {
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[0]],
+                    ethers.utils.parseEther("5")
+                )
                 const balance = await tracer.balances(accounts[0].address)
                 await expect(balance.position.quote).to.equal(
                     ethers.utils.parseEther("5")
@@ -106,6 +112,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
             })
 
             it("updates the total TVL", async () => {
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[0]],
+                    ethers.utils.parseEther("5")
+                )
                 let tvl = await tracer.tvl()
                 expect(tvl).to.equal(ethers.utils.parseEther("5"))
             })
@@ -165,24 +177,33 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
     })
 
     describe("withdraw", async () => {
-        beforeEach(async () => {
-            await depositQuoteTokens(
-                tracer,
-                quoteToken,
-                [accounts[0]],
-                ethers.utils.parseEther("5")
-            )
-        })
         context("when the user is withdrawing to below margin", async () => {
             it("reverts", async () => {
+                await getIntoLeveragedPosition(
+                    tracer,
+                    trader,
+                    quoteToken,
+                    oracle,
+                    gasEthOracle,
+                    accounts
+                )
+
+                // leveraged value is 15, withdraw 15 to set margin to 0
+                // min margin is ~ 1.6 so will be under margin
                 await expect(
-                    tracer.withdraw(ethers.utils.parseEther("6"))
+                    tracer.withdraw(ethers.utils.parseEther("15"))
                 ).to.be.revertedWith("TCR: Withdraw below valid Margin")
             })
         })
 
         context("when the user is making a valid withdraw", async () => {
             it("updates their quote", async () => {
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[0]],
+                    ethers.utils.parseEther("5")
+                )
                 await tracer.withdraw(ethers.utils.parseEther("1"))
                 let balance = await tracer.balances(accounts[0].address)
                 expect(balance.position.quote).to.equal(
@@ -210,12 +231,24 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
             })
 
             it("updates the total TVL", async () => {
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[0]],
+                    ethers.utils.parseEther("5")
+                )
                 await tracer.withdraw(ethers.utils.parseEther("1"))
                 let tvl = await tracer.tvl()
                 expect(tvl).to.equal(ethers.utils.parseEther("4"))
             })
 
             it("emits an event", async () => {
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[0]],
+                    ethers.utils.parseEther("5")
+                )
                 await expect(tracer.withdraw(ethers.utils.parseEther("1")))
                     .to.emit(tracer, "Withdraw")
                     .withArgs(accounts[0].address, "1000000000000000000")
@@ -224,6 +257,12 @@ describe("Unit tests: TracerPerpetualSwaps.sol Margins", function () {
 
         context("when the token amount is a WAD value", async () => {
             it("returns the correct amount of tokens", async () => {
+                await depositQuoteTokens(
+                    tracer,
+                    quoteToken,
+                    [accounts[0]],
+                    ethers.utils.parseEther("5")
+                )
                 let tokenBalanceBefore = await quoteToken.balanceOf(
                     accounts[0].address
                 )
