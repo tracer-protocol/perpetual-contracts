@@ -86,7 +86,8 @@ library Perpetuals {
         uint256 deleveragingCliff,
         uint256 insurancePoolSwitchStage
     ) internal pure returns (uint256) {
-        if (deleveragingCliff == insurancePoolSwitchStage || poolTarget == 0) {
+        require(insurancePoolSwitchStage < deleveragingCliff, "Switch >= delevCliff");
+        if (poolTarget == 0) {
             return lowestMaxLeverage;
         }
 
