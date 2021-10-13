@@ -274,6 +274,36 @@ describe("Unit tests: Pricing", function () {
             expect(tx).to.equal(expectedTimeValue)
         })
 
+        it("correctly updates when it is called for the first time and more than 24 hours has passed", async () => {
+            const { tracer, trader, pricing, oracle, quoteToken } =
+                await setupTests()
+
+            await depositQuoteTokens(
+                tracer,
+                quoteToken,
+                [long, short],
+                ethers.utils.parseEther("100")
+            )
+
+            // state 1
+            // day: 3
+            // daily average price difference: -2 (10-12)
+            // timeValue: 0
+            await forwardTime(3 * 24 * 3600)
+            await oracle.setPrice(12 * 10 ** 8)
+            await executeTrade(
+                tracer,
+                trader,
+                ethers.utils.parseEther("10"),
+                ethers.utils.parseEther("2"),
+                long.address,
+                short.address
+            )
+            let expectedTimeValue = 0
+            let tx = await pricing.timeValue()
+            expect(tx).to.equal(expectedTimeValue)
+        })
+
         it("returns only the last 90 days of averages", async () => {
             const { tracer, trader, pricing, oracle, quoteToken } =
                 await setupTests()
@@ -333,7 +363,6 @@ describe("Unit tests: Pricing", function () {
                 short.address
             )
             expectedTimeValue = ethers.utils.parseEther("-0.011111111111111111")
-
             tx = await pricing.timeValue()
             expect(tx).to.equal(expectedTimeValue)
         })
