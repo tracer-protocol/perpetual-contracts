@@ -25,11 +25,8 @@ jobs:
             - name: Install dependencies
               run: yarn install
 
-            - name: Run unit tests
-              run: yarn run test:unit
-
-            - name: Run functional tests
-              run: yarn run test:functional
+            - name: Run tests
+              run: yarn run test
 
     lint:
         name: Run lints
