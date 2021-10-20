@@ -86,9 +86,11 @@ library Perpetuals {
         uint256 deleveragingCliff,
         uint256 insurancePoolSwitchStage
     ) internal pure returns (uint256) {
+        require(insurancePoolSwitchStage < deleveragingCliff, "Switch >= delevCliff");
         if (poolTarget == 0) {
             return lowestMaxLeverage;
         }
+
         uint256 percentFull = PRBMathUD60x18.div(collateralAmount, poolTarget);
         percentFull = percentFull * PERCENT_MULTIPLIER; // To bring it up to the same percentage units as everything else
 
@@ -97,10 +99,6 @@ library Perpetuals {
         }
 
         if (percentFull <= insurancePoolSwitchStage) {
-            return lowestMaxLeverage;
-        }
-
-        if (deleveragingCliff == insurancePoolSwitchStage) {
             return lowestMaxLeverage;
         }
 

@@ -480,6 +480,74 @@ describe("Unit tests: LibPrices.sol", function () {
                 }
             })
         })
+
+        context("when there are periods with no trades", async () => {
+            it("ignores periods with no trades", async () => {
+                let tracerPrices = new Array()
+                let oraclePrices = new Array()
+
+                // generate 24 hour oracle and tracer prices
+                for (i = 0; i < 24; i++) {
+                    oraclePrices.push([0, 0])
+                    tracerPrices.push([0, 0])
+                }
+
+                // set hour 8 to be 1
+                tracerPrices[7] = [
+                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("1"),
+                ]
+                oraclePrices[7] = [
+                    ethers.utils.parseEther("1"),
+                    ethers.utils.parseEther("1"),
+                ]
+                // set hour 6 to be 3
+                tracerPrices[5] = [
+                    ethers.utils.parseEther("3"),
+                    ethers.utils.parseEther("1"),
+                ]
+                oraclePrices[5] = [
+                    ethers.utils.parseEther("3"),
+                    ethers.utils.parseEther("1"),
+                ]
+
+                // get TWAP at hour 8
+                // expected TWAP = (8 * 1 + 6 * 3) / 14 = 1.857142857142857142
+                const expectedTWAP = ethers.utils.parseEther(
+                    "1.857142857142857142"
+                )
+                let result = await libPrices.calculateTWAP(
+                    7,
+                    tracerPrices,
+                    oraclePrices
+                )
+                expect(result[0]).to.equal(expectedTWAP)
+                expect(result[1]).to.equal(expectedTWAP)
+            })
+        })
+
+        context("when there are no trades in the last 8 hours", async () => {
+            it("returns 0", async () => {
+                let tracerPrices = new Array()
+                let oraclePrices = new Array()
+
+                // generate 24 hour oracle and tracer prices
+                for (i = 0; i < 24; i++) {
+                    oraclePrices.push([0, 0])
+                    tracerPrices.push([0, 0])
+                }
+
+                for (var hour = 0; hour < 24; hour++) {
+                    let result = await libPrices.calculateTWAP(
+                        hour,
+                        tracerPrices,
+                        oraclePrices
+                    )
+                    expect(result[0]).to.equal(0)
+                    expect(result[1]).to.equal(0)
+                }
+            })
+        })
     })
 
     describe("applyFunding", async () => {
