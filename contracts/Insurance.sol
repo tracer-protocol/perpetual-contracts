@@ -90,6 +90,10 @@ contract Insurance is IInsurance {
         emit Cooldown(msg.sender, block.timestamp);
     }
 
+    /**
+     * @notice Resets the cooldown period of a user
+     * @dev User must have called intendToWithdraw first
+     */
     function cancelWithdraw() external {
         require(withdrawCooldown[msg.sender] != 0, "INS: Not withdrawing");
         withdrawCooldown[msg.sender] = 0;
