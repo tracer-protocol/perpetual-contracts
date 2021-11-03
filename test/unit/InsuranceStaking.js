@@ -86,10 +86,8 @@ describe("Unit tests: Insurance.sol", function () {
     describe("intendToWithdraw", async () => {
         context("when user has zero balance", async () => {
             it("reverts", async () => {
-                await expect(
-                    insurance
-                        .intendToWithdraw()
-                        .to.be.revertedWith("INS: Zero balance")
+                await expect(insurance.intendToWithdraw()).to.be.revertedWith(
+                    "INS: Zero balance"
                 )
             })
         })
@@ -101,8 +99,9 @@ describe("Unit tests: Insurance.sol", function () {
                     quoteToken,
                     ethers.utils.parseEther("1")
                 )
-                await expect(
-                    insurance.intendToWithdraw().to.emit(insurance, "Cooldown")
+                await expect(insurance.intendToWithdraw()).to.emit(
+                    insurance,
+                    "Cooldown"
                 )
             })
         })
@@ -111,10 +110,8 @@ describe("Unit tests: Insurance.sol", function () {
     describe("cancelWithdraw", async () => {
         context("when user has not called intendToWithdraw", async () => {
             it("reverts", async () => {
-                await expect(
-                    insurance
-                        .cancelWithdraw()
-                        .to.be.revertedWith("INS: Not withdrawing")
+                await expect(insurance.cancelWithdraw()).to.be.revertedWith(
+                    "INS: Not withdrawing"
                 )
             })
         })
@@ -133,8 +130,8 @@ describe("Unit tests: Insurance.sol", function () {
             })
 
             it("resets the users cooldown", async () => {
-                await expect(
-                    insurance.withdrawCooldown(accounts[0].address)
+                expect(
+                    await insurance.withdrawCooldown(accounts[0].address)
                 ).to.equal(0)
             })
 
@@ -149,11 +146,14 @@ describe("Unit tests: Insurance.sol", function () {
     describe("withdraw", async () => {
         context("when the user has not called intendToWithdraw", async () => {
             it("reverts", async () => {
-                await expect(
-                    insurance
-                        .withdraw(ethers.utils.parseEther("1"))
-                        .to.be.revertedWith("INS: Funds locked")
+                await depositToInsurance(
+                    insurance,
+                    quoteToken,
+                    ethers.utils.parseEther("2")
                 )
+                await expect(
+                    insurance.withdraw(ethers.utils.parseEther("2"))
+                ).to.be.revertedWith("INS: Funds locked")
             })
         })
 
@@ -168,10 +168,8 @@ describe("Unit tests: Insurance.sol", function () {
                     )
                     await insurance.intendToWithdraw()
                     await expect(
-                        insurance
-                            .withdraw(ethers.utils.parseEther("1"))
-                            .to.be.revertedWith("INS: Funds locked")
-                    )
+                        insurance.withdraw(ethers.utils.parseEther("1"))
+                    ).to.be.revertedWith("INS: Funds locked")
                 })
             }
         )
@@ -192,7 +190,7 @@ describe("Unit tests: Insurance.sol", function () {
                             await forwardTime(withdrawCooldown)
                             await expect(
                                 insurance.withdraw(ethers.utils.parseEther("5"))
-                            ).to.be.revertedWith("INS: balance < amount")
+                            ).to.be.revertedWith("INS: Balance < amount")
                         })
                     }
                 )
@@ -210,7 +208,7 @@ describe("Unit tests: Insurance.sol", function () {
                         await insurance.intendToWithdraw()
                         await forwardTime(withdrawCooldown)
                         // get user to burn some pool tokens
-                        amount = ethers.utils.paresEther("1")
+                        amount = ethers.utils.parseEther("1")
                         tx = await insurance.withdraw(amount)
                     })
 
@@ -253,8 +251,8 @@ describe("Unit tests: Insurance.sol", function () {
                     await insurance.intendToWithdraw()
                     await forwardTime(withdrawCooldown + withdrawWindow)
                     await expect(
-                        insurance.withdraw(ethers.utils.parseEther("5"))
-                    ).to.be.revertedWith("INS: balance < amount")
+                        insurance.withdraw(ethers.utils.parseEther("2"))
+                    ).to.be.revertedWith("INS: Funds locked")
                 })
             }
         )

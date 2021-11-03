@@ -19,7 +19,6 @@ contract Insurance is IInsurance {
     uint256 public override publicCollateralAmount; // amount of underlying collateral in public pool, in WAD format
     uint256 public override bufferCollateralAmount; // amount of collateral in buffer pool, in WAD format
     address public immutable token; // token representation of a users holding in the pool
-
     uint256 private constant ONE_TOKEN = 1e18; // Constant for 10**18, i.e. one token in WAD format; used for drainPool
 
     // The insurance pool funding rate calculation can be refactored to have 0.00000570775
@@ -31,10 +30,16 @@ contract Insurance is IInsurance {
     // Target percent of leveraged notional value in the market for the insurance pool to meet; 1% by default
     uint256 private constant INSURANCE_POOL_TARGET_PERCENT = 1e16;
 
+    uint256 public constant COOLDOWN_PERIOD = 5 days; // Cooldown period that users must wait for after notifying their intent to withdraw
+    uint256 public constant WITHDRAW_WINDOW = 2 days; // Window of time users have to withdraw funds after the cooldown period passes
+
     ITracerPerpetualSwaps public tracer; // Tracer associated with Insurance Pool
+
+    mapping(address => uint256) public withdrawCooldown; // The timestamp of when stakers have notified their intent to withdraw
 
     event InsuranceDeposit(address indexed market, address indexed user, uint256 indexed amount);
     event InsuranceWithdraw(address indexed market, address indexed user, uint256 indexed amount);
+    event Cooldown(address indexed user, uint256 cooldown);
 
     constructor(address _tracer) {
         require(_tracer != address(0), "INS: _tracer = address(0)");
@@ -74,6 +79,24 @@ contract Insurance is IInsurance {
     }
 
     /**
+     * @notice Activates the cooldown period to allow for withdrawals.
+     * @dev Can only be called if the caller holds some pool tokens
+     * @dev Emits a `Cooldown` event
+     */
+    function intendToWithdraw() external {
+        uint256 balance = getPoolUserBalance(msg.sender);
+        require(balance > 0, "INS: Zero balance");
+        withdrawCooldown[msg.sender] = block.timestamp;
+        emit Cooldown(msg.sender, block.timestamp);
+    }
+
+    function cancelWithdraw() external {
+        require(withdrawCooldown[msg.sender] != 0, "INS: Not withdrawing");
+        withdrawCooldown[msg.sender] = 0;
+        emit Cooldown(msg.sender, 0);
+    }
+
+    /**
      * @notice Allows a user to withdraw their assets from a given insurance pool
      * @dev burns amount of tokens from the pool token
      * @param amount the amount of pool tokens to burn. Provided in WAD format
@@ -81,7 +104,13 @@ contract Insurance is IInsurance {
     function withdraw(uint256 amount) external override {
         updatePoolAmount();
         uint256 balance = getPoolUserBalance(msg.sender);
-        require(balance >= amount, "INS: balance < amount");
+        require(balance >= amount, "INS: Balance < amount");
+        // Ensure withdraw window is reached and not passed
+        require(
+            block.timestamp >= (withdrawCooldown[msg.sender] + COOLDOWN_PERIOD) &&
+                block.timestamp < (withdrawCooldown[msg.sender] + COOLDOWN_PERIOD + WITHDRAW_WINDOW),
+            "INS: Funds locked"
+        );
 
         IERC20 collateralToken = IERC20(collateralAsset);
         InsurancePoolToken poolToken = InsurancePoolToken(token);
