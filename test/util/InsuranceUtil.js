@@ -56,8 +56,14 @@ const setAndDrainCollaterals = async (
     await insurance.drainPool(amountToDrain)
 }
 
+const depositToInsurance = async (insurance, quoteToken, amount) => {
+    await quoteToken.approve(insurance.address, amount)
+    await insurance.deposit(amount)
+}
+
 module.exports = {
     expectCollaterals,
     setCollaterals,
     setAndDrainCollaterals,
+    depositToInsurance,
 }
